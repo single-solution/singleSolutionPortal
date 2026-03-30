@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { buttonHover, slideUpItem, staggerContainer, fadeInItem } from "@/lib/motion";
+import { slideUpItem, staggerContainer, fadeInItem } from "@/lib/motion";
 import { useSession } from "next-auth/react";
 
 interface Profile {
@@ -249,7 +249,7 @@ export default function SettingsPage() {
             <AnimatePresence>
               {profileMsg && <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-sm font-medium" style={{ color: "var(--green)" }}>{profileMsg}</motion.p>}
             </AnimatePresence>
-            <motion.button type="submit" disabled={profileSaving} whileHover={buttonHover} whileTap={{ scale: 0.97 }} className="w-full btn btn-primary disabled:opacity-50">
+            <motion.button type="submit" disabled={profileSaving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full btn btn-primary disabled:opacity-50">
               {profileSaving ? "Saving..." : "Save profile"}
             </motion.button>
           </form>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
               </AnimatePresence>
             </div>
 
-            <motion.button type="submit" disabled={saving} whileHover={buttonHover} whileTap={{ scale: 0.97 }} className="w-full btn btn-primary disabled:opacity-50 mt-5">
+            <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full btn btn-primary disabled:opacity-50 mt-5">
               {saving ? "Saving..." : "Save changes"}
             </motion.button>
           </form>
@@ -363,7 +363,7 @@ export default function SettingsPage() {
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
                 <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "40px" }} />
               </div>
-              <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={handleTestEmail} disabled={sendingTestEmail} className="w-full btn btn-primary disabled:opacity-50">
+              <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleTestEmail} disabled={sendingTestEmail} className="w-full btn btn-primary disabled:opacity-50">
                 {sendingTestEmail ? "Sending..." : "Send Test Email"}
               </motion.button>
             </div>
@@ -440,7 +440,7 @@ function SystemSettingsSection() {
         <AnimatePresence>
           {sysMsg && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm font-medium" style={{ color: "var(--green)" }}>{sysMsg}</motion.p>}
         </AnimatePresence>
-        <motion.button type="button" className="w-full btn btn-primary" whileHover={buttonHover} whileTap={{ scale: 0.97 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
+        <motion.button type="button" className="w-full btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
       </div>
     </motion.div>
   );
@@ -497,8 +497,8 @@ function SystemSettingsDetailSection() {
           {sysMsg && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-3 text-sm font-medium" style={{ color: "var(--green)" }}>{sysMsg}</motion.p>}
         </AnimatePresence>
         <div className="flex justify-end gap-3 mt-4">
-          <motion.button type="button" className="btn btn-secondary" whileHover={buttonHover} onClick={() => setSettings(DEFAULTS)}>Reset</motion.button>
-          <motion.button type="button" className="btn btn-primary" whileHover={buttonHover} whileTap={{ scale: 0.97 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
+          <motion.button type="button" className="btn btn-secondary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setSettings(DEFAULTS)}>Reset</motion.button>
+          <motion.button type="button" className="btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
         </div>
       </motion.section>
     </div>

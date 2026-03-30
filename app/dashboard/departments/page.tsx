@@ -39,6 +39,7 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("most");
+  const [search, setSearch] = useState("");
 
   // Inline add
   const [newTitle, setNewTitle] = useState("");
@@ -70,11 +71,15 @@ export default function DepartmentsPage() {
   const totalEmployees = useMemo(() => departments.reduce((s, d) => s + (d.employeeCount || 0), 0), [departments]);
 
   const sorted = useMemo(() => {
-    const list = [...departments];
+    let list = [...departments];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((d) => d.title.toLowerCase().includes(q) || (d.manager ? `${d.manager.about.firstName} ${d.manager.about.lastName}`.toLowerCase().includes(q) : false));
+    }
     if (sortMode === "name") list.sort((a, b) => a.title.localeCompare(b.title));
     else list.sort((a, b) => b.employeeCount - a.employeeCount);
     return list;
-  }, [departments, sortMode]);
+  }, [departments, sortMode, search]);
 
   async function handleQuickAdd() {
     if (!newTitle.trim()) return;
@@ -186,20 +191,31 @@ export default function DepartmentsPage() {
         </div>
       </motion.div>
 
-      {/* Inline Add Row */}
+      {/* Search + Add row */}
       <motion.div
         className="card-static p-4 mb-4 flex gap-3 items-center"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.1 }}
       >
+        <div className="relative flex-1">
+          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search departments..."
+            className="input flex-1"
+            style={{ paddingLeft: "40px" }}
+          />
+        </div>
         <input
           type="text"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
-          placeholder="New department name..."
-          className="input flex-1"
+          placeholder="New department..."
+          className="input w-40 sm:w-48 shrink-0"
         />
         <motion.button
           type="button"
@@ -209,7 +225,7 @@ export default function DepartmentsPage() {
           whileTap={{ scale: 0.98 }}
           className="btn btn-primary btn-sm shrink-0"
         >
-          {addingSaving ? "Adding..." : "Add Department"}
+          {addingSaving ? "Adding..." : "Add"}
         </motion.button>
       </motion.div>
 
