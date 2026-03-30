@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { StatusToggle } from "../components/DataTable";
-import SidebarModal from "../components/SidebarModal";
-import { buttonHover } from "@/lib/motion";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 interface Employee {
   _id: string;
@@ -38,13 +37,22 @@ export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [managers, setManagers] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [editing, setEditing] = useState<Department | null>(null);
   const [saving, setSaving] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("most");
+
+  // Inline add
   const [newTitle, setNewTitle] = useState("");
   const [addingSaving, setAddingSaving] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", managerId: "" });
+
+  // Inline edit
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editManagerId, setEditManagerId] = useState("");
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const [deptRes, empRes] = await Promise.all([
@@ -83,33 +91,41 @@ export default function DepartmentsPage() {
     setAddingSaving(false);
   }
 
-  function openEdit(dept: Department) {
-    setEditing(dept);
-    setForm({
-      title: dept.title,
-      description: dept.description ?? "",
-      managerId: dept.manager?._id ?? "",
-    });
-    setSidebarOpen(true);
+  function startEdit(dept: Department) {
+    setEditingId(dept._id);
+    setEditTitle(dept.title);
+    setEditDescription(dept.description ?? "");
+    setEditManagerId(dept.manager?._id ?? "");
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(dept: Department) {
+    if (!editTitle.trim()) return;
     setSaving(true);
     try {
-      if (editing) {
-        await fetch(`/api/departments/${editing._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      }
-      setSidebarOpen(false);
+      await fetch(`/api/departments/${dept._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle.trim(), description: editDescription, managerId: editManagerId }),
+      });
+      setEditingId(null);
       await load();
     } catch { /* ignore */ }
     setSaving(false);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Deactivate this department?")) return;
-    await fetch(`/api/departments/${id}`, { method: "DELETE" });
-    await load();
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/departments/${deleteTarget._id}`, { method: "DELETE" });
+      setDeleteTarget(null);
+      await load();
+    } catch { /* ignore */ }
+    setDeleting(false);
   }
 
   async function toggleActive(dept: Department) {
@@ -138,7 +154,7 @@ export default function DepartmentsPage() {
 
   return (
     <div className="flex flex-col gap-0">
-      {/* ── Header ── */}
+      {/* Header */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
         initial={{ opacity: 0, y: -10 }}
@@ -170,7 +186,7 @@ export default function DepartmentsPage() {
         </div>
       </motion.div>
 
-      {/* ── Inline Add Row ── */}
+      {/* Inline Add Row */}
       <motion.div
         className="card-static p-4 mb-4 flex gap-3 items-center"
         initial={{ opacity: 0, y: 10 }}
@@ -197,7 +213,7 @@ export default function DepartmentsPage() {
         </motion.button>
       </motion.div>
 
-      {/* ── Department Card Grid ── */}
+      {/* Department Card Grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {sorted.length === 0 ? (
@@ -207,6 +223,8 @@ export default function DepartmentsPage() {
           ) : sorted.map((dept, i) => {
             const pct = totalEmployees > 0 ? Math.round((dept.employeeCount / totalEmployees) * 100) : 0;
             const grad = DEPT_GRADIENTS[i % DEPT_GRADIENTS.length];
+            const isEditing = editingId === dept._id;
+
             return (
               <motion.div
                 key={dept._id}
@@ -218,45 +236,112 @@ export default function DepartmentsPage() {
               >
                 <div className="card group relative overflow-hidden">
                   <div className="p-3 sm:p-4">
-                    {/* Header: avatar + name */}
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
                         {dept.title.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{dept.title}</p>
-                        <p className="text-caption truncate mt-0.5">
-                          {dept.manager ? `${dept.manager.about.firstName} ${dept.manager.about.lastName}` : "No manager"}
-                        </p>
+                        {isEditing ? (
+                          <input
+                            autoFocus
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveEdit(dept);
+                              if (e.key === "Escape") cancelEdit();
+                            }}
+                            disabled={saving}
+                            className="input text-sm py-1 w-full"
+                          />
+                        ) : (
+                          <>
+                            <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{dept.title}</p>
+                            <p className="text-caption truncate mt-0.5">
+                              {dept.manager ? `${dept.manager.about.firstName} ${dept.manager.about.lastName}` : "No manager"}
+                            </p>
+                          </>
+                        )}
                       </div>
                       {/* Hover actions */}
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(dept)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--primary)" }} title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                        </motion.button>
-                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(dept._id)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--rose)" }} title="Delete">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                        </motion.button>
-                      </div>
+                      {!isEditing && (
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => startEdit(dept)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--primary)" }} title="Edit">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          </motion.button>
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(dept)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--rose)" }} title="Delete">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                          </motion.button>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Count + % + progress */}
-                    <div className="mt-3">
-                      <div className="flex items-baseline justify-between mb-1.5">
-                        <span className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>{dept.employeeCount} employee{dept.employeeCount !== 1 ? "s" : ""}</span>
-                        <span className="text-[12px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{pct}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                    {/* Inline edit fields for description + manager */}
+                    <AnimatePresence>
+                      {isEditing && (
                         <motion.div
-                          className={`h-full rounded-full bg-gradient-to-r ${grad}`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.8, delay: 0.2 + i * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                        />
-                      </div>
-                    </div>
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 space-y-2.5 overflow-hidden"
+                        >
+                          <textarea
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            placeholder="Description (optional)"
+                            rows={2}
+                            className="input text-sm w-full"
+                          />
+                          <select
+                            value={editManagerId}
+                            onChange={(e) => setEditManagerId(e.target.value)}
+                            className="input text-sm w-full"
+                          >
+                            <option value="">No manager</option>
+                            {managers.map((m) => <option key={m._id} value={m._id}>{m.about.firstName} {m.about.lastName}</option>)}
+                          </select>
+                          <div className="flex gap-2">
+                            <motion.button
+                              type="button"
+                              onClick={() => saveEdit(dept)}
+                              disabled={saving || !editTitle.trim()}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="btn btn-primary btn-sm flex-1"
+                            >
+                              {saving ? "Saving..." : "Save"}
+                            </motion.button>
+                            <button
+                              type="button"
+                              onClick={cancelEdit}
+                              className="btn btn-secondary btn-sm flex-1"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
-                    {dept.description && (
+                    {/* Count + % + progress (only when not editing) */}
+                    {!isEditing && (
+                      <div className="mt-3">
+                        <div className="flex items-baseline justify-between mb-1.5">
+                          <span className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>{dept.employeeCount} employee{dept.employeeCount !== 1 ? "s" : ""}</span>
+                          <span className="text-[12px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{pct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                          <motion.div
+                            className={`h-full rounded-full bg-gradient-to-r ${grad}`}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.8, delay: 0.2 + i * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {!isEditing && dept.description && (
                       <p className="mt-2.5 text-caption line-clamp-2">{dept.description}</p>
                     )}
                   </div>
@@ -275,34 +360,17 @@ export default function DepartmentsPage() {
         </AnimatePresence>
       </div>
 
-      {/* ── Sidebar Modal for Edit ── */}
-      <SidebarModal
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        title="Edit Department"
-        subtitle={editing?.title ?? ""}
-      >
-        <form id="dept-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Department Name</label>
-            <input className="input" placeholder="e.g. Marketing" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Description</label>
-            <textarea className="input" rows={3} placeholder="Brief description..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Assign Manager</label>
-            <select className="input" value={form.managerId} onChange={(e) => setForm({ ...form, managerId: e.target.value })}>
-              <option value="">Select a manager</option>
-              {managers.map((m) => <option key={m._id} value={m._id}>{m.about.firstName} {m.about.lastName}</option>)}
-            </select>
-          </div>
-          <motion.button type="submit" disabled={saving} className="btn btn-primary w-full" whileHover={buttonHover} whileTap={{ scale: 0.97 }}>
-            {saving ? "Saving..." : "Update Department"}
-          </motion.button>
-        </form>
-      </SidebarModal>
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Department"
+        description={`Delete "${deleteTarget?.title}"? This won't affect employees already in this department.`}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

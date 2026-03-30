@@ -40,13 +40,22 @@ Automatic employee presence and attendance tracking system. Detects when employe
 
 ### Employee Management
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages team)
+- Full-page create/edit forms (`/employees/new`, `/employees/[id]/edit`) with sectioned cards
+- ConfirmDialog for all destructive actions (deactivate single + bulk)
 - Profile image upload (base64, max 2MB)
 - Shift configuration (type, hours, working days, break time, grace period)
 - Business Developer fields (jobID, platform, proposalStatus, clientCountry, etc.)
 - Welcome email sent on account creation with temporary password
 
+### Department Management
+- Inline add (top bar input + button) and inline edit (click card to expand edit fields)
+- ConfirmDialog for delete confirmation
+- Card grid with gradient avatars, employee count progress bars, manager display
+
 ### Task Management
 - Priority-based task assignment with deadline tracking
+- Centered glass modal for create/edit (no page navigation required)
+- ConfirmDialog for delete confirmation
 - Role-scoped: SuperAdmin sees all, Manager sees team, others see own
 - Status validation (pending, in-progress, completed, cancelled)
 - Assignees can only update task status; admins can reassign
@@ -140,14 +149,18 @@ app/
     DashboardHome.tsx    # SuperAdmin/Manager overview with presence cards
     DashboardShell.tsx   # Header, sidebar, dock, theme, notifications, PWA
     SessionTracker.tsx   # Auto check-in/out, GPS, idle, live timer bar
-    employees/page.tsx   # Employee CRUD with real presence status
-    departments/page.tsx # Department management with manager assignment
-    tasks/page.tsx       # Task board with priority & status
+    employees/
+      page.tsx           # Employee list with presence, filters, bulk actions
+      EmployeeForm.tsx   # Shared full-page create/edit form
+      new/page.tsx       # Create employee route
+      [id]/edit/page.tsx # Edit employee route
+    departments/page.tsx # Department management (inline add/edit, card grid)
+    tasks/page.tsx       # Task board (centered modal create/edit)
+    components/
+      ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
+      DataTable.tsx      # Sortable, searchable, paginated table
     attendance/page.tsx  # Personal attendance view
     settings/page.tsx    # Profile, security, system settings, email testing
-    components/
-      DataTable.tsx      # Sortable, searchable, paginated table
-      SidebarModal.tsx   # Slide-in form modal
       ProcessingOverlay.tsx  # Loading overlay
   api/
     auth/[...nextauth]/  # NextAuth route handler

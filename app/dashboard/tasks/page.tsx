@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import SidebarModal from "../components/SidebarModal";
-import { buttonHover } from "@/lib/motion";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useSession } from "next-auth/react";
 
 interface Task {
@@ -64,10 +63,16 @@ export default function TasksPage() {
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Centered modal for create/edit
+  const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", priority: "medium", status: "pending", assignedTo: "", deadline: "" });
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager";
 
@@ -112,7 +117,7 @@ export default function TasksPage() {
   function openCreate() {
     setEditing(null);
     setForm({ title: "", description: "", priority: "medium", status: "pending", assignedTo: "", deadline: "" });
-    setSidebarOpen(true);
+    setModalOpen(true);
   }
 
   function openEdit(task: Task) {
@@ -125,7 +130,7 @@ export default function TasksPage() {
       assignedTo: task.assignedTo?._id ?? "",
       deadline: task.deadline ? new Date(task.deadline).toISOString().split("T")[0] : "",
     });
-    setSidebarOpen(true);
+    setModalOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -138,16 +143,21 @@ export default function TasksPage() {
       } else {
         await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       }
-      setSidebarOpen(false);
+      setModalOpen(false);
       await load();
     } catch { /* ignore */ }
     setSaving(false);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this task?")) return;
-    await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-    await load();
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/tasks/${deleteTarget._id}`, { method: "DELETE" });
+      setDeleteTarget(null);
+      await load();
+    } catch { /* ignore */ }
+    setDeleting(false);
   }
 
   if (loading) {
@@ -167,7 +177,7 @@ export default function TasksPage() {
 
   return (
     <div className="flex flex-col gap-0">
-      {/* ── Header: title left, sort right ── */}
+      {/* Header: title left, sort right */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
         initial={{ opacity: 0, y: -10 }}
@@ -199,7 +209,7 @@ export default function TasksPage() {
         </div>
       </motion.div>
 
-      {/* ── Search + Create row ── */}
+      {/* Search + Create row */}
       <motion.div
         className="card-static p-4 mb-4 flex gap-3 items-center"
         initial={{ opacity: 0, y: 10 }}
@@ -218,7 +228,7 @@ export default function TasksPage() {
         )}
       </motion.div>
 
-      {/* ── Priority filter ── */}
+      {/* Priority filter */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["all", "low", "medium", "high", "urgent"] as PriorityFilter[]).map((f) => {
@@ -249,7 +259,7 @@ export default function TasksPage() {
         )}
       </div>
 
-      {/* ── Task Card Grid ── */}
+      {/* Task Card Grid */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
@@ -273,7 +283,6 @@ export default function TasksPage() {
                 >
                   <div className="card group relative overflow-hidden flex flex-col">
                     <div className="p-3 sm:p-4 flex-1">
-                      {/* Priority + Status row */}
                       <div className="flex items-center justify-between mb-2">
                         <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
                           {PRIORITY_LABELS[task.priority] ?? task.priority}
@@ -309,11 +318,9 @@ export default function TasksPage() {
                         )}
                       </div>
 
-                      {/* Title + Description */}
                       <p className="font-semibold" style={{ color: "var(--fg)" }}>{task.title}</p>
                       {task.description && <p className="text-caption mt-1 line-clamp-2">{task.description}</p>}
 
-                      {/* Meta */}
                       <div className="mt-3 space-y-1.5 text-[13px]">
                         {assignee?.about && (
                           <div className="flex items-center gap-2">
@@ -334,13 +341,12 @@ export default function TasksPage() {
                       </div>
                     </div>
 
-                    {/* Footer actions (admin only) */}
                     {isAdmin && (
                       <div className="flex items-center justify-end gap-1 px-3 sm:px-4 py-2 border-t opacity-0 group-hover:opacity-100 transition-opacity" style={{ borderColor: "var(--border)" }}>
                         <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(task)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--primary)" }} title="Edit">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                         </motion.button>
-                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(task._id)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--rose)" }} title="Delete">
+                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(task)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--rose)" }} title="Delete">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                         </motion.button>
                       </div>
@@ -353,63 +359,118 @@ export default function TasksPage() {
         </AnimatePresence>
       </div>
 
-      {/* ── Create/Edit Sidebar ── */}
-      <SidebarModal
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        title={editing ? "Edit Task" : "Create Task"}
-        subtitle="Assign a new task to a team member."
-      >
-        <form id="task-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Title</label>
-            <input className="input" placeholder="Task title..." required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Description</label>
-            <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-          {isAdmin && (
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Assign To</label>
-              <select className="input" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
-                <option value="">Select employee</option>
-                {employees.filter((e) => e.userRole !== "superadmin").map((e) => (
-                  <option key={e._id} value={e._id}>{e.about.firstName} {e.about.lastName} — {DESIGNATION_LABELS[e.userRole] ?? e.userRole}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Priority</label>
-              <select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Deadline</label>
-              <input className="input" type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
-            </div>
-          </div>
-          {editing && (
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Status</label>
-              <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="pending">Pending</option>
-                <option value="inProgress">In Progress</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-          )}
-          <motion.button type="submit" disabled={saving} className="btn btn-primary w-full" whileHover={buttonHover} whileTap={{ scale: 0.97 }}>
-            {saving ? "Saving..." : editing ? "Update Task" : "Create Task"}
-          </motion.button>
-        </form>
-      </SidebarModal>
+      {/* Centered Glass Modal for Create/Edit Task */}
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
+            style={{ WebkitBackdropFilter: "saturate(200%) blur(24px)" }}
+            onClick={() => setModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-lg shadow-2xl bg-[var(--glass-bg-heavy)] backdrop-blur-3xl border border-[var(--glass-border)] rounded-3xl overflow-hidden"
+              style={{ WebkitBackdropFilter: "saturate(200%) blur(60px)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--fg)]">{editing ? "Edit Task" : "Create Task"}</h3>
+                  <p className="text-xs text-[var(--fg-secondary)] mt-0.5">
+                    {editing ? "Update task details." : "Assign a new task to a team member."}
+                  </p>
+                </div>
+                <button type="button" onClick={() => setModalOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label>
+                  <input className="input" placeholder="Task title..." required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label>
+                  <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                </div>
+                {isAdmin && (
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To</label>
+                    <select className="input" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
+                      <option value="">Select employee</option>
+                      {employees.filter((e) => e.userRole !== "superadmin").map((e) => (
+                        <option key={e._id} value={e._id}>{e.about.firstName} {e.about.lastName} — {DESIGNATION_LABELS[e.userRole] ?? e.userRole}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Priority</label>
+                    <select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Deadline</label>
+                    <input className="input" type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                  </div>
+                </div>
+                {editing && (
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label>
+                    <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                      <option value="pending">Pending</option>
+                      <option value="inProgress">In Progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Modal Footer */}
+                <div className="flex gap-3 pt-2">
+                  <motion.button
+                    type="submit"
+                    disabled={saving}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="btn btn-primary flex-1"
+                  >
+                    {saving ? "Saving..." : editing ? "Update Task" : "Create Task"}
+                  </motion.button>
+                  <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary flex-1">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Task"
+        description={`Delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
