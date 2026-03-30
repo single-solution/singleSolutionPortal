@@ -296,18 +296,20 @@ export default function EmployeesPage() {
               {(Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).map((k) => {
                 const active = roleFilter === k;
                 return (
-                  <button
+                  <motion.button
                     key={k}
                     type="button"
                     onClick={() => setRoleFilter(k)}
-                    className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-colors ${
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-all ${
                       active
                         ? "bg-[var(--primary)] text-white shadow-sm"
                         : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
                     }`}
                   >
                     {ROLE_FILTER_LABELS[k]}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

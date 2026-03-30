@@ -333,18 +333,20 @@ export default function SettingsPage() {
             <div className="space-y-3">
               <div className="flex items-center gap-0.5 rounded-xl border-[0.5px] p-0.5" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
                 {EMAIL_TYPES.map(([t, label]) => (
-                  <button
+                  <motion.button
                     key={t}
                     type="button"
                     onClick={() => setTestType(t)}
-                    className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-colors ${
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-all ${
                       testType === t
                         ? "bg-[var(--primary)] text-white shadow-sm"
                         : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
                     }`}
                   >
                     {label}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
               <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" />

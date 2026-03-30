@@ -177,18 +177,20 @@ export default function TasksPage() {
           {(["all", "low", "medium", "high", "urgent"] as PriorityFilter[]).map((f) => {
             const active = prioFilter === f;
             return (
-              <button
+              <motion.button
                 key={f}
                 type="button"
                 onClick={() => setPrioFilter(f)}
-                className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-colors ${
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-all ${
                   active
                     ? "bg-[var(--primary)] text-white shadow-sm"
                     : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
                 }`}
               >
                 {f === "all" ? "All" : PRIORITY_LABELS[f]}
-              </button>
+              </motion.button>
             );
           })}
         </div>
@@ -197,11 +199,11 @@ export default function TasksPage() {
       {/* Task cards */}
       <motion.div className="flex flex-col gap-3" variants={staggerContainer} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
-          {filtered.map((task) => {
+          {filtered.map((task, i) => {
             const assignee = task.assignedTo;
             const gi = assignee ? stableHash(assignee._id ?? "") : 0;
             return (
-              <motion.div key={task._id} variants={slideUpItem} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="card-static flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <motion.div key={task._id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }} className="card-static flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
                   <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)" }} />
                   <div className="min-w-0 flex-1">

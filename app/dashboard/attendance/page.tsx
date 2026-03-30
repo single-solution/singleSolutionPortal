@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { slideUpItem, staggerContainer } from "@/lib/motion";
 
 interface DailyRecord {
@@ -167,24 +167,28 @@ export default function AttendancePage() {
           {DAY_NAMES.map((d) => (
             <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
           ))}
-          {Array.from({ length: firstDayOfWeek }, (_, i) => (
-            <div key={`empty-${i}`} />
-          ))}
-          {Array.from({ length: daysInMonth }, (_, i) => {
-            const day = i + 1;
-            const rec = recordMap.get(day);
-            const isToday = isCurrentMonth && day === today.getDate();
-            let dotColor = "transparent";
-            if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
-            else if (rec) dotColor = "var(--rose)";
+          <AnimatePresence mode="wait">
+            <motion.div key={`${year}-${month}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              {Array.from({ length: firstDayOfWeek }, (_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth }, (_, i) => {
+                const day = i + 1;
+                const rec = recordMap.get(day);
+                const isToday = isCurrentMonth && day === today.getDate();
+                let dotColor = "transparent";
+                if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
+                else if (rec) dotColor = "var(--rose)";
 
-            return (
-              <motion.div key={day} className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-colors" style={isToday ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem" } : {}} whileHover={{ scale: 1.05 }}>
-                <span className="text-[13px] font-medium" style={{ color: isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />
-              </motion.div>
-            );
-          })}
+                return (
+                  <motion.div key={day} className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-colors" style={isToday ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem" } : {}} whileHover={{ scale: 1.05 }} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2, delay: Math.min(i * 0.01, 0.3) }}>
+                    <span className="text-[13px] font-medium" style={{ color: isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
@@ -205,8 +209,8 @@ export default function AttendancePage() {
             <h3 className="text-headline text-sm">Recent Records</h3>
           </div>
           <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-            {records.slice(0, 10).map((rec) => (
-              <motion.div key={rec._id} className="flex items-center justify-between px-4 py-3" whileHover={{ x: 3 }}>
+            {records.slice(0, 10).map((rec, i) => (
+              <motion.div key={rec._id} className="flex items-center justify-between px-4 py-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.3) }} whileHover={{ x: 3 }}>
                 <div className="flex items-center gap-3">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }} />
                   <div>

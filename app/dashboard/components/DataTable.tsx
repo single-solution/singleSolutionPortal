@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo, type ReactNode } from "react";
-import { motion } from "framer-motion";
-import { staggerContainer, slideUpItem, listItemHover } from "@/lib/motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { staggerContainer, slideUpItem } from "@/lib/motion";
 
 export interface Column<T> {
   key: string;
@@ -123,15 +123,21 @@ export default function DataTable<T>({
               </tr>
             </thead>
             <motion.tbody variants={staggerContainer} initial="hidden" animate="visible">
+              <AnimatePresence mode="popLayout">
               {paged.length === 0 ? (
-                <tr>
+                <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <td colSpan={columns.length} className="p-8 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No data found</td>
-                </tr>
+                </motion.tr>
               ) : paged.map((row, i) => (
                 <motion.tr
                   key={rowKey ? rowKey(row) : i}
+                  layout
                   variants={slideUpItem}
-                  {...listItemHover}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.2) }}
+                  whileHover={{ x: 3 }}
                   className="border-b transition-colors"
                   style={{ borderColor: "var(--border)" }}
                 >
@@ -142,6 +148,7 @@ export default function DataTable<T>({
                   ))}
                 </motion.tr>
               ))}
+              </AnimatePresence>
             </motion.tbody>
           </table>
         </div>
