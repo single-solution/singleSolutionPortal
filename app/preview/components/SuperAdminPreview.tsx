@@ -645,7 +645,7 @@ export default function SuperAdminPreview() {
   const [innerTab, setInnerTab] = useState<InnerTab>("overview");
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+    <div className="flex flex-col gap-4 py-4 sm:gap-5 sm:py-5">
       <LayoutGroup id="sa-inner-tabs">
         <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
           {INNER_TABS.map((tab) => {

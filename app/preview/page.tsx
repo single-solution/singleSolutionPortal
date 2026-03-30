@@ -68,7 +68,7 @@ export default function PreviewPage() {
         />
       )}
 
-      <div className={isLogin ? "" : "pb-24 sm:pb-6"}>
+      <div className={isLogin ? "" : "mx-auto max-w-7xl px-4 pb-24 sm:px-6 sm:pb-6"}>
         <AnimatePresence mode="wait">
           <motion.div
             key={active}

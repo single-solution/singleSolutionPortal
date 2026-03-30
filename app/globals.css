@@ -48,6 +48,8 @@
   --radius-xl: 28px;
   --radius-full: 9999px;
   --dock-bg: rgba(242,242,247,0.82);
+  --hover-bg: rgba(0,0,0,0.05);
+  --green: #34c759;
 }
 
 [data-theme="dark"] {
@@ -78,6 +80,8 @@
   --border: rgba(255,255,255,0.06);
   --border-strong: rgba(255,255,255,0.12);
   --dock-bg: rgba(28,28,30,0.82);
+  --hover-bg: rgba(255,255,255,0.08);
+  --green: #30d158;
 }
 
 @theme inline {

@@ -1,0 +1,161 @@
+"use client";
+
+import { useState, useMemo, type ReactNode } from "react";
+import { motion } from "framer-motion";
+import { staggerContainer, slideUpItem, listItemHover } from "@/lib/motion";
+
+export interface Column<T> {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  render: (row: T, index: number) => ReactNode;
+}
+
+interface DataTableProps<T> {
+  columns: Column<T>[];
+  data: T[];
+  searchPlaceholder?: string;
+  searchKey?: (row: T) => string;
+  rowKey?: (row: T) => string;
+  headerAction?: ReactNode;
+  filterSlot?: ReactNode;
+  pageSize?: number;
+  loading?: boolean;
+}
+
+export function StatusToggle({ active, onChange }: { active: boolean; onChange?: () => void }) {
+  return (
+    <div
+      className="relative h-7 w-12 shrink-0 cursor-pointer rounded-full transition-colors"
+      style={{ background: active ? "var(--primary)" : "var(--fg-tertiary)" }}
+      onClick={onChange}
+    >
+      <motion.div
+        className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-md"
+        style={{ left: active ? "calc(100% - 1.25rem - 0.25rem)" : "0.25rem" }}
+        layout
+        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+      />
+    </div>
+  );
+}
+
+export default function DataTable<T>({
+  columns,
+  data,
+  searchPlaceholder = "Search...",
+  searchKey,
+  rowKey,
+  headerAction,
+  filterSlot,
+  pageSize = 10,
+  loading,
+}: DataTableProps<T>) {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const filtered = useMemo(() => {
+    if (!search.trim() || !searchKey) return data;
+    const q = search.toLowerCase();
+    return data.filter((row) => searchKey(row).toLowerCase().includes(q));
+  }, [data, search, searchKey]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    return [...filtered].sort((a, b) => {
+      const col = columns.find((c) => c.key === sortKey);
+      if (!col) return 0;
+      const av = String(col.render(a, 0) ?? "");
+      const bv = String(col.render(b, 0) ?? "");
+      return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }, [filtered, sortKey, sortDir, columns]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const paged = sorted.slice(page * pageSize, (page + 1) * pageSize);
+
+  function toggleSort(key: string) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
+  return (
+    <div className="card-static overflow-hidden">
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" style={{ borderColor: "var(--border)" }}>
+        <div className="relative max-w-xs flex-1">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+          <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder={searchPlaceholder} className="input pl-9 text-sm" />
+        </div>
+        {headerAction}
+      </div>
+
+      {filterSlot && (
+        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-5" style={{ borderColor: "var(--border)" }}>{filterSlot}</div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center p-12">
+          <svg className="h-6 w-6 animate-spin" style={{ color: "var(--primary)" }} viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider sm:px-5 ${col.sortable ? "cursor-pointer select-none" : ""}`}
+                    style={{ color: "var(--fg-tertiary)" }}
+                    onClick={col.sortable ? () => toggleSort(col.key) : undefined}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {col.sortable && sortKey === col.key && (
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sortDir === "asc" ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} /></svg>
+                      )}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <motion.tbody variants={staggerContainer} initial="hidden" animate="visible">
+              {paged.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="p-8 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No data found</td>
+                </tr>
+              ) : paged.map((row, i) => (
+                <motion.tr
+                  key={rowKey ? rowKey(row) : i}
+                  variants={slideUpItem}
+                  {...listItemHover}
+                  className="border-b transition-colors"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  {columns.map((col) => (
+                    <td key={col.key} className="whitespace-nowrap px-4 py-3 sm:px-5">
+                      {col.render(row, page * pageSize + i)}
+                    </td>
+                  ))}
+                </motion.tr>
+              ))}
+            </motion.tbody>
+          </table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t px-4 py-3 sm:px-5" style={{ borderColor: "var(--border)" }}>
+          <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{sorted.length} total</p>
+          <div className="flex gap-1">
+            <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>Prev</button>
+            <span className="flex items-center px-2 text-xs font-medium" style={{ color: "var(--fg)" }}>{page + 1} / {totalPages}</span>
+            <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} className="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>Next</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
