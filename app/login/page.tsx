@@ -1,30 +1,21 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState, useMemo } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { staggerContainer, slideUpItem, fadeInItem } from "@/lib/motion";
-import { Suspense } from "react";
+import toast from "react-hot-toast";
+import { PasswordInput } from "@/components/PasswordInput";
 
-function getPasswordStrength(pw: string): number {
-  if (!pw) return 0;
-  let s = 0;
-  if (pw.length >= 6) s++;
-  if (pw.length >= 10) s++;
-  if (/[A-Z]/.test(pw)) s++;
-  if (/[0-9]/.test(pw)) s++;
-  if (/[^A-Za-z0-9]/.test(pw)) s++;
-  return s;
-}
-
-function strengthColor(s: number) {
-  if (s <= 1) return "var(--rose)";
-  if (s <= 2) return "var(--amber)";
-  if (s <= 3) return "var(--amber)";
-  return "var(--green)";
-}
+const particles = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  x: Math.random() * 100,
+  y: Math.random() * 100,
+  size: Math.random() * 4 + 2,
+  duration: Math.random() * 4 + 6,
+  delay: Math.random() * 3,
+}));
 
 function LoginForm() {
   const router = useRouter();
@@ -32,32 +23,29 @@ function LoginForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
-  const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     const res = await signIn("credentials", {
       email,
       password,
       redirect: false,
       callbackUrl,
     });
-
     if (res?.error) {
       setError("Invalid email or password");
+      toast.error("Invalid email or password");
       setShakeKey((k) => k + 1);
       setLoading(false);
       return;
     }
-
     if (res?.url) {
+      toast.success("Welcome back!");
       router.replace(res.url);
       return;
     }
@@ -65,325 +53,234 @@ function LoginForm() {
   }
 
   return (
-    <div
-      className="aurora-bg relative flex min-h-screen items-center justify-center overflow-hidden p-4"
-      style={{ minHeight: "100dvh" }}
-    >
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center">
+    <div className="min-h-screen aurora-bg flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-16 relative overflow-hidden">
+      {/* Floating particles */}
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+            background: `rgba(0, 113, 227, ${0.1 + Math.random() * 0.15})`,
+          }}
+          animate={{
+            y: [0, -30, 0],
+            x: [0, Math.random() * 20 - 10, 0],
+            opacity: [0.3, 0.7, 0.3],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            delay: p.delay,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+
+      {/* Large animated gradient orbs */}
+      <motion.div
+        className="absolute w-[700px] h-[700px] rounded-full blur-3xl pointer-events-none opacity-40"
+        style={{ background: "radial-gradient(circle, rgba(0,113,227,0.15), transparent 60%)" }}
+        animate={{ x: ["-30%", "10%", "-30%"], y: ["-20%", "10%", "-20%"], scale: [1, 1.2, 1] }}
+        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none opacity-30"
+        style={{ background: "radial-gradient(circle, rgba(48,209,88,0.12), transparent 60%)" }}
+        animate={{ x: ["20%", "-15%", "20%"], y: ["30%", "-5%", "30%"], scale: [1, 1.15, 1] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute w-[400px] h-[400px] rounded-full blur-3xl pointer-events-none opacity-20"
+        style={{ background: "radial-gradient(circle, rgba(191,90,242,0.15), transparent 60%)" }}
+        animate={{ x: ["5%", "-25%", "5%"], y: ["-10%", "25%", "-10%"], scale: [1.1, 0.9, 1.1] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Hero text */}
+      <div className="relative z-10 text-center mb-8 sm:mb-10">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
+            <span className="gradient-text-animated">Single Solution Sync</span>
+          </h1>
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+          className="text-[var(--fg-secondary)] text-base sm:text-lg max-w-md mx-auto leading-relaxed"
+        >
+          Employee presence & attendance.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+          className="flex items-center justify-center gap-3 mt-3"
+        >
+          {["Automatic", "Real-time", "Intelligent"].map((word, i) => (
+            <motion.span
+              key={word}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 + i * 0.15, duration: 0.4 }}
+              className="text-sm font-medium text-[var(--fg-tertiary)]"
+            >
+              {i > 0 && <span className="mr-3">·</span>}
+              {word}
+            </motion.span>
+          ))}
+        </motion.div>
+      </div>
+
+      {/* Sign-in card */}
+      <div className="relative z-10 w-full max-w-[420px]">
         <motion.div
           key={shakeKey}
           initial={{ opacity: 0, y: 20 }}
-          animate={
-            error
-              ? { x: [0, -10, 10, -10, 10, 0], opacity: 1, y: 0 }
-              : { opacity: 1, y: 0 }
-          }
-          transition={
-            error
-              ? {
-                  x: { duration: 0.4 },
-                  opacity: { duration: 0.6 },
-                  y: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-                }
-              : { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
-          }
-          className="card-xl relative w-full overflow-hidden p-8 sm:p-10"
+          animate={error ? { x: [0, -10, 10, -10, 10, 0], opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+          transition={error ? { x: { duration: 0.4 }, opacity: { duration: 0.6 }, y: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } } : { duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="card-xl p-8 sm:p-10 relative overflow-hidden"
         >
           <motion.div
-            className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-[var(--primary)] via-[var(--purple)] to-[var(--teal)]"
+            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--primary)] via-[var(--purple)] to-[var(--teal)]"
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
-            transition={{
-              duration: 0.8,
-              delay: 0.3,
-              ease: [0.22, 1, 0.36, 1],
-            }}
+            transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
             style={{ originX: 0 }}
           />
 
-          <motion.form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="space-y-5">
             <motion.div
-              className="relative z-10 flex flex-col gap-8"
-              variants={staggerContainer}
-              initial="hidden"
-              animate="visible"
+              className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--cyan)] flex items-center justify-center mx-auto mb-2"
+              initial={{ scale: 0, rotate: -90 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
             >
-              {/* Hero: icon + title + subtitle */}
-              <motion.div
-                className="flex flex-col items-center gap-3 text-center"
-                variants={slideUpItem}
-              >
+              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-center text-sm text-[var(--fg-secondary)] mb-2"
+            >
+              Sign in to your account
+            </motion.p>
+
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+              <label className="block text-sm font-medium text-[var(--fg)] mb-2">Email</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]">
+                  <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                </span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@company.com"
+                  className="input"
+                  style={{ paddingLeft: "44px" }}
+                  autoFocus
+                />
+              </div>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
+              <label className="block text-sm font-medium text-[var(--fg)] mb-2">Password</label>
+              <PasswordInput
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+              />
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="flex justify-end">
+              <Link href="/forgot-password" className="text-sm text-[var(--primary)] hover:underline transition-colors">
+                Forgot password?
+              </Link>
+            </motion.div>
+
+            <AnimatePresence>
+              {error && (
                 <motion.div
-                  className="flex h-14 w-14 items-center justify-center rounded-2xl"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%)",
-                  }}
-                  initial={{ scale: 0, rotate: -90 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 200,
-                    damping: 15,
-                    delay: 0.1,
-                  }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="rounded-xl bg-rose-50 border border-rose-200 p-3 flex items-center gap-2"
                 >
-                  <svg
-                    className="h-7 w-7 text-white"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
+                  <svg className="w-4 h-4 text-[var(--rose)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
+                  <p className="text-sm text-[var(--rose)] font-medium">{error}</p>
                 </motion.div>
-                <h1 className="gradient-text-animated text-title">
-                  Single Solution Sync
-                </h1>
-                <p className="text-subhead">Employee Presence System</p>
-              </motion.div>
+              )}
+            </AnimatePresence>
 
-              {/* Welcome block */}
-              <motion.div
-                className="flex flex-col gap-1 text-center"
-                variants={slideUpItem}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+              <motion.button
+                type="submit"
+                disabled={loading}
+                whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(0,113,227,0.35)" }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full btn btn-primary disabled:opacity-50 relative overflow-hidden"
               >
-                <p className="text-headline">Welcome back</p>
-                <p className="text-subhead">Sign in to continue</p>
-              </motion.div>
-
-              {/* Form fields */}
-              <motion.div
-                className="flex flex-col gap-5"
-                variants={slideUpItem}
-              >
-                {/* Email */}
-                <div className="flex flex-col gap-2">
-                  <label
-                    htmlFor="login-email"
-                    className="text-callout font-semibold"
-                    style={{ color: "var(--fg)" }}
-                  >
-                    Email
-                  </label>
-                  <div className="relative">
-                    <span
-                      className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 sm:left-4"
-                      aria-hidden
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="var(--fg-tertiary)"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                        <path d="m22 6-10 7L2 6" />
-                      </svg>
-                    </span>
-                    <input
-                      id="login-email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      placeholder="your@email.com"
-                      className="input pl-10 sm:pl-12"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div className="flex flex-col gap-2">
-                  <label
-                    htmlFor="login-password"
-                    className="text-callout font-semibold"
-                    style={{ color: "var(--fg)" }}
-                  >
-                    Password
-                  </label>
-                  <div className="relative">
-                    <span
-                      className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 sm:left-4"
-                      aria-hidden
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="var(--fg-tertiary)"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </span>
-                    <input
-                      id="login-password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      placeholder="Enter password"
-                      className="input pl-10 pr-12 sm:pl-12 sm:pr-14"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 z-[1] flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg transition-colors sm:right-3"
-                      style={{ color: "var(--fg-secondary)" }}
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-                      ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Password strength meter */}
-                  <div className="mt-1 flex gap-1.5" role="presentation">
-                    {[0, 1, 2, 3, 4].map((i) => {
-                      const active = i < strength;
-                      return (
-                        <motion.div
-                          key={i}
-                          className="h-1 min-h-[4px] flex-1 rounded-full"
-                          initial={false}
-                          animate={{
-                            backgroundColor: active
-                              ? strengthColor(strength)
-                              : "var(--border)",
-                            opacity: active ? 1 : 0.45,
-                            scaleY: active ? 1 : 0.65,
-                          }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 380,
-                            damping: 28,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Link
-                    href="/forgot-password"
-                    className="text-caption transition-opacity hover:opacity-80"
-                    style={{ color: "var(--primary)" }}
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              </motion.div>
-
-              {/* Error */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3"
-                  >
-                    <svg
-                      className="h-4 w-4 shrink-0"
-                      style={{ color: "var(--rose)" }}
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                    Signing in...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    Sign in
+                    <motion.svg
+                      className="w-4 h-4"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
+                      animate={{ x: [0, 3, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <p className="text-sm font-medium" style={{ color: "var(--rose)" }}>
-                      {error}
-                    </p>
-                  </motion.div>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </motion.svg>
+                  </span>
                 )}
-              </AnimatePresence>
-
-              {/* Submit */}
-              <motion.div variants={slideUpItem} className="w-full">
-                <motion.button
-                  type="submit"
-                  disabled={loading}
-                  whileHover={{
-                    scale: 1.02,
-                    boxShadow: "0 8px 30px rgba(0,113,227,0.35)",
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  className="btn btn-primary relative w-full overflow-hidden disabled:opacity-50"
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Signing in...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      Sign in
-                      <motion.svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        animate={{ x: [0, 3, 0] }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 7l5 5m0 0l-5 5m5-5H6"
-                        />
-                      </motion.svg>
-                    </span>
-                  )}
-                </motion.button>
-              </motion.div>
-
-              <motion.footer
-                className="flex flex-col gap-4 pt-1"
-                variants={fadeInItem}
-              >
-                <hr className="divider w-full border-0" />
-                <p className="text-caption text-center">
-                  Single Solution © 2026
-                </p>
-              </motion.footer>
+              </motion.button>
             </motion.div>
-          </motion.form>
+          </form>
         </motion.div>
+      </div>
+
+      {/* Footer security badges */}
+      <div className="relative z-10 mt-8 flex items-center gap-4 text-xs text-[var(--fg-tertiary)]">
+        <span className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          Encrypted
+        </span>
+        <span className="w-1 h-1 rounded-full bg-[var(--fg-tertiary)]" />
+        <span className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+          Rate limited
+        </span>
+        <span className="w-1 h-1 rounded-full bg-[var(--fg-tertiary)]" />
+        <span className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          Fast
+        </span>
       </div>
     </div>
   );
@@ -391,13 +288,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="shimmer h-[480px] w-full max-w-md rounded-3xl" />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="shimmer h-[440px] rounded-3xl" />}>
       <LoginForm />
     </Suspense>
   );

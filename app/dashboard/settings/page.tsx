@@ -234,11 +234,17 @@ export default function SettingsPage() {
           <form onSubmit={handleProfileSave} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-[var(--fg)] mb-2">Full Name</label>
-              <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="input" placeholder="e.g. John Doe" />
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></span>
+                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="input" style={{ paddingLeft: "44px" }} placeholder="e.g. John Doe" />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--fg)] mb-2">Phone</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="+92 xxx xxxxxxx" />
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg></span>
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" style={{ paddingLeft: "44px" }} placeholder="+92 xxx xxxxxxx" />
+              </div>
             </div>
             <AnimatePresence>
               {profileMsg && <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-sm font-medium" style={{ color: "var(--green)" }}>{profileMsg}</motion.p>}
@@ -258,7 +264,7 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-[var(--fg)] mb-2">Current password</label>
                 <div className="relative">
                   <input type={showCurrent ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Required to confirm changes" className="input pr-12" required />
-                  <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-secondary)]" onClick={() => setShowCurrent((v) => !v)}>
+                  <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[var(--fg-tertiary)] hover:text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)] transition-colors" onClick={() => setShowCurrent((v) => !v)}>
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={showCurrent ? "M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" : "M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178zM15 12a3 3 0 11-6 0 3 3 0 016 0z"} /></svg>
                   </button>
                 </div>
@@ -268,7 +274,10 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-[var(--fg)] mb-2">New email</label>
-                <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="admin@company.com" className="input" />
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
+                  <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="admin@company.com" className="input" style={{ paddingLeft: "44px" }} />
+                </div>
                 {newEmail.trim() && newEmail.toLowerCase() !== email.toLowerCase() && (
                   <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-[var(--primary)] mt-1.5">Email will change from {email}</motion.p>
                 )}
@@ -278,7 +287,7 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-[var(--fg)] mb-2">New password</label>
                 <div className="relative">
                   <input type={showNew ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Leave blank to keep current" className="input pr-12" />
-                  <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-secondary)]" onClick={() => setShowNew((v) => !v)}>
+                  <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[var(--fg-tertiary)] hover:text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)] transition-colors" onClick={() => setShowNew((v) => !v)}>
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={showNew ? "M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" : "M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178zM15 12a3 3 0 11-6 0 3 3 0 016 0z"} /></svg>
                   </button>
                 </div>
@@ -350,7 +359,10 @@ export default function SettingsPage() {
                   </motion.button>
                 ))}
               </div>
-              <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" />
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
+                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "44px" }} />
+              </div>
               <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={handleTestEmail} disabled={sendingTestEmail} className="w-full btn btn-primary disabled:opacity-50">
                 {sendingTestEmail ? "Sending..." : "Send Test Email"}
               </motion.button>

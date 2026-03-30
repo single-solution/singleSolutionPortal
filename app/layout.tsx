@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ToasterProvider } from "@/components/ToasterProvider";
 
 export const metadata: Metadata = {
   title: "Single Solution Sync",
@@ -39,7 +40,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased min-h-screen">{children}</body>
+      <body className="antialiased min-h-screen">
+        <ToasterProvider />
+        {children}
+      </body>
     </html>
   );
 }

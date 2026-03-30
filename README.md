@@ -48,6 +48,12 @@ Automatic employee presence and attendance tracking system. Detects when employe
 - Status validation (pending, in-progress, completed, cancelled)
 - Assignees can only update task status; admins can reassign
 
+### Auth Module
+- Login page with animated hero (particles, gradient orbs), email/password icons, shake-on-error, toast notifications, security badges footer
+- Forgot password with animated orbs, success state with dev-mode reset URL, toast feedback
+- Reset password with PasswordInput (show/hide toggle), PasswordStrength meter, confirm match indicator
+- Shared reusable PasswordInput and PasswordStrength components
+
 ### Security
 - Token-based password reset (SHA-256 hashed, 1hr expiry, emailed link)
 - Rate limiting on reset endpoints (5 attempts per 15 min window)
