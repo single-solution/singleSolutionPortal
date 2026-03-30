@@ -157,7 +157,7 @@ export default function EmployeesPage() {
           <div className="shimmer h-9 w-32 rounded-full" />
         </div>
         <div className="shimmer h-14 rounded-2xl" />
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[1,2,3,4,5,6].map(i => <div key={i} className="shimmer h-44 rounded-2xl" />)}
         </div>
       </div>

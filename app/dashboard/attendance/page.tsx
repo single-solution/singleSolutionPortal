@@ -253,8 +253,8 @@ export default function AttendancePage() {
           </div>
         </motion.div>
       ) : (
-        <motion.div className="card-static p-8 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <p className="text-callout" style={{ color: "var(--fg-tertiary)" }}>No attendance records for this month yet. Records will appear once presence tracking begins.</p>
+        <motion.div className="card p-12 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <p style={{ color: "var(--fg-secondary)" }}>No attendance records for this month yet. Records will appear once presence tracking begins.</p>
         </motion.div>
       )}
     </div>

@@ -205,7 +205,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                 <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Email</label>
                 <div className="relative">
                   <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
-                  <input className="input" type="email" required placeholder="ali@singlesolution.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ paddingLeft: "44px" }} />
+                  <input className="input" type="email" required placeholder="ali@singlesolution.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ paddingLeft: "40px" }} />
                 </div>
               </div>
               <div>
@@ -270,7 +270,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-2">Working Days</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Working Days</label>
             <div className="flex flex-wrap gap-2">
               {WEEKDAYS.map((day, idx) => {
                 const key = WEEKDAY_KEYS[idx];

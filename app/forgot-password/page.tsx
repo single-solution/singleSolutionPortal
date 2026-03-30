@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
                       required
                       placeholder="you@company.com"
                       className="input"
-                      style={{ paddingLeft: "44px" }}
+                      style={{ paddingLeft: "40px" }}
                       autoFocus
                     />
                   </div>

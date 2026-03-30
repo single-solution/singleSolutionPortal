@@ -233,17 +233,17 @@ export default function SettingsPage() {
 
           <form onSubmit={handleProfileSave} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[var(--fg)] mb-2">Full Name</label>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Full Name</label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></span>
-                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="input" style={{ paddingLeft: "44px" }} placeholder="e.g. John Doe" />
+                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="input" style={{ paddingLeft: "40px" }} placeholder="e.g. John Doe" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--fg)] mb-2">Phone</label>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Phone</label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg></span>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" style={{ paddingLeft: "44px" }} placeholder="+92 xxx xxxxxxx" />
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" style={{ paddingLeft: "40px" }} placeholder="+92 xxx xxxxxxx" />
               </div>
             </div>
             <AnimatePresence>
@@ -261,7 +261,7 @@ export default function SettingsPage() {
             <h2 className="text-headline mb-4">Email & Password</h2>
             <div className="space-y-5 flex-1">
               <div>
-                <label className="block text-sm font-medium text-[var(--fg)] mb-2">Current password</label>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Current password</label>
                 <div className="relative">
                   <input type={showCurrent ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Required to confirm changes" className="input pr-12" required />
                   <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[var(--fg-tertiary)] hover:text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)] transition-colors" onClick={() => setShowCurrent((v) => !v)}>
@@ -273,10 +273,10 @@ export default function SettingsPage() {
               <div className="border-t border-[var(--border)]" />
 
               <div>
-                <label className="block text-sm font-medium text-[var(--fg)] mb-2">New email</label>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">New email</label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
-                  <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="admin@company.com" className="input" style={{ paddingLeft: "44px" }} />
+                  <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="admin@company.com" className="input" style={{ paddingLeft: "40px" }} />
                 </div>
                 {newEmail.trim() && newEmail.toLowerCase() !== email.toLowerCase() && (
                   <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-[var(--primary)] mt-1.5">Email will change from {email}</motion.p>
@@ -284,7 +284,7 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--fg)] mb-2">New password</label>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">New password</label>
                 <div className="relative">
                   <input type={showNew ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Leave blank to keep current" className="input pr-12" />
                   <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[var(--fg-tertiary)] hover:text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)] transition-colors" onClick={() => setShowNew((v) => !v)}>
@@ -303,7 +303,7 @@ export default function SettingsPage() {
               <AnimatePresence>
                 {newPassword && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                    <label className="block text-sm font-medium text-[var(--fg)] mb-2">Confirm password</label>
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Confirm password</label>
                     <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Type password again" className="input" />
                     {confirmPassword && (
                       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`text-xs mt-1.5 flex items-center gap-1 ${passwordsMatch ? "text-[var(--teal,var(--green))]" : "text-[var(--rose)]"}`}>
@@ -361,7 +361,7 @@ export default function SettingsPage() {
               </div>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
-                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "44px" }} />
+                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "40px" }} />
               </div>
               <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={handleTestEmail} disabled={sendingTestEmail} className="w-full btn btn-primary disabled:opacity-50">
                 {sendingTestEmail ? "Sending..." : "Send Test Email"}
@@ -426,11 +426,11 @@ function SystemSettingsSection() {
       <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Company name and timezone.</p>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Company Name</label>
+          <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Company Name</label>
           <input className="input" value={settings.company.name} onChange={(e) => setSettings({ ...settings, company: { ...settings.company, name: e.target.value } })} />
         </div>
         <div>
-          <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Timezone</label>
+          <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Timezone</label>
           <select className="input" value={settings.company.timezone} onChange={(e) => setSettings({ ...settings, company: { ...settings.company, timezone: e.target.value } })}>
             <option value="asia-karachi">Asia/Karachi (PKT +05:00)</option>
             <option value="utc">UTC</option>
@@ -458,15 +458,15 @@ function SystemSettingsDetailSection() {
         <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Latitude</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Latitude</label>
             <input className="input" type="number" step="any" value={settings.office.latitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, latitude: parseFloat(e.target.value) || 0 } })} />
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Longitude</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Longitude</label>
             <input className="input" type="number" step="any" value={settings.office.longitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, longitude: parseFloat(e.target.value) || 0 } })} />
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Radius (m)</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Radius (m)</label>
             <input className="input" type="number" value={settings.office.radiusMeters} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, radiusMeters: parseInt(e.target.value) || 50 } })} />
           </div>
         </div>
@@ -477,19 +477,19 @@ function SystemSettingsDetailSection() {
         <p className="text-caption mb-4">Default shift configuration for new employees.</p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Start Time</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start Time</label>
             <input className="input" type="time" value={settings.shiftDefaults.start} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, start: e.target.value } })} />
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>End Time</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End Time</label>
             <input className="input" type="time" value={settings.shiftDefaults.end} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, end: e.target.value } })} />
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Break (min)</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Break (min)</label>
             <input className="input" type="number" value={settings.shiftDefaults.breakMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, breakMinutes: parseInt(e.target.value) || 60 } })} />
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Grace (min)</label>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Grace (min)</label>
             <input className="input" type="number" value={settings.shiftDefaults.graceMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, graceMinutes: parseInt(e.target.value) || 30 } })} />
           </div>
         </div>

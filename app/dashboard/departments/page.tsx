@@ -145,7 +145,7 @@ export default function DepartmentsPage() {
           <div className="shimmer h-9 w-36 rounded-lg" />
         </div>
         <div className="shimmer h-12 rounded-2xl" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[1,2,3].map(i => <div key={i} className="shimmer h-40 rounded-2xl" />)}
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function DepartmentsPage() {
       </motion.div>
 
       {/* Department Card Grid */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {sorted.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full card p-12 text-center">
