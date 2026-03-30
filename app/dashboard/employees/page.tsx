@@ -292,11 +292,24 @@ export default function EmployeesPage() {
           searchKey={(e) => `${e.about.firstName} ${e.about.lastName} ${e.email} ${e.username}`}
           rowKey={(e) => e._id}
           filterSlot={
-            <div className="flex items-center gap-2">
-              <span className="text-caption font-semibold" style={{ color: "var(--fg-secondary)" }}>Designation</span>
-              <select className="input text-sm" style={{ width: "auto", minWidth: 160 }} value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}>
-                {(Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).map((k) => <option key={k} value={k}>{ROLE_FILTER_LABELS[k]}</option>)}
-              </select>
+            <div className="flex items-center gap-0.5 rounded-xl border-[0.5px] p-0.5" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+              {(Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).map((k) => {
+                const active = roleFilter === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setRoleFilter(k)}
+                    className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-colors ${
+                      active
+                        ? "bg-[var(--primary)] text-white shadow-sm"
+                        : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                    }`}
+                  >
+                    {ROLE_FILTER_LABELS[k]}
+                  </button>
+                );
+              })}
             </div>
           }
         />
@@ -312,11 +325,11 @@ export default function EmployeesPage() {
           {/* Names */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>First Name</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>First Name</label>
               <input className="input" placeholder="Ali" required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
             </div>
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Last Name</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Last Name</label>
               <input className="input" placeholder="Ahmed" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
             </div>
           </div>
@@ -324,7 +337,7 @@ export default function EmployeesPage() {
           {/* Email */}
           {!editing && (
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Email</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Email</label>
               <input className="input" type="email" required placeholder="ali@singlesolution.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
           )}
@@ -383,7 +396,7 @@ export default function EmployeesPage() {
 
           {/* Designation (Role) */}
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Designation</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Designation</label>
             <select className="input" value={form.userRole} onChange={(e) => setForm({ ...form, userRole: e.target.value })}>
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
@@ -391,7 +404,7 @@ export default function EmployeesPage() {
 
           {/* Department */}
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Department</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Department</label>
             <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
               <option value="">No Department</option>
               {departments.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
@@ -403,7 +416,7 @@ export default function EmployeesPage() {
           <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>Shift Configuration</p>
 
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Shift Type</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Shift Type</label>
             <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
               <option value="fullTime">Full Time</option>
               <option value="partTime">Part Time</option>
@@ -413,11 +426,11 @@ export default function EmployeesPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Start Time</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Start Time</label>
               <input className="input" type="time" value={form.shiftStart} onChange={(e) => setForm({ ...form, shiftStart: e.target.value })} />
             </div>
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>End Time</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>End Time</label>
               <input className="input" type="time" value={form.shiftEnd} onChange={(e) => setForm({ ...form, shiftEnd: e.target.value })} />
             </div>
           </div>
@@ -439,7 +452,7 @@ export default function EmployeesPage() {
           </div>
 
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Break Time (min)</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Break Time (min)</label>
             <input className="input" type="number" value={form.breakTime} onChange={(e) => setForm({ ...form, breakTime: Number(e.target.value) })} />
           </div>
 

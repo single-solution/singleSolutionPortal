@@ -195,16 +195,6 @@ export default function SessionTracker() {
   }, [fetchSession, doCheckIn]);
 
   useEffect(() => {
-    function handleVisibility() {
-      if (document.visibilityState === "hidden") {
-        doCheckOut();
-      } else if (document.visibilityState === "visible") {
-        fetchSession().then(() => {
-          if (!checkedInRef.current) doCheckIn();
-        });
-      }
-    }
-
     function handleBeforeUnload() {
       if (checkedInRef.current) {
         navigator.sendBeacon(
@@ -217,13 +207,11 @@ export default function SessionTracker() {
       }
     }
 
-    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [doCheckIn, doCheckOut, fetchSession]);
+  }, []);
 
   useEffect(() => {
     if (session.active && session.startTime) {

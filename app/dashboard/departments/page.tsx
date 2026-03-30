@@ -162,15 +162,15 @@ export default function DepartmentsPage() {
       >
         <form id="dept-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Department Name</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Department Name</label>
             <input className="input" placeholder="e.g. Marketing" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Description</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Description</label>
             <textarea className="input" rows={3} placeholder="Brief description of this department..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Assign Manager</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Assign Manager</label>
             <select className="input" value={form.managerId} onChange={(e) => setForm({ ...form, managerId: e.target.value })}>
               <option value="">Select a manager</option>
               {managers.map((m) => <option key={m._id} value={m._id}>{m.about.firstName} {m.about.lastName}</option>)}

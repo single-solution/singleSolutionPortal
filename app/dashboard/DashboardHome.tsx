@@ -317,29 +317,6 @@ function SuperAdminOverview({
           </p>
         </motion.div>
         <motion.div className="flex shrink-0 items-center gap-3" variants={slideFromRight} initial="hidden" animate="visible">
-          <motion.button
-            type="button"
-            className="btn btn-primary btn-sm"
-            whileHover={buttonHover}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => {
-              const rows = [["Name", "Role", "Department", "Status", "Today Minutes"]];
-              for (const emp of presenceEmps) {
-                rows.push([`${emp.firstName} ${emp.lastName}`, emp.designation, emp.department, STATUS_LABELS[emp.status], String(emp.todayMinutes)]);
-              }
-              const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-              const blob = new Blob([csv], { type: "text/csv" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `attendance-report-${new Date().toISOString().split("T")[0]}.csv`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            Export
-          </motion.button>
           <div className="card group relative overflow-hidden p-3 sm:min-w-[180px]">
             <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
             <p className="text-caption mb-0.5">Local time</p>
@@ -358,18 +335,14 @@ function SuperAdminOverview({
         {statItems.map((stat, i) => (
           <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i % blobGradients.length] }} />
-            <div className="relative flex items-start justify-between gap-3">
-              <div>
-                <p className="text-caption mb-2">{stat.title}</p>
-                <span className="text-title block text-2xl font-semibold tabular-nums sm:text-3xl" style={{ color: "var(--fg)" }}>
-                  <AnimatedNumber value={stat.value} />
-                </span>
-                <p className="text-caption mt-1">{stat.caption}</p>
-              </div>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm" style={{ background: statIconGradients[i] }}>
-                {stat.icon}
-              </div>
+            <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>
+              {stat.icon}
             </div>
+            <p className="text-subhead">{stat.title}</p>
+            <p className="text-[22px] sm:text-[26px] font-semibold tabular-nums mt-0.5" style={{ color: "var(--fg)" }}>
+              <AnimatedNumber value={stat.value} />
+            </p>
+            <p className="text-caption mt-0.5">{stat.caption}</p>
           </motion.div>
         ))}
       </motion.div>
@@ -535,18 +508,14 @@ function OtherRoleOverview({ user, tasks }: { user: User; tasks: ApiTask[] }) {
         ].map((stat, i) => (
           <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i] }} />
-            <div className="relative flex items-start justify-between gap-3">
-              <div>
-                <p className="text-caption mb-2">{stat.title}</p>
-                <span className="text-title block text-2xl font-semibold tabular-nums sm:text-3xl" style={{ color: "var(--fg)" }}>
-                  <AnimatedNumber value={stat.value} />
-                </span>
-                <p className="text-caption mt-1">{stat.caption}</p>
-              </div>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm" style={{ background: statIconGradients[i] }}>
-                {stat.icon}
-              </div>
+            <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>
+              {stat.icon}
             </div>
+            <p className="text-subhead">{stat.title}</p>
+            <p className="text-[22px] sm:text-[26px] font-semibold tabular-nums mt-0.5" style={{ color: "var(--fg)" }}>
+              <AnimatedNumber value={stat.value} />
+            </p>
+            <p className="text-caption mt-0.5">{stat.caption}</p>
           </motion.div>
         ))}
       </motion.div>

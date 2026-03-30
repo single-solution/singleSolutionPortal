@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import SidebarModal from "../components/SidebarModal";
 import { buttonHover, slideUpItem, staggerContainer } from "@/lib/motion";
 import { useSession } from "next-auth/react";
@@ -60,6 +60,7 @@ export default function TasksPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
+  const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,9 +81,17 @@ export default function TasksPage() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
-    if (prioFilter === "all") return tasks;
-    return tasks.filter((t) => t.priority === prioFilter);
-  }, [tasks, prioFilter]);
+    let list = tasks;
+    if (prioFilter !== "all") list = list.filter((t) => t.priority === prioFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((t) => {
+        const name = t.assignedTo?.about ? `${t.assignedTo.about.firstName} ${t.assignedTo.about.lastName}` : "";
+        return t.title.toLowerCase().includes(q) || (t.description ?? "").toLowerCase().includes(q) || name.toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [tasks, prioFilter, search]);
 
   const pendingCount = useMemo(() => tasks.filter((t) => t.status === "pending").length, [tasks]);
 
@@ -154,21 +163,31 @@ export default function TasksPage() {
         )}
       </motion.div>
 
-      {/* Priority filter */}
-      <motion.div variants={slideUpItem}>
-        <LayoutGroup id="task-prio-filter">
-          <div className="flex gap-1 rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
-            {(["all", "low", "medium", "high", "urgent"] as PriorityFilter[]).map((f) => {
-              const active = prioFilter === f;
-              return (
-                <button key={f} type="button" onClick={() => setPrioFilter(f)} className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-2.5 py-1 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                  {active && <motion.span layoutId="task-prio-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
-                  <span className="relative text-caption font-semibold">{f === "all" ? "All" : PRIORITY_LABELS[f]}</span>
-                </button>
-              );
-            })}
-          </div>
-        </LayoutGroup>
+      {/* Search + Priority filter */}
+      <motion.div className="flex flex-col gap-3" variants={slideUpItem}>
+        <div className="relative max-w-xs">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input pl-10 text-sm" />
+        </div>
+        <div className="flex items-center gap-0.5 rounded-xl border-[0.5px] p-0.5" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+          {(["all", "low", "medium", "high", "urgent"] as PriorityFilter[]).map((f) => {
+            const active = prioFilter === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setPrioFilter(f)}
+                className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-colors ${
+                  active
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                }`}
+              >
+                {f === "all" ? "All" : PRIORITY_LABELS[f]}
+              </button>
+            );
+          })}
+        </div>
       </motion.div>
 
       {/* Task cards */}
@@ -263,16 +282,16 @@ export default function TasksPage() {
       >
         <form id="task-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Title</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Title</label>
             <input className="input" placeholder="Task title..." required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Description</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Description</label>
             <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           {isAdmin && (
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Assign To</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Assign To</label>
               <select className="input" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
                 <option value="">Select employee</option>
                 {employees.filter((e) => e.userRole !== "superadmin").map((e) => (
@@ -283,7 +302,7 @@ export default function TasksPage() {
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Priority</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Priority</label>
               <select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -292,13 +311,13 @@ export default function TasksPage() {
               </select>
             </div>
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Deadline</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Deadline</label>
               <input className="input" type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
             </div>
           </div>
           {editing && (
             <div>
-              <label className="text-caption mb-1 block font-semibold" style={{ color: "var(--fg)" }}>Status</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Status</label>
               <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                 <option value="pending">Pending</option>
                 <option value="inProgress">In Progress</option>

@@ -83,17 +83,18 @@ export default function DataTable<T>({
 
   return (
     <div className="card-static overflow-hidden">
-      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" style={{ borderColor: "var(--border)" }}>
-        <div className="relative max-w-xs flex-1">
-          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-          <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder={searchPlaceholder} className="input pl-9 text-sm" />
+      <div className="flex flex-col gap-3 border-b p-4 sm:p-5" style={{ borderColor: "var(--border)" }}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative max-w-xs flex-1">
+            <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder={searchPlaceholder} className="input pl-10 text-sm" />
+          </div>
+          {headerAction}
         </div>
-        {headerAction}
+        {filterSlot && (
+          <div className="flex flex-wrap items-center gap-3">{filterSlot}</div>
+        )}
       </div>
-
-      {filterSlot && (
-        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-5" style={{ borderColor: "var(--border)" }}>{filterSlot}</div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center p-12">
@@ -107,8 +108,8 @@ export default function DataTable<T>({
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider sm:px-5 ${col.sortable ? "cursor-pointer select-none" : ""}`}
-                    style={{ color: "var(--fg-tertiary)" }}
+                    className={`whitespace-nowrap px-4 py-3 text-xs font-medium sm:px-5 ${col.sortable ? "cursor-pointer select-none" : ""}`}
+                    style={{ color: "var(--fg-secondary)" }}
                     onClick={col.sortable ? () => toggleSort(col.key) : undefined}
                   >
                     <span className="inline-flex items-center gap-1">

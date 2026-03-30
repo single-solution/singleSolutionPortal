@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
-  modalContent,
   slideUpItem,
   staggerContainer,
   tabIndicatorTransition,
@@ -30,7 +29,6 @@ const NAV_LINKS: NavLink[] = [
   { href: "/dashboard/departments", label: "Depts", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", roles: ["superadmin"] },
   { href: "/dashboard/tasks", label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
   { href: "/dashboard/attendance", label: "Attendance", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
-  { href: "/dashboard/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
 const THEME_OPTIONS = [
@@ -39,33 +37,6 @@ const THEME_OPTIONS = [
   { value: "system" as const, label: "System", icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
 ];
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  superadmin: "SuperAdmin",
-  manager: "Manager",
-  businessDeveloper: "Business Dev",
-  developer: "Developer",
-};
-
-const ROLE_DESIGNATIONS: Record<UserRole, string> = {
-  superadmin: "System Administrator",
-  manager: "Team Manager",
-  businessDeveloper: "Business Developer",
-  developer: "Software Developer",
-};
-
-const AVATAR_GRADIENTS = [
-  "from-blue-500 to-cyan-400",
-  "from-emerald-500 to-teal-400",
-  "from-purple-500 to-pink-400",
-  "from-amber-500 to-orange-400",
-  "from-rose-500 to-red-400",
-];
-
-function getAvatarGradient(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
-}
 
 const notifPanelVariants = {
   hidden: { opacity: 0, y: -12, scale: 0.98 },
@@ -95,17 +66,14 @@ interface DashboardShellProps {
 
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [themeOpen, setThemeOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [installDismissed, setInstallDismissed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const themeRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
-  const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user.role !== "superadmin" && user.role !== "manager") return;
@@ -197,7 +165,6 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       const t = e.target as Node;
       if (themeRef.current && !themeRef.current.contains(t)) setThemeOpen(false);
       if (notifRef.current && !notifRef.current.contains(t)) setNotificationsOpen(false);
-      if (userRef.current && !userRef.current.contains(t)) setUserMenuOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -224,12 +191,6 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   );
   const currentTheme =
     THEME_OPTIONS.find((o) => o.value === theme) ?? THEME_OPTIONS[0];
-  const userInitials =
-    `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() ||
-    user.username[0]?.toUpperCase();
-  const avatarGradient = getAvatarGradient(
-    `${user.firstName}${user.lastName}`,
-  );
 
   function isActive(href: string) {
     return href === "/dashboard"
@@ -311,54 +272,26 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       {/* ── Header ── */}
       <header className="frosted sticky top-0 z-30">
         <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-3 px-4 sm:h-14 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Link
-              href="/dashboard"
-              className="gradient-text truncate text-[15px] font-bold tracking-tight sm:text-lg"
-            >
-              Single Solution Sync
-            </Link>
-            <span
-              className="badge shrink-0 border text-caption"
-              style={{
-                background: "var(--glass-bg-heavy)",
-                borderColor: "var(--glass-border)",
-                color: "var(--fg-secondary)",
-              }}
-            >
-              {ROLE_LABELS[user.role]}
-            </span>
-          </div>
+          <Link
+            href="/dashboard"
+            className="gradient-text shrink-0 text-[15px] font-bold tracking-tight sm:text-lg"
+          >
+            Single Solution Sync
+          </Link>
 
-          <div className="relative flex shrink-0 items-center gap-1">
-            {/* Theme dropdown */}
+          <nav className="flex items-center gap-1">
+            {/* Theme toggle */}
             <div className="relative" ref={themeRef}>
               <button
                 type="button"
-                onClick={() => {
-                  setThemeOpen((o) => !o);
-                  setNotificationsOpen(false);
-                  setUserMenuOpen(false);
-                }}
+                onClick={() => { setThemeOpen((o) => !o); setNotificationsOpen(false); }}
                 className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
                 aria-label="Theme"
               >
-                <svg
-                  className="h-4 w-4 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d={currentTheme.icon}
-                  />
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={currentTheme.icon} />
                 </svg>
-                <span className="hidden text-xs font-medium sm:inline">
-                  {currentTheme.label}
-                </span>
+                <span className="hidden text-xs font-medium sm:inline">{currentTheme.label}</span>
               </button>
               <AnimatePresence>
                 {themeOpen && (
@@ -368,35 +301,17 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
                     transition={{ duration: 0.12 }}
                     className="absolute right-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-2xl border shadow-lg"
-                    style={{
-                      background: "var(--glass-bg-heavy)",
-                      borderColor: "var(--glass-border)",
-                      backdropFilter: "saturate(200%) blur(40px)",
-                      WebkitBackdropFilter: "saturate(200%) blur(40px)",
-                    }}
+                    style={{ background: "var(--glass-bg-heavy)", borderColor: "var(--glass-border)", backdropFilter: "saturate(200%) blur(40px)", WebkitBackdropFilter: "saturate(200%) blur(40px)" }}
                   >
                     {THEME_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => {
-                          applyTheme(opt.value);
-                          setThemeOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors ${theme === opt.value ? "bg-[var(--primary-light)] font-medium text-[var(--primary)]" : "text-[var(--fg-secondary)] hover:bg-[var(--bg)]"}`}
+                        onClick={() => { applyTheme(opt.value); setThemeOpen(false); }}
+                        className={`flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors ${theme === opt.value ? "bg-[var(--primary-light)] font-medium text-[var(--primary)]" : "text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)]"}`}
                       >
-                        <svg
-                          className="h-4 w-4 shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d={opt.icon}
-                          />
+                        <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d={opt.icon} />
                         </svg>
                         {opt.label}
                       </button>
@@ -407,232 +322,87 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             </div>
 
             {/* Notification bell */}
-            <div className="relative" ref={notifRef}>
-              <button
-                type="button"
-                onClick={() => {
-                  setNotificationsOpen((o) => !o);
-                  setUserMenuOpen(false);
-                  setThemeOpen(false);
-                }}
-                className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
-                aria-label="Notifications"
-              >
-                <svg
-                  className="h-5 w-5 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
+            {(user.role === "superadmin" || user.role === "manager") && (
+              <div className="relative" ref={notifRef}>
+                <button
+                  type="button"
+                  onClick={() => { setNotificationsOpen((o) => !o); setThemeOpen(false); }}
+                  className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
+                  aria-label="Notifications"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14.857 17.082a23.848 23.848 0 005.454-1.082A2.25 2.25 0 0021.75 14.25v-2.5a8.25 8.25 0 00-16.5 0v2.5a2.25 2.25 0 001.632 2.163 23.848 23.848 0 005.454 1.082m-5.454-1.082A2.25 2.25 0 0012 19.5h.008M12 19.5a2.25 2.25 0 002.25-2.25h-4.5A2.25 2.25 0 0012 19.5z"
-                  />
-                </svg>
-                <motion.span
-                  className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
-                  style={{ background: "var(--rose)" }}
-                  animate={{ scale: [1, 1.15, 1] }}
-                  transition={{
-                    duration: 1.6,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
-                  {notifications.length}
-                </motion.span>
-              </button>
-              <AnimatePresence>
-                {notificationsOpen && (
-                  <motion.div
-                    className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),20rem)] overflow-hidden"
-                    style={{
-                      background: "var(--glass-bg-heavy)",
-                      backdropFilter: "var(--glass-blur)",
-                      WebkitBackdropFilter: "var(--glass-blur)",
-                    }}
-                    variants={notifPanelVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                  >
-                    <div
-                      className="flex items-center justify-between border-b px-3 py-2.5"
-                      style={{ borderColor: "var(--border)" }}
+                  <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.082A8.25 8.25 0 0021.75 8.25a8.25 8.25 0 00-16.5 0 8.25 8.25 0 001.439 8.75 23.848 23.848 0 005.454 1.082m-5.454-1.082A2.25 2.25 0 0012 19.5a2.25 2.25 0 002.25-2.418" />
+                  </svg>
+                  {notifications.length > 0 && (
+                    <motion.span
+                      className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                      style={{ background: "var(--rose)" }}
+                      animate={{ scale: [1, 1.15, 1] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      <span className="text-headline text-sm">
-                        Notifications
-                      </span>
-                      <button
-                        type="button"
-                        className="text-footnote font-medium"
-                        style={{ color: "var(--primary)" }}
-                        onClick={() => { setNotifications([]); setNotificationsOpen(false); }}
-                      >
-                        Mark all read
-                      </button>
-                    </div>
-                    <motion.ul
-                      className="max-h-[min(60vh,320px)] overflow-y-auto p-2"
-                      variants={staggerContainer}
+                      {notifications.length}
+                    </motion.span>
+                  )}
+                </button>
+                <AnimatePresence>
+                  {notificationsOpen && (
+                    <motion.div
+                      className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),20rem)] overflow-hidden"
+                      style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
+                      variants={notifPanelVariants}
                       initial="hidden"
                       animate="visible"
+                      exit="exit"
                     >
-                      {notifications.map((n) => (
-                        <motion.li
-                          key={n.id}
-                          variants={slideUpItem}
-                          className="flex cursor-default gap-2 rounded-lg px-2 py-2.5 text-callout"
-                          style={{ color: "var(--fg)" }}
-                          whileHover={{ x: 4 }}
-                        >
-                          <span
-                            className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.dotClass}`}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="leading-snug">{n.text}</p>
-                            <p
-                              className="text-footnote mt-0.5"
-                              style={{ color: "var(--fg-tertiary)" }}
-                            >
-                              {n.time}
-                            </p>
-                          </div>
-                        </motion.li>
-                      ))}
-                    </motion.ul>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* User avatar menu */}
-            <div className="relative" ref={userRef}>
-              <button
-                type="button"
-                onClick={() => {
-                  setUserMenuOpen((o) => !o);
-                  setNotificationsOpen(false);
-                  setThemeOpen(false);
-                }}
-                className={`relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${avatarGradient}`}
-                aria-label="User menu"
-              >
-                {userInitials}
-              </button>
-              <AnimatePresence>
-                {userMenuOpen && (
-                  <motion.div
-                    className="card-static absolute right-0 top-full z-50 mt-2 w-[min(calc(100vw-2rem),16rem)] origin-top-right overflow-hidden p-1"
-                    style={{
-                      background: "var(--glass-bg-heavy)",
-                      backdropFilter: "var(--glass-blur)",
-                      WebkitBackdropFilter: "var(--glass-blur)",
-                    }}
-                    variants={modalContent}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                  >
-                    <div className="px-3 py-3">
-                      <p className="text-headline text-sm leading-tight">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <p
-                        className="text-footnote mt-1 truncate"
-                        style={{ color: "var(--fg-secondary)" }}
-                      >
-                        {user.email}
-                      </p>
-                      <p
-                        className="text-caption mt-0.5"
-                        style={{ color: "var(--fg-tertiary)" }}
-                      >
-                        {ROLE_DESIGNATIONS[user.role]}
-                      </p>
-                    </div>
-                    <hr className="divider" />
-                    <nav className="py-1">
-                      {[
-                        {
-                          label: "My Profile",
-                          icon: "M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z",
-                          href: "/dashboard/settings",
-                        },
-                        {
-                          label: "Settings",
-                          icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
-                          href: "/dashboard/settings",
-                        },
-                        {
-                          label: "Change Password",
-                          icon: "M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H3v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z",
-                          href: "/dashboard/settings",
-                        },
-                      ].map((item) => (
-                        <button
-                          key={item.label}
-                          type="button"
-                          onClick={() => {
-                            setUserMenuOpen(false);
-                            router.push(item.href);
-                          }}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-callout transition-colors hover:bg-[var(--primary-light)]"
-                          style={{ color: "var(--fg)" }}
-                        >
-                          <svg
-                            className="h-4 w-4 shrink-0"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d={item.icon}
-                            />
-                          </svg>
-                          {item.label}
+                      <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
+                        <span className="text-headline text-sm">Notifications</span>
+                        <button type="button" className="text-footnote font-medium" style={{ color: "var(--primary)" }} onClick={() => { setNotifications([]); setNotificationsOpen(false); }}>
+                          Mark all read
                         </button>
-                      ))}
-                    </nav>
-                    <hr className="divider" />
-                    <div className="p-1">
-                      <button
-                        type="button"
-                        onClick={() => signOut({ callbackUrl: "/login" })}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-callout font-medium transition-colors hover:bg-[var(--primary-light)]"
-                        style={{ color: "var(--rose)" }}
-                      >
-                        <svg
-                          className="h-4 w-4 shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
-                          />
-                        </svg>
-                        Sign Out
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+                      </div>
+                      <motion.ul className="max-h-[min(60vh,320px)] overflow-y-auto p-2" variants={staggerContainer} initial="hidden" animate="visible">
+                        {notifications.map((n) => (
+                          <motion.li key={n.id} variants={slideUpItem} className="flex cursor-default gap-2 rounded-lg px-2 py-2.5 text-callout" style={{ color: "var(--fg)" }} whileHover={{ x: 4 }}>
+                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.dotClass}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="leading-snug">{n.text}</p>
+                              <p className="text-footnote mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{n.time}</p>
+                            </div>
+                          </motion.li>
+                        ))}
+                      </motion.ul>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* Settings link */}
+            <Link
+              href="/dashboard/settings"
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
+                pathname.startsWith("/dashboard/settings")
+                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--hover-bg)]"
+              }`}
+            >
+              Settings
+            </Link>
+
+            {/* Sign out */}
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="px-3 py-1.5 rounded-full text-sm font-medium text-[var(--fg-secondary)] hover:text-[var(--rose)] hover:bg-rose-50 transition-all duration-150"
+            >
+              Sign out
+            </button>
+          </nav>
         </div>
       </header>
 
       {/* ── Main content with page transition ── */}
-      <main className="mx-auto max-w-7xl px-4 py-4 pb-24 sm:px-6 sm:py-5 sm:pb-24">
+      <main className="mx-auto max-w-7xl px-4 py-4 pb-40 sm:px-6 sm:py-5 sm:pb-40">
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}

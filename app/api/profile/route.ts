@@ -31,6 +31,16 @@ export async function PUT(req: Request) {
   if (body.lastName !== undefined) update["about.lastName"] = body.lastName;
   if (body.phone !== undefined) update["about.phone"] = body.phone;
 
+  if (typeof body.email === "string" && body.email.trim()) {
+    const trimmed = body.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      return badRequest("Invalid email format");
+    }
+    const existing = await User.findOne({ email: trimmed, _id: { $ne: session.user.id } });
+    if (existing) return badRequest("That email is already in use");
+    update.email = trimmed;
+  }
+
   if (body.profileImage !== undefined) {
     if (body.profileImage && typeof body.profileImage === "string") {
       if (!body.profileImage.startsWith("data:image/")) {
