@@ -28,12 +28,15 @@ Automatic employee presence and attendance tracking system. Detects when employe
 
 ### Attendance & Presence
 - Automatic check-in on app open / check-out on close (no manual buttons)
+- **Multi-device sync**: primary device (laptop/PC) owns the session; secondary devices (mobile, other tabs) display synced read-only status
+- Mobile devices are excluded from initiating check-in — they only show the current session state
+- Only the primary device can perform check-out, GPS updates, and idle detection
 - Geolocation-based office detection (configurable radius via SystemSettings)
 - Continuous GPS tracking with office/remote transition detection
 - Persistent session timer bar (compact pill, color-coded status)
 - Real-time presence board with live status (office, remote, late, overtime, absent)
 - Daily & monthly attendance rollup with `isOnTime` / `lateBy` tracking
-- Idle detection (5 min visual dim, 30 min auto-logout)
+- Idle detection (5 min visual dim, 30 min auto-logout — primary device only)
 
 ### Employee Management
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages team)

@@ -16,6 +16,7 @@ export interface IActivitySession extends Document {
   platform?: string;
   userAgent?: string;
   deviceId?: string;
+  primaryDeviceId?: string;
   location: {
     inOffice: boolean;
     latitude?: number;
@@ -53,6 +54,7 @@ const activitySessionSchema = new Schema<IActivitySession>(
     platform: String,
     userAgent: String,
     deviceId: String,
+    primaryDeviceId: String,
     location: {
       inOffice: { type: Boolean, default: false },
       latitude: Number,

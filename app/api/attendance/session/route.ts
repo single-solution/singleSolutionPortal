@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const daily = await DailyAttendance.findOne({ user: targetUserId, date: today }).lean();
   if (daily) todayMinutes = daily.totalWorkingMinutes ?? 0;
 
-  return ok({ activeSession, todayMinutes });
+  return ok({ activeSession, todayMinutes, primaryDeviceId: activeSession?.primaryDeviceId ?? null });
 }
 
 export async function POST(req: Request) {
@@ -56,9 +56,13 @@ export async function POST(req: Request) {
   const action = body.action as string;
 
   if (action === "checkin") {
+    if (body.isMobile) {
+      return badRequest("Mobile devices cannot start attendance sessions. Use a laptop or PC.");
+    }
     return handleCheckIn(session.user.id, body);
   } else if (action === "checkout") {
-    return handleCheckOut(session.user.id);
+    const deviceId = body.deviceId as string | undefined;
+    return handleCheckOut(session.user.id, deviceId);
   }
 
   return badRequest("Invalid action. Use 'checkin' or 'checkout'.");
@@ -70,7 +74,7 @@ export async function PATCH(req: Request) {
 
   await connectDB();
   const body = await req.json();
-  const { latitude, longitude } = body as { latitude?: number; longitude?: number };
+  const { latitude, longitude, deviceId } = body as { latitude?: number; longitude?: number; deviceId?: string };
   if (latitude == null || longitude == null) return badRequest("Missing coordinates");
 
   const today = startOfDay(new Date());
@@ -80,6 +84,10 @@ export async function PATCH(req: Request) {
     status: "active",
   });
   if (!active) return ok({ updated: false });
+
+  if (deviceId && active.primaryDeviceId && deviceId !== active.primaryDeviceId) {
+    return ok({ updated: false, readOnly: true });
+  }
 
   const now = new Date();
   const wasInOffice = active.location?.inOffice ?? false;
@@ -106,7 +114,7 @@ export async function PATCH(req: Request) {
 
 async function handleCheckIn(
   userId: string,
-  body: { latitude?: number; longitude?: number; platform?: string; userAgent?: string; deviceId?: string },
+  body: { latitude?: number; longitude?: number; platform?: string; userAgent?: string; deviceId?: string; isMobile?: boolean },
 ) {
   const now = new Date();
   const today = startOfDay(now);
@@ -134,6 +142,7 @@ async function handleCheckIn(
     platform: body.platform,
     userAgent: body.userAgent,
     deviceId: body.deviceId,
+    primaryDeviceId: body.deviceId,
     location: {
       inOffice,
       latitude: body.latitude,
@@ -188,7 +197,7 @@ async function handleCheckIn(
   });
 }
 
-async function handleCheckOut(userId: string) {
+async function handleCheckOut(userId: string, deviceId?: string) {
   const now = new Date();
   const today = startOfDay(now);
 
@@ -200,6 +209,10 @@ async function handleCheckOut(userId: string) {
 
   if (!activeSession) {
     return badRequest("No active session found. Please check in first.");
+  }
+
+  if (deviceId && activeSession.primaryDeviceId && deviceId !== activeSession.primaryDeviceId) {
+    return badRequest("Only the primary device can check out.");
   }
 
   const startTime = activeSession.sessionTime.start;
