@@ -42,6 +42,7 @@ export default function DepartmentsPage() {
   const [search, setSearch] = useState("");
 
   // Inline add
+  const [addingOpen, setAddingOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [addingSaving, setAddingSaving] = useState(false);
 
@@ -91,6 +92,7 @@ export default function DepartmentsPage() {
         body: JSON.stringify({ title: newTitle.trim(), description: "", managerId: "" }),
       });
       setNewTitle("");
+      setAddingOpen(false);
       await load();
     } catch { /* ignore */ }
     setAddingSaving(false);
@@ -209,25 +211,60 @@ export default function DepartmentsPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
-        <input
-          type="text"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
-          placeholder="New department..."
-          className="input w-40 sm:w-48 shrink-0"
-        />
         <motion.button
           type="button"
-          onClick={handleQuickAdd}
-          disabled={addingSaving || !newTitle.trim()}
+          onClick={() => { setAddingOpen(!addingOpen); if (!addingOpen) setNewTitle(""); }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="btn btn-primary btn-sm shrink-0"
         >
-          {addingSaving ? "Adding..." : "Add"}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+          Add Department
         </motion.button>
       </motion.div>
+
+      <AnimatePresence>
+        {addingOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden mb-4"
+          >
+            <div className="card-static p-4 flex gap-3 items-center">
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
+                placeholder="Department name..."
+                className="input flex-1"
+                autoFocus
+              />
+              <motion.button
+                type="button"
+                onClick={handleQuickAdd}
+                disabled={addingSaving || !newTitle.trim()}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="btn btn-primary btn-sm shrink-0"
+              >
+                {addingSaving ? "Adding..." : "Create"}
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => { setAddingOpen(false); setNewTitle(""); }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="btn btn-secondary btn-sm shrink-0"
+              >
+                Cancel
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Department Card Grid */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
