@@ -211,6 +211,30 @@ body {
 }
 
 /* ============================================ */
+/* LIQUID GLASS DOCK (Bottom Nav)               */
+/* True iOS 26.4 floating dock — theme-aware    */
+/* ============================================ */
+.dock-glass {
+  background: var(--dock-bg);
+  backdrop-filter: saturate(200%) blur(40px);
+  -webkit-backdrop-filter: saturate(200%) blur(40px);
+  border: 0.5px solid var(--glass-border);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.08),
+    0 1px 4px rgba(0,0,0,0.04),
+    inset 0 0.5px 0 var(--glass-border-inner);
+}
+
+[data-theme="dark"] .dock-glass {
+  background: rgba(30,30,32,0.72);
+  border-color: rgba(255,255,255,0.08);
+  box-shadow:
+    0 8px 40px rgba(0,0,0,0.50),
+    0 1px 4px rgba(0,0,0,0.30),
+    inset 0 0.5px 0 rgba(255,255,255,0.06);
+}
+
+/* ============================================ */
 /* LIQUID GLASS INPUTS                          */
 /* ============================================ */
 .input {
@@ -328,6 +352,12 @@ select.input {
   transform: scale(0.97);
 }
 
+@media (hover: hover) {
+  [data-theme="dark"] .btn-secondary:hover:not(:disabled) {
+    background: rgba(58,58,60,0.55);
+  }
+}
+
 .btn-capsule {
   border-radius: var(--radius-full);
   padding: 8px 20px;
@@ -342,6 +372,10 @@ select.input {
 
 @media (min-width: 640px) {
   .btn-sm { font-size: 13px; padding: 6px 14px; }
+}
+
+@media (hover: hover) {
+  .btn-signout:hover { background: rgba(255,55,95,0.08); }
 }
 
 /* ============================================ */

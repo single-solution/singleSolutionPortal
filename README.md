@@ -5,8 +5,8 @@ Automatic employee presence and attendance tracking system. Detects when employe
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router, TypeScript)
-- **Styling**: Tailwind CSS 4, iOS 26 Liquid Glass design system
-- **Animations**: Framer Motion
+- **Styling**: Tailwind CSS 4, iOS 26.4 Liquid Glass design system (theme-aware glass dock, frosted header, aurora mesh)
+- **Animations**: Framer Motion (spring-based micro-interactions, stagger entrances, layout animations)
 - **Database**: MongoDB Atlas (Mongoose ODM)
 - **Auth**: NextAuth.js v5 (Credentials provider, JWT strategy)
 - **Email**: Nodemailer (SMTP — welcome, password reset, attendance alerts)
@@ -54,6 +54,13 @@ Automatic employee presence and attendance tracking system. Detects when employe
 - IDOR protection on employee API (role + department scoping)
 - Server-side route guards in middleware (admin routes blocked for non-admin)
 - Password strength meter on all password inputs
+
+### Design System
+- iOS 26.4 Liquid Glass: theme-aware glass surfaces, frosted blur, inset highlights
+- Floating dock navigation with dark-mode-optimized borders and shadows
+- Unified page layouts: header with sort toggles, card-static action bar, filter pill rows
+- Shimmer skeleton loading on all pages (no spinners)
+- Framer Motion spring constants matching inventory app (stiffness 400, damping 17)
 
 ### Settings & Configuration
 - System Settings (office location, shift defaults, company info) — SuperAdmin only

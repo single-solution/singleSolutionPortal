@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SidebarModal from "../components/SidebarModal";
-import { buttonHover, slideUpItem, staggerContainer } from "@/lib/motion";
+import { buttonHover } from "@/lib/motion";
 import { useSession } from "next-auth/react";
 
 interface Task {
@@ -40,9 +40,11 @@ const DESIGNATION_LABELS: Record<string, string> = {
 };
 
 type PriorityFilter = "all" | "low" | "medium" | "high" | "urgent";
+type SortMode = "recent" | "deadline" | "priority";
 const PRIORITY_COLORS: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
 const PRIORITY_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
 const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgress: "In Progress", completed: "Completed" };
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 function initials(first: string, last: string) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
@@ -61,6 +63,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [saving, setSaving] = useState(false);
@@ -90,8 +93,19 @@ export default function TasksPage() {
         return t.title.toLowerCase().includes(q) || (t.description ?? "").toLowerCase().includes(q) || name.toLowerCase().includes(q);
       });
     }
+    if (sortMode === "deadline") {
+      list = [...list].sort((a, b) => {
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      });
+    } else if (sortMode === "priority") {
+      list = [...list].sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 4) - (PRIORITY_ORDER[b.priority] ?? 4));
+    } else {
+      list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
     return list;
-  }, [tasks, prioFilter, search]);
+  }, [tasks, prioFilter, search, sortMode]);
 
   const pendingCount = useMemo(() => tasks.filter((t) => t.status === "pending").length, [tasks]);
 
@@ -139,41 +153,74 @@ export default function TasksPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-2 flex-1"><div className="shimmer h-4 w-1/4 rounded" /><div className="shimmer h-7 w-1/3 rounded" /></div>
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="space-y-2 flex-1"><div className="shimmer h-5 w-1/4 rounded" /><div className="shimmer h-8 w-1/3 rounded" /></div>
           <div className="shimmer h-9 w-28 rounded-full" />
         </div>
-        <div className="shimmer h-10 w-64 rounded-xl" />
-        <div className="space-y-3">
-          {[1,2,3,4,5].map(i => <div key={i} className="shimmer h-20 rounded-2xl" />)}
+        <div className="shimmer h-24 rounded-2xl" />
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="shimmer h-36 rounded-2xl" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <motion.div className="flex flex-col gap-4" variants={staggerContainer} initial="hidden" animate="visible">
-      {/* Header */}
-      <motion.div className="flex items-start justify-between gap-3" variants={slideUpItem}>
+    <div className="flex flex-col gap-0">
+      {/* ── Header: title left, sort right ── */}
+      <motion.div
+        className="flex items-center justify-between gap-3 mb-6"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div>
-          <h1 className="text-title"><span className="gradient-text">Tasks</span></h1>
-          <p className="text-subhead mt-1">{tasks.length} total · {pendingCount} pending</p>
+          <h1 className="text-title">Tasks</h1>
+          <p className="text-subhead hidden sm:block">{tasks.length} total · {pendingCount} pending</p>
+        </div>
+        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+          {(["recent", "deadline", "priority"] as SortMode[]).map((s) => (
+            <motion.button
+              key={s}
+              type="button"
+              onClick={() => setSortMode(s)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                sortMode === s
+                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+              }`}
+            >
+              {s === "recent" ? "Latest" : s === "deadline" ? "Deadline" : "Priority"}
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ── Search + Create row ── */}
+      <motion.div
+        className="card-static p-4 mb-4 flex gap-3 items-center"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.1 }}
+      >
+        <div className="relative flex-1">
+          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input flex-1" style={{ paddingLeft: "40px" }} />
         </div>
         {isAdmin && (
-          <motion.button type="button" whileHover={buttonHover} onClick={openCreate} className="btn btn-primary btn-sm shrink-0">
+          <motion.button type="button" onClick={openCreate} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Create Task
           </motion.button>
         )}
       </motion.div>
 
-      {/* Search + Priority filter */}
-      <motion.div className="flex flex-col gap-3" variants={slideUpItem}>
-        <div className="relative max-w-xs">
-          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input text-sm" style={{ paddingLeft: "40px" }} />
-        </div>
-        <div className="flex items-center gap-0.5 rounded-xl border-[0.5px] p-0.5" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+      {/* ── Priority filter ── */}
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["all", "low", "medium", "high", "urgent"] as PriorityFilter[]).map((f) => {
             const active = prioFilter === f;
             return (
@@ -181,9 +228,10 @@ export default function TasksPage() {
                 key={f}
                 type="button"
                 onClick={() => setPrioFilter(f)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-all ${
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                   active
                     ? "bg-[var(--primary)] text-white shadow-sm"
                     : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
@@ -194,92 +242,118 @@ export default function TasksPage() {
             );
           })}
         </div>
-      </motion.div>
+        {(search || prioFilter !== "all") && (
+          <button type="button" onClick={() => { setSearch(""); setPrioFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
+            Clear
+          </button>
+        )}
+      </div>
 
-      {/* Task cards */}
-      <motion.div className="flex flex-col gap-3" variants={staggerContainer} initial="hidden" animate="visible">
+      {/* ── Task Card Grid ── */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
-          {filtered.map((task, i) => {
-            const assignee = task.assignedTo;
-            const gi = assignee ? stableHash(assignee._id ?? "") : 0;
-            return (
-              <motion.div key={task._id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }} className="card-static flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)" }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{task.title}</p>
-                      <span className="text-caption rounded-md px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} 15%, transparent)`, color: PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)" }}>
-                        {PRIORITY_LABELS[task.priority] ?? task.priority}
-                      </span>
-                    </div>
-                    {task.description && <p className="text-caption mt-1 line-clamp-1">{task.description}</p>}
-                    <div className="mt-2 flex flex-wrap items-center gap-3">
-                      {assignee?.about && (
-                        <span className="flex items-center gap-1.5 text-caption">
-                          <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br text-[9px] font-bold text-white ${AVATAR_GRADIENTS[gi % AVATAR_GRADIENTS.length]}`}>
-                            {initials(assignee.about.firstName, assignee.about.lastName)}
+          {filtered.length === 0 ? (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full card p-12 text-center">
+              <p style={{ color: "var(--fg-secondary)" }}>No tasks found.</p>
+            </motion.div>
+          ) : (
+            filtered.map((task, i) => {
+              const assignee = task.assignedTo;
+              const gi = assignee ? stableHash(assignee._id ?? "") : 0;
+              const grad = AVATAR_GRADIENTS[gi % AVATAR_GRADIENTS.length];
+              const prioColor = PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)";
+              return (
+                <motion.div
+                  key={task._id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
+                >
+                  <div className="card group relative overflow-hidden flex flex-col">
+                    <div className="p-3 sm:p-4 flex-1">
+                      {/* Priority + Status row */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
+                          {PRIORITY_LABELS[task.priority] ?? task.priority}
+                        </span>
+                        {!isAdmin && task.assignedTo?._id === session?.user?.id ? (
+                          <select
+                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold cursor-pointer border-0 bg-transparent"
+                            style={{
+                              background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
+                              color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
+                            }}
+                            value={task.status}
+                            onChange={async (e) => {
+                              await fetch(`/api/tasks/${task._id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ status: e.target.value }),
+                              });
+                              await load();
+                            }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="inProgress">In Progress</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        ) : (
+                          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{
+                            background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
+                            color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
+                          }}>
+                            {TASK_STATUS_LABELS[task.status] ?? task.status}
                           </span>
-                          {assignee.about.firstName} {assignee.about.lastName}
-                        </span>
-                      )}
-                      {task.deadline && (
-                        <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                          Due {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 sm:shrink-0">
-                  {!isAdmin && task.assignedTo?._id === session?.user?.id ? (
-                    <select
-                      className="badge cursor-pointer border-0 text-xs font-semibold"
-                      style={{
-                        background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
-                        color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
-                      }}
-                      value={task.status}
-                      onChange={async (e) => {
-                        await fetch(`/api/tasks/${task._id}`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ status: e.target.value }),
-                        });
-                        await load();
-                      }}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="inProgress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  ) : (
-                    <span className="badge shrink-0" style={{
-                      background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
-                      color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
-                    }}>
-                      {TASK_STATUS_LABELS[task.status] ?? task.status}
-                    </span>
-                  )}
-                  {isAdmin && (
-                    <div className="flex items-center gap-1">
-                      <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(task)} className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                      </motion.button>
-                      <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(task._id)} className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                      </motion.button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-        {filtered.length === 0 && <p className="py-8 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No tasks found</p>}
-      </motion.div>
+                        )}
+                      </div>
 
-      {/* Create/Edit Sidebar */}
+                      {/* Title + Description */}
+                      <p className="font-semibold" style={{ color: "var(--fg)" }}>{task.title}</p>
+                      {task.description && <p className="text-caption mt-1 line-clamp-2">{task.description}</p>}
+
+                      {/* Meta */}
+                      <div className="mt-3 space-y-1.5 text-[13px]">
+                        {assignee?.about && (
+                          <div className="flex items-center gap-2">
+                            <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white ${grad}`}>
+                              {initials(assignee.about.firstName, assignee.about.lastName)}
+                            </span>
+                            <span style={{ color: "var(--fg)" }}>{assignee.about.firstName} {assignee.about.lastName}</span>
+                          </div>
+                        )}
+                        {task.deadline && (
+                          <div className="flex items-center gap-1.5">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                            <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                              {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Footer actions (admin only) */}
+                    {isAdmin && (
+                      <div className="flex items-center justify-end gap-1 px-3 sm:px-4 py-2 border-t opacity-0 group-hover:opacity-100 transition-opacity" style={{ borderColor: "var(--border)" }}>
+                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(task)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--primary)" }} title="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </motion.button>
+                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(task._id)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--rose)" }} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                        </motion.button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Create/Edit Sidebar ── */}
       <SidebarModal
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -288,16 +362,16 @@ export default function TasksPage() {
       >
         <form id="task-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Title</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Title</label>
             <input className="input" placeholder="Task title..." required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Description</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Description</label>
             <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           {isAdmin && (
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Assign To</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Assign To</label>
               <select className="input" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
                 <option value="">Select employee</option>
                 {employees.filter((e) => e.userRole !== "superadmin").map((e) => (
@@ -308,7 +382,7 @@ export default function TasksPage() {
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Priority</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Priority</label>
               <select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -317,13 +391,13 @@ export default function TasksPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Deadline</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Deadline</label>
               <input className="input" type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
             </div>
           </div>
           {editing && (
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Status</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Status</label>
               <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                 <option value="pending">Pending</option>
                 <option value="inProgress">In Progress</option>
@@ -336,6 +410,6 @@ export default function TasksPage() {
           </motion.button>
         </form>
       </SidebarModal>
-    </motion.div>
+    </div>
   );
 }

@@ -10,8 +10,6 @@ import {
   staggerContainer,
   tabIndicatorTransition,
   dockEntrance,
-  pageTransition,
-  pageTransitionConfig,
 } from "@/lib/motion";
 import type { UserRole } from "@/lib/models/User";
 import SessionTracker from "./SessionTracker";
@@ -393,7 +391,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="px-3 py-1.5 rounded-full text-sm font-medium text-[var(--fg-secondary)] hover:text-[var(--rose)] hover:bg-rose-50 transition-all duration-150"
+              className="btn-signout px-3 py-1.5 rounded-full text-sm font-medium text-[var(--fg-secondary)] hover:text-[var(--rose)] transition-all duration-150"
             >
               Sign out
             </button>
@@ -403,14 +401,12 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
       {/* ── Main content with page transition ── */}
       <main className="mx-auto max-w-7xl px-4 py-4 pb-40 sm:px-6 sm:py-5 sm:pb-40">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={pathname}
-            variants={pageTransition}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={pageTransitionConfig}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15 }}
           >
             {children}
           </motion.div>
@@ -432,16 +428,8 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </div>
           <LayoutGroup>
             <nav
-              className="flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
-              style={{
-                background: "var(--dock-bg, rgba(242,242,247,0.82))",
-                backdropFilter: "saturate(180%) blur(24px)",
-                WebkitBackdropFilter: "saturate(180%) blur(24px)",
-                border: "0.5px solid rgba(255,255,255,0.50)",
-                boxShadow:
-                  "0 2px 20px rgba(0,0,0,0.10), 0 0 1px rgba(0,0,0,0.08), inset 0 0.5px 0 rgba(255,255,255,0.80)",
-                padding: "8px 12px",
-              }}
+              className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
+              style={{ padding: "8px 12px" }}
             >
               {visibleLinks.map((link) => {
                 const active = isActive(link.href);

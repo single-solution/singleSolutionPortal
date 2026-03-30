@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
-import DataTable, { StatusToggle, type Column } from "../components/DataTable";
+import { motion, AnimatePresence } from "framer-motion";
+import { StatusToggle } from "../components/DataTable";
 import SidebarModal from "../components/SidebarModal";
-import { buttonHover, slideUpItem, staggerContainer } from "@/lib/motion";
+import { buttonHover } from "@/lib/motion";
 
 interface Employee {
   _id: string;
@@ -51,18 +51,17 @@ const DESIGNATION_LABELS: Record<string, string> = {
 
 type RoleFilter = "all" | "manager" | "businessDeveloper" | "developer";
 const ROLE_FILTER_LABELS: Record<RoleFilter, string> = {
-  all: "All Employees",
+  all: "All",
   manager: "Managers",
-  businessDeveloper: "Business Developers",
+  businessDeveloper: "BD",
   developer: "Developers",
 };
 
 type PresenceStatus = "office" | "remote" | "late" | "overtime" | "absent";
 const STATUS_COLORS: Record<PresenceStatus, string> = { office: "#10b981", remote: "#007aff", late: "#f59e0b", overtime: "#8b5cf6", absent: "#f43f5e" };
 const STATUS_LABELS: Record<PresenceStatus, string> = { office: "In Office", remote: "Remote", late: "Late", overtime: "Overtime", absent: "Absent" };
-const STATUS_BADGE_CLASS: Record<PresenceStatus, string> = { office: "badge-office", remote: "badge-remote", late: "badge-late", overtime: "badge-overtime", absent: "badge-absent" };
 
-// Presence data is fetched from API in the component
+type SortMode = "recent" | "name";
 
 function initials(first: string, last: string) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
@@ -97,6 +96,9 @@ export default function EmployeesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("recent");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
@@ -129,6 +131,30 @@ export default function EmployeesPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    let list = employees;
+    if (roleFilter !== "all") list = list.filter((e) => e.userRole === roleFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((e) => `${e.about.firstName} ${e.about.lastName} ${e.email} ${e.username}`.toLowerCase().includes(q));
+    }
+    if (sortMode === "name") {
+      list = [...list].sort((a, b) => `${a.about.firstName} ${a.about.lastName}`.localeCompare(`${b.about.firstName} ${b.about.lastName}`));
+    } else {
+      list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+    return list;
+  }, [employees, roleFilter, search, sortMode]);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length && filtered.length > 0) setSelected(new Set());
+    else setSelected(new Set(filtered.map((e) => e._id)));
+  }
 
   function openCreate() {
     setEditing(null);
@@ -200,6 +226,13 @@ export default function EmployeesPage() {
     await load();
   }
 
+  async function handleBulkDeactivate() {
+    if (!confirm(`Deactivate ${selected.size} employee(s)?`)) return;
+    await Promise.all([...selected].map((id) => fetch(`/api/employees/${id}`, { method: "DELETE" })));
+    setSelected(new Set());
+    await load();
+  }
+
   async function toggleActive(emp: Employee) {
     await fetch(`/api/employees/${emp._id}`, {
       method: "PUT",
@@ -216,107 +249,234 @@ export default function EmployeesPage() {
     }));
   }
 
-  const filtered = useMemo(() => {
-    if (roleFilter === "all") return employees;
-    return employees.filter((e) => e.userRole === roleFilter);
-  }, [employees, roleFilter]);
-
-  const columns: Column<Employee>[] = [
-    {
-      key: "name", label: "Name", sortable: true,
-      render: (emp, idx) => (
-        <div className="flex items-center gap-3">
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-bold text-white ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]}`}>
-            {initials(emp.about.firstName, emp.about.lastName)}
-          </div>
-          <div className="min-w-0">
-            <div className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</div>
-            <div className="text-caption line-clamp-1">{emp.email}</div>
-          </div>
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="space-y-2 flex-1"><div className="shimmer h-5 w-1/4 rounded" /><div className="shimmer h-8 w-1/3 rounded" /></div>
+          <div className="shimmer h-9 w-32 rounded-full" />
         </div>
-      ),
-    },
-    {
-      key: "designation", label: "Designation", sortable: true,
-      render: (emp) => <span className="text-subhead">{DESIGNATION_LABELS[emp.userRole] ?? emp.userRole}</span>,
-    },
-    {
-      key: "department", label: "Department", sortable: true,
-      render: (emp) => <span className="text-subhead">{emp.department?.title ?? "—"}</span>,
-    },
-    {
-      key: "status", label: "Status",
-      render: (emp) => {
-        const status = presenceMap.get(emp._id) ?? "absent";
-        return <span className={`badge ${STATUS_BADGE_CLASS[status]}`}>{STATUS_LABELS[status]}</span>;
-      },
-    },
-    {
-      key: "active", label: "Active",
-      render: (emp) => <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />,
-    },
-    {
-      key: "actions", label: "Actions",
-      render: (emp) => (
-        <div className="flex items-center gap-1">
-          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(emp)} className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-          </motion.button>
-          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(emp._id)} className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-          </motion.button>
+        <div className="shimmer h-14 rounded-2xl" />
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="shimmer h-44 rounded-2xl" />)}
         </div>
-      ),
-    },
-  ];
+      </div>
+    );
+  }
 
   return (
-    <motion.div className="flex flex-col gap-4" variants={staggerContainer} initial="hidden" animate="visible">
-      <motion.div className="flex items-start justify-between gap-3" variants={slideUpItem}>
+    <div className="flex flex-col gap-0">
+      {/* ── Header: title left, sort right ── */}
+      <motion.div
+        className="flex items-center justify-between gap-3 mb-6"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div>
-          <h1 className="text-title"><span className="gradient-text">Employees</span></h1>
-          <p className="text-subhead mt-1">{filtered.length} employee{filtered.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-title">Employees</h1>
+          <p className="text-subhead hidden sm:block">{employees.length} team member{employees.length !== 1 ? "s" : ""}</p>
         </div>
-        <motion.button type="button" whileHover={buttonHover} onClick={openCreate} className="btn btn-primary btn-sm shrink-0">
+        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+          {(["recent", "name"] as SortMode[]).map((s) => (
+            <motion.button
+              key={s}
+              type="button"
+              onClick={() => setSortMode(s)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                sortMode === s
+                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+              }`}
+            >
+              {s === "recent" ? "Latest" : "A – Z"}
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ── Search + Add row ── */}
+      <motion.div
+        className="card-static p-4 mb-4 flex gap-3 items-center"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.1 }}
+      >
+        <div className="relative flex-1">
+          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search employees..."
+            className="input flex-1"
+            style={{ paddingLeft: "40px" }}
+          />
+        </div>
+        <motion.button type="button" onClick={openCreate} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
           Add Employee
         </motion.button>
       </motion.div>
 
-      <motion.div variants={slideUpItem}>
-        <DataTable
-          columns={columns}
-          data={filtered}
-          loading={loading}
-          searchPlaceholder="Search employees..."
-          searchKey={(e) => `${e.about.firstName} ${e.about.lastName} ${e.email} ${e.username}`}
-          rowKey={(e) => e._id}
-          filterSlot={
-            <div className="flex items-center gap-0.5 rounded-xl border-[0.5px] p-0.5" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
-              {(Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).map((k) => {
-                const active = roleFilter === k;
-                return (
-                  <motion.button
-                    key={k}
-                    type="button"
-                    onClick={() => setRoleFilter(k)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
-                    className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-all ${
-                      active
-                        ? "bg-[var(--primary)] text-white shadow-sm"
-                        : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                    }`}
-                  >
-                    {ROLE_FILTER_LABELS[k]}
-                  </motion.button>
-                );
-              })}
-            </div>
-          }
-        />
-      </motion.div>
+      {/* ── Role filter ── */}
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+          {(Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).map((k) => {
+            const active = roleFilter === k;
+            return (
+              <motion.button
+                key={k}
+                type="button"
+                onClick={() => setRoleFilter(k)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                  active
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                }`}
+              >
+                {ROLE_FILTER_LABELS[k]}
+              </motion.button>
+            );
+          })}
+        </div>
+        {(search || roleFilter !== "all") && (
+          <button type="button" onClick={() => { setSearch(""); setRoleFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
+            Clear
+          </button>
+        )}
+      </div>
 
+      {/* ── Batch Action Bar ── */}
+      <AnimatePresence>
+        {selected.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -10, height: 0 }}
+            className="card-static p-3 mb-4 flex items-center gap-2 overflow-hidden"
+          >
+            <span className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{selected.size} selected</span>
+            <div className="flex-1" />
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              onClick={handleBulkDeactivate}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}
+            >
+              Deactivate
+            </motion.button>
+            <button type="button" onClick={() => setSelected(new Set())} className="text-xs font-medium transition-colors" style={{ color: "var(--fg-secondary)" }}>
+              Clear
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Count + Select all ── */}
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-footnote" style={{ color: "var(--fg-secondary)" }}>{filtered.length} employee{filtered.length !== 1 ? "s" : ""}</p>
+        <button type="button" onClick={toggleSelectAll} className="text-footnote font-medium hover:underline" style={{ color: "var(--primary)" }}>
+          {selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
+        </button>
+      </div>
+
+      {/* ── Employee Card Grid ── */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <AnimatePresence mode="popLayout">
+          {filtered.length === 0 ? (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full card p-12 text-center">
+              <p style={{ color: "var(--fg-secondary)" }}>No employees found.</p>
+            </motion.div>
+          ) : (
+            filtered.map((emp, i) => {
+              const status = presenceMap.get(emp._id) ?? "absent";
+              const grad = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
+              const isSelected = selected.has(emp._id);
+              return (
+                <motion.div
+                  key={emp._id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
+                >
+                  <div className="card group relative overflow-hidden">
+                    {/* Selection checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(emp._id)}
+                      className="absolute top-3 left-3 z-10 w-4 h-4 rounded accent-[var(--primary)] opacity-0 group-hover:opacity-100 checked:opacity-100 transition-opacity"
+                    />
+
+                    <div className="p-3 sm:p-4 pb-2 sm:pb-3">
+                      {/* Top row: avatar + info */}
+                      <div className="flex items-start gap-3">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
+                          {initials(emp.about.firstName, emp.about.lastName)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
+                          <p className="text-caption truncate">{emp.email}</p>
+                        </div>
+                        {/* Status dot */}
+                        <span className="relative flex h-2.5 w-2.5 shrink-0 mt-1.5">
+                          <span className="absolute inline-flex h-full w-full rounded-full opacity-40" style={{ background: STATUS_COLORS[status], animation: status !== "absent" ? "ping 1.5s cubic-bezier(0,0,0.2,1) infinite" : "none" }} />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLORS[status] }} />
+                        </span>
+                      </div>
+
+                      {/* Details rows */}
+                      <div className="mt-3 space-y-1.5 text-[13px]">
+                        <div className="flex items-center justify-between">
+                          <span style={{ color: "var(--fg-tertiary)" }}>Role</span>
+                          <span className="font-medium" style={{ color: "var(--fg)" }}>{DESIGNATION_LABELS[emp.userRole] ?? emp.userRole}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span style={{ color: "var(--fg-tertiary)" }}>Department</span>
+                          <span className="font-medium" style={{ color: "var(--fg)" }}>{emp.department?.title ?? "—"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span style={{ color: "var(--fg-tertiary)" }}>Status</span>
+                          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${STATUS_COLORS[status]} 15%, transparent)`, color: STATUS_COLORS[status] }}>
+                            {STATUS_LABELS[status]}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer: toggle + actions */}
+                    <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t" style={{ borderColor: "var(--border)" }}>
+                      <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(emp)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </motion.button>
+                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(emp._id)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                        </motion.button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Sidebar Modal ── */}
       <SidebarModal
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -324,61 +484,33 @@ export default function EmployeesPage() {
         subtitle={editing ? editing.email : "Create a new employee account."}
       >
         <form id="emp-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
-          {/* Names */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>First Name</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">First Name</label>
               <input className="input" placeholder="Ali" required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Last Name</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Last Name</label>
               <input className="input" placeholder="Ahmed" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
             </div>
           </div>
 
-          {/* Email */}
           {!editing && (
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Email</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Email</label>
               <input className="input" type="email" required placeholder="ali@singlesolution.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
           )}
 
-          {/* Username with tooltip */}
           {!editing && (
             <div>
-              <div className="mb-1 flex items-center gap-1.5">
-                <label className="text-caption block font-semibold" style={{ color: "var(--fg)" }}>Username</label>
-                <div className="group relative">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                  <div className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-48 rounded-xl p-3 opacity-0 shadow-lg transition-opacity group-hover:pointer-events-auto group-hover:opacity-100" style={{ background: "var(--bg-solid)", border: "1px solid var(--border)" }}>
-                    <p className="text-caption font-semibold" style={{ color: "var(--fg)" }}>Username rules:</p>
-                    <ul className="mt-1 space-y-0.5 text-caption" style={{ color: "var(--fg-secondary)" }}>
-                      <li>3-20 characters</li><li>Lowercase letters, numbers</li><li>No spaces or special chars</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Username</label>
               <input className="input" placeholder="ali" required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
             </div>
           )}
 
-          {/* Password with tooltip, visibility toggle, strength bars */}
           <div>
-            <div className="mb-1 flex items-center gap-1.5">
-              <label className="text-caption block font-semibold" style={{ color: "var(--fg)" }}>{editing ? "New Password (optional)" : "Password"}</label>
-              {!editing && (
-                <div className="group relative">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                  <div className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-52 rounded-xl p-3 opacity-0 shadow-lg transition-opacity group-hover:pointer-events-auto group-hover:opacity-100" style={{ background: "var(--bg-solid)", border: "1px solid var(--border)" }}>
-                    <p className="text-caption font-semibold" style={{ color: "var(--fg)" }}>Password rules:</p>
-                    <ul className="mt-1 space-y-0.5 text-caption" style={{ color: "var(--fg-secondary)" }}>
-                      <li>Minimum 8 characters</li><li>One uppercase letter</li><li>One lowercase letter</li><li>One number</li><li>One special character</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">{editing ? "New Password (optional)" : "Password"}</label>
             <div className="relative">
               <input className="input pr-12" type={showPw ? "text" : "password"} required={!editing} placeholder={editing ? "Leave blank to keep current" : "Set initial password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--fg-secondary)" }} onClick={() => setShowPw(!showPw)}>
@@ -389,36 +521,33 @@ export default function EmployeesPage() {
             </div>
             {form.password && (
               <div className="mt-1.5 flex gap-1">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <motion.div key={i} className="h-1 flex-1 rounded-full" animate={{ backgroundColor: i < strength ? strengthColor(strength) : "var(--border)", opacity: i < strength ? 1 : 0.45 }} transition={{ type: "spring", stiffness: 380, damping: 28 }} />
+                {[0, 1, 2, 3, 4].map((j) => (
+                  <motion.div key={j} className="h-1 flex-1 rounded-full" animate={{ backgroundColor: j < strength ? strengthColor(strength) : "var(--border)", opacity: j < strength ? 1 : 0.45 }} transition={{ type: "spring", stiffness: 380, damping: 28 }} />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Designation (Role) */}
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Designation</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Designation</label>
             <select className="input" value={form.userRole} onChange={(e) => setForm({ ...form, userRole: e.target.value })}>
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
 
-          {/* Department */}
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Department</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Department</label>
             <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
               <option value="">No Department</option>
               {departments.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
             </select>
           </div>
 
-          {/* Shift Configuration */}
           <hr className="divider" />
           <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>Shift Configuration</p>
 
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Shift Type</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Shift Type</label>
             <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
               <option value="fullTime">Full Time</option>
               <option value="partTime">Part Time</option>
@@ -428,20 +557,20 @@ export default function EmployeesPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Start Time</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Start Time</label>
               <input className="input" type="time" value={form.shiftStart} onChange={(e) => setForm({ ...form, shiftStart: e.target.value })} />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>End Time</label>
+              <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">End Time</label>
               <input className="input" type="time" value={form.shiftEnd} onChange={(e) => setForm({ ...form, shiftEnd: e.target.value })} />
             </div>
           </div>
 
           <div>
-            <label className="text-caption mb-2 block font-semibold" style={{ color: "var(--fg)" }}>Working Days</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-2">Working Days</label>
             <div className="flex flex-wrap gap-2">
-              {WEEKDAYS.map((day, i) => {
-                const key = WEEKDAY_KEYS[i];
+              {WEEKDAYS.map((day, idx) => {
+                const key = WEEKDAY_KEYS[idx];
                 const active = form.workingDays.includes(key);
                 return (
                   <label key={day} className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-caption font-medium" style={{ background: active ? "var(--primary-light)" : "var(--glass-bg)", color: active ? "var(--primary)" : "var(--fg-secondary)" }}>
@@ -454,7 +583,7 @@ export default function EmployeesPage() {
           </div>
 
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1" style={{ color: "var(--fg)" }}>Break Time (min)</label>
+            <label className="block text-xs sm:text-sm font-medium text-[var(--fg)] mb-1">Break Time (min)</label>
             <input className="input" type="number" value={form.breakTime} onChange={(e) => setForm({ ...form, breakTime: Number(e.target.value) })} />
           </div>
 
@@ -463,6 +592,6 @@ export default function EmployeesPage() {
           </motion.button>
         </form>
       </SidebarModal>
-    </motion.div>
+    </div>
   );
 }

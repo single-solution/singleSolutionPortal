@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { slideUpItem, staggerContainer } from "@/lib/motion";
 
 interface DailyRecord {
   _id: string;
@@ -87,16 +86,26 @@ export default function AttendancePage() {
   const totalMins = records.reduce((s, r) => s + r.totalWorkingMinutes, 0);
 
   return (
-    <motion.div className="flex flex-col gap-4" variants={staggerContainer} initial="hidden" animate="visible">
-      <motion.div className="flex items-start justify-between gap-3" variants={slideUpItem}>
+    <div className="flex flex-col gap-4">
+      <motion.div
+        className="flex items-start justify-between gap-3"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div>
-          <h1 className="text-title"><span className="gradient-text">Attendance</span></h1>
-          <p className="text-subhead mt-1">{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present</p>
+          <h1 className="text-title">Attendance</h1>
+          <p className="text-subhead hidden sm:block">{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present</p>
         </div>
       </motion.div>
 
       {/* Today's Session Info (auto-managed) */}
-      <motion.div className="card-xl flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" variants={slideUpItem}>
+      <motion.div
+        className="card-xl flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{
             background: todaySession.active
@@ -138,7 +147,12 @@ export default function AttendancePage() {
       </motion.div>
 
       {/* Stats */}
-      <motion.div className="grid grid-cols-3 gap-3" variants={slideUpItem}>
+      <motion.div
+        className="grid grid-cols-3 gap-3"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
         {[
           { label: "Present Days", value: presentDays, color: "var(--green)" },
           { label: "On Time", value: onTimeDays, color: "var(--primary)" },
@@ -152,7 +166,12 @@ export default function AttendancePage() {
       </motion.div>
 
       {/* Calendar */}
-      <motion.div className="card-static p-3 sm:p-4" variants={slideUpItem}>
+      <motion.div
+        className="card-static p-3 sm:p-4"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
         <div className="mb-3 flex items-center justify-between">
           <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -204,7 +223,12 @@ export default function AttendancePage() {
           {[1,2,3,4].map(i => <div key={i} className="shimmer h-14 rounded-xl" />)}
         </div>
       ) : records.length > 0 ? (
-        <motion.div className="card-static overflow-hidden" variants={slideUpItem}>
+        <motion.div
+          className="card-static overflow-hidden"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
           <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
             <h3 className="text-headline text-sm">Recent Records</h3>
           </div>
@@ -229,10 +253,10 @@ export default function AttendancePage() {
           </div>
         </motion.div>
       ) : (
-        <motion.div className="card-static p-8 text-center" variants={slideUpItem}>
+        <motion.div className="card-static p-8 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <p className="text-callout" style={{ color: "var(--fg-tertiary)" }}>No attendance records for this month yet. Records will appear once presence tracking begins.</p>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 }

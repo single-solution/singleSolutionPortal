@@ -331,15 +331,16 @@ export default function SettingsPage() {
             <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Send a test email to verify SMTP configuration.</p>
 
             <div className="space-y-3">
-              <div className="flex items-center gap-0.5 rounded-xl border-[0.5px] p-0.5" style={{ background: "var(--glass-bg)", borderColor: "var(--glass-border)" }}>
+              <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
                 {EMAIL_TYPES.map(([t, label]) => (
                   <motion.button
                     key={t}
                     type="button"
                     onClick={() => setTestType(t)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
-                    className={`px-2.5 py-1 rounded-[10px] text-xs font-medium transition-all ${
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.92 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
                       testType === t
                         ? "bg-[var(--primary)] text-white shadow-sm"
                         : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
