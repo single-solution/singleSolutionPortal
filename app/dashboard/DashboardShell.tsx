@@ -173,7 +173,10 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     let timer: ReturnType<typeof setTimeout>;
     function resetLogoutTimer() {
       clearTimeout(timer);
-      timer = setTimeout(() => signOut({ callbackUrl: "/login" }), AUTO_LOGOUT_MS);
+      timer = setTimeout(async () => {
+        try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+        signOut({ callbackUrl: "/login" });
+      }, AUTO_LOGOUT_MS);
     }
     const events = ["mousemove", "keydown", "touchstart", "scroll", "click"] as const;
     events.forEach((e) => window.addEventListener(e, resetLogoutTimer, { passive: true }));
@@ -390,7 +393,10 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             {/* Sign out */}
             <button
               type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={async () => {
+                try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+                signOut({ callbackUrl: "/login" });
+              }}
               className="btn-signout px-3 py-1.5 rounded-full text-sm font-medium text-[var(--fg-secondary)] hover:text-[var(--rose)] transition-all duration-150"
             >
               Sign out

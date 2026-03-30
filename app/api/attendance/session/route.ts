@@ -8,10 +8,21 @@ import { isInOffice } from "@/lib/geo";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 
+const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
+
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+// ─── GET: session state ────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
@@ -21,25 +32,38 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get("userId") ?? session.user.id;
 
-  if (session.user.role !== "superadmin" && session.user.role !== "manager" && targetUserId !== session.user.id) {
+  if (
+    session.user.role !== "superadmin" &&
+    session.user.role !== "manager" &&
+    targetUserId !== session.user.id
+  ) {
     return ok({ activeSession: null });
   }
 
-  const today = startOfDay(new Date());
+  const now = new Date();
+  const today = startOfDay(now);
 
   const activeSession = await ActivitySession.findOne({
     user: targetUserId,
-    sessionDate: today,
     status: "active",
   }).lean();
+
+  let isStale = false;
+  if (activeSession) {
+    const isPreviousDay = !isSameDay(activeSession.sessionDate, now);
+    isStale =
+      isPreviousDay ||
+      now.getTime() - new Date(activeSession.lastActivity).getTime() > STALE_THRESHOLD_MS;
+  }
 
   let todayMinutes = 0;
   const daily = await DailyAttendance.findOne({ user: targetUserId, date: today }).lean();
   if (daily) todayMinutes = daily.totalWorkingMinutes ?? 0;
 
-  return ok({ activeSession, todayMinutes, primaryDeviceId: activeSession?.primaryDeviceId ?? null });
+  return ok({ activeSession, todayMinutes, isStale });
 }
 
+// ─── POST: check-in / check-out ───────────────────────────────────
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
@@ -51,7 +75,11 @@ export async function POST(req: Request) {
     body = await req.json();
   } catch {
     const text = await req.text();
-    try { body = JSON.parse(text); } catch { body = { action: "checkout" }; }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = { action: "checkout" };
+    }
   }
   const action = body.action as string;
 
@@ -61,79 +89,189 @@ export async function POST(req: Request) {
     }
     return handleCheckIn(session.user.id, body);
   } else if (action === "checkout") {
-    const deviceId = body.deviceId as string | undefined;
-    return handleCheckOut(session.user.id, deviceId);
+    return handleCheckOut(session.user.id);
   }
 
   return badRequest("Invalid action. Use 'checkin' or 'checkout'.");
 }
 
+// ─── PATCH: heartbeat + location ──────────────────────────────────
 export async function PATCH(req: Request) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
   await connectDB();
-  const body = await req.json();
-  const { latitude, longitude, deviceId } = body as { latitude?: number; longitude?: number; deviceId?: string };
-  if (latitude == null || longitude == null) return badRequest("Missing coordinates");
 
-  const today = startOfDay(new Date());
-  const active = await ActivitySession.findOne({
-    user: session.user.id,
-    sessionDate: today,
-    status: "active",
-  });
-  if (!active) return ok({ updated: false });
-
-  if (deviceId && active.primaryDeviceId && deviceId !== active.primaryDeviceId) {
-    return ok({ updated: false, readOnly: true });
+  let body: { latitude?: number; longitude?: number };
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
   }
+  const { latitude, longitude } = body;
 
   const now = new Date();
-  const wasInOffice = active.location?.inOffice ?? false;
-  const nowInOffice = await isInOffice(latitude, longitude);
 
-  active.location.latitude = latitude;
-  active.location.longitude = longitude;
-  active.location.inOffice = nowInOffice;
+  const active = await ActivitySession.findOne({
+    user: session.user.id,
+    status: "active",
+  });
+
+  if (!active) {
+    return ok({ updated: false, sessionClosed: true });
+  }
+
+  if (!isSameDay(active.sessionDate, now)) {
+    return ok({ updated: false, sessionClosed: true, dayChanged: true });
+  }
+
   active.lastActivity = now;
 
-  if (wasInOffice && !nowInOffice) {
-    const lastSeg = active.officeSegments?.[active.officeSegments.length - 1];
-    if (lastSeg && !lastSeg.exitTime) {
-      lastSeg.exitTime = now;
-      lastSeg.durationMinutes = Math.floor((now.getTime() - lastSeg.entryTime.getTime()) / 60000);
+  if (latitude != null && longitude != null) {
+    const wasInOffice = active.location?.inOffice ?? false;
+    const nowInOffice = await isInOffice(latitude, longitude);
+
+    active.location.latitude = latitude;
+    active.location.longitude = longitude;
+    active.location.inOffice = nowInOffice;
+
+    if (wasInOffice && !nowInOffice) {
+      const lastSeg = active.officeSegments?.[active.officeSegments.length - 1];
+      if (lastSeg && !lastSeg.exitTime) {
+        lastSeg.exitTime = now;
+        lastSeg.durationMinutes = Math.floor(
+          (now.getTime() - lastSeg.entryTime.getTime()) / 60000,
+        );
+      }
+    } else if (!wasInOffice && nowInOffice) {
+      active.officeSegments.push({ entryTime: now, durationMinutes: 0 });
     }
-  } else if (!wasInOffice && nowInOffice) {
-    active.officeSegments.push({ entryTime: now, durationMinutes: 0 });
+
+    await active.save();
+    return ok({
+      updated: true,
+      inOffice: nowInOffice,
+      transitioned: wasInOffice !== nowInOffice,
+    });
   }
 
   await active.save();
-  return ok({ updated: true, inOffice: nowInOffice, transitioned: wasInOffice !== nowInOffice });
+  return ok({ updated: true, inOffice: active.location?.inOffice ?? false });
 }
 
+// ─── Close a session and recompute daily/monthly ──────────────────
+async function closeSession(
+  activeSession: InstanceType<typeof ActivitySession>,
+  endTime: Date,
+) {
+  const startTime = activeSession.sessionTime.start;
+  const durationMinutes = Math.max(
+    0,
+    Math.floor((endTime.getTime() - startTime.getTime()) / 60000),
+  );
+
+  activeSession.sessionTime.end = endTime;
+  activeSession.status = "disconnected";
+  activeSession.durationMinutes = durationMinutes;
+
+  if (activeSession.officeSegments.length > 0) {
+    const lastSeg = activeSession.officeSegments[activeSession.officeSegments.length - 1];
+    if (lastSeg && !lastSeg.exitTime) {
+      lastSeg.exitTime = endTime;
+      lastSeg.durationMinutes = Math.floor(
+        (endTime.getTime() - lastSeg.entryTime.getTime()) / 60000,
+      );
+    }
+  }
+
+  await activeSession.save();
+
+  const sessionDate = startOfDay(activeSession.sessionDate);
+  await recomputeDaily(String(activeSession.user), sessionDate, endTime);
+}
+
+// ─── Recompute daily totals by summing all sessions ───────────────
+async function recomputeDaily(userId: string, sessionDate: Date, now: Date) {
+  const allSessions = await ActivitySession.find({
+    user: userId,
+    sessionDate,
+  }).lean();
+
+  let totalWorkingMinutes = 0;
+  let officeMinutes = 0;
+  let firstOfficeEntry: Date | null = null;
+  let lastOfficeExit: Date | null = null;
+
+  for (const s of allSessions) {
+    totalWorkingMinutes += s.durationMinutes ?? 0;
+    for (const seg of s.officeSegments ?? []) {
+      officeMinutes += seg.durationMinutes ?? 0;
+    }
+    if (s.location?.inOffice) {
+      const sStart = s.sessionTime.start;
+      const sEnd = s.sessionTime.end;
+      if (!firstOfficeEntry || sStart < firstOfficeEntry) firstOfficeEntry = sStart;
+      if (sEnd && (!lastOfficeExit || sEnd > lastOfficeExit)) lastOfficeExit = sEnd;
+    }
+  }
+
+  await DailyAttendance.findOneAndUpdate(
+    { user: userId, date: sessionDate },
+    {
+      $set: {
+        totalWorkingMinutes,
+        officeMinutes,
+        remoteMinutes: totalWorkingMinutes - officeMinutes,
+        isPresent: totalWorkingMinutes > 0,
+        ...(firstOfficeEntry ? { firstOfficeEntry } : {}),
+        ...(lastOfficeExit ? { lastOfficeExit } : {}),
+      },
+    },
+    { upsert: true },
+  );
+
+  await updateMonthlyStats(userId, sessionDate);
+}
+
+// ─── Check-in ─────────────────────────────────────────────────────
 async function handleCheckIn(
   userId: string,
-  body: { latitude?: number; longitude?: number; platform?: string; userAgent?: string; deviceId?: string; isMobile?: boolean },
+  body: {
+    latitude?: number;
+    longitude?: number;
+    platform?: string;
+    userAgent?: string;
+    deviceId?: string;
+  },
 ) {
   const now = new Date();
   const today = startOfDay(now);
 
-  const existing = await ActivitySession.findOneAndUpdate(
-    { user: userId, sessionDate: today, status: "active" },
-    { $set: { lastActivity: now } },
-    { new: true },
-  );
+  const existing = await ActivitySession.findOne({
+    user: userId,
+    status: "active",
+  });
 
   if (existing) {
-    return badRequest("Already checked in. Please check out first.");
+    const isPreviousDay = !isSameDay(existing.sessionDate, now);
+    const isStale =
+      now.getTime() - new Date(existing.lastActivity).getTime() > STALE_THRESHOLD_MS;
+
+    if (!isPreviousDay && !isStale) {
+      return badRequest("Session active on another device. Please wait or close that session.");
+    }
+
+    const closeTime = new Date(existing.lastActivity);
+    await closeSession(existing, closeTime);
   }
 
   const inOffice = await isInOffice(body.latitude, body.longitude);
 
-  const todaySessions = await ActivitySession.countDocuments({
+  const todayOfficeSessionExists = await ActivitySession.exists({
     user: userId,
     sessionDate: today,
+    "location.inOffice": true,
+    status: { $in: ["active", "disconnected"] },
   });
 
   const activitySession = await ActivitySession.create({
@@ -142,7 +280,6 @@ async function handleCheckIn(
     platform: body.platform,
     userAgent: body.userAgent,
     deviceId: body.deviceId,
-    primaryDeviceId: body.deviceId,
     location: {
       inOffice,
       latitude: body.latitude,
@@ -154,9 +291,27 @@ async function handleCheckIn(
     sessionDate: today,
     durationMinutes: 0,
     officeSegments: inOffice ? [{ entryTime: now, durationMinutes: 0 }] : [],
-    isFirstOfficeEntry: todaySessions === 0 && inOffice,
+    isFirstOfficeEntry: !todayOfficeSessionExists && inOffice,
     isLastOfficeExit: false,
   });
+
+  // Race condition guard: if two tabs created sessions simultaneously, keep oldest
+  const activeCount = await ActivitySession.countDocuments({
+    user: userId,
+    sessionDate: today,
+    status: "active",
+  });
+  if (activeCount > 1) {
+    const oldest = await ActivitySession.findOne({
+      user: userId,
+      sessionDate: today,
+      status: "active",
+    }).sort({ "sessionTime.start": 1 });
+    if (oldest && String(oldest._id) !== String(activitySession._id)) {
+      await ActivitySession.deleteOne({ _id: activitySession._id });
+      return badRequest("Session active on another device. Please wait or close that session.");
+    }
+  }
 
   let daily = await DailyAttendance.findOne({ user: userId, date: today });
   if (!daily) {
@@ -186,6 +341,10 @@ async function handleCheckIn(
     await daily.save();
   }
 
+  let todayMinutes = 0;
+  const freshDaily = await DailyAttendance.findOne({ user: userId, date: today }).lean();
+  if (freshDaily) todayMinutes = freshDaily.totalWorkingMinutes ?? 0;
+
   return ok({
     message: "Checked in successfully",
     session: {
@@ -194,73 +353,29 @@ async function handleCheckIn(
       inOffice,
       startTime: now,
     },
+    todayMinutes,
   });
 }
 
-async function handleCheckOut(userId: string, deviceId?: string) {
-  const now = new Date();
-  const today = startOfDay(now);
-
+// ─── Check-out ────────────────────────────────────────────────────
+async function handleCheckOut(userId: string) {
   const activeSession = await ActivitySession.findOne({
     user: userId,
-    sessionDate: today,
     status: "active",
   });
 
   if (!activeSession) {
-    return badRequest("No active session found. Please check in first.");
+    return badRequest("No active session found.");
   }
 
-  if (deviceId && activeSession.primaryDeviceId && deviceId !== activeSession.primaryDeviceId) {
-    return badRequest("Only the primary device can check out.");
-  }
+  const now = new Date();
+  await closeSession(activeSession, now);
 
-  const startTime = activeSession.sessionTime.start;
-  const durationMinutes = Math.floor((now.getTime() - startTime.getTime()) / 60000);
-
-  activeSession.sessionTime.end = now;
-  activeSession.status = "disconnected";
-  activeSession.durationMinutes = durationMinutes;
-
-  if (activeSession.location.inOffice && activeSession.officeSegments.length > 0) {
-    const lastSeg = activeSession.officeSegments[activeSession.officeSegments.length - 1];
-    if (!lastSeg.exitTime) {
-      lastSeg.exitTime = now;
-      lastSeg.durationMinutes = Math.floor((now.getTime() - lastSeg.entryTime.getTime()) / 60000);
-    }
-  }
-
-  await activeSession.save();
-
-  const daily = await DailyAttendance.findOne({ user: userId, date: today });
-  if (daily) {
-    const allSessions = await ActivitySession.find({ user: userId, sessionDate: today }).lean();
-
-    let totalWorkingMinutes = 0;
-    let officeMinutes = 0;
-
-    for (const s of allSessions) {
-      totalWorkingMinutes += s.durationMinutes;
-      for (const seg of s.officeSegments) {
-        officeMinutes += seg.durationMinutes;
-      }
-    }
-
-    daily.totalWorkingMinutes = totalWorkingMinutes;
-    daily.officeMinutes = officeMinutes;
-    daily.remoteMinutes = totalWorkingMinutes - officeMinutes;
-    daily.lastOfficeExit = activeSession.location.inOffice ? now : daily.lastOfficeExit;
-    await daily.save();
-
-    await updateMonthlyStats(userId, now);
-  }
-
-  return ok({
-    message: "Checked out successfully",
-    duration: durationMinutes,
-  });
+  const durationMinutes = activeSession.durationMinutes;
+  return ok({ message: "Checked out successfully", duration: durationMinutes });
 }
 
+// ─── Monthly stats ────────────────────────────────────────────────
 async function updateMonthlyStats(userId: string, date: Date) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -293,12 +408,17 @@ async function updateMonthlyStats(userId: string, date: Date) {
         totalWorkingDays: weekdays,
         onTimeArrivals,
         lateArrivals: presentDays - onTimeArrivals,
-        onTimePercentage: presentDays > 0 ? Math.round((onTimeArrivals / presentDays) * 100) : 0,
+        onTimePercentage:
+          presentDays > 0 ? Math.round((onTimeArrivals / presentDays) * 100) : 0,
         totalWorkingHours: Math.round((totalWorkingMinutes / 60) * 100) / 100,
         totalOfficeHours: Math.round((totalOfficeMinutes / 60) * 100) / 100,
         totalRemoteHours: Math.round((totalRemoteMinutes / 60) * 100) / 100,
-        averageDailyHours: presentDays > 0 ? Math.round((totalWorkingMinutes / presentDays / 60) * 100) / 100 : 0,
-        attendancePercentage: weekdays > 0 ? Math.round((presentDays / weekdays) * 100) : 0,
+        averageDailyHours:
+          presentDays > 0
+            ? Math.round((totalWorkingMinutes / presentDays / 60) * 100) / 100
+            : 0,
+        attendancePercentage:
+          weekdays > 0 ? Math.round((presentDays / weekdays) * 100) : 0,
       },
     },
     { upsert: true },

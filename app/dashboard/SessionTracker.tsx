@@ -3,14 +3,20 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface SessionState {
+type DeviceMode = "active" | "readonly" | "booting";
+
+interface SessionData {
   active: boolean;
   inOffice: boolean;
   startTime: string | null;
   todayMinutes: number;
+  isStale: boolean;
 }
 
-type DeviceRole = "primary" | "secondary" | "unknown";
+const HEARTBEAT_MS = 30_000;
+const IDLE_MS = 5 * 60 * 1000;
+const MAX_CHECKIN_RETRIES = 3;
+const RETRY_DELAY_MS = 5_000;
 
 function formatElapsed(ms: number) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -22,7 +28,7 @@ function formatElapsed(ms: number) {
 
 function formatTodayHours(minutes: number) {
   const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const m = Math.round(minutes % 60);
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
@@ -39,269 +45,247 @@ function getDeviceId(): string {
 function detectMobile(): boolean {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent;
-  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)
-    || ("ontouchstart" in window && window.innerWidth < 768);
+  return (
+    /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+    ("ontouchstart" in window && window.innerWidth < 768)
+  );
 }
 
-const SYNC_INTERVAL_MS = 30_000;
+function getGeo(): Promise<{ lat: number; lng: number } | null> {
+  if (!("geolocation" in navigator)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+    );
+  });
+}
 
 export default function SessionTracker() {
-  const [session, setSession] = useState<SessionState>({
+  const [session, setSession] = useState<SessionData>({
     active: false,
     inOffice: false,
     startTime: null,
     todayMinutes: 0,
+    isStale: false,
   });
+  const [mode, setMode] = useState<DeviceMode>("booting");
   const [elapsed, setElapsed] = useState(0);
-  const [booting, setBooting] = useState(true);
-  const [geoError, setGeoError] = useState(false);
   const [idle, setIdle] = useState(false);
-  const [deviceRole, setDeviceRole] = useState<DeviceRole>("unknown");
-  const isMobileRef = useRef(false);
-  const watchIdRef = useRef<number | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latRef = useRef<number | undefined>(undefined);
-  const lngRef = useRef<number | undefined>(undefined);
-  const checkedInRef = useRef(false);
-  const deviceIdRef = useRef("");
-  const IDLE_MS = 5 * 60 * 1000;
 
+  const isMobileRef = useRef(false);
+  const modeRef = useRef<DeviceMode>("booting");
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const checkedInRef = useRef(false);
+
+  const updateMode = useCallback((m: DeviceMode) => {
+    modeRef.current = m;
+    setMode(m);
+  }, []);
+
+  // ─── Fetch session state from server ──────────────────────────
   const fetchSession = useCallback(async (): Promise<{
     active: boolean;
-    primaryDeviceId: string | null;
     startTime: string | null;
     inOffice: boolean;
     todayMinutes: number;
+    isStale: boolean;
   }> => {
     try {
       const res = await fetch("/api/attendance/session");
       const data = await res.json();
-      const activeSession = data.activeSession;
-      const primaryDeviceId: string | null = data.primaryDeviceId ?? null;
-      if (activeSession) {
-        const state: SessionState = {
+      const a = data.activeSession;
+      if (a) {
+        const state: SessionData = {
           active: true,
-          inOffice: activeSession.location?.inOffice ?? false,
-          startTime: activeSession.sessionTime?.start,
+          inOffice: a.location?.inOffice ?? false,
+          startTime: a.sessionTime?.start,
           todayMinutes: data.todayMinutes ?? 0,
+          isStale: data.isStale ?? false,
         };
         setSession(state);
         checkedInRef.current = true;
-        return {
-          active: true,
-          primaryDeviceId,
-          startTime: state.startTime,
-          inOffice: state.inOffice,
-          todayMinutes: state.todayMinutes,
-        };
+        return state;
       }
-      return { active: false, primaryDeviceId: null, startTime: null, inOffice: false, todayMinutes: data.todayMinutes ?? 0 };
-    } catch {
-      return { active: false, primaryDeviceId: null, startTime: null, inOffice: false, todayMinutes: 0 };
-    }
-  }, []);
-
-  const doCheckIn = useCallback(async () => {
-    if (checkedInRef.current) return;
-    checkedInRef.current = true;
-    try {
-      const res = await fetch("/api/attendance/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "checkin",
-          latitude: latRef.current,
-          longitude: lngRef.current,
-          platform: navigator.platform,
-          userAgent: navigator.userAgent,
-          deviceId: deviceIdRef.current,
-          isMobile: isMobileRef.current,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSession({
-          active: true,
-          inOffice: data.session?.inOffice ?? false,
-          startTime: data.session?.startTime ?? new Date().toISOString(),
-          todayMinutes: 0,
-        });
-        setDeviceRole("primary");
-      } else if (data.error?.includes("Already checked in")) {
-        const freshData = await fetchSession();
-        if (freshData.active && freshData.primaryDeviceId === deviceIdRef.current) {
-          setDeviceRole("primary");
-        } else {
-          setDeviceRole("secondary");
-        }
-      } else {
-        checkedInRef.current = false;
-      }
-    } catch {
+      setSession((s) => ({ ...s, active: false, startTime: null, todayMinutes: data.todayMinutes ?? 0, isStale: false }));
       checkedInRef.current = false;
+      return { active: false, startTime: null, inOffice: false, todayMinutes: data.todayMinutes ?? 0, isStale: false };
+    } catch {
+      return { active: false, startTime: null, inOffice: false, todayMinutes: 0, isStale: false };
     }
-  }, [fetchSession]);
-
-  const doCheckOut = useCallback(async () => {
-    if (!checkedInRef.current) return;
-    checkedInRef.current = false;
-    try {
-      const res = await fetch("/api/attendance/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "checkout", deviceId: deviceIdRef.current }),
-      });
-      if (res.ok) {
-        setSession((s) => ({ ...s, active: false, startTime: null }));
-      }
-    } catch { /* ignore */ }
   }, []);
 
-  // Secondary devices: periodically sync session state from server
+  // ─── Check-in ─────────────────────────────────────────────────
+  const doCheckIn = useCallback(
+    async (retries = 0): Promise<boolean> => {
+      const coords = await getGeo();
+      if (coords) lastCoordsRef.current = coords;
+      try {
+        const res = await fetch("/api/attendance/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "checkin",
+            latitude: coords?.lat,
+            longitude: coords?.lng,
+            platform: navigator.platform,
+            userAgent: navigator.userAgent,
+            deviceId: getDeviceId(),
+            isMobile: isMobileRef.current,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setSession({
+            active: true,
+            inOffice: data.session?.inOffice ?? false,
+            startTime: data.session?.startTime ?? new Date().toISOString(),
+            todayMinutes: data.todayMinutes ?? 0,
+            isStale: false,
+          });
+          checkedInRef.current = true;
+          return true;
+        }
+        if (retries < MAX_CHECKIN_RETRIES && res.status >= 500) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          return doCheckIn(retries + 1);
+        }
+        return false;
+      } catch {
+        if (retries < MAX_CHECKIN_RETRIES) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          return doCheckIn(retries + 1);
+        }
+        return false;
+      }
+    },
+    [],
+  );
+
+  // ─── Heartbeat (active mode) ─────────────────────────────────
+  const startHeartbeat = useCallback(() => {
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+
+    const beat = async () => {
+      if (modeRef.current !== "active") return;
+      const coords = await getGeo();
+      if (coords) lastCoordsRef.current = coords;
+      try {
+        const res = await fetch("/api/attendance/session", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            latitude: coords?.lat ?? lastCoordsRef.current?.lat,
+            longitude: coords?.lng ?? lastCoordsRef.current?.lng,
+          }),
+        });
+        const data = await res.json();
+        if (data.sessionClosed) {
+          const ok = await doCheckIn();
+          if (ok) {
+            updateMode("active");
+          } else {
+            updateMode("readonly");
+            startSyncPolling();
+          }
+          return;
+        }
+        if (data.transitioned) {
+          setSession((s) => ({ ...s, inOffice: data.inOffice }));
+        }
+      } catch {
+        /* network fail — skip this beat, retry next */
+      }
+    };
+
+    heartbeatRef.current = setInterval(beat, HEARTBEAT_MS);
+  }, [doCheckIn, updateMode]);
+
+  // ─── Sync polling (readonly mode) ─────────────────────────────
   const startSyncPolling = useCallback(() => {
-    if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-    syncIntervalRef.current = setInterval(async () => {
-      await fetchSession();
-    }, SYNC_INTERVAL_MS);
-  }, [fetchSession]);
+    if (syncRef.current) clearInterval(syncRef.current);
 
-  useEffect(() => {
-    const myDeviceId = getDeviceId();
-    deviceIdRef.current = myDeviceId;
-    isMobileRef.current = detectMobile();
+    const poll = async () => {
+      const data = await fetchSession();
 
-    async function initSession() {
-      const freshData = await fetchSession();
-      setBooting(false);
-
-      if (freshData.active && freshData.primaryDeviceId) {
-        if (freshData.primaryDeviceId === myDeviceId) {
-          setDeviceRole("primary");
-        } else {
-          setDeviceRole("secondary");
-          startSyncPolling();
+      if (!isMobileRef.current) {
+        if (!data.active || data.isStale) {
+          if (syncRef.current) clearInterval(syncRef.current);
+          const ok = await doCheckIn();
+          if (ok) {
+            updateMode("active");
+            startHeartbeat();
+          } else {
+            startSyncPolling();
+          }
           return;
         }
       }
+    };
 
-      // Mobile devices never initiate check-in — always read-only
+    syncRef.current = setInterval(poll, HEARTBEAT_MS);
+  }, [fetchSession, doCheckIn, updateMode, startHeartbeat]);
+
+  // ─── Init on mount ────────────────────────────────────────────
+  useEffect(() => {
+    isMobileRef.current = detectMobile();
+
+    async function init() {
+      const data = await fetchSession();
+
       if (isMobileRef.current) {
-        setDeviceRole(freshData.active ? "secondary" : "secondary");
-        if (freshData.active) startSyncPolling();
+        updateMode("readonly");
+        startSyncPolling();
         return;
       }
 
-      // Desktop device with no active session → attempt check-in with geolocation
-      if (!freshData.active) {
-        await initGeoAndCheckIn();
+      if (!data.active || data.isStale) {
+        const ok = await doCheckIn();
+        if (ok) {
+          updateMode("active");
+          startHeartbeat();
+        } else {
+          updateMode("readonly");
+          startSyncPolling();
+        }
       } else {
-        // Desktop device IS the primary — run geo watcher
-        initGeoWatcher();
+        updateMode("readonly");
+        startSyncPolling();
       }
     }
 
-    async function initGeoAndCheckIn() {
-      if (!("geolocation" in navigator)) {
-        if (!checkedInRef.current) doCheckIn();
-        return;
-      }
-
-      let permState: PermissionState | null = null;
-      try {
-        const perm = await navigator.permissions.query({ name: "geolocation" });
-        permState = perm.state;
-      } catch { /* permissions API not available */ }
-
-      if (permState === "denied") {
-        setGeoError(true);
-        if (!checkedInRef.current) doCheckIn();
-        return;
-      }
-
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-          });
-        });
-        latRef.current = pos.coords.latitude;
-        lngRef.current = pos.coords.longitude;
-        setGeoError(false);
-      } catch {
-        setGeoError(true);
-      }
-
-      if (!checkedInRef.current) doCheckIn();
-
-      initGeoWatcher();
-    }
-
-    function initGeoWatcher() {
-      if (!("geolocation" in navigator)) return;
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        (pos) => {
-          latRef.current = pos.coords.latitude;
-          lngRef.current = pos.coords.longitude;
-          setGeoError(false);
-          if (checkedInRef.current) {
-            fetch("/api/attendance/session", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude,
-                deviceId: deviceIdRef.current,
-              }),
-            })
-              .then((r) => r.json())
-              .then((data) => {
-                if (data.updated && data.transitioned) {
-                  setSession((s) => ({ ...s, inOffice: data.inOffice }));
-                }
-              })
-              .catch(() => {});
-          }
-        },
-        () => setGeoError(true),
-        { enableHighAccuracy: true, maximumAge: 30000 },
-      );
-    }
-
-    initSession();
+    init();
 
     return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      if (syncRef.current) clearInterval(syncRef.current);
     };
-  }, [fetchSession, doCheckIn, startSyncPolling]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Only primary desktop devices send checkout on unload
+  // ─── beforeunload: best-effort checkout ───────────────────────
   useEffect(() => {
     function handleBeforeUnload() {
-      if (checkedInRef.current && deviceRole === "primary" && !isMobileRef.current) {
+      if (modeRef.current === "active" && checkedInRef.current) {
         navigator.sendBeacon(
           "/api/attendance/session",
-          new Blob(
-            [JSON.stringify({ action: "checkout", deviceId: deviceIdRef.current })],
-            { type: "application/json" },
-          ),
+          new Blob([JSON.stringify({ action: "checkout" })], {
+            type: "application/json",
+          }),
         );
       }
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [deviceRole]);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
-  // Elapsed timer — works on all devices (purely display, based on startTime from server)
+  // ─── Elapsed timer ────────────────────────────────────────────
   useEffect(() => {
     if (session.active && session.startTime) {
       const start = new Date(session.startTime).getTime();
@@ -311,14 +295,13 @@ export default function SessionTracker() {
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
       };
-    } else {
-      setElapsed(0);
     }
+    setElapsed(0);
   }, [session.active, session.startTime]);
 
-  // Idle detection (only for primary devices)
+  // ─── Idle detection (active mode only) ────────────────────────
   useEffect(() => {
-    if (deviceRole !== "primary") return;
+    if (mode !== "active") return;
 
     function resetIdle() {
       setIdle(false);
@@ -332,58 +315,72 @@ export default function SessionTracker() {
       events.forEach((e) => window.removeEventListener(e, resetIdle));
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [IDLE_MS, deviceRole]);
+  }, [mode]);
 
-  if (booting) return null;
+  // ─── Render ───────────────────────────────────────────────────
+  if (mode === "booting") return null;
 
-  const statusGrad = session.active
+  const isActive = session.active && !session.isStale;
+  const isReadonly = mode === "readonly";
+
+  const statusGrad = isActive
     ? session.inOffice
       ? "linear-gradient(135deg, #10b981, #059669)"
       : "linear-gradient(135deg, #3b82f6, #2563eb)"
     : "linear-gradient(135deg, #6b7280, #4b5563)";
 
-  const statusLabel = session.active
-    ? session.inOffice ? "In Office" : "Remote"
+  const statusLabel = isActive
+    ? session.inOffice
+      ? "In Office"
+      : "Remote"
     : "Offline";
 
-  const isSecondary = deviceRole === "secondary";
+  const currentMinutes = isActive ? Math.floor(elapsed / 60000) : 0;
+  const todayTotal = session.todayMinutes + currentMinutes;
 
   return (
     <AnimatePresence>
       <motion.div
         initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: idle && session.active ? 0.65 : 1 }}
+        animate={{ y: 0, opacity: idle && isActive ? 0.65 : 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
         className="mx-auto flex w-fit items-center gap-3 rounded-full px-3 py-1.5 text-white shadow-lg"
         style={{ background: statusGrad }}
       >
-        {session.active && (
+        {isActive && (
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-50" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
           </span>
         )}
+
         <span className="text-[11px] font-semibold whitespace-nowrap">{statusLabel}</span>
-        {isSecondary && session.active && (
-          <span className="text-[9px] font-medium opacity-70">synced</span>
+
+        {isReadonly && isActive && (
+          <span className="text-[9px] font-medium opacity-70">
+            {isMobileRef.current ? "📱 synced" : "another device"}
+          </span>
         )}
-        {idle && session.active && !isSecondary && (
+
+        {session.isStale && session.active && (
+          <span className="text-[9px] font-medium opacity-70">inactive</span>
+        )}
+
+        {idle && isActive && !isReadonly && (
           <span className="text-[9px] font-medium opacity-70 animate-pulse">idle</span>
         )}
+
         <span className="h-3 w-px bg-white/30" />
+
         <span className="font-mono text-xs font-bold tabular-nums">
-          {session.active ? formatElapsed(elapsed) : "--:--:--"}
+          {isActive ? formatElapsed(elapsed) : "--:--:--"}
         </span>
+
         <span className="h-3 w-px bg-white/30" />
+
         <span className="text-[11px] font-bold tabular-nums whitespace-nowrap opacity-90">
-          {formatTodayHours(session.todayMinutes + (session.active ? Math.floor(elapsed / 60000) : 0))}
+          {formatTodayHours(todayTotal)}
         </span>
-        {geoError && session.active && !isSecondary && (
-          <span className="text-[9px] opacity-60">no GPS</span>
-        )}
-        {isSecondary && isMobileRef.current && (
-          <span className="text-[9px] opacity-60">📱</span>
-        )}
       </motion.div>
     </AnimatePresence>
   );

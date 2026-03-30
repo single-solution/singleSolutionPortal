@@ -27,16 +27,19 @@ Automatic employee presence and attendance tracking system. Detects when employe
 ## Features
 
 ### Attendance & Presence
-- Automatic check-in on app open / check-out on close (no manual buttons)
-- **Multi-device sync**: primary device (laptop/PC) owns the session; secondary devices (mobile, other tabs) display synced read-only status
-- Mobile devices are excluded from initiating check-in — they only show the current session state
-- Only the primary device can perform check-out, GPS updates, and idle detection
-- Geolocation-based office detection (configurable radius via SystemSettings)
-- Continuous GPS tracking with office/remote transition detection
-- Persistent session timer bar (compact pill, color-coded status)
-- Real-time presence board with live status (office, remote, late, overtime, absent)
+- **Heartbeat-based session lifecycle**: client sends a heartbeat every 30s to prove it's alive; no heartbeat for 3 minutes = session considered dead
+- Automatic check-in on app open (desktop only) / check-out on close (`sendBeacon`) or stale-session cleanup
+- **One active session per user**: prevents simultaneous multi-device hour inflation
+- **Stale session auto-close**: if a device dies (lid close, crash, battery), the next check-in from any desktop auto-closes the dead session (duration = last heartbeat − start) and creates a new one
+- **Multi-device awareness**: second desktop sees "active on another device" (readonly), takes over automatically when the first device's heartbeat stops; mobile devices are always readonly
+- **Midnight day transition**: heartbeat detects day rollover, auto-closes yesterday's session, seamlessly creates today's — no manual intervention
+- Geolocation updated every 30s via heartbeat (replaces continuous `watchPosition` — less battery, same accuracy for 50m geofence)
+- Office/remote transition detection with office segment tracking
+- Persistent session timer pill (color-coded: green = in-office, blue = remote, gray = offline)
+- Timer shows: session elapsed | cumulative today total (completed sessions + active session)
+- Checkout on explicit sign-out (button + auto-logout timer)
 - Daily & monthly attendance rollup with `isOnTime` / `lateBy` tracking
-- Idle detection (5 min visual dim, 30 min auto-logout — primary device only)
+- Idle detection (5 min visual dim — active device only, no session close)
 
 ### Employee Management
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages team)

@@ -16,7 +16,6 @@ export interface IActivitySession extends Document {
   platform?: string;
   userAgent?: string;
   deviceId?: string;
-  primaryDeviceId?: string;
   location: {
     inOffice: boolean;
     latitude?: number;
@@ -54,7 +53,6 @@ const activitySessionSchema = new Schema<IActivitySession>(
     platform: String,
     userAgent: String,
     deviceId: String,
-    primaryDeviceId: String,
     location: {
       inOffice: { type: Boolean, default: false },
       latitude: Number,
@@ -80,6 +78,7 @@ const activitySessionSchema = new Schema<IActivitySession>(
 );
 
 activitySessionSchema.index({ user: 1, sessionDate: 1 });
+activitySessionSchema.index({ user: 1, status: 1 });
 activitySessionSchema.index({ session: 1 });
 
 const ActivitySession =
