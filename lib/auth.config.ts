@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
-const ADMIN_ONLY = ["/dashboard/employees", "/dashboard/departments"];
+const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password", "/setup-password"];
+const ADMIN_ONLY = ["/employees", "/departments"];
 const ADMIN_ROLES = ["superadmin", "manager"];
 
 export const authConfig: NextAuthConfig = {
@@ -15,26 +16,22 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isDashboard = nextUrl.pathname.startsWith("/dashboard");
+      const { pathname } = nextUrl;
+      const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
-      if (isDashboard) {
-        if (!isLoggedIn) return false;
-
-        const role = (auth?.user as Record<string, unknown>)?.role as string | undefined;
-        const isAdminRoute = ADMIN_ONLY.some((p) => nextUrl.pathname.startsWith(p));
-        if (isAdminRoute && role && !ADMIN_ROLES.includes(role)) {
-          return Response.redirect(new URL("/dashboard", nextUrl));
+      if (isPublic) {
+        if (isLoggedIn && pathname === "/login") {
+          return Response.redirect(new URL("/", nextUrl));
         }
-
-        if (nextUrl.pathname.startsWith("/dashboard/settings") && nextUrl.pathname !== "/dashboard/settings") {
-          return true;
-        }
-
         return true;
       }
 
-      if (isLoggedIn && nextUrl.pathname === "/login") {
-        return Response.redirect(new URL("/dashboard", nextUrl));
+      if (!isLoggedIn) return false;
+
+      const role = (auth?.user as Record<string, unknown>)?.role as string | undefined;
+      const isAdminRoute = ADMIN_ONLY.some((p) => pathname.startsWith(p));
+      if (isAdminRoute && role && !ADMIN_ROLES.includes(role)) {
+        return Response.redirect(new URL("/", nextUrl));
       }
 
       return true;

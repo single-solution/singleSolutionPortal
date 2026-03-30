@@ -123,7 +123,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         const res = await fetch(`/api/employees/${employeeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (res.ok) {
           toast.success("Employee updated");
-          router.push("/dashboard/employees");
+          router.push("/employees");
         } else {
           const data = await res.json();
           toast.error(data.error || "Failed to update");
@@ -136,7 +136,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         });
         if (res.ok) {
           toast.success("Employee created");
-          router.push("/dashboard/employees");
+          router.push("/employees");
         } else {
           const data = await res.json();
           toast.error(data.error || "Failed to create");
@@ -167,7 +167,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       >
         <button
           type="button"
-          onClick={() => router.push("/dashboard/employees")}
+          onClick={() => router.push("/employees")}
           className="flex items-center gap-1.5 text-sm font-medium mb-4 transition-colors"
           style={{ color: "var(--fg-secondary)" }}
         >
@@ -316,7 +316,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           </motion.button>
           <button
             type="button"
-            onClick={() => router.push("/dashboard/employees")}
+            onClick={() => router.push("/employees")}
             className="btn btn-secondary flex-1"
           >
             Cancel

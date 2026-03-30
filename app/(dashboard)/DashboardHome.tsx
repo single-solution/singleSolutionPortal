@@ -468,7 +468,7 @@ function SuperAdminOverview({
           <p className="py-4 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No pending tasks — you&apos;re all caught up!</p>
         )}
         {pendingTasks.length > 0 && (
-          <Link href="/dashboard/tasks">
+          <Link href="/tasks">
             <motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               View All Tasks →
             </motion.button>
@@ -558,7 +558,7 @@ function OtherRoleOverview({ user, tasks }: { user: User; tasks: ApiTask[] }) {
           <p className="py-4 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No pending tasks — you&apos;re all caught up!</p>
         )}
         {pendingTasks.length > 0 && (
-          <Link href="/dashboard/tasks">
+          <Link href="/tasks">
             <motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               View All Tasks →
             </motion.button>
