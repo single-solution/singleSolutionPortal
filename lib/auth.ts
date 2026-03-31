@@ -71,6 +71,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         clearLoginAttempts(ip);
 
+        if (!user.isVerified) {
+          user.isVerified = true;
+          await user.save();
+        }
+
         return {
           id: user._id.toString(),
           email: user.email,

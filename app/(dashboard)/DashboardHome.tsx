@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   AnimatePresence,
@@ -227,6 +227,18 @@ function getStatusCounts(emps: PresenceEmployee[]) {
 
 /* ──────────────────────── SHARED COMPONENTS ──────────────────────── */
 
+function LivePulse() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, #10b981 12%, transparent)" }}>
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: "#10b981" }} />
+        <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "#10b981" }} />
+      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#10b981" }}>Live</span>
+    </span>
+  );
+}
+
 function AnimatedNumber({ value, prefix = "" }: { value: number; prefix?: string }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -360,7 +372,10 @@ function SuperAdminOverview({
         <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, var(--teal) 0%, transparent 70%)" }} aria-hidden />
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
-            <p className="text-caption mb-0.5">Single Solution Sync</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className="text-caption">Single Solution Sync</p>
+              <LivePulse />
+            </div>
             <h1 className="text-title">
               <span className="gradient-text">{getGreeting()}</span>
               <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
@@ -760,6 +775,9 @@ function ManagerOverview({
         <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, var(--teal) 0%, transparent 70%)" }} aria-hidden />
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
+            <div className="flex items-center gap-2 mb-0.5">
+              <LivePulse />
+            </div>
             <h1 className="text-title">
               <span className="gradient-text">{getGreeting()}</span>
               <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
@@ -1182,7 +1200,10 @@ function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; ta
         variants={slideUpItem}
       >
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
-        <p className="text-caption mb-0.5">Single Solution Sync</p>
+        <div className="flex items-center gap-2 mb-0.5">
+          <p className="text-caption">Single Solution Sync</p>
+          <LivePulse />
+        </div>
         <h1 className="text-title">
           <span className="gradient-text">{getGreeting()}</span>
           <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
@@ -1276,73 +1297,110 @@ export default function DashboardHome({ user }: { user: User }) {
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [attendanceTrend, setAttendanceTrend] = useState<TrendDay[]>([]);
 
+  const isSuperAdmin = user.role === "superadmin";
+  const isAdminRole = isSuperAdmin || user.role === "manager" || user.role === "teamLead";
+  const initialDone = useRef(false);
+
+  /* ── Helper: parse presence array ── */
+  const parsePresence = useCallback((raw: unknown) => {
+    if (!Array.isArray(raw)) return;
+    setRealPresence(
+      (raw as Array<{ _id: string; firstName: string; lastName: string; userRole: string; department: string; status: string; todayMinutes: number; lateBy: number; isActive: boolean }>).map((p) => ({
+        _id: p._id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        designation: ROLE_DESIGNATION[p.userRole] ?? p.userRole,
+        department: p.department,
+        status: p.status as PresenceStatus,
+        todayMinutes: p.todayMinutes,
+        lateBy: p.lateBy ?? 0,
+        isActive: p.isActive,
+      })),
+    );
+  }, []);
+
+  /* ── Helper: parse personal attendance ── */
+  const parsePersonalAttendance = useCallback(async () => {
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const [dailyRes, monthlyRes] = await Promise.all([
+        fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null),
+        fetch("/api/attendance?type=monthly").then((r) => r.ok ? r.json() : null),
+      ]);
+      setPersonalAttendance({
+        todayMinutes: dailyRes?.totalWorkingMinutes ?? 0,
+        todaySessions: dailyRes?.activitySessions?.length ?? 0,
+        officeMinutes: dailyRes?.officeMinutes ?? 0,
+        remoteMinutes: dailyRes?.remoteMinutes ?? 0,
+        isOnTime: dailyRes?.isOnTime ?? true,
+        lateBy: dailyRes?.lateBy ?? 0,
+        firstEntry: dailyRes?.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+        monthlyAvgHours: monthlyRes?.averageDailyHours ?? 0,
+        monthlyOnTimePct: monthlyRes?.onTimePercentage ?? 0,
+        avgInTime: monthlyRes?.averageOfficeInTime ?? "",
+        avgOutTime: monthlyRes?.averageOfficeOutTime ?? "",
+      });
+    } catch { /* personal data is optional */ }
+  }, []);
+
+  /* ── FAST POLL: presence + personal attendance (every 10s) ── */
+  const fetchLive = useCallback(async () => {
+    try {
+      if (isAdminRole) {
+        const presRes = await fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []);
+        parsePresence(presRes);
+      }
+      if (!isSuperAdmin) await parsePersonalAttendance();
+    } catch { /* silent */ }
+  }, [isAdminRole, isSuperAdmin, parsePresence, parsePersonalAttendance]);
+
+  /* ── SLOW POLL: full data set (every 60s) ── */
+  const fetchFull = useCallback(async () => {
+    try {
+      const fetches: Promise<unknown>[] = [
+        fetch("/api/employees").then((r) => r.ok ? r.json() : []),
+        fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
+        isSuperAdmin ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
+      ];
+      if (isAdminRole) {
+        fetches.push(fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []));
+        fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
+        fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
+      }
+      const [empRes, taskRes, deptRes, presenceRes, campaignRes, trendRes] = await Promise.all(fetches);
+
+      setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
+      setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
+      setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
+      if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
+      if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
+      parsePresence(presenceRes);
+
+      if (!isSuperAdmin) await parsePersonalAttendance();
+    } catch (err) { console.error("Dashboard fetch error:", err); }
+  }, [isSuperAdmin, isAdminRole, parsePresence, parsePersonalAttendance]);
+
+  /* ── Initial load ── */
   useEffect(() => {
-    async function load() {
-      try {
-        const isSuperAdmin = user.role === "superadmin";
-        const isAdminRole = isSuperAdmin || user.role === "manager" || user.role === "teamLead";
-        const fetches: Promise<unknown>[] = [
-          fetch("/api/employees").then((r) => r.ok ? r.json() : []),
-          fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
-          isSuperAdmin ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
-        ];
-
-        if (isAdminRole) {
-          fetches.push(fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []));
-          fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
-          fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
-        }
-
-        const [empRes, taskRes, deptRes, presenceRes, campaignRes, trendRes] = await Promise.all(fetches);
-
-        if (!isSuperAdmin) {
-          try {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const [dailyRes, monthlyRes] = await Promise.all([
-              fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null),
-              fetch("/api/attendance?type=monthly").then((r) => r.ok ? r.json() : null),
-            ]);
-            setPersonalAttendance({
-              todayMinutes: dailyRes?.totalWorkingMinutes ?? 0,
-              todaySessions: dailyRes?.activitySessions?.length ?? 0,
-              officeMinutes: dailyRes?.officeMinutes ?? 0,
-              remoteMinutes: dailyRes?.remoteMinutes ?? 0,
-              isOnTime: dailyRes?.isOnTime ?? true,
-              lateBy: dailyRes?.lateBy ?? 0,
-              firstEntry: dailyRes?.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
-              monthlyAvgHours: monthlyRes?.averageDailyHours ?? 0,
-              monthlyOnTimePct: monthlyRes?.onTimePercentage ?? 0,
-              avgInTime: monthlyRes?.averageOfficeInTime ?? "",
-              avgOutTime: monthlyRes?.averageOfficeOutTime ?? "",
-            });
-          } catch { /* personal data is optional */ }
-        }
-        setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
-        setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
-        setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
-        if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
-        if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
-
-        if (Array.isArray(presenceRes)) {
-          setRealPresence(
-            (presenceRes as Array<{ _id: string; firstName: string; lastName: string; userRole: string; department: string; status: string; todayMinutes: number; lateBy: number; isActive: boolean }>).map((p) => ({
-              _id: p._id,
-              firstName: p.firstName,
-              lastName: p.lastName,
-              designation: ROLE_DESIGNATION[p.userRole] ?? p.userRole,
-              department: p.department,
-              status: p.status as PresenceStatus,
-              todayMinutes: p.todayMinutes,
-              lateBy: p.lateBy ?? 0,
-              isActive: p.isActive,
-            })),
-          );
-        }
-      } catch (err) { console.error("Dashboard fetch error:", err); }
+    fetchFull().finally(() => {
       setLoading(false);
-    }
-    load();
-  }, [user.role]);
+      initialDone.current = true;
+    });
+  }, [fetchFull]);
+
+  /* ── Fast poll interval (presence: 10s) ── */
+  useEffect(() => {
+    if (!initialDone.current) return;
+    const id = window.setInterval(fetchLive, 10_000);
+    return () => window.clearInterval(id);
+  }, [fetchLive, loading]);
+
+  /* ── Slow poll interval (full data: 60s) ── */
+  useEffect(() => {
+    if (!initialDone.current) return;
+    const id = window.setInterval(fetchFull, 60_000);
+    return () => window.clearInterval(id);
+  }, [fetchFull, loading]);
 
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;

@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
   user.password = await bcrypt.hash(newPassword, 12);
   user.resetToken = undefined;
   user.resetTokenExpiry = undefined;
+  if (!user.isVerified) user.isVerified = true;
   await user.save();
 
   return NextResponse.json({

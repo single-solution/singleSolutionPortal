@@ -10,7 +10,7 @@ Automatic employee presence and attendance tracking system. Detects when employe
 - **Database**: MongoDB Atlas (Mongoose ODM)
 - **Auth**: NextAuth.js v5 (Credentials provider, JWT strategy)
 - **Email**: Nodemailer (SMTP — welcome, password reset, attendance alerts)
-- **Real-time**: Heartbeat polling (30s), Browser Notifications API
+- **Real-time**: Heartbeat polling (30s), Browser Notifications API, Dashboard dual-cadence live polling (10s/60s)
 - **Geolocation**: Haversine formula, configurable office geofence (50m default)
 - **PWA**: Progressive Web App (installable, offline-first service worker)
 - **Deployment**: Vercel (serverless, no persistent backend required)
@@ -174,6 +174,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Server-side route guards in middleware (admin routes blocked for non-admin roles)
 - Password strength meter enforced on all password inputs
 - bcryptjs password hashing
+- Auto-verification: `isVerified` flag set to `true` on first successful login AND on password reset completion (invite flow safety net)
 
 ### Design System
 
@@ -219,17 +220,23 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - "Install App" prompt (hidden when already in standalone mode)
 - `sendBeacon` for best-effort check-out on tab/browser close
 
-### Dashboard
+### Dashboard (Real-Time)
+
+The dashboard is **fully real-time** — no manual refresh needed. Data updates are silent (no loading spinners or skeleton flashes during polls).
+
+- **Fast polling (10s)**: Presence status, personal attendance — any check-in, check-out, or location change reflects within 10 seconds
+- **Slow polling (60s)**: Full data set (employees, tasks, departments, campaigns, attendance trend) — catches structural changes
+- **Live indicator**: Pulsing green "LIVE" badge on all dashboard headers to show real-time status
 
 **SuperAdmin:**
-- Greeting header with live clock card (local time + date)
+- Greeting header with live clock card (local time + date) + LIVE badge
 - KPI cards: total employees, in office, late today, absent today
 - Live Presence board: employee cards with animated status rings, department line, today's minutes
 - Attendance Overview donut chart + Department Summary progress bars
 - Checklist with assignee names, deadlines, and priority icons
 
 **Manager / Team Lead:**
-- Compact header: greeting + personal stats glass pills (today hours, on-time/late, sessions, avg/day)
+- Compact header: greeting + LIVE badge + personal stats glass pills (today hours, on-time/late, sessions, avg/day)
 - KPI cards: My Team count, Present Today, On-Time Rate (3 columns)
 - Live Presence board with filter toggles (All / Office / Remote / Late / Absent) + fixed-height scrollable grid
 - **Late Arrivals** list: employees who arrived late today, sorted by severity, with `lateBy` duration
@@ -241,7 +248,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Attendance Overview donut + Checklist side-by-side (2-column grid)
 
 **Developer / Business Developer:**
-- Greeting + role label
+- Greeting + LIVE badge + role label
 - Task stat cards (Total, Pending, In Progress, Completed)
 - **Self-assessment section** (same as manager: Today card + monthly stats)
 - Checklist
@@ -305,7 +312,7 @@ app/
   reset-password/        # Reset password with strength meter
   (dashboard)/           # Route group — all authenticated pages (no /dashboard/ in URL)
     page.tsx             # Dashboard entry (reads session, renders DashboardHome)
-    DashboardHome.tsx    # SuperAdmin/Manager overview with KPI, presence, trend, campaigns, tasks, checklist
+    DashboardHome.tsx    # Real-time dashboard (10s/60s dual-cadence polling) with KPI, presence, trend, campaigns, tasks
     DashboardShell.tsx   # Header, dock nav, theme, notifications, PWA install prompt
     SessionTracker.tsx   # Heartbeat attendance: active/readonly/booting modes
     employees/
