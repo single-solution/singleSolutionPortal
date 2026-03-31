@@ -113,6 +113,37 @@ interface TrendDay {
   count: number;
 }
 
+interface WeeklyDay {
+  date: string;
+  totalMinutes: number;
+  officeMinutes: number;
+  remoteMinutes: number;
+  isPresent: boolean;
+  isOnTime: boolean;
+  lateBy: number;
+}
+
+interface FullMonthlyStats {
+  presentDays: number;
+  totalWorkingDays: number;
+  totalWorkingHours: number;
+  onTimePercentage: number;
+  averageDailyHours: number;
+  totalOfficeHours: number;
+  totalRemoteHours: number;
+}
+
+interface UserProfile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  profileImage?: string;
+  department?: string;
+  designation: string;
+  workShift?: { type: string; start: string; end: string; breakTime: number };
+}
+
 /* ──────────────────────── CONSTANTS ──────────────────────── */
 
 const AVATAR_GRADIENTS = [
@@ -1180,23 +1211,41 @@ function ManagerOverview({
 
 /* ──────────────────────── OTHER ROLES OVERVIEW ──────────────────────── */
 
-function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null }) {
+function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, monthlyStats: ms, userProfile }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null; weeklyRecords: WeeklyDay[]; monthlyStats: FullMonthlyStats | null; userProfile: UserProfile | null }) {
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const inProgressTasks = useMemo(() => tasks.filter((t) => t.status === "inProgress"), [tasks]);
   const completedTasks = useMemo(() => tasks.filter((t) => t.status === "completed"), [tasks]);
-  const roleLabel = ROLE_DESIGNATION[user.role] ?? user.role;
+  const pa = personalAttendance;
+  const todayHours = pa ? pa.todayMinutes / 60 : 0;
+  const profileName = userProfile?.firstName ?? user.firstName;
+  const profileLast = userProfile?.lastName ?? user.lastName;
+  const designation = userProfile?.designation ?? ROLE_DESIGNATION[user.role] ?? user.role;
+  const dept = userProfile?.department;
+  const avatarGrad = AVATAR_GRADIENTS[user.id.charCodeAt(0) % AVATAR_GRADIENTS.length];
+  const shiftTarget = userProfile?.workShift ? (() => { const [sh, sm] = userProfile.workShift!.start.split(":").map(Number); const [eh, em] = userProfile.workShift!.end.split(":").map(Number); return Math.max(eh * 60 + em - (sh * 60 + sm) - (userProfile.workShift!.breakTime ?? 60), 1); })() : 480;
+  const shiftPct = pa ? Math.min(100, Math.round((pa.todayMinutes / shiftTarget) * 100)) : 0;
+  const officePct = pa && (pa.officeMinutes + pa.remoteMinutes > 0) ? Math.round((pa.officeMinutes / (pa.officeMinutes + pa.remoteMinutes)) * 100) : 0;
+  const monthlyOfficePct = ms && (ms.totalOfficeHours + ms.totalRemoteHours > 0) ? (ms.totalOfficeHours / (ms.totalOfficeHours + ms.totalRemoteHours)) * 100 : 0;
+  const monthlyRemotePct = 100 - monthlyOfficePct;
+
+  const statusColor = pa && pa.todayMinutes > 0 ? (pa.isOnTime ? "#10b981" : "#f59e0b") : "#f43f5e";
+  const statusLabel = pa && pa.todayMinutes > 0 ? (pa.isOnTime ? "On Time" : "Late") : "Absent";
+
+  const timelineEvents = useMemo(() => {
+    const evs: { key: string; dot: string; time: string; label: string }[] = [];
+    if (pa?.firstEntry) evs.push({ key: "login", dot: statusColor, time: pa.firstEntry, label: `Checked in at ${pa.firstEntry}` });
+    if (pa && pa.todaySessions > 1) evs.push({ key: "sessions", dot: "var(--amber)", time: `${pa.todaySessions} sessions`, label: `${pa.todaySessions} sessions today (${formatMinutes(pa.officeMinutes)} office, ${formatMinutes(pa.remoteMinutes)} remote)` });
+    if (pa && pa.todayMinutes > 0) evs.push({ key: "active", dot: "var(--teal)", time: "Now", label: `Active now · ${formatMinutes(pa.todayMinutes)} logged` });
+    if (evs.length === 0) evs.push({ key: "empty", dot: "var(--fg-tertiary)", time: "—", label: "No activity yet today" });
+    return evs;
+  }, [pa, statusColor]);
 
   return (
     <motion.div className="flex flex-col gap-4" variants={staggerContainer} initial="hidden" animate="visible">
+      {/* Header */}
       <motion.div
         className="relative overflow-hidden rounded-2xl p-4 sm:p-5"
-        style={{
-          background: "var(--glass-bg)",
-          backdropFilter: "blur(20px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
-          border: "0.5px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
+        style={{ background: "var(--glass-bg)", backdropFilter: "blur(20px) saturate(1.8)", WebkitBackdropFilter: "blur(20px) saturate(1.8)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }}
         variants={slideUpItem}
       >
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
@@ -1206,11 +1255,67 @@ function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; ta
         </div>
         <h1 className="text-title">
           <span className="gradient-text">{getGreeting()}</span>
-          <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
+          <span style={{ color: "var(--fg)" }}>, {profileName}!</span>
         </h1>
-        <p className="text-subhead mt-1">{roleLabel} · {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending</p>
+        <p className="text-subhead mt-1">{designation} · {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending</p>
       </motion.div>
 
+      {/* ── Profile Card + Today's Activity (2-col) ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="card p-5 sm:p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+            <div className="flex flex-col items-center gap-3 sm:items-start">
+              <motion.div className="relative" animate={{ boxShadow: [`0 0 0 0 ${statusColor}73`, `0 0 0 14px ${statusColor}00`] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} style={{ borderRadius: "9999px" }}>
+                {userProfile?.profileImage ? (
+                  <img src={userProfile.profileImage} alt="" className="h-24 w-24 rounded-full object-cover shadow-lg sm:h-28 sm:w-28" />
+                ) : (
+                  <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br text-2xl font-semibold text-white shadow-lg sm:h-28 sm:w-28 sm:text-3xl ${avatarGrad}`}>{initials(profileName, profileLast)}</div>
+                )}
+              </motion.div>
+              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase" style={{ background: `${statusColor}1a`, color: statusColor }}>{statusLabel}</span>
+            </div>
+            <div className="min-w-0 flex-1 space-y-4">
+              <div>
+                <h2 className="text-headline" style={{ color: "var(--fg)" }}>{profileName} {profileLast}</h2>
+                <p className="text-subhead">{designation}</p>
+                {dept && <p className="text-caption mt-0.5">{dept}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="card-static rounded-xl p-3"><p className="text-caption">First entry</p><p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{pa?.firstEntry ?? "—"}</p></div>
+                <div className="card-static rounded-xl p-3"><p className="text-caption">Hours logged</p><p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{pa ? (todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m") : "—"}</p></div>
+                <div className="card-static col-span-2 rounded-xl p-3 sm:col-span-1"><p className="text-caption">Office / Remote</p><p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{pa ? `${formatMinutes(pa.officeMinutes)} / ${formatMinutes(pa.remoteMinutes)}` : "—"}</p>{pa && <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{officePct}% office</p>}</div>
+              </div>
+              {pa && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between"><span className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>Shift progress</span><span className="text-[11px] tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes} / {shiftTarget} min ({shiftPct}%)</span></div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                    <motion.div className="h-full rounded-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 1.2, ease: "easeOut" }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Today's Activity Timeline */}
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }} className="card-static flex flex-col p-5 sm:p-6">
+          <h3 className="text-section-header mb-4">Today&apos;s Activity</h3>
+          <ul className="relative flex flex-col gap-0 pl-4">
+            <span className="absolute bottom-1 left-[7px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
+            {timelineEvents.map((ev, i) => (
+              <motion.li key={ev.key} initial={{ x: -12, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 + i * 0.12 }} className="relative flex gap-3 pb-5 last:pb-0">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ev.dot, boxShadow: "0 0 0 2px var(--bg)" }} />
+                <div className="min-w-0 flex-1">
+                  <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
+                  <p className="text-callout mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
+                </div>
+              </motion.li>
+            ))}
+          </ul>
+        </motion.section>
+      </div>
+
+      {/* ── Task Stat Cards ── */}
       <motion.div className="grid grid-cols-2 gap-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
         {[
           { title: "Total Tasks", value: tasks.length, caption: "All assigned", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg> },
@@ -1220,22 +1325,79 @@ function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; ta
         ].map((stat, i) => (
           <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i] }} />
-            <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>
-              {stat.icon}
-            </div>
+            <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>{stat.icon}</div>
             <p className="text-subhead">{stat.title}</p>
-            <p className="text-[22px] sm:text-[26px] font-semibold tabular-nums mt-0.5" style={{ color: "var(--fg)" }}>
-              <AnimatedNumber value={stat.value} />
-            </p>
+            <p className="text-[22px] sm:text-[26px] font-semibold tabular-nums mt-0.5" style={{ color: "var(--fg)" }}><AnimatedNumber value={stat.value} /></p>
             <p className="text-caption mt-0.5">{stat.caption}</p>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* Self Assessment */}
-      {personalAttendance && <SelfAssessmentSection pa={personalAttendance} />}
+      {/* ── Weekly Overview (scrollable cards) ── */}
+      {weeklyRecords.length > 0 && (
+        <motion.section variants={fadeInItem} initial="hidden" animate="visible">
+          <h3 className="text-section-header mb-3">Weekly overview</h3>
+          <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1 px-1">
+            {weeklyRecords.map((day, i) => {
+              const d = new Date(day.date + "T12:00:00");
+              const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
+              const dateLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+              const isToday = day.date === new Date().toISOString().slice(0, 10);
+              const dotColor = !day.isPresent ? STATUS_COLORS.absent : !day.isOnTime ? STATUS_COLORS.late : STATUS_COLORS.office;
+              return (
+                <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "ring-2" : ""}`} style={isToday ? { boxShadow: "0 0 0 2px var(--primary), var(--glass-shadow)" } : undefined}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold" style={{ color: "var(--fg-secondary)" }}>{dayName}</span>
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} />
+                  </div>
+                  <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{dateLabel}</span>
+                  <span className="text-headline tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(day.totalMinutes)}</span>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.section>
+      )}
 
-      {/* Checklist */}
+      {/* ── Monthly Summary ── */}
+      {ms && (
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="card-static p-5 sm:p-6">
+          <h3 className="text-section-header mb-4">Monthly summary</h3>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Present / Total</p>
+              <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">On-time</p>
+              <p className="text-title mt-1 gradient-text"><AnimatedNumber value={ms.onTimePercentage} />%</p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Avg. daily hours</p>
+              <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.averageDailyHours} />h</p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Total hours</p>
+              <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.totalWorkingHours} />h</p>
+            </div>
+          </div>
+          {(ms.totalOfficeHours + ms.totalRemoteHours > 0) && (
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center justify-between"><span className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>Office vs remote (hours)</span><span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ms.totalOfficeHours.toFixed(0)}h · {ms.totalRemoteHours.toFixed(0)}h</span></div>
+              <div className="flex h-3 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${monthlyOfficePct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
+                <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${monthlyRemotePct}%` }} transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} />
+              </div>
+              <div className="flex justify-between text-caption" style={{ color: "var(--fg-tertiary)" }}><span>Office {monthlyOfficePct.toFixed(0)}%</span><span>Remote {monthlyRemotePct.toFixed(0)}%</span></div>
+            </div>
+          )}
+        </motion.section>
+      )}
+
+      {/* ── Self Assessment (Today donut + monthly stats grid) ── */}
+      {pa && <SelfAssessmentSection pa={pa} />}
+
+      {/* ── Checklist ── */}
       <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
@@ -1251,20 +1413,12 @@ function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; ta
               <motion.div key={task._id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 + ti * 0.1 }} whileHover={{ x: 5 }} className="flex cursor-pointer items-start gap-3">
                 <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} 15%, transparent)` }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    {task.priority === "urgent" ? (
-                      <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></>
-                    ) : task.priority === "high" ? (
-                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />
-                    ) : (
-                      <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>
-                    )}
+                    {task.priority === "urgent" ? (<><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></>) : task.priority === "high" ? (<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />) : (<><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>)}
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
-                  <p className="text-caption line-clamp-1">
-                    {task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName} · ` : ""}{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}
-                  </p>
+                  <p className="text-caption line-clamp-1">{task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName} · ` : ""}{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}</p>
                 </div>
               </motion.div>
             ))}
@@ -1274,9 +1428,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; ta
         )}
         {pendingTasks.length > 0 && (
           <Link href="/tasks">
-            <motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              View All Tasks →
-            </motion.button>
+            <motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button>
           </Link>
         )}
       </motion.section>
@@ -1296,6 +1448,9 @@ export default function DashboardHome({ user }: { user: User }) {
   const [personalAttendance, setPersonalAttendance] = useState<PersonalAttendance | null>(null);
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [attendanceTrend, setAttendanceTrend] = useState<TrendDay[]>([]);
+  const [weeklyRecords, setWeeklyRecords] = useState<WeeklyDay[]>([]);
+  const [monthlyStats, setMonthlyStats] = useState<FullMonthlyStats | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const isSuperAdmin = user.role === "superadmin";
   const isAdminRole = isSuperAdmin || user.role === "manager" || user.role === "teamLead";
@@ -1354,6 +1509,69 @@ export default function DashboardHome({ user }: { user: User }) {
     } catch { /* silent */ }
   }, [isAdminRole, isSuperAdmin, parsePresence, parsePersonalAttendance]);
 
+  /* ── Helper: fetch weekly records + monthly stats + user profile (non-superadmin) ── */
+  const fetchPersonalExtras = useCallback(async () => {
+    if (isSuperAdmin) return;
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+
+      const [weeklyRes, monthlyRes, profileRes] = await Promise.all([
+        fetch(`/api/attendance?type=daily&year=${year}&month=${month}`).then((r) => r.ok ? r.json() : []),
+        fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`).then((r) => r.ok ? r.json() : null),
+        fetch("/api/profile").then((r) => r.ok ? r.json() : null),
+      ]);
+
+      if (Array.isArray(weeklyRes)) {
+        const last7 = (weeklyRes as Array<{ date: string; totalWorkingMinutes?: number; officeMinutes?: number; remoteMinutes?: number; isPresent?: boolean; isOnTime?: boolean; lateBy?: number }>)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 7)
+          .reverse()
+          .map((d) => ({
+            date: d.date,
+            totalMinutes: d.totalWorkingMinutes ?? 0,
+            officeMinutes: d.officeMinutes ?? 0,
+            remoteMinutes: d.remoteMinutes ?? 0,
+            isPresent: d.isPresent ?? false,
+            isOnTime: d.isOnTime ?? true,
+            lateBy: d.lateBy ?? 0,
+          }));
+        setWeeklyRecords(last7);
+      }
+
+      if (monthlyRes) {
+        const ms = monthlyRes as Record<string, unknown>;
+        setMonthlyStats({
+          presentDays: (ms.presentDays as number) ?? 0,
+          totalWorkingDays: (ms.totalWorkingDays as number) ?? 0,
+          totalWorkingHours: (ms.totalWorkingHours as number) ?? 0,
+          onTimePercentage: (ms.onTimePercentage as number) ?? 0,
+          averageDailyHours: (ms.averageDailyHours as number) ?? 0,
+          totalOfficeHours: (ms.totalOfficeHours as number) ?? 0,
+          totalRemoteHours: (ms.totalRemoteHours as number) ?? 0,
+        });
+      }
+
+      if (profileRes) {
+        const p = profileRes as Record<string, unknown>;
+        const about = p.about as Record<string, unknown> | undefined;
+        const dept = p.department as { title?: string } | undefined;
+        const shift = p.workShift as { type?: string; shift?: { start?: string; end?: string }; breakTime?: number } | undefined;
+        setUserProfile({
+          firstName: (about?.firstName as string) ?? user.firstName,
+          lastName: (about?.lastName as string) ?? user.lastName,
+          email: (p.email as string) ?? user.email,
+          username: (p.username as string) ?? user.username,
+          profileImage: (about?.profileImage as string) || undefined,
+          department: dept?.title ?? undefined,
+          designation: ROLE_DESIGNATION[user.role] ?? user.role,
+          workShift: shift?.shift ? { type: shift.type ?? "fullTime", start: shift.shift.start ?? "09:00", end: shift.shift.end ?? "18:00", breakTime: shift.breakTime ?? 60 } : undefined,
+        });
+      }
+    } catch { /* optional data */ }
+  }, [isSuperAdmin, user]);
+
   /* ── SLOW POLL: full data set (every 60s) ── */
   const fetchFull = useCallback(async () => {
     try {
@@ -1376,9 +1594,12 @@ export default function DashboardHome({ user }: { user: User }) {
       if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
       parsePresence(presenceRes);
 
-      if (!isSuperAdmin) await parsePersonalAttendance();
+      if (!isSuperAdmin) {
+        await parsePersonalAttendance();
+        await fetchPersonalExtras();
+      }
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [isSuperAdmin, isAdminRole, parsePresence, parsePersonalAttendance]);
+  }, [isSuperAdmin, isAdminRole, parsePresence, parsePersonalAttendance, fetchPersonalExtras]);
 
   /* ── Initial load ── */
   useEffect(() => {
@@ -1586,5 +1807,5 @@ export default function DashboardHome({ user }: { user: User }) {
     );
   }
 
-  return <OtherRoleOverview user={user} tasks={tasks} personalAttendance={personalAttendance} />;
+  return <OtherRoleOverview user={user} tasks={tasks} personalAttendance={personalAttendance} weeklyRecords={weeklyRecords} monthlyStats={monthlyStats} userProfile={userProfile} />;
 }

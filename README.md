@@ -248,10 +248,14 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 - Attendance Overview donut + Checklist side-by-side (2-column grid)
 
 **Developer / Business Developer:**
-- Greeting + LIVE badge + role label
-- Task stat cards (Total, Pending, In Progress, Completed)
-- **Self-assessment section** (same as manager: Today card + monthly stats)
-- Checklist
+- Greeting + LIVE badge + role label + pending task count
+- **Profile Card**: avatar with animated status ring pulse (green=on-time, amber=late, red=absent), full name, designation, department, quick stats grid (first entry, hours logged, office/remote split with percentage), shift progress bar (current minutes vs shift target with percentage)
+- **Today's Activity Timeline**: vertical timeline with colored dots — check-in time, session count breakdown (office/remote), active-now indicator with cumulative minutes
+- **Task stat cards**: Total, Pending, In Progress, Completed (4-column grid with gradient icons and animated counters)
+- **Weekly Overview**: horizontal scrollable day cards (last 7 days) — day name, date, total hours, color-coded status dot (present/late/absent), today highlighted with ring
+- **Monthly Summary**: 4-stat grid (present/total days, on-time%, avg daily hours, total hours) + animated office-vs-remote split bar with percentage labels
+- **Self-assessment section** (same as manager: Today donut + monthly stats)
+- **Checklist**: pending tasks with priority icons, assignee, deadline, link to tasks page
 
 **Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments", "Teams" visible to SuperAdmin only.
 
