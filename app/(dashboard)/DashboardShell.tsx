@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -336,7 +335,6 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             href="/"
             className="flex items-center gap-2 shrink-0"
           >
-            <Logo size={28} />
             <span className="gradient-text text-[15px] font-bold tracking-tight sm:text-lg">
               Single Solution Sync
             </span>

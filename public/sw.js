@@ -1,5 +1,5 @@
-const CACHE_NAME = "ss-sync-v1";
-const PRECACHE = ["/dashboard", "/login"];
+const CACHE_NAME = "ss-sync-v2";
+const PRECACHE = ["/offline.html"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -30,6 +30,8 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   if (url.pathname.startsWith("/api/")) return;
 
+  const isNavigation = e.request.mode === "navigate";
+
   e.respondWith(
     fetch(e.request)
       .then((res) => {
@@ -39,6 +41,12 @@ self.addEventListener("fetch", (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(e.request)),
+      .catch(() =>
+        caches.match(e.request).then((cached) => {
+          if (cached) return cached;
+          if (isNavigation) return caches.match("/offline.html");
+          return new Response("", { status: 503 });
+        }),
+      ),
   );
 });
