@@ -342,31 +342,46 @@ function SuperAdminOverview({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Header: Greeting + Actions + Clock ── */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
-          <p className="text-caption mb-0.5">Single Solution Sync</p>
-          <h1 className="text-title">
-            <span className="gradient-text">{getGreeting()}</span>
-            <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
-          </h1>
-          <p className="text-subhead mt-1">
-            You have {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending
-          </p>
-        </motion.div>
-        <motion.div className="flex shrink-0 items-center gap-3" variants={slideFromRight} initial="hidden" animate="visible">
-          <div className="card group relative overflow-hidden p-3 sm:min-w-[180px]">
-            <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
-            <p className="text-caption mb-0.5">Local time</p>
-            <AnimatePresence mode="wait">
-              <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
-                <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
-                <span className="text-caption">{formatClockDate(now)}</span>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </motion.div>
-      </header>
+      {/* ── Header: Greeting + Actions + Clock — glass blended ── */}
+      <motion.header
+        className="relative overflow-hidden rounded-2xl p-4 sm:p-5"
+        style={{
+          background: "var(--glass-bg)",
+          backdropFilter: "blur(20px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+          border: "0.5px solid var(--glass-border)",
+          boxShadow: "var(--glass-shadow)",
+        }}
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
+        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, var(--teal) 0%, transparent 70%)" }} aria-hidden />
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
+            <p className="text-caption mb-0.5">Single Solution Sync</p>
+            <h1 className="text-title">
+              <span className="gradient-text">{getGreeting()}</span>
+              <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
+            </h1>
+            <p className="text-subhead mt-1">
+              You have {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending
+            </p>
+          </motion.div>
+          <motion.div className="flex shrink-0 items-center gap-3" variants={slideFromRight} initial="hidden" animate="visible">
+            <div className="relative overflow-hidden rounded-xl p-3 sm:min-w-[180px]" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+              <p className="text-caption mb-0.5">Local time</p>
+              <AnimatePresence mode="wait">
+                <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
+                  <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
+                  <span className="text-caption">{formatClockDate(now)}</span>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </div>
+      </motion.header>
 
       {/* ── KPI Stat Cards ── */}
       <motion.div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" variants={staggerContainerFast} initial="hidden" animate="visible">
@@ -727,39 +742,55 @@ function ManagerOverview({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header: Greeting + Own Stats (compact) */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
-          <h1 className="text-title">
-            <span className="gradient-text">{getGreeting()}</span>
-            <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
-          </h1>
-          <p className="text-subhead mt-0.5">
-            {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending
-          </p>
-        </motion.div>
-        {pa && (
-          <motion.div className="flex shrink-0 flex-wrap items-center gap-2" variants={slideFromRight} initial="hidden" animate="visible">
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
-              <svg className="h-4 w-4 shrink-0" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-              <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{myTodayHours >= 1 ? myTodayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</span>
-              <span className="text-caption">today</span>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pa.isOnTime ? "var(--teal)" : "var(--amber)" }} />
-              <span className="text-callout font-semibold" style={{ color: pa.isOnTime ? "var(--teal)" : "var(--amber)" }}>{pa.isOnTime ? "On time" : formatMinutes(pa.lateBy) + " late"}</span>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
-              <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.todaySessions}</span>
-              <span className="text-caption">{pa.todaySessions === 1 ? "session" : "sessions"}</span>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
-              <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.monthlyAvgHours.toFixed(1)}h</span>
-              <span className="text-caption">avg/day</span>
-            </div>
+      {/* Header: Greeting + Own Stats — glass blended */}
+      <motion.header
+        className="relative overflow-hidden rounded-2xl p-4 sm:p-5"
+        style={{
+          background: "var(--glass-bg)",
+          backdropFilter: "blur(20px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+          border: "0.5px solid var(--glass-border)",
+          boxShadow: "var(--glass-shadow)",
+        }}
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
+        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, var(--teal) 0%, transparent 70%)" }} aria-hidden />
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
+            <h1 className="text-title">
+              <span className="gradient-text">{getGreeting()}</span>
+              <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
+            </h1>
+            <p className="text-subhead mt-0.5">
+              {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending
+            </p>
           </motion.div>
-        )}
-      </header>
+          {pa && (
+            <motion.div className="flex shrink-0 flex-wrap items-center gap-2" variants={slideFromRight} initial="hidden" animate="visible">
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+                <svg className="h-4 w-4 shrink-0" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{myTodayHours >= 1 ? myTodayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</span>
+                <span className="text-caption">today</span>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pa.isOnTime ? "var(--teal)" : "var(--amber)" }} />
+                <span className="text-callout font-semibold" style={{ color: pa.isOnTime ? "var(--teal)" : "var(--amber)" }}>{pa.isOnTime ? "On time" : formatMinutes(pa.lateBy) + " late"}</span>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+                <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.todaySessions}</span>
+                <span className="text-caption">{pa.todaySessions === 1 ? "session" : "sessions"}</span>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+                <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.monthlyAvgHours.toFixed(1)}h</span>
+                <span className="text-caption">avg/day</span>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </motion.header>
 
       {/* 3 KPI Team Stat Cards */}
       <motion.div className="grid grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
@@ -1139,7 +1170,18 @@ function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; ta
 
   return (
     <motion.div className="flex flex-col gap-4" variants={staggerContainer} initial="hidden" animate="visible">
-      <motion.div variants={slideUpItem}>
+      <motion.div
+        className="relative overflow-hidden rounded-2xl p-4 sm:p-5"
+        style={{
+          background: "var(--glass-bg)",
+          backdropFilter: "blur(20px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+          border: "0.5px solid var(--glass-border)",
+          boxShadow: "var(--glass-shadow)",
+        }}
+        variants={slideUpItem}
+      >
+        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
         <p className="text-caption mb-0.5">Single Solution Sync</p>
         <h1 className="text-title">
           <span className="gradient-text">{getGreeting()}</span>
