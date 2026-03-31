@@ -44,7 +44,7 @@ export async function GET() {
   }
 
   const employees = await User.find(empFilter)
-    .select("about userRole department")
+    .select("about userRole department teams")
     .populate("department", "title")
     .lean();
 
@@ -91,6 +91,7 @@ export async function GET() {
       todayMinutes,
       lateBy: daily?.lateBy ?? 0,
       isActive: true,
+      teamIds: Array.isArray(emp.teams) ? emp.teams.map((t: unknown) => String(t)) : [],
     };
   });
 

@@ -237,8 +237,9 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 
 **Manager / Team Lead:**
 - Compact header: greeting + LIVE badge + personal stats glass pills (today hours, on-time/late, sessions, avg/day)
-- KPI cards: My Team count, Present Today, On-Time Rate (3 columns)
-- Live Presence board with filter toggles (All / Office / Remote / Late / Absent) + fixed-height scrollable grid
+- KPI cards: Department/My Team count, Present Today, On-Time Rate (3 columns)
+- **Team Breakdown**: clickable team cards showing team name, lead avatar/name, present/absent/late counts, attendance progress bar, member status dots. Manager sees all department teams + "Unassigned" group; Team Lead sees only their teams. Clicking a team filters the Live Presence grid below.
+- Live Presence board with filter toggles (All / Office / Remote / Late / Absent) + optional team filter + fixed-height scrollable grid. Shows active team filter badge when a team is selected.
 - **Late Arrivals** list: employees who arrived late today, sorted by severity, with `lateBy` duration
 - **Team Attendance Trend** bar chart: last 5 working days present count (new `/api/attendance/trend` endpoint)
 - **Task Status** breakdown: total / pending / in-progress / completed counts with animated stacked progress bar

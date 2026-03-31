@@ -40,12 +40,22 @@ interface ApiEmployee {
   userRole: string;
   isActive: boolean;
   department?: { _id: string; title: string; slug?: string };
+  teams?: { _id: string; name: string }[];
   workShift?: {
     type: string;
     shift: { start: string; end: string };
     workingDays: string[];
     breakTime: number;
   };
+}
+
+interface ApiTeam {
+  _id: string;
+  name: string;
+  department?: { _id: string; title: string };
+  lead?: { _id: string; about: { firstName: string; lastName: string }; email: string; userRole: string };
+  memberCount: number;
+  description?: string;
 }
 
 interface ApiTask {
@@ -92,6 +102,7 @@ interface PresenceEmployee {
   todayMinutes: number;
   lateBy: number;
   isActive: boolean;
+  teamIds?: string[];
 }
 
 interface ApiCampaign {
@@ -733,6 +744,7 @@ function ManagerOverview({
   personalAttendance,
   campaigns,
   attendanceTrend,
+  teams,
 }: {
   user: User;
   presenceEmps: PresenceEmployee[];
@@ -740,8 +752,10 @@ function ManagerOverview({
   personalAttendance: PersonalAttendance | null;
   campaigns: ApiCampaign[];
   attendanceTrend: TrendDay[];
+  teams: ApiTeam[];
 }) {
   const reduceMotion = useReducedMotion();
+  const isManager = user.role === "manager";
   const counts = useMemo(() => getStatusCounts(presenceEmps), [presenceEmps]);
   const totalEmp = counts.total;
   const presentToday = totalEmp - counts.absent;
@@ -769,14 +783,37 @@ function ManagerOverview({
 
   const trendMax = useMemo(() => Math.max(...attendanceTrend.map((d) => d.count), 1), [attendanceTrend]);
 
+  /* ── Team breakdown: group presence employees by team ── */
+  const teamBreakdown = useMemo(() => {
+    if (teams.length === 0) return [];
+    return teams.map((team) => {
+      const members = presenceEmps.filter((e) => e.teamIds?.includes(team._id));
+      const present = members.filter((m) => m.status !== "absent").length;
+      const late = members.filter((m) => m.status === "late").length;
+      const totalMins = members.reduce((s, m) => s + m.todayMinutes, 0);
+      return { team, members, present, absent: members.length - present, late, totalMins };
+    });
+  }, [teams, presenceEmps]);
+
+  const unassignedMembers = useMemo(() => {
+    if (teams.length === 0) return [];
+    const allTeamIds = new Set(teams.map((t) => t._id));
+    return presenceEmps.filter((e) => !e.teamIds || e.teamIds.length === 0 || !e.teamIds.some((id) => allTeamIds.has(id)));
+  }, [teams, presenceEmps]);
+
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
   const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>("all");
-  const filteredPresence = useMemo(
-    () => presenceEmps.filter((e) => matchPresenceFilter(e.status, presenceFilter)),
-    [presenceEmps, presenceFilter],
-  );
+  const filteredPresence = useMemo(() => {
+    let list = presenceEmps;
+    if (selectedTeamId) {
+      list = list.filter((e) => e.teamIds?.includes(selectedTeamId));
+    }
+    return list.filter((e) => matchPresenceFilter(e.status, presenceFilter));
+  }, [presenceEmps, presenceFilter, selectedTeamId]);
 
   const statItems = [
-    { title: "My Team", value: totalEmp, icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
+    { title: isManager ? "Department" : "My Team", value: totalEmp, icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
     { title: "Present Today", value: presentToday, icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
     { title: "On-Time Rate", value: onTimePct, icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
   ];
@@ -857,30 +894,143 @@ function ManagerOverview({
         ))}
       </motion.div>
 
-      {/* Live Presence with filter toggles + fixed height scroll */}
-      <motion.section className="card relative overflow-hidden" variants={slideUpItem} initial="hidden" animate="visible">
-        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} />
-            </span>
-            <h2 className="text-headline" style={{ color: "var(--fg)" }}>Live Presence</h2>
-            <span className="text-caption ml-1">{filteredPresence.length} of {totalEmp}</span>
+      {/* ── Team Breakdown (manager sees all teams, team lead sees own) ── */}
+      {teamBreakdown.length > 0 && (
+        <motion.section className="card relative overflow-hidden" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="flex items-center justify-between border-b p-4 sm:p-5" style={{ borderColor: "var(--border)" }}>
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              <h2 className="text-headline" style={{ color: "var(--fg)" }}>{isManager ? "Teams in Department" : "My Teams"}</h2>
+              <span className="text-caption ml-1">{teamBreakdown.length} team{teamBreakdown.length !== 1 ? "s" : ""}</span>
+            </div>
+            {selectedTeamId && (
+              <motion.button type="button" onClick={() => setSelectedTeamId(null)} className="text-xs font-semibold rounded-lg px-2.5 py-1" style={{ color: "var(--primary)", background: "var(--primary-light)" }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                Show All
+              </motion.button>
+            )}
           </div>
-          <LayoutGroup id="mgr-presence-filter">
-            <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
-              {PRESENCE_FILTER_ORDER.map((f) => {
-                const active = presenceFilter === f;
+          <div className="p-4 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {teamBreakdown.map((tb, i) => {
+                const isSelected = selectedTeamId === tb.team._id;
+                const leadName = tb.team.lead ? `${tb.team.lead.about.firstName} ${tb.team.lead.about.lastName}` : null;
+                const leadGrad = tb.team.lead ? AVATAR_GRADIENTS[tb.team.lead._id.charCodeAt(0) % AVATAR_GRADIENTS.length] : AVATAR_GRADIENTS[0];
                 return (
-                  <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="relative z-10 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                    {active && <motion.span layoutId="mgr-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
-                    <span className="relative">{PRESENCE_FILTER_LABELS[f]}</span>
-                  </button>
+                  <motion.button
+                    key={tb.team._id}
+                    type="button"
+                    onClick={() => setSelectedTeamId(isSelected ? null : tb.team._id)}
+                    custom={i}
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate="visible"
+                    whileHover={cardHover}
+                    className={`card-static relative flex flex-col gap-3 rounded-2xl p-4 text-left transition-all ${isSelected ? "ring-2" : ""}`}
+                    style={isSelected ? { boxShadow: "0 0 0 2px var(--primary), var(--glass-shadow)" } : undefined}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]}`}>
+                        {tb.team.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{tb.team.name}</p>
+                        {leadName && (
+                          <div className="mt-0.5 flex items-center gap-1.5">
+                            <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[8px] font-semibold text-white ${leadGrad}`}>
+                              {initials(tb.team.lead!.about.firstName, tb.team.lead!.about.lastName)}
+                            </div>
+                            <span className="text-caption truncate">{leadName}</span>
+                            <span className="text-[10px] rounded px-1 py-px font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>Lead</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full" style={{ background: "var(--teal)" }} />
+                        <span className="text-[11px] tabular-nums font-semibold" style={{ color: "var(--teal)" }}>{tb.present}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} />
+                        <span className="text-[11px] tabular-nums font-semibold" style={{ color: "var(--rose)" }}>{tb.absent}</span>
+                      </div>
+                      {tb.late > 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} />
+                          <span className="text-[11px] tabular-nums font-semibold" style={{ color: "var(--amber)" }}>{tb.late}</span>
+                        </div>
+                      )}
+                      <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{tb.members.length} member{tb.members.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    {tb.totalMins > 0 && (
+                      <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                        <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, var(--teal), var(--primary))" }} initial={{ width: 0 }} animate={{ width: `${Math.min(100, (tb.present / Math.max(tb.members.length, 1)) * 100)}%` }} transition={{ duration: 0.6, delay: 0.05 * i }} />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {tb.members.slice(0, 6).map((m) => (
+                        <div key={m._id} className="flex items-center gap-1 rounded-full px-1.5 py-0.5" style={{ background: "var(--glass-bg)" }}>
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS[m.status] ?? STATUS_COLORS.absent }} />
+                          <span className="text-[10px] truncate max-w-[60px]" style={{ color: "var(--fg-secondary)" }}>{m.firstName}</span>
+                        </div>
+                      ))}
+                      {tb.members.length > 6 && (
+                        <span className="text-[10px] rounded-full px-1.5 py-0.5" style={{ background: "var(--glass-bg)", color: "var(--fg-tertiary)" }}>+{tb.members.length - 6}</span>
+                      )}
+                    </div>
+                  </motion.button>
                 );
               })}
+              {unassignedMembers.length > 0 && isManager && (
+                <motion.div custom={teamBreakdown.length} variants={cardVariants} initial="hidden" animate="visible" className="card-static flex flex-col gap-3 rounded-2xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold" style={{ background: "var(--glass-bg-heavy)", color: "var(--fg-tertiary)" }}>?</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>Unassigned</p>
+                      <p className="text-caption mt-0.5">No team assigned</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{unassignedMembers.length} member{unassignedMembers.length !== 1 ? "s" : ""}</span>
+                  </div>
+                </motion.div>
+              )}
             </div>
-          </LayoutGroup>
+          </div>
+        </motion.section>
+      )}
+
+      {/* Live Presence with filter toggles + team filter + fixed height scroll */}
+      <motion.section className="card relative overflow-hidden" variants={slideUpItem} initial="hidden" animate="visible">
+        <div className="flex flex-col gap-3 border-b p-4 sm:p-5" style={{ borderColor: "var(--border)" }}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} />
+              </span>
+              <h2 className="text-headline" style={{ color: "var(--fg)" }}>Live Presence</h2>
+              <span className="text-caption ml-1">{filteredPresence.length} of {totalEmp}</span>
+              {selectedTeamId && (
+                <span className="text-[10px] rounded-full px-2 py-0.5 font-semibold" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>
+                  {teams.find((t) => t._id === selectedTeamId)?.name ?? "Team"}
+                </span>
+              )}
+            </div>
+            <LayoutGroup id="mgr-presence-filter">
+              <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+                {PRESENCE_FILTER_ORDER.map((f) => {
+                  const active = presenceFilter === f;
+                  return (
+                    <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="relative z-10 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
+                      {active && <motion.span layoutId="mgr-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                      <span className="relative">{PRESENCE_FILTER_LABELS[f]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </LayoutGroup>
+          </div>
         </div>
         <div className="max-h-[420px] overflow-y-auto p-4 sm:p-5">
           {filteredPresence.length > 0 ? (
@@ -1448,6 +1598,7 @@ export default function DashboardHome({ user }: { user: User }) {
   const [personalAttendance, setPersonalAttendance] = useState<PersonalAttendance | null>(null);
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [attendanceTrend, setAttendanceTrend] = useState<TrendDay[]>([]);
+  const [teams, setTeams] = useState<ApiTeam[]>([]);
   const [weeklyRecords, setWeeklyRecords] = useState<WeeklyDay[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<FullMonthlyStats | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -1460,7 +1611,7 @@ export default function DashboardHome({ user }: { user: User }) {
   const parsePresence = useCallback((raw: unknown) => {
     if (!Array.isArray(raw)) return;
     setRealPresence(
-      (raw as Array<{ _id: string; firstName: string; lastName: string; userRole: string; department: string; status: string; todayMinutes: number; lateBy: number; isActive: boolean }>).map((p) => ({
+      (raw as Array<{ _id: string; firstName: string; lastName: string; userRole: string; department: string; status: string; todayMinutes: number; lateBy: number; isActive: boolean; teamIds?: string[] }>).map((p) => ({
         _id: p._id,
         firstName: p.firstName,
         lastName: p.lastName,
@@ -1470,6 +1621,7 @@ export default function DashboardHome({ user }: { user: User }) {
         todayMinutes: p.todayMinutes,
         lateBy: p.lateBy ?? 0,
         isActive: p.isActive,
+        teamIds: p.teamIds ?? [],
       })),
     );
   }, []);
@@ -1584,14 +1736,16 @@ export default function DashboardHome({ user }: { user: User }) {
         fetches.push(fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []));
         fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
         fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
+        fetches.push(fetch("/api/teams").then((r) => r.ok ? r.json() : []));
       }
-      const [empRes, taskRes, deptRes, presenceRes, campaignRes, trendRes] = await Promise.all(fetches);
+      const [empRes, taskRes, deptRes, presenceRes, campaignRes, trendRes, teamsRes] = await Promise.all(fetches);
 
       setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
       setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
       setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
       if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
       if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
+      if (Array.isArray(teamsRes)) setTeams(teamsRes as ApiTeam[]);
       parsePresence(presenceRes);
 
       if (!isSuperAdmin) {
@@ -1635,6 +1789,7 @@ export default function DashboardHome({ user }: { user: User }) {
       todayMinutes: 0,
       lateBy: 0,
       isActive: true,
+      teamIds: e.teams?.map((t) => t._id) ?? [],
     }));
   }, [realPresence, employees]);
 
@@ -1803,6 +1958,7 @@ export default function DashboardHome({ user }: { user: User }) {
         personalAttendance={personalAttendance}
         campaigns={campaigns}
         attendanceTrend={attendanceTrend}
+        teams={teams}
       />
     );
   }
