@@ -19,7 +19,7 @@ Automatic employee presence and attendance tracking system. Detects when employe
 
 | Role | Access |
 |------|--------|
-| **SuperAdmin** | Full CRUD on employees, departments, tasks, system settings; attendance reports, email testing |
+| **SuperAdmin** | Full CRUD on employees, departments, tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role |
 | **Manager** | Department-scoped team view, task management, attendance presence for their team |
 | **Business Developer** | Job pipeline tracking (17 BD fields), personal attendance |
 | **Developer** | Personal attendance, task status updates, profile management |

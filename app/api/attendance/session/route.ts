@@ -27,13 +27,16 @@ export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
+  if (session.user.role === "superadmin") {
+    return ok({ activeSession: null, todayMinutes: 0, isStale: false });
+  }
+
   await connectDB();
 
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get("userId") ?? session.user.id;
 
   if (
-    session.user.role !== "superadmin" &&
     session.user.role !== "manager" &&
     targetUserId !== session.user.id
   ) {
@@ -67,6 +70,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (session.user.role === "superadmin") return ok({ message: "Superadmin is exempt from attendance tracking" });
 
   await connectDB();
 
@@ -99,6 +103,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (session.user.role === "superadmin") return ok({ status: "exempt" });
 
   await connectDB();
 

@@ -174,7 +174,9 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     function resetLogoutTimer() {
       clearTimeout(timer);
       timer = setTimeout(async () => {
-        try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+        if (user.role !== "superadmin") {
+          try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+        }
         signOut({ callbackUrl: "/login" });
       }, AUTO_LOGOUT_MS);
     }
@@ -394,7 +396,9 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             <button
               type="button"
               onClick={async () => {
-                try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+                if (user.role !== "superadmin") {
+                  try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+                }
                 signOut({ callbackUrl: "/login" });
               }}
               className="btn-signout px-3 py-1.5 rounded-full text-sm font-medium text-[var(--fg-secondary)] hover:text-[var(--rose)] transition-all duration-150"
@@ -428,10 +432,12 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="mx-3 mb-2 sm:mx-0">
-          {/* Session timer bar */}
-          <div className="mb-2">
-            <SessionTracker />
-          </div>
+          {/* Session timer bar — superadmin doesn't track attendance */}
+          {user.role !== "superadmin" && (
+            <div className="mb-2">
+              <SessionTracker />
+            </div>
+          )}
           <LayoutGroup>
             <nav
               className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
