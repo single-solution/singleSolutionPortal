@@ -14,7 +14,7 @@ export async function PUT(req: Request) {
     return badRequest("Current and new password are required");
   }
 
-  if (body.newPassword.length < 6) return badRequest("New password must be at least 6 characters");
+  if (body.newPassword.length < 8) return badRequest("New password must be at least 8 characters");
 
   const user = await User.findById(session.user.id).select("+password");
   if (!user) return badRequest("User not found");

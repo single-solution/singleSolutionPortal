@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { UserRole } from "@/lib/models/User";
+import mongoose from "mongoose";
 
 export async function getSession() {
   return auth();
@@ -28,4 +29,8 @@ export function ok(data: unknown) {
 
 export function requireRole(role: UserRole, allowed: UserRole[]) {
   return allowed.includes(role);
+}
+
+export function isValidId(id: string): boolean {
+  return mongoose.Types.ObjectId.isValid(id);
 }

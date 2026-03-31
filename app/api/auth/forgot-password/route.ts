@@ -47,6 +47,5 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     success: true,
     message: "If an account with that email exists, a reset link has been sent.",
-    ...((!emailSent && process.env.NODE_ENV === "development") ? { resetUrl } : {}),
   });
 }

@@ -24,6 +24,14 @@ export async function GET(req: NextRequest) {
     return ok([]);
   }
 
+  if (session.user.role === "manager" && userId !== session.user.id) {
+    const me = await User.findById(session.user.id).select("department").lean();
+    const target = await User.findById(userId).select("department").lean();
+    if (!me?.department || !target?.department || me.department.toString() !== target.department.toString()) {
+      return ok([]);
+    }
+  }
+
   if (type === "team" && isAdmin) {
     let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
     if (session.user.role === "manager") {

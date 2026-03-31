@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, forbidden, badRequest, notFound, ok } from "@/lib/helpers";
+import { getSession, unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
 
@@ -8,8 +8,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  await connectDB();
   const { id } = await params;
+  if (!isValidId(id)) return badRequest("Invalid ID");
+
+  await connectDB();
   const role = session.user.role;
 
   if (role !== "superadmin" && role !== "manager" && session.user.id !== id) {
@@ -38,6 +40,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  if (!isValidId(id)) return badRequest("Invalid ID");
   const isSelf = session.user.id === id;
   if (!isSelf && session.user.role !== "superadmin") return forbidden();
 
@@ -51,7 +54,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (body.phone !== undefined) update["about.phone"] = body.phone;
 
   if (session.user.role === "superadmin") {
-    if (body.userRole) update.userRole = body.userRole;
+    if (body.userRole) {
+      if (body.userRole === "superadmin") return badRequest("Cannot promote to superadmin");
+      update.userRole = body.userRole;
+    }
     if (body.department !== undefined) update.department = body.department || null;
     if (body.isActive !== undefined) update.isActive = body.isActive;
     if (body.workShift) update.workShift = body.workShift;
@@ -68,7 +74,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  if (body.password) {
+  if (body.password && session.user.role === "superadmin") {
+    if (typeof body.password !== "string" || body.password.length < 8) {
+      return badRequest("Password must be at least 8 characters");
+    }
     update.password = await bcrypt.hash(body.password, 12);
   }
 
@@ -99,6 +108,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   await connectDB();
   const { id } = await params;
 
+  if (!isValidId(id)) return badRequest("Invalid ID");
   if (session.user.id === id) return badRequest("Cannot delete yourself");
 
   const user = await User.findByIdAndUpdate(id, { isActive: false }, { new: true }).select("-password").lean();

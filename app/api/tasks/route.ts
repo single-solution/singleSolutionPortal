@@ -45,9 +45,16 @@ export async function POST(req: Request) {
     return badRequest("Title and assignedTo are required");
   }
 
-  const assignee = await User.findById(body.assignedTo).select("userRole").lean();
+  const assignee = await User.findById(body.assignedTo).select("userRole department").lean();
   if (!assignee) return badRequest("Assignee not found");
   if (assignee.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
+
+  if (session.user.role === "manager") {
+    const me = await User.findById(session.user.id).select("department").lean();
+    if (!me?.department || !assignee.department || me.department.toString() !== assignee.department.toString()) {
+      return badRequest("Can only assign tasks to employees in your department");
+    }
+  }
 
   const task = await ActivityTask.create({
     title: body.title.trim(),

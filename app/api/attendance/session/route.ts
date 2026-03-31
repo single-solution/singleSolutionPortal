@@ -36,11 +36,16 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get("userId") ?? session.user.id;
 
-  if (
-    session.user.role !== "manager" &&
-    targetUserId !== session.user.id
-  ) {
-    return ok({ activeSession: null });
+  if (targetUserId !== session.user.id) {
+    if (session.user.role === "manager") {
+      const me = await User.findById(session.user.id).select("department").lean();
+      const target = await User.findById(targetUserId).select("department").lean();
+      if (!me?.department || !target?.department || me.department.toString() !== target.department.toString()) {
+        return ok({ activeSession: null });
+      }
+    } else {
+      return ok({ activeSession: null });
+    }
   }
 
   const now = new Date();

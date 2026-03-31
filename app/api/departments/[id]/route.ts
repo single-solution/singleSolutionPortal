@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, forbidden, notFound, ok, badRequest } from "@/lib/helpers";
+import { getSession, unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -9,8 +9,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!session?.user) return unauthorized();
   if (session.user.role !== "superadmin") return forbidden();
 
-  await connectDB();
   const { id } = await params;
+  if (!isValidId(id)) return badRequest("Invalid ID");
+
+  await connectDB();
   const body = await req.json();
 
   if (body.managerId) {
@@ -47,8 +49,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!session?.user) return unauthorized();
   if (session.user.role !== "superadmin") return forbidden();
 
-  await connectDB();
   const { id } = await params;
+  if (!isValidId(id)) return badRequest("Invalid ID");
+
+  await connectDB();
 
   const dept = await Department.findByIdAndUpdate(id, { isActive: false }, { new: true }).lean();
   if (!dept) return notFound("Department not found");

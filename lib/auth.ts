@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import type { UserRole } from "@/lib/models/User";
 import { authConfig } from "@/lib/auth.config";
+import { isLoginBlocked, recordLoginAttempt, clearLoginAttempts } from "@/lib/rateLimit";
 
 declare module "next-auth" {
   interface User {
@@ -37,7 +38,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
+        const ip =
+          (request as Request | undefined)?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+          (request as Request | undefined)?.headers?.get?.("x-real-ip") ||
+          "unknown";
+
+        if (isLoginBlocked(ip)) return null;
+
         if (!credentials?.email || !credentials?.password) return null;
 
         await connectDB();
@@ -47,13 +55,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           isActive: true,
         }).select("+password");
 
-        if (!user) return null;
+        if (!user) {
+          recordLoginAttempt(ip);
+          return null;
+        }
 
         const isValid = await bcrypt.compare(
           credentials.password as string,
           user.password,
         );
-        if (!isValid) return null;
+        if (!isValid) {
+          recordLoginAttempt(ip);
+          return null;
+        }
+
+        clearLoginAttempts(ip);
 
         return {
           id: user._id.toString(),

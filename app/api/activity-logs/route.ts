@@ -7,6 +7,11 @@ export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
+  const role = session.user.role;
+  if (role !== "superadmin" && role !== "manager") {
+    return ok({ logs: [] });
+  }
+
   await connectDB();
 
   const url = new URL(req.url);
