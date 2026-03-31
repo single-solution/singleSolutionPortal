@@ -5,7 +5,6 @@ const ADMIN_ONLY = ["/employees", "/departments", "/teams", "/campaigns"];
 const ADMIN_ROLES = ["superadmin", "manager", "teamLead"];
 
 export const authConfig: NextAuthConfig = {
-  trustHost: true,
   providers: [],
   pages: {
     signIn: "/login",
