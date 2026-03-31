@@ -10,10 +10,11 @@ interface Employee {
   _id: string;
   email: string;
   username: string;
-  about: { firstName: string; lastName: string; phone?: string };
+  about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   userRole: string;
   department?: { _id: string; title: string };
   isActive: boolean;
+  isVerified?: boolean;
   workShift?: {
     type: string;
     shift: { start: string; end: string };
@@ -22,6 +23,13 @@ interface Employee {
   };
   createdAt: string;
 }
+
+const SHIFT_TYPE_LABELS: Record<string, string> = {
+  fullTime: "Full-time",
+  partTime: "Part-time",
+  contract: "Contract",
+  intern: "Intern",
+};
 
 const AVATAR_GRADIENTS = [
   "from-blue-500 to-cyan-400",
@@ -57,6 +65,18 @@ type SortMode = "recent" | "name";
 
 function initials(first: string, last: string) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
+}
+
+const DAY_MAP: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri"];
+const FULL_WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function formatWorkingDays(days: string[]) {
+  const sorted = FULL_WEEK.filter((d) => days.includes(d));
+  if (sorted.length === 7) return "Every day";
+  if (sorted.length === 5 && WEEKDAYS.every((d) => sorted.includes(d))) return "Mon – Fri";
+  if (sorted.length === 6 && FULL_WEEK.slice(0, 6).every((d) => sorted.includes(d))) return "Mon – Sat";
+  return sorted.map((d) => DAY_MAP[d] ?? d).join(", ");
 }
 
 export default function EmployeesPage() {
@@ -312,12 +332,13 @@ export default function EmployeesPage() {
                 <motion.div
                   key={emp._id}
                   layout
+                  className="h-full"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
                 >
-                  <div className="card group relative overflow-hidden">
+                  <div className="card group relative overflow-hidden flex h-full flex-col">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -325,13 +346,22 @@ export default function EmployeesPage() {
                       className="absolute top-3 left-3 z-10 w-4 h-4 rounded accent-[var(--primary)] opacity-0 group-hover:opacity-100 checked:opacity-100 transition-opacity"
                     />
 
-                    <div className="p-3 sm:p-4 pb-2 sm:pb-3">
+                    <div className="flex-1 p-3 sm:p-4 pb-2 sm:pb-3">
                       <div className="flex items-start gap-3">
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
-                          {initials(emp.about.firstName, emp.about.lastName)}
-                        </div>
+                        {emp.about.profileImage ? (
+                          <img src={emp.about.profileImage} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
+                            {initials(emp.about.firstName, emp.about.lastName)}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
+                            {emp.isVerified === false && (
+                              <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>Pending</span>
+                            )}
+                          </div>
                           <p className="text-caption truncate">{emp.email}</p>
                         </div>
                         <span className="relative flex h-2.5 w-2.5 shrink-0 mt-1.5">
@@ -349,6 +379,33 @@ export default function EmployeesPage() {
                           <span style={{ color: "var(--fg-tertiary)" }}>Department</span>
                           <span className="font-medium" style={{ color: "var(--fg)" }}>{emp.department?.title ?? "—"}</span>
                         </div>
+                        {emp.workShift && (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span style={{ color: "var(--fg-tertiary)" }}>Shift</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>{SHIFT_TYPE_LABELS[emp.workShift.type] ?? emp.workShift.type}</span>
+                                <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+                                  {emp.workShift.shift.start} – {emp.workShift.shift.end}
+                                </span>
+                              </div>
+                            </div>
+                            {emp.workShift.workingDays?.length > 0 && (
+                              <div className="flex items-center justify-between">
+                                <span style={{ color: "var(--fg-tertiary)" }}>Days</span>
+                                <span className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>
+                                  {formatWorkingDays(emp.workShift.workingDays)}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {emp.about.phone && (
+                          <div className="flex items-center justify-between">
+                            <span style={{ color: "var(--fg-tertiary)" }}>Phone</span>
+                            <span className="font-medium" style={{ color: "var(--fg)" }}>{emp.about.phone}</span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <span style={{ color: "var(--fg-tertiary)" }}>Status</span>
                           <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${STATUS_COLORS[status]} 15%, transparent)`, color: STATUS_COLORS[status] }}>
@@ -359,7 +416,12 @@ export default function EmployeesPage() {
                     </div>
 
                     <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t" style={{ borderColor: "var(--border)" }}>
-                      <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />
+                      <div className="flex items-center gap-2">
+                        <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />
+                        <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                          Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                        </span>
+                      </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => router.push(`/employees/${emp._id}/edit`)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>

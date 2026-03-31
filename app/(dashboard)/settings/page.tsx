@@ -228,6 +228,19 @@ export default function SettingsPage() {
             <div className="min-w-0">
               <p className="text-headline truncate">{fullName || "Unnamed"}</p>
               <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{profile?.email}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {profile?.username && (
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>@{profile.username}</span>
+                )}
+                {profile?.userRole && (
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+                    {({ superadmin: "Super Admin", manager: "Manager", businessDeveloper: "Business Dev", developer: "Developer" } as Record<string, string>)[profile.userRole] ?? profile.userRole}
+                  </span>
+                )}
+                {profile?.department?.title && (
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>{profile.department.title}</span>
+                )}
+              </div>
             </div>
           </div>
 

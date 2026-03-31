@@ -12,8 +12,9 @@ interface Task {
   priority: string;
   status: string;
   deadline?: string;
-  assignedTo?: { _id: string; about?: { firstName: string; lastName: string }; email?: string; userRole?: string };
+  assignedTo?: { _id: string; about?: { firstName: string; lastName: string }; email?: string; userRole?: string; department?: { _id: string; title: string } | string };
   createdAt: string;
+  updatedAt?: string;
 }
 
 interface Employee {
@@ -276,12 +277,13 @@ export default function TasksPage() {
                 <motion.div
                   key={task._id}
                   layout
+                  className="h-full"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
                 >
-                  <div className="card group relative overflow-hidden flex flex-col">
+                  <div className="card group relative overflow-hidden flex h-full flex-col">
                     <div className="p-3 sm:p-4 flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
@@ -327,7 +329,20 @@ export default function TasksPage() {
                             <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white ${grad}`}>
                               {initials(assignee.about.firstName, assignee.about.lastName)}
                             </span>
-                            <span style={{ color: "var(--fg)" }}>{assignee.about.firstName} {assignee.about.lastName}</span>
+                            <div className="min-w-0">
+                              <span className="font-medium" style={{ color: "var(--fg)" }}>{assignee.about.firstName} {assignee.about.lastName}</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {assignee.userRole && (
+                                  <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{DESIGNATION_LABELS[assignee.userRole] ?? assignee.userRole}</span>
+                                )}
+                                {assignee.department && typeof assignee.department === "object" && "title" in assignee.department && (
+                                  <>
+                                    <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>·</span>
+                                    <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{assignee.department.title}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )}
                         {task.deadline && (
@@ -344,7 +359,9 @@ export default function TasksPage() {
                     {/* Footer: date left, actions right (matches employee card) */}
                     <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t" style={{ borderColor: "var(--border)" }}>
                       <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                        {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {task.updatedAt && task.updatedAt !== task.createdAt
+                          ? `Updated ${new Date(task.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                          : new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                       {isAdmin && (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">

@@ -89,11 +89,12 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages their team)
 - Full-page create/edit forms (`/employees/new`, `/employees/[id]/edit`) with sectioned cards
 - ConfirmDialog for all destructive actions (deactivate single + bulk)
-- Profile image upload (base64, max 2MB)
+- Profile image upload (base64, max 2MB) with initials fallback avatar
 - Shift configuration per employee (shift type, start/end hours, working days, break time, grace period)
 - Business Developer fields (17 additional fields: jobID, platform, proposalStatus, clientCountry, etc.)
 - Welcome email sent on account creation with temporary password
 - StatusToggle for quick active/inactive toggle from card footer
+- Card details: profile image, "Pending" badge (unverified), shift type + working days (compact: "Mon – Fri"), phone, "Joined" date
 
 ### Department Management
 
@@ -101,9 +102,10 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Collapsible inline add row with name input + Create/Cancel buttons
 - Inline edit within card (expand fields on edit click)
 - ConfirmDialog for delete confirmation
-- Card grid with gradient avatars, employee count progress bars, manager display
+- Card grid with gradient avatars, employee count progress bars, manager display + email
 - Sort toggles: Most Employees / Name
 - Hover-visible edit/delete action buttons in card footer
+- Equal-height cards across all CRUD pages (flex-based stretch)
 
 ### Task Management
 
@@ -116,6 +118,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Role-scoped: SuperAdmin sees all, Manager sees team, others see own
 - Status validation (pending → in-progress → completed/cancelled)
 - Assignees can only update task status; admins can reassign
+- Card details: assignee role + department, "Updated" date in footer when modified
 
 ### Auth Module
 
@@ -147,7 +150,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 ### Settings & Configuration
 
-- **Profile card**: full name, phone, profile image (base64 upload)
+- **Profile card**: full name, phone, profile image (base64 upload), metadata pills (@username, role badge, department)
 - **Security card**: email change (current password required), password change with PasswordStrength meter
 - **Email testing**: toggle between invite/reset/alert types, centered send button, toast feedback
 - **System Settings** (SuperAdmin only): company name, timezone, office geofence (lat/lng/radius), shift defaults (start time, work hours, work days)
@@ -170,16 +173,18 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 - Greeting header with current date/time
 - KPI cards: total employees, present today, on-time percentage, average daily hours
-- Employee presence board with live status indicators (In Office, Remote, Late, Overtime, Absent)
-- Quick-action checklist
+- Employee presence board with live status indicators (In Office, Remote, Late, Overtime, Absent) + department line per employee
+- Checklist with assignee names, deadlines, and priority icons
 - Attendance overview with daily/monthly stats
 
 ### Attendance Page (All Roles)
 
-- Personal attendance calendar with color-coded day indicators
-- Recent attendance records list
-- Session count per day
-- Monthly summary stats
+- Interactive calendar with clickable, selectable dates and color-coded day indicators
+- Day detail panel (equal height with calendar): status pills, human-readable summary, stat chips (total/office/remote hours), animated work split bar
+- Session timeline per day: time range, duration, location pills (Office/Remote), device detection (Mac/Windows/Mobile), "First In"/"Last Out" badges, last heartbeat timestamp, IP address, office segment sub-timeline
+- Monthly insights row: avg daily hours, avg arrival/departure, on-time %, attendance %, office/remote split
+- Team member selector (SuperAdmin/Manager) to view any employee's calendar
+- Monthly records list with clickable rows that sync to calendar selection
 
 ### Exports
 
@@ -200,9 +205,14 @@ npx tsx scripts/seed.ts
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and log in with:
-- **Email**: `admin@singlesolution.com`
-- **Password**: `Admin@1234`
+Open [http://localhost:3000](http://localhost:3000) and log in with any test account:
+
+| Role | Email | Password |
+|------|-------|----------|
+| **SuperAdmin** | `admin@singlesolution.com` | `Test@1234` |
+| **Manager** | `manager@singlesolution.com` | `Test@1234` |
+| **Developer** | `developer@singlesolution.com` | `Test@1234` |
+| **Business Dev** | `bd@singlesolution.com` | `Test@1234` |
 
 ### Environment Variables
 
@@ -232,13 +242,13 @@ app/
   login/                 # Auth login page (hero, particles, orbs)
   forgot-password/       # Token-based password reset request
   reset-password/        # Reset password with strength meter
-  dashboard/
+  (dashboard)/           # Route group — all authenticated pages (no /dashboard/ in URL)
     page.tsx             # Dashboard entry (reads session, renders DashboardHome)
-    DashboardHome.tsx    # SuperAdmin/Manager overview with KPI + presence
+    DashboardHome.tsx    # SuperAdmin/Manager overview with KPI + presence + checklist
     DashboardShell.tsx   # Header, dock nav, theme, notifications, PWA, auto-logout
     SessionTracker.tsx   # Heartbeat attendance: active/readonly/booting modes
     employees/
-      page.tsx           # Employee list with filters, bulk actions, presence
+      page.tsx           # Employee list with filters, bulk actions, rich cards
       EmployeeForm.tsx   # Shared full-page create/edit form
       new/page.tsx       # Create employee route
       [id]/edit/page.tsx # Edit employee route
@@ -248,8 +258,8 @@ app/
       ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
       DataTable.tsx      # Sortable, searchable, paginated table
       ProcessingOverlay.tsx # Animated dot shimmer overlay
-    attendance/page.tsx  # Personal attendance calendar + records
-    settings/page.tsx    # Profile, security, system settings, email testing
+    attendance/page.tsx  # Interactive calendar + detail panel + session timeline
+    settings/page.tsx    # Profile (with metadata pills), security, system, email testing
   api/
     auth/[...nextauth]/  # NextAuth route handler
     auth/forgot-password/# Token generation + email
@@ -287,7 +297,7 @@ lib/
     SystemSettings.ts   # Global config (office, shifts, company)
 middleware.ts           # Auth + role-based route protection
 scripts/
-  seed.ts               # SuperAdmin seeder
+  seed.ts               # Seeds all 4 test roles (superadmin, manager, developer, businessDeveloper)
 types/
   global.d.ts           # BeforeInstallPromptEvent, PWA types
 public/

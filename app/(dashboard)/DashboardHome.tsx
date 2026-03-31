@@ -252,6 +252,7 @@ function EmployeePresenceCard({ emp, idx, reduceMotion }: { emp: PresenceEmploye
         <div className="min-w-0 flex-1">
           <p className="text-callout truncate font-semibold" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p>
           <p className="text-caption truncate">{emp.designation}</p>
+          {emp.department && <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>}
           <span className={`badge mt-2 ${STATUS_BADGE_CLASS[emp.status]}`}>{STATUS_LABELS[emp.status]}</span>
         </div>
       </div>
@@ -458,7 +459,7 @@ function SuperAdminOverview({
                 <div className="min-w-0 flex-1">
                   <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
                   <p className="text-caption line-clamp-1">
-                    {task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}
+                    {task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName} · ` : ""}{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}
                   </p>
                 </div>
               </motion.div>
@@ -548,7 +549,7 @@ function OtherRoleOverview({ user, tasks }: { user: User; tasks: ApiTask[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
                   <p className="text-caption line-clamp-1">
-                    {task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}
+                    {task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName} · ` : ""}{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}
                   </p>
                 </div>
               </motion.div>

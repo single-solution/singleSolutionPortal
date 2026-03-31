@@ -16,7 +16,7 @@ interface Department {
   title: string;
   slug: string;
   description?: string;
-  manager?: { _id: string; about: { firstName: string; lastName: string } };
+  manager?: { _id: string; about: { firstName: string; lastName: string }; email?: string };
   employeeCount: number;
   isActive: boolean;
   createdAt: string;
@@ -282,13 +282,14 @@ export default function DepartmentsPage() {
               <motion.div
                 key={dept._id}
                 layout
+                className="h-full"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
               >
-                <div className="card group relative overflow-hidden">
-                  <div className="p-3 sm:p-4">
+                <div className="card group relative overflow-hidden flex h-full flex-col">
+                  <div className="flex-1 p-3 sm:p-4">
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
                         {dept.title.charAt(0).toUpperCase()}
@@ -311,8 +312,13 @@ export default function DepartmentsPage() {
                           <>
                             <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{dept.title}</p>
                             <p className="text-caption truncate mt-0.5">
-                              {dept.manager ? `${dept.manager.about.firstName} ${dept.manager.about.lastName}` : "No manager"}
+                              {dept.manager
+                                ? `${dept.manager.about.firstName} ${dept.manager.about.lastName}`
+                                : "No manager"}
                             </p>
+                            {dept.manager?.email && (
+                              <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{dept.manager.email}</p>
+                            )}
                           </>
                         )}
                       </div>
