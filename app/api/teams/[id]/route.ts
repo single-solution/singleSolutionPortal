@@ -82,13 +82,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .populate("lead", "about.firstName about.lastName email userRole")
     .lean();
 
+  const leadId = team.lead ? (typeof team.lead === "object" && "_id" in team.lead ? (team.lead as { _id: { toString(): string } })._id.toString() : team.lead.toString()) : null;
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "updated team",
     entity: "team",
     entityId: id,
     details: team.name,
+    targetTeamIds: [id],
+    targetDepartmentId: team.department.toString(),
+    targetUserIds: leadId ? [leadId, actor.id] : [actor.id],
   });
 
   return ok(populated);
@@ -115,10 +120,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "deleted team",
     entity: "team",
     entityId: id,
     details: team.name,
+    targetTeamIds: [id],
+    targetDepartmentId: team.department.toString(),
   });
 
   return ok({ message: "Team deactivated" });

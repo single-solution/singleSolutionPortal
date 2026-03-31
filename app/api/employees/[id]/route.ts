@@ -58,14 +58,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const update: Record<string, unknown> = { updatedBy: actor.id };
 
   if (isSelf) {
-    if (body.firstName !== undefined) update["about.firstName"] = body.firstName;
-    if (body.lastName !== undefined) update["about.lastName"] = body.lastName;
+    if (body.fullName !== undefined) {
+      const parts = body.fullName.trim().split(/\s+/);
+      update["about.firstName"] = parts[0] || "";
+      update["about.lastName"] = parts.slice(1).join(" ");
+    }
     if (body.phone !== undefined) update["about.phone"] = body.phone;
   }
 
   if (isSuperAdmin(actor)) {
-    if (body.firstName !== undefined) update["about.firstName"] = body.firstName;
-    if (body.lastName !== undefined) update["about.lastName"] = body.lastName;
+    if (body.fullName !== undefined) {
+      const parts = body.fullName.trim().split(/\s+/);
+      update["about.firstName"] = parts[0] || "";
+      update["about.lastName"] = parts.slice(1).join(" ");
+    }
     if (body.phone !== undefined) update["about.phone"] = body.phone;
 
     if (body.userRole) {
@@ -111,13 +117,21 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   if (!user) return notFound("Employee not found");
 
+  const empDept = (user as Record<string, unknown>).department;
+  const empDeptId = empDept && typeof empDept === "object" && "_id" in empDept ? (empDept as { _id: { toString(): string } })._id.toString() : empDept?.toString();
+  const empTeamIds = ((user as Record<string, unknown>).teams as { _id?: { toString(): string } }[] | undefined)?.map((t) => t._id?.toString() ?? String(t)) ?? [];
+
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "updated employee",
     entity: "employee",
     entityId: id,
     details: `${(user as Record<string, unknown> & { about?: { firstName?: string; lastName?: string } }).about?.firstName ?? ""} ${(user as Record<string, unknown> & { about?: { firstName?: string; lastName?: string } }).about?.lastName ?? ""}`.trim(),
+    targetUserIds: [id],
+    targetDepartmentId: empDeptId || undefined,
+    targetTeamIds: empTeamIds,
   });
 
   return ok(user);
@@ -135,7 +149,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   if (actor.id === id) return badRequest("Cannot delete yourself");
 
-  const target = await User.findById(id).select("userRole").lean();
+  const target = await User.findById(id).select("userRole department teams").lean();
   if (!target) return notFound("Employee not found");
   if (target.userRole === "superadmin") return badRequest("Cannot delete superadmin");
 
@@ -145,9 +159,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "deactivated employee",
     entity: "employee",
     entityId: id,
+    targetUserIds: [id],
+    targetDepartmentId: target?.department?.toString() || undefined,
+    targetTeamIds: (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [],
   });
 
   return ok({ message: "Employee deactivated" });

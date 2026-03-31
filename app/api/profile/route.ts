@@ -28,8 +28,11 @@ export async function PUT(req: Request) {
   const body = await req.json();
 
   const update: Record<string, unknown> = {};
-  if (body.firstName !== undefined) update["about.firstName"] = body.firstName;
-  if (body.lastName !== undefined) update["about.lastName"] = body.lastName;
+  if (body.fullName !== undefined) {
+    const parts = String(body.fullName).trim().split(/\s+/);
+    update["about.firstName"] = parts[0] || "";
+    update["about.lastName"] = parts.slice(1).join(" ");
+  }
   if (body.phone !== undefined) update["about.phone"] = body.phone;
 
   if (typeof body.email === "string" && body.email.trim()) {

@@ -27,10 +27,8 @@ interface EmployeeFormProps {
 }
 
 interface FormState {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
-  username: string;
   password: string;
   userRole: string;
   department: string;
@@ -43,7 +41,7 @@ interface FormState {
 }
 
 const INITIAL: FormState = {
-  firstName: "", lastName: "", email: "", username: "", password: "",
+  fullName: "", email: "", password: "",
   userRole: "developer", department: "", teams: [],
   shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
   workingDays: ["mon", "tue", "wed", "thu", "fri"],
@@ -59,6 +57,11 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const derivedUsername = useMemo(() => {
+    if (!form.email) return "";
+    return form.email.split("@")[0]?.toLowerCase().replace(/[^a-z0-9._-]/g, "") ?? "";
+  }, [form.email]);
+
   const load = useCallback(async () => {
     const [deptRes, teamsRes] = await Promise.all([
       fetch("/api/departments").then((r) => r.ok ? r.json() : []),
@@ -70,11 +73,11 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
     if (employeeId) {
       const empRes = await fetch(`/api/employees/${employeeId}`).then((r) => r.ok ? r.json() : null);
       if (empRes) {
+        const fn = empRes.about?.firstName ?? "";
+        const ln = empRes.about?.lastName ?? "";
         setForm({
-          firstName: empRes.about?.firstName ?? "",
-          lastName: empRes.about?.lastName ?? "",
+          fullName: ln ? `${fn} ${ln}` : fn,
           email: empRes.email ?? "",
-          username: empRes.username ?? "",
           password: "",
           userRole: empRes.userRole ?? "developer",
           department: empRes.department?._id ?? "",
@@ -91,19 +94,6 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   }, [employeeId]);
 
   useEffect(() => { load(); }, [load]);
-
-  const strength = useMemo(() => {
-    if (!form.password) return 0;
-    let s = 0;
-    if (form.password.length >= 6) s++;
-    if (form.password.length >= 10) s++;
-    if (/[A-Z]/.test(form.password)) s++;
-    if (/[0-9]/.test(form.password)) s++;
-    if (/[^A-Za-z0-9]/.test(form.password)) s++;
-    return s;
-  }, [form.password]);
-
-  void strength;
 
   const filteredTeams = useMemo(() => {
     if (!form.department) return allTeams;
@@ -140,8 +130,9 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
 
       if (isEdit) {
         const body: Record<string, unknown> = {
-          firstName: form.firstName, lastName: form.lastName,
-          userRole: form.userRole, department: form.department || null,
+          fullName: form.fullName,
+          userRole: form.userRole,
+          department: form.department || null,
           teams: form.teams,
           workShift,
         };
@@ -158,10 +149,17 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         const res = await fetch("/api/employees", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, teams: form.teams, workShift }),
+          body: JSON.stringify({
+            email: form.email,
+            fullName: form.fullName,
+            userRole: form.userRole,
+            department: form.department || undefined,
+            teams: form.teams,
+            workShift,
+          }),
         });
         if (res.ok) {
-          toast.success("Employee created");
+          toast.success("Employee invited");
           router.push("/employees");
         } else {
           const data = await res.json();
@@ -179,11 +177,28 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       <div className="space-y-5">
         <div className="flex items-center gap-3">
           <div className="shimmer h-11 w-11 rounded-xl" />
-          <div className="space-y-2"><div className="shimmer h-5 w-48 rounded" /><div className="shimmer h-3 w-64 rounded" /></div>
+          <div className="flex-1 min-w-0 space-y-2"><div className="shimmer h-5 w-48 rounded" /><div className="shimmer h-3 w-64 rounded" /></div>
+          <div className="flex gap-2 shrink-0"><div className="shimmer h-9 w-20 rounded-lg hidden sm:block" /><div className="shimmer h-9 w-20 rounded-lg" /></div>
         </div>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <div className="card-xl p-6 space-y-4"><div className="shimmer h-4 w-1/3 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
-          <div className="card-xl p-6 space-y-4"><div className="shimmer h-4 w-1/3 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="card-xl card-shine p-6 space-y-4">
+            <div className="shimmer h-4 w-36 rounded" />
+            <div className="shimmer h-10 rounded" />
+            <div className="shimmer h-10 rounded" />
+            <div className="flex gap-3"><div className="shimmer h-5 w-24 rounded" /><div className="shimmer h-3 w-40 rounded mt-1" /></div>
+          </div>
+          <div className="card-xl card-shine p-6 space-y-4">
+            <div className="shimmer h-4 w-36 rounded" />
+            <div className="grid grid-cols-2 gap-3"><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
+            <div className="flex flex-wrap gap-2"><div className="shimmer h-7 w-16 rounded-lg" /><div className="shimmer h-7 w-20 rounded-lg" /><div className="shimmer h-7 w-14 rounded-lg" /></div>
+          </div>
+        </div>
+        <div className="card-xl card-shine p-6 space-y-4">
+          <div className="shimmer h-4 w-40 rounded" />
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-4"><div className="shimmer h-10 rounded" /><div className="grid grid-cols-2 gap-3"><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div><div className="shimmer h-10 rounded" /></div>
+            <div className="space-y-2"><div className="shimmer h-4 w-28 rounded" /><div className="flex flex-wrap gap-2">{Array.from({ length: 7 }).map((_, i) => <div key={i} className="shimmer h-10 w-12 rounded-xl" />)}</div></div>
+          </div>
         </div>
       </div>
     );
@@ -206,20 +221,20 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 12H5M12 19l-7-7 7-7" /></svg>
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-title">{isEdit ? "Edit Employee" : "Create Employee"}</h1>
-          <p className="text-subhead hidden sm:block">{isEdit ? "Update employee details and shift configuration." : "Add a new team member to the organization."}</p>
+          <h1 className="text-title">{isEdit ? "Edit Employee" : "Invite Employee"}</h1>
+          <p className="text-subhead hidden sm:block">{isEdit ? "Update employee details and shift configuration." : "Add a new team member — they'll set their own password."}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button type="button" onClick={() => router.push("/employees")} className="btn btn-secondary hidden sm:inline-flex">Cancel</button>
           <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary">
-            {saving ? "Saving..." : isEdit ? "Update" : "Create"}
+            {saving ? "Saving..." : isEdit ? "Update" : "Invite"}
           </motion.button>
         </div>
       </motion.div>
 
       {/* Top row grid: Personal Info + Role & Department */}
       <motion.div
-        className="grid grid-cols-1 gap-5 lg:grid-cols-2 mb-5"
+        className="grid grid-cols-1 gap-5 sm:grid-cols-2 mb-5"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.05, ease }}
@@ -233,49 +248,41 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         >
           <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--fg)" }}>Personal Information</h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">First Name</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></span>
-                  <input className="input" style={{ paddingLeft: "40px" }} placeholder="Ali" required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Last Name</label>
-                <input className="input" placeholder="Ahmed" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Full Name</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></span>
+                <input className="input" style={{ paddingLeft: "40px" }} placeholder="Ali Ahmed" required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
               </div>
             </div>
 
             {!isEdit && (
-              <>
-                <div>
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Email</label>
-                  <div className="relative">
-                    <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
-                    <input className="input" type="email" required placeholder="ali@singlesolution.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ paddingLeft: "40px" }} />
-                  </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Email</label>
+                <div className="relative">
+                  <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                  <input className="input" type="email" required placeholder="ali@singlesolution.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ paddingLeft: "40px" }} />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Username</label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg></span>
-                    <input className="input" style={{ paddingLeft: "40px" }} placeholder="ali" required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-                  </div>
-                </div>
-              </>
+                {derivedUsername && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[11px] mt-1.5 flex items-center gap-1" style={{ color: "var(--fg-tertiary)" }}>
+                    <span style={{ color: "var(--fg-secondary)" }}>Username:</span> @{derivedUsername}
+                  </motion.p>
+                )}
+              </div>
             )}
 
-            <div>
-              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">{isEdit ? "New Password (optional)" : "Password"}</label>
-              <PasswordInput
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required={!isEdit}
-                placeholder={isEdit ? "Leave blank to keep current" : "Set initial password"}
-              />
-              <PasswordStrength password={form.password} />
-            </div>
+            {isEdit && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">New Password (optional)</label>
+                <PasswordInput
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required={false}
+                  placeholder="Leave blank to keep current"
+                />
+                <PasswordStrength password={form.password} />
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -354,7 +361,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         transition={{ duration: 0.45, delay: 0.2, ease }}
       >
         <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--fg)" }}>Shift Configuration</h2>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Shift Type</label>
@@ -416,7 +423,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       {/* Mobile-only action row */}
       <div className="flex gap-3 sm:hidden">
         <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">
-          {saving ? "Saving..." : isEdit ? "Update Employee" : "Create Employee"}
+          {saving ? "Saving..." : isEdit ? "Update Employee" : "Invite Employee"}
         </motion.button>
         <button type="button" onClick={() => router.push("/employees")} className="btn btn-secondary flex-1">Cancel</button>
       </div>

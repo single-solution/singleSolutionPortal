@@ -70,7 +70,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Shows: live ticking elapsed time | cumulative today total (completed sessions + active)
 - Readonly mode: "another device" label or "📱 synced" for mobile
 - Stale session: shows "inactive" instead of a running timer
-- Idle: dims to 65% opacity after 5 min of no mouse/keyboard activity
+- Idle/Away: visibility-aware detection — tab hidden (user in another app) keeps timer running; tab visible + 1hr no interaction triggers 3 nudge toasts (5min apart), then pauses timer with full-screen "Stepped Away" overlay
 
 **Daily & monthly rollup:**
 - `DailyAttendance`: totalWorkingMinutes, officeMinutes, remoteMinutes, isPresent, isOnTime, lateBy, firstOfficeEntry, lastOfficeExit
@@ -90,7 +90,8 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 | Internet drops < 3 min | Heartbeat fails silently, resumes on reconnect. Session stays alive. |
 | Internet drops > 3 min (single device) | PATCH resumes and updates lastActivity. Session survives. Only closed if another device tries to check in. |
 | Explicit sign-out | Checkout API called before signOut → clean session close |
-| Auto-logout (30 min idle) | Checkout API called before session redirect |
+| Tab visible, 1hr+ idle | 3 "Still there?" nudge toasts (5min apart) → if ignored, timer pauses + overlay. Any interaction resumes. |
+| Tab hidden (user in VS Code etc.) | Timer runs normally — no idle detection while tab is backgrounded |
 | Browser crash | No sendBeacon. Session stale → cleaned up on next check-in |
 
 ### Employee Management
@@ -193,16 +194,22 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **System Settings** (SuperAdmin only): company name, timezone, office geofence (lat/lng/radius), shift defaults (start time, work hours, work days)
 - **Dark / Light / System** theme toggle (persisted to localStorage, no flash on load)
 
-### Activity Log & Notifications
+### Activity Log & Notifications (Context-Aware)
 
-- **DB-backed activity log** (`ActivityLog` model) — every CRUD action (employees, departments, tasks, settings) is recorded with user, action, entity, and details
+- **DB-backed activity log** (`ActivityLog` model) — every CRUD action recorded with user, action, entity, details, and **targeting metadata**
+- **Context-aware visibility** — notifications are not role-gated but based on relevance:
+  - **`targetUserIds[]`**: specific users the action is about (task assignee, employee created, campaign-tagged employees)
+  - **`targetDepartmentId`**: department this action relates to (employee's dept, team's dept, campaign-tagged dept)
+  - **`targetTeamIds[]`**: teams this action relates to (employee's teams, campaign-tagged teams)
+  - **`visibility`**: `"all"` (everyone sees) | `"targeted"` (only matching users/dept/teams) | `"self"` (only the actor)
+  - **SuperAdmin** sees everything; everyone else sees logs where they're targeted, in their department, on their team, or performed the action themselves
 - **Cross-device read sync** — `lastSeenLogId` cursor on `User` model, synced via `GET/PUT /api/user/last-seen`
 - **Live polling (10s)** — bell automatically fetches latest 20 logs every 10 seconds for near real-time updates
-- **Mark as read on open** — opening the bell panel marks all current entries as seen (sets `lastSeenLogId` to newest log)
-- **Unseen badge** — red pulsing badge with count (capped at 9+), derived from entries above `lastSeenLogId`
-- **Entity SVG icons** — each entity type has a distinct icon and color: blue (employee), green (department), teal (team), indigo (campaign), amber (task), purple (attendance), gray (settings), rose (auth)
-- **Clickable links** — each log entry navigates to the relevant page (e.g., employee → `/employees/{id}/edit`, department → `/departments`, task → `/tasks`)
-- **Seen/unseen dimming** — read entries fade to 50% opacity, unread entries are full brightness
+- **Mark as read on open** — opening the bell panel marks all current entries as seen
+- **Unseen badge** — red pulsing badge with count (capped at 9+)
+- **Entity SVG icons** — each entity type has a distinct icon and color
+- **Clickable links** — each log entry navigates to the relevant page
+- **Seen/unseen dimming** — read entries fade to 50% opacity
 - **"Mark all read" button** — persists to server for cross-device consistency
 
 ### PWA & Offline
@@ -212,13 +219,29 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - "Install App" prompt (hidden when already in standalone mode)
 - `sendBeacon` for best-effort check-out on tab/browser close
 
-### Dashboard (SuperAdmin/Manager/Team Lead)
+### Dashboard
 
-- Greeting header with current date/time
-- KPI cards: total employees, present today, on-time percentage, average daily hours
-- Employee presence board with live status indicators (In Office, Remote, Late, Overtime, Absent) + department line per employee
+**SuperAdmin:**
+- Greeting header with live clock card (local time + date)
+- KPI cards: total employees, in office, late today, absent today
+- Live Presence board: employee cards with animated status rings, department line, today's minutes
+- Attendance Overview donut chart + Department Summary progress bars
 - Checklist with assignee names, deadlines, and priority icons
-- Attendance overview with daily/monthly stats
+
+**Manager / Team Lead:**
+- Greeting header with live clock card
+- KPI cards: My Team count, Present Today, On-Time Rate (3 columns)
+- **Self-assessment section**: "Today" card (circular progress ring, sessions, remote time, on-time/late) + 4 monthly stat cards (Avg Hours/Day, On-Time %, Avg Check-in, Avg Check-out)
+- Live Presence board with filter toggles (All / Office / Remote / Late / Absent) + fixed-height scrollable grid
+- Attendance Overview + Checklist side-by-side (2-column grid)
+
+**Developer / Business Developer:**
+- Greeting + role label
+- Task stat cards (Total, Pending, In Progress, Completed)
+- **Self-assessment section** (same as manager: Today card + monthly stats)
+- Checklist
+
+**Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments", "Teams" visible to SuperAdmin only.
 
 ### Attendance Page (All Roles)
 
@@ -278,7 +301,7 @@ app/
   (dashboard)/           # Route group — all authenticated pages (no /dashboard/ in URL)
     page.tsx             # Dashboard entry (reads session, renders DashboardHome)
     DashboardHome.tsx    # SuperAdmin/Manager overview with KPI + presence + checklist
-    DashboardShell.tsx   # Header, dock nav, theme, notifications, PWA, auto-logout
+    DashboardShell.tsx   # Header, dock nav, theme, notifications, PWA install prompt
     SessionTracker.tsx   # Heartbeat attendance: active/readonly/booting modes
     employees/
       page.tsx           # Employee list with filters, bulk actions, rich cards
@@ -329,7 +352,7 @@ lib/
   rateLimit.ts          # In-memory rate limiter
   motion.ts             # Framer Motion animation presets
   models/
-    ActivityLog.ts      # Append-only activity log (user, action, entity, details)
+    ActivityLog.ts      # Append-only activity log (user, action, entity, details, targeting: targetUserIds, targetDepartmentId, targetTeamIds, visibility)
     User.ts             # User (5 roles incl. teamLead, shifts, teams[], BD fields, reset tokens, lastSeenLogId)
     Department.ts       # Department with manager ref
     Team.ts             # Team (name, slug, department, lead, description)

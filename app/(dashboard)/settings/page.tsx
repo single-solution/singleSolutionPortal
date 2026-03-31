@@ -1,10 +1,26 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useSession } from "next-auth/react";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+function FadeUp({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.1 });
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      initial={{ opacity: 0, y: 18 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
+      transition={{ duration: 0.5, delay, ease }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 interface Profile {
   _id: string;
@@ -114,14 +130,11 @@ export default function SettingsPage() {
     e.preventDefault();
     setProfileSaving(true);
     setProfileMsg("");
-    const parts = fullName.trim().split(/\s+/);
-    const firstName = parts[0] || "";
-    const lastName = parts.slice(1).join(" ");
     try {
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, phone, profileImage }),
+        body: JSON.stringify({ fullName: fullName.trim(), phone, profileImage }),
       });
       if (res.ok) {
         const updated = await res.json();
@@ -178,14 +191,39 @@ export default function SettingsPage() {
 
   if (loadingProfile) {
     return (
-      <div className="space-y-5">
+      <div className="flex flex-col gap-5">
+        {/* Header skeleton */}
         <div className="flex items-center gap-3">
           <div className="shimmer h-11 w-11 rounded-xl" />
           <div className="space-y-2"><div className="shimmer h-5 w-40 rounded" /><div className="shimmer h-3 w-60 rounded" /></div>
         </div>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <div className="card-xl p-8 space-y-4"><div className="shimmer h-4 w-1/3 rounded" /><div className="shimmer h-14 w-14 rounded-2xl" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
-          <div className="card-xl p-8 space-y-4"><div className="shimmer h-4 w-1/3 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
+        {/* Profile + Account grid */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          {/* Profile card skeleton */}
+          <div className="card-xl p-6 sm:p-8 space-y-5">
+            <div className="shimmer h-4 w-16 rounded" />
+            <div className="flex items-center gap-4">
+              <div className="shimmer h-14 w-14 rounded-2xl shrink-0" />
+              <div className="flex-1 space-y-2"><div className="shimmer h-4 w-32 rounded" /><div className="shimmer h-3 w-40 rounded" /><div className="flex gap-1.5"><div className="shimmer h-4 w-14 rounded-full" /><div className="shimmer h-4 w-16 rounded-full" /></div></div>
+            </div>
+            <div className="space-y-3"><div className="shimmer h-3 w-16 rounded" /><div className="shimmer h-10 rounded" /></div>
+            <div className="space-y-3"><div className="shimmer h-3 w-12 rounded" /><div className="shimmer h-10 rounded" /></div>
+            <div className="shimmer h-10 rounded-xl" />
+          </div>
+          {/* Account card skeleton */}
+          <div className="card-xl p-6 sm:p-8 space-y-5">
+            <div className="shimmer h-4 w-32 rounded" />
+            <div className="space-y-3"><div className="shimmer h-3 w-28 rounded" /><div className="shimmer h-10 rounded" /></div>
+            <div className="shimmer h-px w-full rounded" style={{ opacity: 0.3 }} />
+            <div className="space-y-3"><div className="shimmer h-3 w-20 rounded" /><div className="shimmer h-10 rounded" /></div>
+            <div className="space-y-3"><div className="shimmer h-3 w-24 rounded" /><div className="shimmer h-10 rounded" /><div className="flex gap-1.5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="shimmer h-1 flex-1 rounded-full" />)}</div></div>
+            <div className="shimmer h-10 rounded-xl" />
+          </div>
+        </div>
+        {/* Superadmin row skeleton */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="card-xl p-6 sm:p-8 space-y-4"><div className="shimmer h-3 w-20 rounded" /><div className="shimmer h-3 w-48 rounded" /><div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--glass-bg)" }}><div className="shimmer h-7 w-20 rounded-md" /><div className="shimmer h-7 w-24 rounded-md" /><div className="shimmer h-7 w-28 rounded-md" /></div><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded-xl" /></div>
+          <div className="card-xl p-6 sm:p-8 space-y-4"><div className="shimmer h-3 w-16 rounded" /><div className="shimmer h-3 w-44 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded-xl" /></div>
         </div>
       </div>
     );
@@ -196,12 +234,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-5">
       {/* Page header */}
-      <motion.div
-        className="flex items-center gap-3"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease }}
-      >
+      <FadeUp className="flex items-center gap-3">
         <div className="page-icon bg-gradient-to-br from-purple-500 to-pink-400 text-white shadow-lg shadow-purple-500/20">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
         </div>
@@ -209,22 +242,12 @@ export default function SettingsPage() {
           <h1 className="text-title">Account Settings</h1>
           <p className="text-subhead hidden sm:block">Manage your profile, email, and password</p>
         </div>
-      </motion.div>
+      </FadeUp>
 
-      {/* Grid layout: profile + account side-by-side on desktop */}
-      <motion.div
-        className="grid grid-cols-1 gap-5 lg:grid-cols-2"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.05, ease }}
-      >
+      {/* Grid layout: profile + account side-by-side */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {/* Profile card */}
-        <motion.div
-          className="card-xl card-shine p-6 sm:p-8"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.1, ease }}
-        >
+        <FadeUp delay={0.08} className="card-xl card-shine p-6 sm:p-8">
           <h2 className="text-headline mb-4">Profile</h2>
           <div className="mb-5 flex items-center gap-4">
             <motion.div
@@ -307,14 +330,10 @@ export default function SettingsPage() {
               {profileSaving ? "Saving..." : "Save profile"}
             </motion.button>
           </form>
-        </motion.div>
+        </FadeUp>
 
         {/* Account card — email + password */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.15, ease }}
-        >
+        <FadeUp delay={0.14}>
           <form onSubmit={handleAccountSubmit} className="card-xl card-shine p-6 sm:p-8 h-full flex flex-col">
             <h2 className="text-headline mb-4">Email & Password</h2>
             <div className="space-y-5 flex-1">
@@ -391,17 +410,12 @@ export default function SettingsPage() {
               {saving ? "Saving..." : "Save changes"}
             </motion.button>
           </form>
-        </motion.div>
-      </motion.div>
+        </FadeUp>
+      </div>
 
       {/* SuperAdmin row: Test Email + System Settings side by side */}
       {isSuperAdmin && (
-        <motion.div
-          className="grid grid-cols-1 gap-5 lg:grid-cols-2"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2, ease }}
-        >
+        <FadeUp delay={0.2} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {/* Test Email */}
           <div className="card-xl card-shine p-6 sm:p-8">
             <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>Test Email</h2>
@@ -438,7 +452,7 @@ export default function SettingsPage() {
           </div>
 
           <SystemSettingsSection />
-        </motion.div>
+        </FadeUp>
       )}
 
       {isSuperAdmin && <SystemSettingsDetailSection />}
@@ -520,12 +534,7 @@ function SystemSettingsDetailSection() {
   if (sysLoading) return null;
 
   return (
-    <motion.div
-      className="grid grid-cols-1 gap-5 lg:grid-cols-2"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.25, ease }}
-    >
+    <FadeUp delay={0.25} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
       <section className="card-static p-5">
         <h3 className="text-headline mb-4" style={{ color: "var(--fg)" }}>Office Location</h3>
         <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>
@@ -574,6 +583,6 @@ function SystemSettingsDetailSection() {
           <motion.button type="button" className="btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
         </div>
       </section>
-    </motion.div>
+    </FadeUp>
   );
 }

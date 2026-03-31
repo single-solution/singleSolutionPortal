@@ -35,10 +35,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: session.user.email!,
     userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userRole: session.user.role ?? "superadmin",
     action: "updated department",
     entity: "department",
     entityId: id,
     details: (dept as Record<string, unknown> & { title?: string }).title ?? "",
+    targetDepartmentId: id,
+    targetUserIds: body.managerId ? [body.managerId] : [],
   });
 
   return ok(dept);
@@ -60,9 +63,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: session.user.email!,
     userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userRole: session.user.role ?? "superadmin",
     action: "deleted department",
     entity: "department",
     entityId: id,
+    targetDepartmentId: id,
   });
 
   return ok({ message: "Department deactivated" });

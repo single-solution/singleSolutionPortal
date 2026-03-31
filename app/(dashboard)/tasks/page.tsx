@@ -76,7 +76,7 @@ export default function TasksPage() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager";
+  const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager" || session?.user?.role === "teamLead";
 
   const load = useCallback(async () => {
     const [taskRes, empRes] = await Promise.all([

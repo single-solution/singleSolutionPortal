@@ -106,7 +106,7 @@ function timeAgo(dateStr: string) {
 
 export default function AttendancePage() {
   const { data: authSession } = useSession();
-  const isAdmin = authSession?.user?.role === "superadmin" || authSession?.user?.role === "manager";
+  const isAdmin = authSession?.user?.role === "superadmin" || authSession?.user?.role === "manager" || authSession?.user?.role === "teamLead";
 
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [loading, setLoading] = useState(true);

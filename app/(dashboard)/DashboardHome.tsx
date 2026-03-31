@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   AnimatePresence,
+  LayoutGroup,
   motion,
   useReducedMotion,
 } from "framer-motion";
@@ -62,6 +63,21 @@ interface ApiDepartment {
   title: string;
   slug?: string;
   employeeCount: number;
+}
+
+
+interface PersonalAttendance {
+  todayMinutes: number;
+  todaySessions: number;
+  officeMinutes: number;
+  remoteMinutes: number;
+  isOnTime: boolean;
+  lateBy: number;
+  firstEntry: string | null;
+  monthlyAvgHours: number;
+  monthlyOnTimePct: number;
+  avgInTime: string;
+  avgOutTime: string;
 }
 
 type PresenceStatus = "office" | "remote" | "late" | "overtime" | "absent";
@@ -400,7 +416,8 @@ function SuperAdminOverview({
           </div>
         </motion.section>
 
-        {/* Department Summary */}
+        {/* Department Summary — superadmin only */}
+        {user.role === "superadmin" && (
         <motion.section className="card p-3 sm:p-4" variants={slideUpItem} initial="hidden" animate="visible">
           <h2 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Department Summary</h2>
           {departments.length > 0 ? (
@@ -430,6 +447,7 @@ function SuperAdminOverview({
             <p className="py-8 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No departments yet</p>
           )}
         </motion.section>
+        )}
       </div>
 
       {/* ── Checklist ── */}
@@ -482,9 +500,355 @@ function SuperAdminOverview({
   );
 }
 
+
+
+/* ──────────────────────── SELF ASSESSMENT (shared) ──────────────────────── */
+
+function SelfAssessmentSection({ pa }: { pa: PersonalAttendance }) {
+  const todayHours = pa.todayMinutes / 60;
+  const todayProgress = Math.min(todayHours / 9, 1);
+  const CIRCUMFERENCE = 2 * Math.PI * 42;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+      {/* Today Card */}
+      <motion.div className="card relative overflow-hidden p-4 sm:p-5 md:col-span-5" variants={fadeInItem} initial="hidden" animate="visible">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-headline" style={{ color: "var(--fg)" }}>Today</h3>
+          <motion.span
+            className="rounded-full px-3 py-1 text-xs font-bold text-white"
+            style={{ background: pa.todayMinutes > 0 ? "var(--teal)" : "var(--rose)" }}
+            initial={{ scale: 0 }} animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.4 }}
+          >
+            {pa.todayMinutes > 0 ? "Present" : "Absent"}
+          </motion.span>
+        </div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative flex items-center justify-center">
+            <svg className="h-36 w-36" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" stroke="var(--border)" strokeWidth="8" fill="transparent" />
+              <motion.circle
+                cx="50" cy="50" r="42" fill="none" stroke="var(--primary)" strokeWidth="8" strokeLinecap="round"
+                strokeDasharray={String(CIRCUMFERENCE)}
+                initial={{ strokeDashoffset: CIRCUMFERENCE }}
+                animate={{ strokeDashoffset: CIRCUMFERENCE * (1 - todayProgress) }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <motion.span
+                className="text-title tabular-nums font-bold" style={{ color: "var(--fg)" }}
+                initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 1, type: "spring" }}
+              >
+                {todayHours >= 1 ? todayHours.toFixed(1) : pa.todayMinutes}
+              </motion.span>
+              <span className="text-caption">{todayHours >= 1 ? "hours" : "minutes"}</span>
+            </div>
+          </div>
+          <div className="flex w-full items-center justify-between border-t border-[var(--border)] pt-3">
+            <div className="text-center">
+              <span className="text-caption">Sessions</span>
+              <p className="text-callout font-bold" style={{ color: "var(--fg)" }}>{pa.todaySessions}</p>
+            </div>
+            <div className="text-center">
+              <span className="text-caption">Remote</span>
+              <p className="text-callout font-bold" style={{ color: "var(--fg)" }}>{formatMinutes(pa.remoteMinutes)}</p>
+            </div>
+            <div className="text-center">
+              <span className="text-caption">{pa.isOnTime ? "On time" : "Late by"}</span>
+              <p className="text-callout font-bold" style={{ color: pa.isOnTime ? "var(--teal)" : "var(--amber)" }}>
+                {pa.isOnTime ? "\u2713" : `${pa.lateBy}m`}
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Avg Stats Grid */}
+      <div className="flex flex-col gap-3 md:col-span-7">
+        <div className="grid grid-cols-2 gap-3">
+          <motion.div className="card p-4" variants={slideUpItem} initial="hidden" animate="visible">
+            <p className="text-caption mb-1">Avg Hours / Day</p>
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center justify-center">
+                <svg className="h-10 w-10" viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="16" stroke="var(--border)" strokeWidth="4" fill="transparent" />
+                  <motion.circle cx="20" cy="20" r="16" fill="none" stroke="var(--primary)" strokeWidth="4" strokeLinecap="round"
+                    strokeDasharray={String(2 * Math.PI * 16)}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 16 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 16 * (1 - Math.min(pa.monthlyAvgHours / 9, 1)) }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
+                  />
+                </svg>
+              </div>
+              <p className="text-headline tabular-nums font-bold" style={{ color: "var(--fg)" }}>
+                {pa.monthlyAvgHours.toFixed(1)} Hours
+              </p>
+            </div>
+          </motion.div>
+          <motion.div className="card p-4" variants={slideUpItem} initial="hidden" animate="visible">
+            <p className="text-caption mb-1">On-Time Arrivals</p>
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center justify-center">
+                <svg className="h-10 w-10" viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="16" stroke="var(--border)" strokeWidth="4" fill="transparent" />
+                  <motion.circle cx="20" cy="20" r="16" fill="none" stroke="var(--teal)" strokeWidth="4" strokeLinecap="round"
+                    strokeDasharray={String(2 * Math.PI * 16)}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 16 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 16 * (1 - pa.monthlyOnTimePct / 100) }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
+                  />
+                </svg>
+              </div>
+              <p className="text-headline tabular-nums font-bold" style={{ color: "var(--fg)" }}>
+                {pa.monthlyOnTimePct}%
+              </p>
+            </div>
+          </motion.div>
+          <motion.div className="card flex items-center gap-3 p-4" variants={slideUpItem} initial="hidden" animate="visible">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--primary-light)" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            </div>
+            <div>
+              <p className="text-caption">Avg Check-in</p>
+              <p className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.avgInTime || "\u2014"}</p>
+            </div>
+          </motion.div>
+          <motion.div className="card flex items-center gap-3 p-4" variants={slideUpItem} initial="hidden" animate="visible">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(255,159,10,0.12)" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: "scaleX(-1)" }}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            </div>
+            <div>
+              <p className="text-caption">Avg Check-out</p>
+              <p className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.avgOutTime || "\u2014"}</p>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────── MANAGER / TEAM LEAD OVERVIEW ──────────────────────── */
+
+type PresenceFilter = "all" | "office" | "remote" | "late" | "absent";
+const PRESENCE_FILTER_ORDER: PresenceFilter[] = ["all", "office", "remote", "late", "absent"];
+const PRESENCE_FILTER_LABELS: Record<PresenceFilter, string> = { all: "All", office: "Office", remote: "Remote", late: "Late", absent: "Absent" };
+
+function matchPresenceFilter(status: PresenceStatus, f: PresenceFilter): boolean {
+  if (f === "all") return true;
+  if (f === "office") return status === "office" || status === "overtime";
+  return status === f;
+}
+
+function ManagerOverview({
+  user,
+  presenceEmps,
+  tasks,
+  personalAttendance,
+}: {
+  user: User;
+  presenceEmps: PresenceEmployee[];
+  tasks: ApiTask[];
+  personalAttendance: PersonalAttendance | null;
+}) {
+  const reduceMotion = useReducedMotion();
+  const counts = useMemo(() => getStatusCounts(presenceEmps), [presenceEmps]);
+  const totalEmp = counts.total;
+  const presentToday = totalEmp - counts.absent;
+  const onTimePct = totalEmp > 0 ? Math.round(((totalEmp - counts.late - counts.absent) / totalEmp) * 100) : 0;
+
+  const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
+
+  const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>("all");
+  const filteredPresence = useMemo(
+    () => presenceEmps.filter((e) => matchPresenceFilter(e.status, presenceFilter)),
+    [presenceEmps, presenceFilter],
+  );
+
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const timeKey = `${now.getHours()}-${now.getMinutes()}`;
+
+  const statItems = [
+    { title: "My Team", value: totalEmp, caption: "Active roster", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
+    { title: "Present Today", value: presentToday, caption: "Non-absent", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+    { title: "On-Time Rate", value: onTimePct, caption: "Among present", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header: Greeting + Time Card */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
+          <p className="text-caption mb-0.5">Single Solution Sync</p>
+          <h1 className="text-title">
+            <span className="gradient-text">{getGreeting()}</span>
+            <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
+          </h1>
+          <p className="text-subhead mt-1">
+            You have {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending
+          </p>
+        </motion.div>
+        <motion.div className="flex shrink-0 items-center gap-3" variants={slideFromRight} initial="hidden" animate="visible">
+          <div className="card group relative overflow-hidden p-3 sm:min-w-[180px]">
+            <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
+            <p className="text-caption mb-0.5">Local time</p>
+            <AnimatePresence mode="wait">
+              <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
+                <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
+                <span className="text-caption">{formatClockDate(now)}</span>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </header>
+
+      {/* 3 KPI Stat Cards */}
+      <motion.div className="grid grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+        {statItems.map((stat, i) => (
+          <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
+            <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i % blobGradients.length] }} />
+            <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>
+              {stat.icon}
+            </div>
+            <p className="text-subhead">{stat.title}</p>
+            <p className="text-[22px] sm:text-[26px] font-semibold tabular-nums mt-0.5" style={{ color: "var(--fg)" }}>
+              <AnimatedNumber value={stat.value} />{stat.title === "On-Time Rate" ? "%" : ""}
+            </p>
+            <p className="text-caption mt-0.5">{stat.caption}</p>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Self Assessment */}
+      {personalAttendance && <SelfAssessmentSection pa={personalAttendance} />}
+
+      {/* Live Presence with filter toggles + fixed height scroll */}
+      <motion.section className="card relative overflow-hidden" variants={slideUpItem} initial="hidden" animate="visible">
+        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} />
+            </span>
+            <h2 className="text-headline" style={{ color: "var(--fg)" }}>Live Presence</h2>
+            <span className="text-caption ml-1">{filteredPresence.length} of {totalEmp}</span>
+          </div>
+          <LayoutGroup id="mgr-presence-filter">
+            <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+              {PRESENCE_FILTER_ORDER.map((f) => {
+                const active = presenceFilter === f;
+                return (
+                  <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="relative z-10 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
+                    {active && <motion.span layoutId="mgr-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                    <span className="relative">{PRESENCE_FILTER_LABELS[f]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </LayoutGroup>
+        </div>
+        <div className="max-h-[420px] overflow-y-auto p-4 sm:p-5">
+          {filteredPresence.length > 0 ? (
+            <motion.div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+              {filteredPresence.map((emp, idx) => (
+                <EmployeePresenceCard key={emp._id} emp={emp} idx={idx} reduceMotion={!!reduceMotion} />
+              ))}
+            </motion.div>
+          ) : (
+            <p className="py-8 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No members match this filter</p>
+          )}
+        </div>
+      </motion.section>
+
+      {/* Attendance Overview + Checklist (same row) */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <motion.section className="card p-3 sm:p-4" variants={slideUpItem} initial="hidden" animate="visible">
+        <h2 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Attendance Overview</h2>
+        <div className="flex items-center gap-4">
+          <div className="min-w-0 flex-1 space-y-2.5">
+            {STATUS_ORDER.map((status) => {
+              const pct = totalEmp > 0 ? Math.round((counts[status] / totalEmp) * 100) : 0;
+              return (
+                <div key={status} className="flex items-center gap-2.5">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: STATUS_COLORS[status] }} />
+                  <span className="text-callout flex-1 truncate" style={{ color: "var(--fg)" }}>{STATUS_LABELS[status]}</span>
+                  <span className="text-headline tabular-nums font-semibold" style={{ color: "var(--fg)" }}>{counts[status]}</span>
+                  <span className="w-9 text-right text-caption tabular-nums">{pct}%</span>
+                </div>
+              );
+            })}
+            <div className="flex items-center gap-2.5 border-t border-[var(--border)] pt-2.5">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--fg-tertiary)" }} />
+              <span className="text-callout flex-1 font-medium" style={{ color: "var(--fg)" }}>Total</span>
+              <span className="text-headline tabular-nums font-semibold" style={{ color: "var(--fg)" }}>{totalEmp}</span>
+              <span className="w-9 text-right text-caption tabular-nums">100%</span>
+            </div>
+          </div>
+          <AttendanceDonut counts={counts} total={totalEmp} />
+        </div>
+      </motion.section>
+
+      <motion.section className="card p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
+          {pendingTasks.length > 0 && (
+            <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
+              {pendingTasks.length} Pending
+            </motion.div>
+          )}
+        </div>
+        {pendingTasks.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {pendingTasks.slice(0, 5).map((task, ti) => (
+              <motion.div key={task._id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 + ti * 0.1 }} whileHover={{ x: 5 }} className="flex cursor-pointer items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} 15%, transparent)` }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    {task.priority === "urgent" ? (
+                      <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></>
+                    ) : task.priority === "high" ? (
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />
+                    ) : (
+                      <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>
+                    )}
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
+                  <p className="text-caption line-clamp-1">
+                    {task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName} \u00b7 ` : ""}{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} \u00b7 {PRIORITY_LABELS[task.priority] ?? task.priority}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-4 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No pending tasks — you&apos;re all caught up!</p>
+        )}
+        {pendingTasks.length > 0 && (
+          <Link href="/tasks">
+            <motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              View All Tasks →
+            </motion.button>
+          </Link>
+        )}
+      </motion.section>
+      </div>
+    </div>
+  );
+}
+
 /* ──────────────────────── OTHER ROLES OVERVIEW ──────────────────────── */
 
-function OtherRoleOverview({ user, tasks }: { user: User; tasks: ApiTask[] }) {
+function OtherRoleOverview({ user, tasks, personalAttendance }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null }) {
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const inProgressTasks = useMemo(() => tasks.filter((t) => t.status === "inProgress"), [tasks]);
   const completedTasks = useMemo(() => tasks.filter((t) => t.status === "completed"), [tasks]);
@@ -521,6 +885,9 @@ function OtherRoleOverview({ user, tasks }: { user: User; tasks: ApiTask[] }) {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* Self Assessment */}
+      {personalAttendance && <SelfAssessmentSection pa={personalAttendance} />}
 
       {/* Checklist */}
       <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
@@ -580,6 +947,7 @@ export default function DashboardHome({ user }: { user: User }) {
   const [loading, setLoading] = useState(true);
 
   const [realPresence, setRealPresence] = useState<PresenceEmployee[] | null>(null);
+  const [personalAttendance, setPersonalAttendance] = useState<PersonalAttendance | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -597,6 +965,29 @@ export default function DashboardHome({ user }: { user: User }) {
         }
 
         const [empRes, taskRes, deptRes, presenceRes] = await Promise.all(fetches);
+
+        if (!isSuperAdmin) {
+          try {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const [dailyRes, monthlyRes] = await Promise.all([
+              fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null),
+              fetch("/api/attendance?type=monthly").then((r) => r.ok ? r.json() : null),
+            ]);
+            setPersonalAttendance({
+              todayMinutes: dailyRes?.totalWorkingMinutes ?? 0,
+              todaySessions: dailyRes?.activitySessions?.length ?? 0,
+              officeMinutes: dailyRes?.officeMinutes ?? 0,
+              remoteMinutes: dailyRes?.remoteMinutes ?? 0,
+              isOnTime: dailyRes?.isOnTime ?? true,
+              lateBy: dailyRes?.lateBy ?? 0,
+              firstEntry: dailyRes?.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+              monthlyAvgHours: monthlyRes?.averageDailyHours ?? 0,
+              monthlyOnTimePct: monthlyRes?.onTimePercentage ?? 0,
+              avgInTime: monthlyRes?.averageOfficeInTime ?? "",
+              avgOutTime: monthlyRes?.averageOfficeOutTime ?? "",
+            });
+          } catch { /* personal data is optional */ }
+        }
         setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
         setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
         setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
@@ -779,7 +1170,7 @@ export default function DashboardHome({ user }: { user: User }) {
     );
   }
 
-  if (user.role === "superadmin" || user.role === "manager" || user.role === "teamLead") {
+  if (user.role === "superadmin") {
     return (
       <SuperAdminOverview
         user={user}
@@ -791,5 +1182,16 @@ export default function DashboardHome({ user }: { user: User }) {
     );
   }
 
-  return <OtherRoleOverview user={user} tasks={tasks} />;
+  if (user.role === "manager" || user.role === "teamLead") {
+    return (
+      <ManagerOverview
+        user={user}
+        presenceEmps={presenceEmps}
+        tasks={tasks}
+        personalAttendance={personalAttendance}
+      />
+    );
+  }
+
+  return <OtherRoleOverview user={user} tasks={tasks} personalAttendance={personalAttendance} />;
 }

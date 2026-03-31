@@ -91,10 +91,14 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "created task",
     entity: "task",
     entityId: task._id.toString(),
     details: body.title.trim(),
+    targetUserIds: [body.assignedTo, actor.id],
+    targetDepartmentId: assignee.department?.toString() || undefined,
+    targetTeamIds: assigneeTeams,
   });
 
   return ok(populated);

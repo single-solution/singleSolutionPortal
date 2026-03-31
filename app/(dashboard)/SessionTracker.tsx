@@ -14,7 +14,9 @@ interface SessionData {
 }
 
 const HEARTBEAT_MS = 30_000;
-const IDLE_MS = 5 * 60 * 1000;
+const IDLE_MS = 60 * 60 * 1000;
+const NUDGE_INTERVAL_MS = 5 * 60 * 1000;
+const MAX_NUDGES = 3;
 const MAX_CHECKIN_RETRIES = 3;
 const RETRY_DELAY_MS = 5_000;
 
@@ -350,9 +352,15 @@ export default function SessionTracker() {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [fetchSession, doCheckIn, updateMode, startHeartbeat, startSyncPolling]);
 
-  // ─── Elapsed timer ────────────────────────────────────────────
+  // ─── Elapsed timer (pauses when idle) ────────────────────────
+  const pausedAtRef = useRef<number>(0);
   useEffect(() => {
     if (session.active && session.startTime) {
+      if (idle) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        pausedAtRef.current = elapsed;
+        return;
+      }
       const start = new Date(session.startTime).getTime();
       const tick = () => setElapsed(Date.now() - start);
       tick();
@@ -362,25 +370,77 @@ export default function SessionTracker() {
       };
     }
     setElapsed(0);
-  }, [session.active, session.startTime]);
+  }, [session.active, session.startTime, idle]);
 
-  // ─── Idle detection (active mode only) ────────────────────────
+  // ─── Idle detection (active mode, visibility-aware + nudges) ──
+  const nudgeCountRef = useRef(0);
+  const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [nudgeVisible, setNudgeVisible] = useState(false);
+
+  const clearNudges = useCallback(() => {
+    nudgeCountRef.current = 0;
+    setNudgeVisible(false);
+    if (nudgeTimerRef.current) { clearTimeout(nudgeTimerRef.current); nudgeTimerRef.current = null; }
+  }, []);
+
+  const scheduleNudge = useCallback(() => {
+    if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+    nudgeTimerRef.current = setTimeout(() => {
+      nudgeCountRef.current += 1;
+      setNudgeVisible(true);
+      if (nudgeCountRef.current >= MAX_NUDGES) {
+        setIdle(true);
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      } else {
+        scheduleNudge();
+      }
+    }, NUDGE_INTERVAL_MS);
+  }, []);
+
   useEffect(() => {
     if (mode !== "active") return;
 
-    function resetIdle() {
-      setIdle(false);
+    let tabHidden = document.hidden;
+
+    function handleActivity() {
+      if (idle) {
+        setIdle(false);
+        startHeartbeat();
+      }
+      clearNudges();
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(() => setIdle(true), IDLE_MS);
+      idleTimerRef.current = setTimeout(() => {
+        if (!document.hidden) {
+          nudgeCountRef.current = 0;
+          scheduleNudge();
+        }
+      }, IDLE_MS);
     }
-    const events = ["mousemove", "keydown", "touchstart", "scroll"] as const;
-    events.forEach((e) => window.addEventListener(e, resetIdle, { passive: true }));
-    resetIdle();
+
+    function handleVisibilityForIdle() {
+      if (document.hidden) {
+        tabHidden = true;
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        clearNudges();
+      } else {
+        if (tabHidden) {
+          tabHidden = false;
+          handleActivity();
+        }
+      }
+    }
+
+    const events = ["mousemove", "keydown", "touchstart", "scroll", "click"] as const;
+    events.forEach((e) => window.addEventListener(e, handleActivity, { passive: true }));
+    document.addEventListener("visibilitychange", handleVisibilityForIdle);
+    handleActivity();
     return () => {
-      events.forEach((e) => window.removeEventListener(e, resetIdle));
+      events.forEach((e) => window.removeEventListener(e, handleActivity));
+      document.removeEventListener("visibilitychange", handleVisibilityForIdle);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
     };
-  }, [mode]);
+  }, [mode, idle, startHeartbeat, clearNudges, scheduleNudge]);
 
   // ─── Render ───────────────────────────────────────────────────
   if (mode === "booting") return null;
@@ -413,49 +473,139 @@ export default function SessionTracker() {
   const todayTotal = session.todayMinutes + currentMinutes;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ y: 20, opacity: 0, scale: 0.9 }}
-        animate={{ y: 0, opacity: idle && isActive ? 0.65 : 1, scale: 1 }}
-        transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
-        className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white backdrop-blur-xl"
-        style={pillStyle}
-      >
-        {isActive && (
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
-          </span>
+    <>
+      {/* Nudge toast (still working, gentle reminder) */}
+      <AnimatePresence>
+        {nudgeVisible && !idle && isActive && !isReadonly && (
+          <motion.div
+            key="nudge-toast"
+            initial={{ y: -60, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -60, opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="fixed left-1/2 top-4 z-[9999] -translate-x-1/2 cursor-pointer"
+            onClick={() => { clearNudges(); setIdle(false); }}
+          >
+            <div
+              className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl backdrop-blur-xl"
+              style={{
+                background: "linear-gradient(135deg, rgba(255,159,10,0.9), rgba(245,158,11,0.85))",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
+              <span className="text-2xl">\ud83d\udc4b</span>
+              <div>
+                <p className="text-sm font-bold text-white">Still there?</p>
+                <p className="text-xs text-white/80">
+                  Reminder {nudgeCountRef.current} of {MAX_NUDGES} — tap to dismiss
+                </p>
+              </div>
+            </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">{statusLabel}</span>
-
-        {isReadonly && isActive && (
-          <span className="text-[9px] font-semibold opacity-80 tracking-wide">
-            {isMobileRef.current ? "synced" : "another device"}
-          </span>
-        )}
-
-        {session.isStale && session.active && (
-          <span className="text-[9px] font-semibold opacity-75 tracking-wide">inactive</span>
-        )}
-
+      {/* Full away overlay (after all nudges ignored) */}
+      <AnimatePresence>
         {idle && isActive && !isReadonly && (
-          <span className="text-[9px] font-semibold opacity-75 animate-pulse tracking-wide">idle</span>
+          <motion.div
+            key="away-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[9998] flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+            onClick={() => { setIdle(false); clearNudges(); }}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-3xl p-8 text-center"
+              style={{
+                background: "var(--glass-bg-heavy, rgba(30,30,40,0.85))",
+                border: "1px solid var(--glass-border, rgba(255,255,255,0.1))",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.div
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="text-5xl"
+              >
+                \ud83d\ude34
+              </motion.div>
+              <h3 className="text-lg font-bold" style={{ color: "var(--fg, #fff)" }}>
+                Looks like you stepped away
+              </h3>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--fg-secondary, #aaa)" }}>
+                Your session timer has been paused. Move your mouse, press a key, or tap anywhere to resume tracking.
+              </p>
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="mt-1 rounded-full px-6 py-2.5 text-sm font-bold text-white"
+                style={{ background: "linear-gradient(135deg, var(--primary, #007aff), var(--cyan, #00c6a7))" }}
+              >
+                {formatElapsed(pausedAtRef.current || elapsed)} paused
+              </motion.div>
+            </motion.div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        <span className="h-3.5 w-px bg-white/40 rounded-full" />
+      {/* Timer pill */}
+      <AnimatePresence>
+        <motion.div
+          initial={{ y: 20, opacity: 0, scale: 0.9 }}
+          animate={{ y: 0, opacity: idle && isActive ? 0.5 : 1, scale: 1 }}
+          transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
+          className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white backdrop-blur-xl"
+          style={pillStyle}
+        >
+          {isActive && !idle && (
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+            </span>
+          )}
 
-        <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
-          {isActive ? formatElapsed(elapsed) : "--:--:--"}
-        </span>
+          {idle && isActive && !isReadonly && (
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
+            </span>
+          )}
 
-        <span className="h-3.5 w-px bg-white/40 rounded-full" />
+          <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">
+            {idle && isActive && !isReadonly ? "Paused" : statusLabel}
+          </span>
 
-        <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
-          {formatTodayHours(todayTotal)}
-        </span>
-      </motion.div>
-    </AnimatePresence>
+          {isReadonly && isActive && (
+            <span className="text-[9px] font-semibold opacity-80 tracking-wide">
+              {isMobileRef.current ? "synced" : "another device"}
+            </span>
+          )}
+
+          {session.isStale && session.active && (
+            <span className="text-[9px] font-semibold opacity-75 tracking-wide">inactive</span>
+          )}
+
+          <span className="h-3.5 w-px bg-white/40 rounded-full" />
+
+          <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
+            {isActive ? (idle ? formatElapsed(pausedAtRef.current || elapsed) : formatElapsed(elapsed)) : "--:--:--"}
+          </span>
+
+          <span className="h-3.5 w-px bg-white/40 rounded-full" />
+
+          <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
+            {formatTodayHours(todayTotal)}
+          </span>
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }

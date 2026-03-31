@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 
-const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password", "/setup-password"];
+const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password", "/setup-password", "/preview"];
 const ADMIN_ONLY = ["/employees", "/departments", "/teams", "/campaigns"];
 const ADMIN_ROLES = ["superadmin", "manager", "teamLead"];
 

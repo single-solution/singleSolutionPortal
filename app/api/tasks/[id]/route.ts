@@ -85,6 +85,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: `updated task${body.status ? ` → ${body.status}` : ""}`,
     entity: "task",
     entityId: id,
@@ -125,13 +126,16 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   task.isActive = false;
   await task.save();
 
+  const delAssigneeId = (task.assignedTo as unknown as { _id?: { toString(): string } })?._id?.toString() ?? task.assignedTo?.toString() ?? "";
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "deleted task",
     entity: "task",
     entityId: id,
     details: task.title,
+    targetUserIds: [delAssigneeId, actor.id].filter(Boolean),
   });
 
   return ok({ message: "Task deleted" });

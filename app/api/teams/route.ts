@@ -103,10 +103,14 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "created team",
     entity: "team",
     entityId: team._id.toString(),
     details: body.name.trim(),
+    targetTeamIds: [team._id.toString()],
+    targetDepartmentId: body.department,
+    targetUserIds: body.lead ? [body.lead, actor.id] : [actor.id],
   });
 
   return ok(populated);

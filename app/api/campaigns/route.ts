@@ -121,10 +121,15 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "created campaign",
     entity: "campaign",
     entityId: campaign._id.toString(),
     details: body.name.trim(),
+    targetUserIds: [...tagEmployees, actor.id],
+    targetDepartmentId: tagDepartments[0] || undefined,
+    targetTeamIds: tagTeams,
+    visibility: tagEmployees.length === 0 && tagDepartments.length === 0 && tagTeams.length === 0 ? "all" : "targeted",
   });
 
   return ok(populated);

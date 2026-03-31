@@ -60,9 +60,11 @@ export async function PUT(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "updated system settings",
     entity: "settings",
     details: changed,
+    visibility: "self",
   });
 
   return ok(settings);

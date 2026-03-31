@@ -129,6 +129,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: `updated campaign${statusChange}`,
     entity: "campaign",
     entityId: id,
@@ -155,13 +156,20 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   campaign.isActive = false;
   await campaign.save();
 
+  const delEmps = (campaign.tags.employees as unknown as string[]).map((e) => e.toString());
+  const delDepts = (campaign.tags.departments as unknown as string[]).map((d) => d.toString());
+  const delTeamsArr = (campaign.tags.teams as unknown as string[]).map((t) => t.toString());
   logActivity({
     userEmail: actor.email,
     userName: "",
+    userRole: actor.role,
     action: "deleted campaign",
     entity: "campaign",
     entityId: id,
     details: campaign.name,
+    targetUserIds: [...delEmps, actor.id],
+    targetDepartmentId: delDepts[0] || undefined,
+    targetTeamIds: delTeamsArr,
   });
 
   return ok({ message: "Campaign deactivated" });

@@ -683,7 +683,7 @@ select.input {
 
 .card-shine {
   position: relative;
-  overflow: hidden;
+  overflow: clip;
 }
 
 .card-shine::after {
