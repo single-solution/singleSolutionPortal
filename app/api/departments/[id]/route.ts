@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
-import { getSession, unauthorized, forbidden, notFound, ok } from "@/lib/helpers";
+import User from "@/lib/models/User";
+import { getSession, unauthorized, forbidden, notFound, ok, badRequest } from "@/lib/helpers";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +12,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   await connectDB();
   const { id } = await params;
   const body = await req.json();
+
+  if (body.managerId) {
+    const mgr = await User.findById(body.managerId).select("userRole").lean();
+    if (mgr?.userRole === "superadmin") return badRequest("Superadmin cannot be set as department manager");
+  }
 
   const update: Record<string, unknown> = { updatedBy: session.user.id };
   if (body.title?.trim()) update.title = body.title.trim();

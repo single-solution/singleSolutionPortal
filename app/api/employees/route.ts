@@ -13,7 +13,7 @@ export async function GET() {
   await connectDB();
 
   const role = session.user.role;
-  let filter: Record<string, unknown> = { isActive: true };
+  let filter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
 
   if (role === "manager") {
     const me = await User.findById(session.user.id).select("department");
@@ -47,6 +47,9 @@ export async function POST(req: Request) {
   if (!email || !username || !password || !firstName || !userRole) {
     return badRequest("Missing required fields: email, username, password, firstName, userRole");
   }
+
+  if (userRole === "superadmin") return badRequest("Cannot create superadmin accounts");
+
 
   const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }] });
   if (existing) return badRequest("Email or username already exists");

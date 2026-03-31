@@ -42,7 +42,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (body.priority !== undefined) task.priority = body.priority;
   if (body.status !== undefined) task.status = body.status;
   if (body.deadline !== undefined) task.deadline = body.deadline;
-  if (isAdmin && body.assignedTo) task.assignedTo = body.assignedTo;
+  if (isAdmin && body.assignedTo) {
+    const { default: UserModel } = await import("@/lib/models/User");
+    const target = await UserModel.findById(body.assignedTo).select("userRole").lean();
+    if (target?.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
+    task.assignedTo = body.assignedTo;
+  }
   task.updatedBy = session.user.id as unknown as typeof task.updatedBy;
 
   await task.save();

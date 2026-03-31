@@ -16,7 +16,7 @@ export async function GET() {
     .lean();
 
   const counts = await User.aggregate([
-    { $match: { isActive: true, department: { $ne: null } } },
+    { $match: { isActive: true, department: { $ne: null }, userRole: { $ne: "superadmin" } } },
     { $group: { _id: "$department", count: { $sum: 1 } } },
   ]);
 
@@ -39,6 +39,11 @@ export async function POST(req: Request) {
   const body = await req.json();
 
   if (!body.title?.trim()) return badRequest("Department title is required");
+
+  if (body.managerId) {
+    const mgr = await User.findById(body.managerId).select("userRole").lean();
+    if (mgr?.userRole === "superadmin") return badRequest("Superadmin cannot be set as department manager");
+  }
 
   const dept = await Department.create({
     title: body.title.trim(),

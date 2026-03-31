@@ -16,7 +16,7 @@ export async function GET() {
   if (role === "manager") {
     const me = await User.findById(session.user.id).select("department").lean();
     if (me?.department) {
-      const teamIds = await User.find({ department: me.department, isActive: true }).distinct("_id");
+      const teamIds = await User.find({ department: me.department, isActive: true, userRole: { $ne: "superadmin" } }).distinct("_id");
       filter.assignedTo = { $in: teamIds };
     } else {
       filter.assignedTo = session.user.id;
@@ -44,6 +44,10 @@ export async function POST(req: Request) {
   if (!body.title?.trim() || !body.assignedTo) {
     return badRequest("Title and assignedTo are required");
   }
+
+  const assignee = await User.findById(body.assignedTo).select("userRole").lean();
+  if (!assignee) return badRequest("Assignee not found");
+  if (assignee.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
 
   const task = await ActivityTask.create({
     title: body.title.trim(),

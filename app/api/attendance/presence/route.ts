@@ -20,7 +20,7 @@ export async function GET() {
 
   const today = startOfDay(new Date());
 
-  let empFilter: Record<string, unknown> = { isActive: true };
+  let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
   if (session.user.role === "manager") {
     const me = await User.findById(session.user.id).select("department").lean();
     if (me?.department) empFilter.department = me.department;
