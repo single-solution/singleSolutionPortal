@@ -5,7 +5,7 @@ interface LogInput {
   userEmail: string;
   userName: string;
   action: string;
-  entity: "employee" | "department" | "team" | "task" | "attendance" | "settings" | "auth";
+  entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth";
   entityId?: string;
   details?: string;
 }

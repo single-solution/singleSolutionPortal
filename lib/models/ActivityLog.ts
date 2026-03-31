@@ -4,7 +4,7 @@ export interface IActivityLog extends Document {
   userEmail: string;
   userName: string;
   action: string;
-  entity: "employee" | "department" | "team" | "task" | "attendance" | "settings" | "auth";
+  entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth";
   entityId?: string;
   details?: string;
   createdAt: Date;
@@ -18,7 +18,7 @@ const activityLogSchema = new Schema<IActivityLog>(
     entity: {
       type: String,
       required: true,
-      enum: ["employee", "department", "team", "task", "attendance", "settings", "auth"],
+      enum: ["employee", "department", "team", "task", "campaign", "attendance", "settings", "auth"],
     },
     entityId: { type: String, default: null },
     details: { type: String, default: "" },

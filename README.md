@@ -129,6 +129,21 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Role-scoped: SuperAdmin sees all teams; Manager sees teams in their department; Team Lead sees teams they lead
 - Employee form includes **multi-team selector** (toggle chips) — employees can belong to multiple teams simultaneously
 
+### Campaign / Project Tracking
+
+- Track ongoing campaigns, projects, and initiatives with lifecycle status management
+- **Statuses**: Active → Paused → Completed / Cancelled (quick-action buttons on cards for instant transitions)
+- **Tag anyone**: associate employees, departments, and teams with a campaign via toggle chip selectors
+- Card grid with gradient avatars, status badges, date ranges, budget, tagged entity pills (color-coded by type)
+- Search across campaign names, descriptions, and tagged entity names
+- Filter pills by status (All, Active, Paused, Completed, Cancelled) with counts
+- Sort toggles: Recent / A–Z
+- Centered glass modal for create/edit with date pickers, budget field, multi-select tags, notes
+- ConfirmDialog for delete confirmation (SuperAdmin only)
+- StatusToggle for quick active/inactive flag in card footer
+- Activity logging for all campaign CRUD actions
+- Role-scoped visibility: SuperAdmin sees all; Manager sees campaigns tagged with their department/teams/employees; Team Lead sees campaigns tagged with teams they lead; Employees see campaigns they're tagged in
+
 ### Task Management
 
 - Priority-based task assignment with deadline tracking
@@ -185,7 +200,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Live polling (10s)** — bell automatically fetches latest 20 logs every 10 seconds for near real-time updates
 - **Mark as read on open** — opening the bell panel marks all current entries as seen (sets `lastSeenLogId` to newest log)
 - **Unseen badge** — red pulsing badge with count (capped at 9+), derived from entries above `lastSeenLogId`
-- **Entity SVG icons** — each entity type has a distinct icon and color: blue (employee), green (department), amber (task), purple (attendance), gray (settings), rose (auth)
+- **Entity SVG icons** — each entity type has a distinct icon and color: blue (employee), green (department), teal (team), indigo (campaign), amber (task), purple (attendance), gray (settings), rose (auth)
 - **Clickable links** — each log entry navigates to the relevant page (e.g., employee → `/employees/{id}/edit`, department → `/departments`, task → `/tasks`)
 - **Seen/unseen dimming** — read entries fade to 50% opacity, unread entries are full brightness
 - **"Mark all read" button** — persists to server for cross-device consistency
@@ -272,6 +287,7 @@ app/
       [id]/edit/page.tsx # Edit employee route
     departments/page.tsx # Department management (search, inline add/edit, team count)
     teams/page.tsx       # Team management (search, dept filter, create/edit modal)
+    campaigns/page.tsx   # Campaign/project tracking (status lifecycle, entity tagging)
     tasks/page.tsx       # Task board (search, centered glass modal)
     components/
       ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
@@ -286,6 +302,7 @@ app/
     employees/           # CRUD with role scoping + activity logging
     departments/         # CRUD with manager population + activity logging
     teams/               # CRUD with dept scoping + member count aggregation
+    campaigns/           # CRUD with entity tagging (employees, departments, teams) + status lifecycle
     tasks/               # CRUD with team scoping + activity logging
     attendance/
       session/           # Check-in, check-out, heartbeat PATCH, session GET
@@ -316,6 +333,7 @@ lib/
     User.ts             # User (5 roles incl. teamLead, shifts, teams[], BD fields, reset tokens, lastSeenLogId)
     Department.ts       # Department with manager ref
     Team.ts             # Team (name, slug, department, lead, description)
+    Campaign.ts         # Campaign (name, status lifecycle, tagged employees/departments/teams, dates, budget)
     ActivitySession.ts  # Session with office segments + heartbeat lastActivity
     ActivityTask.ts     # Task with priority, deadline, status
     DailyAttendance.ts  # Daily rollup (sessions, minutes, on-time)
