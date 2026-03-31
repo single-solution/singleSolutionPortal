@@ -12,14 +12,18 @@
   --fg: #1c1c1e;
   --fg-secondary: #636366;
   --fg-tertiary: #aeaeb2;
-  --primary: #007aff;
-  --primary-light: rgba(0,122,255,0.10);
+  --primary: #0071e3;
+  --primary-light: rgba(0,113,227,0.10);
   --primary-dark: #0055b3;
-  --teal: #30d158;
+  --teal: #00c7be;
   --amber: #ff9f0a;
-  --rose: #ff375f;
-  --purple: #bf5af2;
-  --cyan: #64d2ff;
+  --rose: #ff2d55;
+  --purple: #af52de;
+  --cyan: #32ade6;
+  --indigo: #5856d6;
+  --mint: #00c7be;
+  --pink: #ff2d55;
+  --orange: #ff6723;
 
   --glass-bg: rgba(255,255,255,0.42);
   --glass-bg-heavy: rgba(255,255,255,0.60);
@@ -61,13 +65,17 @@
   --fg-secondary: #ababaf;
   --fg-tertiary: #636366;
   --primary: #0a84ff;
-  --primary-light: rgba(10,132,255,0.18);
+  --primary-light: rgba(10,132,255,0.22);
   --primary-dark: #409cff;
-  --teal: #30d158;
-  --amber: #ff9f0a;
+  --teal: #63e6be;
+  --amber: #ffd60a;
   --rose: #ff375f;
-  --purple: #bf5af2;
-  --cyan: #64d2ff;
+  --purple: #da77f2;
+  --cyan: #66d9e8;
+  --indigo: #7b73f0;
+  --mint: #63e6be;
+  --pink: #ff6b9d;
+  --orange: #ff922b;
 
   --glass-bg: rgba(44,44,46,0.42);
   --glass-bg-heavy: rgba(44,44,46,0.60);
@@ -517,18 +525,19 @@ select.input {
 
 .gradient-mesh {
   background:
-    radial-gradient(at 20% 80%, rgba(0,122,255,0.06) 0%, transparent 50%),
-    radial-gradient(at 80% 20%, rgba(48,209,88,0.05) 0%, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(191,90,242,0.03) 0%, transparent 50%),
-    radial-gradient(at 30% 30%, rgba(100,210,255,0.04) 0%, transparent 50%),
+    radial-gradient(at 20% 80%, rgba(0,113,227,0.06) 0%, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(0,199,190,0.05) 0%, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(175,82,222,0.04) 0%, transparent 50%),
+    radial-gradient(at 70% 70%, rgba(255,103,35,0.03) 0%, transparent 40%),
     var(--bg);
 }
 
 [data-theme="dark"] .gradient-mesh {
   background:
-    radial-gradient(at 20% 80%, rgba(0,122,255,0.04) 0%, transparent 50%),
-    radial-gradient(at 80% 20%, rgba(48,209,88,0.03) 0%, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(191,90,242,0.02) 0%, transparent 50%),
+    radial-gradient(at 20% 80%, rgba(10,132,255,0.06) 0%, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(99,230,190,0.04) 0%, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(218,119,242,0.04) 0%, transparent 50%),
+    radial-gradient(at 70% 70%, rgba(255,146,43,0.03) 0%, transparent 40%),
     var(--bg);
 }
 
@@ -536,19 +545,35 @@ select.input {
 /* GRADIENT TEXT                                */
 /* ============================================ */
 .gradient-text {
-  background: linear-gradient(135deg, #007aff 0%, #30d158 50%, #5ac8fa 100%);
+  background: linear-gradient(135deg, #0071e3 0%, #00c7be 40%, #af52de 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="dark"] .gradient-text {
+  background: linear-gradient(135deg, #6dd5fa 0%, #63e6be 40%, #da77f2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .gradient-text-animated {
-  background: linear-gradient(135deg, #007aff 0%, #30d158 25%, #bf5af2 50%, #5ac8fa 75%, #007aff 100%);
-  background-size: 200% 200%;
+  background: linear-gradient(135deg, #0071e3 0%, #00c7be 20%, #af52de 40%, #ff6723 60%, #0071e3 80%, #00c7be 100%);
+  background-size: 300% 300%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradient-flow 6s ease infinite;
+  animation: gradient-flow 8s ease infinite;
+}
+
+[data-theme="dark"] .gradient-text-animated {
+  background: linear-gradient(135deg, #6dd5fa 0%, #63e6be 20%, #da77f2 40%, #ff922b 60%, #6dd5fa 80%, #63e6be 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-flow 8s ease infinite;
 }
 
 @keyframes gradient-flow {
@@ -576,14 +601,14 @@ select.input {
 }
 
 .shimmer {
-  background: linear-gradient(90deg, rgba(0,0,0,0.03) 25%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.03) 75%);
+  background: linear-gradient(90deg, rgba(0,113,227,0.03) 25%, rgba(0,199,190,0.06) 50%, rgba(0,113,227,0.03) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius);
 }
 
 [data-theme="dark"] .shimmer {
-  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+  background: linear-gradient(90deg, rgba(109,213,250,0.04) 25%, rgba(218,119,242,0.07) 50%, rgba(109,213,250,0.04) 75%);
   background-size: 200% 100%;
 }
 
@@ -631,12 +656,21 @@ select.input {
 /* CARD GLASS GLOW (hover)                      */
 /* ============================================ */
 @keyframes glass-glow {
-  0%, 100% { box-shadow: var(--glass-shadow), inset 0 0.5px 0 var(--glass-border-inner), 0 0 0 0 rgba(0,122,255,0); }
-  50% { box-shadow: var(--glass-shadow), inset 0 0.5px 0 var(--glass-border-inner), 0 0 20px 2px rgba(0,122,255,0.06); }
+  0%, 100% { box-shadow: var(--glass-shadow), inset 0 0.5px 0 var(--glass-border-inner), 0 0 0 0 rgba(0,113,227,0); }
+  50% { box-shadow: var(--glass-shadow), inset 0 0.5px 0 var(--glass-border-inner), 0 0 24px 4px rgba(0,113,227,0.08); }
+}
+
+@keyframes glass-glow-dark {
+  0%, 100% { box-shadow: var(--glass-shadow), inset 0 0.5px 0 var(--glass-border-inner), 0 0 0 0 rgba(109,213,250,0); }
+  50% { box-shadow: var(--glass-shadow), inset 0 0.5px 0 var(--glass-border-inner), 0 0 28px 6px rgba(109,213,250,0.12); }
+}
+
+.card-glow:hover {
+  animation: glass-glow 2s ease-in-out infinite;
 }
 
 [data-theme="dark"] .card-glow:hover {
-  animation: glass-glow 2s ease-in-out infinite;
+  animation: glass-glow-dark 2s ease-in-out infinite;
 }
 
 /* ============================================ */
@@ -659,10 +693,11 @@ select.input {
   left: -100%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0,113,227,0.04), rgba(0,199,190,0.03), transparent);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s;
+  z-index: 1;
 }
 
 .card-shine:hover::after {
@@ -671,7 +706,7 @@ select.input {
 }
 
 [data-theme="dark"] .card-shine::after {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  background: linear-gradient(90deg, transparent, rgba(109,213,250,0.08), rgba(218,119,242,0.05), transparent);
 }
 
 /* ============================================ */

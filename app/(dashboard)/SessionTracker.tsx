@@ -323,11 +323,20 @@ export default function SessionTracker() {
   const isActive = session.active && !session.isStale;
   const isReadonly = mode === "readonly";
 
-  const statusGrad = isActive
+  const pillStyle: React.CSSProperties = isActive
     ? session.inOffice
-      ? "linear-gradient(135deg, #10b981, #059669)"
-      : "linear-gradient(135deg, #3b82f6, #2563eb)"
-    : "linear-gradient(135deg, #6b7280, #4b5563)";
+      ? {
+          background: "linear-gradient(135deg, #00c6a7 0%, #00d68f 50%, #34d399 100%)",
+          boxShadow: "0 0 20px rgba(0,198,167,0.4), 0 0 60px rgba(0,214,143,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
+        }
+      : {
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #a855f7 100%)",
+          boxShadow: "0 0 20px rgba(118,75,162,0.4), 0 0 60px rgba(168,85,247,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
+        }
+    : {
+        background: "linear-gradient(135deg, #64748b 0%, #475569 100%)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+      };
 
   const statusLabel = isActive
     ? session.inOffice
@@ -341,44 +350,44 @@ export default function SessionTracker() {
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: idle && isActive ? 0.65 : 1 }}
+        initial={{ y: 20, opacity: 0, scale: 0.9 }}
+        animate={{ y: 0, opacity: idle && isActive ? 0.65 : 1, scale: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
-        className="mx-auto flex w-fit items-center gap-3 rounded-full px-3 py-1.5 text-white shadow-lg"
-        style={{ background: statusGrad }}
+        className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white backdrop-blur-xl"
+        style={pillStyle}
       >
         {isActive && (
-          <span className="relative flex h-2 w-2 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-50" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
           </span>
         )}
 
-        <span className="text-[11px] font-semibold whitespace-nowrap">{statusLabel}</span>
+        <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">{statusLabel}</span>
 
         {isReadonly && isActive && (
-          <span className="text-[9px] font-medium opacity-70">
-            {isMobileRef.current ? "📱 synced" : "another device"}
+          <span className="text-[9px] font-semibold opacity-80 tracking-wide">
+            {isMobileRef.current ? "synced" : "another device"}
           </span>
         )}
 
         {session.isStale && session.active && (
-          <span className="text-[9px] font-medium opacity-70">inactive</span>
+          <span className="text-[9px] font-semibold opacity-75 tracking-wide">inactive</span>
         )}
 
         {idle && isActive && !isReadonly && (
-          <span className="text-[9px] font-medium opacity-70 animate-pulse">idle</span>
+          <span className="text-[9px] font-semibold opacity-75 animate-pulse tracking-wide">idle</span>
         )}
 
-        <span className="h-3 w-px bg-white/30" />
+        <span className="h-3.5 w-px bg-white/40 rounded-full" />
 
-        <span className="font-mono text-xs font-bold tabular-nums">
+        <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
           {isActive ? formatElapsed(elapsed) : "--:--:--"}
         </span>
 
-        <span className="h-3 w-px bg-white/30" />
+        <span className="h-3.5 w-px bg-white/40 rounded-full" />
 
-        <span className="text-[11px] font-bold tabular-nums whitespace-nowrap opacity-90">
+        <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
           {formatTodayHours(todayTotal)}
         </span>
       </motion.div>
