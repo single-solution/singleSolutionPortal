@@ -9,7 +9,11 @@ import {
   isSuperAdmin,
   isManager,
   isTeamLead,
-  isAdmin,
+  canManageCampaigns,
+  getCampaignScopeFilter,
+  getDeptEmployeeIds,
+  getDeptTeamIds,
+  getTeamMemberIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -22,38 +26,7 @@ export async function GET() {
   void Team;
   void User;
 
-  let filter: Record<string, unknown> = {};
-
-  if (isSuperAdmin(actor)) {
-    // sees all campaigns
-  } else if (isManager(actor)) {
-    if (actor.crossDepartmentAccess) {
-      // sees all
-    } else {
-      filter.$or = [
-        { "tags.employees": actor.id },
-        ...(actor.department ? [{ "tags.departments": actor.department }] : []),
-        ...(actor.teams.length > 0 ? [{ "tags.teams": { $in: actor.teams } }] : []),
-      ];
-      if ((filter.$or as unknown[]).length === 0) delete filter.$or;
-    }
-  } else if (isTeamLead(actor)) {
-    filter.$or = [
-      { "tags.employees": actor.id },
-      ...(actor.department ? [{ "tags.departments": actor.department }] : []),
-      ...(actor.leadOfTeams.length > 0 ? [{ "tags.teams": { $in: actor.leadOfTeams } }] : []),
-    ];
-    if ((filter.$or as unknown[]).length === 0) delete filter.$or;
-  } else {
-    filter.$or = [
-      { "tags.employees": actor.id },
-      ...(actor.department ? [{ "tags.departments": actor.department }] : []),
-      ...(actor.teams.length > 0 ? [{ "tags.teams": { $in: actor.teams } }] : []),
-    ];
-    if ((filter.$or as unknown[]).length === 0) {
-      filter["tags.employees"] = actor.id;
-    }
-  }
+  const filter = await getCampaignScopeFilter(actor);
 
   const campaigns = await Campaign.find(filter)
     .populate("tags.employees", "about.firstName about.lastName email userRole")
@@ -69,7 +42,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isAdmin(actor)) return forbidden();
+  if (!canManageCampaigns(actor)) return forbidden();
 
   await connectDB();
   const body = await req.json();
@@ -83,6 +56,45 @@ export async function POST(req: Request) {
     return badRequest(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
   }
 
+  const tagEmployees: string[] = body.tagEmployees ?? [];
+  const tagDepartments: string[] = body.tagDepartments ?? [];
+  const tagTeams: string[] = body.tagTeams ?? [];
+
+  if (!isSuperAdmin(actor)) {
+    if (isManager(actor)) {
+      if (!actor.crossDepartmentAccess && actor.department) {
+        if (tagDepartments.length > 0) {
+          const valid = tagDepartments.every((d) => d === actor.department);
+          if (!valid) return badRequest("Can only tag your own department");
+        }
+        if (tagTeams.length > 0) {
+          const deptTeams = await getDeptTeamIds(actor.department);
+          const allValid = tagTeams.every((t) => deptTeams.includes(t));
+          if (!allValid) return badRequest("Can only tag teams in your department");
+        }
+        if (tagEmployees.length > 0) {
+          const deptEmps = await getDeptEmployeeIds(actor.department);
+          const allValid = tagEmployees.every((e) => deptEmps.includes(e));
+          if (!allValid) return badRequest("Can only tag employees in your department");
+        }
+      }
+    } else if (isTeamLead(actor)) {
+      if (tagDepartments.length > 0) {
+        return badRequest("Team leads cannot tag departments — tag specific teams instead");
+      }
+      if (tagTeams.length > 0) {
+        const allValid = tagTeams.every((t) => actor.leadOfTeams.includes(t));
+        if (!allValid) return badRequest("Can only tag teams you lead");
+      }
+      if (tagEmployees.length > 0) {
+        const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+        const selfAndMembers = [...memberIds, actor.id];
+        const allValid = tagEmployees.every((e) => selfAndMembers.includes(e));
+        if (!allValid) return badRequest("Can only tag members of your teams");
+      }
+    }
+  }
+
   const campaign = await Campaign.create({
     name: body.name.trim(),
     description: body.description ?? "",
@@ -91,9 +103,9 @@ export async function POST(req: Request) {
     endDate: body.endDate || undefined,
     budget: body.budget ?? "",
     tags: {
-      employees: body.tagEmployees ?? [],
-      departments: body.tagDepartments ?? [],
-      teams: body.tagTeams ?? [],
+      employees: tagEmployees,
+      departments: tagDepartments,
+      teams: tagTeams,
     },
     notes: body.notes ?? "",
     isActive: true,

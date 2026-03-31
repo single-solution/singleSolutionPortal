@@ -211,6 +211,59 @@ export function canViewActivityLogs(actor: VerifiedUser): boolean {
   return isSuperAdmin(actor) || isManager(actor) || isTeamLead(actor);
 }
 
+/* ============================================ */
+/* CAMPAIGN SCOPE                               */
+/* ============================================ */
+
+export function canManageCampaigns(actor: VerifiedUser): boolean {
+  return isSuperAdmin(actor) || isManager(actor) || isTeamLead(actor);
+}
+
+export async function getDeptTeamIds(deptId: string): Promise<string[]> {
+  const teams = await Team.find({ department: deptId, isActive: true }).distinct("_id");
+  return teams.map((id) => id.toString());
+}
+
+export async function getDeptEmployeeIds(deptId: string): Promise<string[]> {
+  const users = await User.find({
+    department: deptId,
+    isActive: true,
+    userRole: { $ne: "superadmin" },
+  }).distinct("_id");
+  return users.map((id) => id.toString());
+}
+
+export async function getCampaignScopeFilter(actor: VerifiedUser): Promise<Record<string, unknown>> {
+  if (isSuperAdmin(actor)) return {};
+  if (isManager(actor) && actor.crossDepartmentAccess) return {};
+
+  const orClauses: Record<string, unknown>[] = [{ "tags.employees": actor.id }];
+
+  if (isManager(actor) && actor.department) {
+    orClauses.push({ "tags.departments": actor.department });
+    const deptTeams = await getDeptTeamIds(actor.department);
+    if (deptTeams.length > 0) orClauses.push({ "tags.teams": { $in: deptTeams } });
+    const deptEmps = await getDeptEmployeeIds(actor.department);
+    if (deptEmps.length > 0) orClauses.push({ "tags.employees": { $in: deptEmps } });
+  } else if (isTeamLead(actor)) {
+    if (actor.department) orClauses.push({ "tags.departments": actor.department });
+    if (actor.leadOfTeams.length > 0) {
+      orClauses.push({ "tags.teams": { $in: actor.leadOfTeams } });
+      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+      if (memberIds.length > 0) orClauses.push({ "tags.employees": { $in: memberIds } });
+    }
+  } else {
+    if (actor.department) orClauses.push({ "tags.departments": actor.department });
+    if (actor.teams.length > 0) orClauses.push({ "tags.teams": { $in: actor.teams } });
+  }
+
+  return { $or: orClauses };
+}
+
+export function canDeleteCampaign(actor: VerifiedUser): boolean {
+  return isSuperAdmin(actor) || isManager(actor);
+}
+
 export function canManageSettings(actor: VerifiedUser): boolean {
   return isSuperAdmin(actor);
 }
