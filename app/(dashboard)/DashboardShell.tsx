@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -323,9 +324,12 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-3 px-4 sm:h-14 sm:px-6">
           <Link
             href="/"
-            className="gradient-text shrink-0 text-[15px] font-bold tracking-tight sm:text-lg"
+            className="flex items-center gap-2 shrink-0"
           >
-            Single Solution Sync
+            <Logo size={28} />
+            <span className="gradient-text text-[15px] font-bold tracking-tight sm:text-lg">
+              Single Solution Sync
+            </span>
           </Link>
 
           <nav className="flex items-center gap-1">

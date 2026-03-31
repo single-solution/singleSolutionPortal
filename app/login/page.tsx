@@ -7,6 +7,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { PasswordInput } from "@/components/PasswordInput";
+import { Logo } from "@/components/Logo";
 
 const particles = Array.from({ length: 20 }, (_, i) => ({
   id: i,
@@ -107,6 +108,9 @@ function LoginForm() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
+          <div className="flex justify-center mb-4">
+            <Logo size={56} className="drop-shadow-lg" />
+          </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
             <span className="gradient-text-animated">Single Solution Sync</span>
           </h1>
