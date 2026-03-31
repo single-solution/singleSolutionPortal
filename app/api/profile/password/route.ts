@@ -1,11 +1,12 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import bcrypt from "bcryptjs";
-import { getSession, unauthorized, badRequest, ok } from "@/lib/helpers";
+import { getVerifiedSession } from "@/lib/permissions";
+import { unauthorized, badRequest, ok } from "@/lib/helpers";
 
 export async function PUT(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
   const body = await req.json();
@@ -16,7 +17,7 @@ export async function PUT(req: Request) {
 
   if (body.newPassword.length < 8) return badRequest("New password must be at least 8 characters");
 
-  const user = await User.findById(session.user.id).select("+password");
+  const user = await User.findById(actor.id).select("+password");
   if (!user) return badRequest("User not found");
 
   const valid = await bcrypt.compare(body.currentPassword, user.password);

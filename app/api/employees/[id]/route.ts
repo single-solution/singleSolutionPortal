@@ -1,22 +1,18 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
+import { getVerifiedSession, isSuperAdmin, isManager, canViewEmployee } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
   await connectDB();
-  const role = session.user.role;
-
-  if (role !== "superadmin" && role !== "manager" && session.user.id !== id) {
-    return forbidden();
-  }
 
   const user = await User.findById(id)
     .select("-password")
@@ -25,35 +21,42 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   if (!user) return notFound("Employee not found");
 
-  if (role === "manager" && session.user.id !== id) {
-    const me = await User.findById(session.user.id).select("department").lean();
-    if (me?.department?.toString() !== (user as Record<string, unknown>).department?.toString()) {
-      return forbidden();
-    }
-  }
+  const targetDept = user.department
+    ? (typeof user.department === "object" && "_id" in user.department ? (user.department as { _id: { toString(): string } })._id.toString() : user.department.toString())
+    : null;
+
+  if (!canViewEmployee(actor, id, targetDept)) return forbidden();
 
   return ok(user);
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-  const isSelf = session.user.id === id;
-  if (!isSelf && session.user.role !== "superadmin") return forbidden();
+
+  const isSelf = actor.id === id;
+
+  if (!isSelf && !isSuperAdmin(actor)) return forbidden();
 
   await connectDB();
   const body = await req.json();
 
-  const update: Record<string, unknown> = { updatedBy: session.user.id };
+  const update: Record<string, unknown> = { updatedBy: actor.id };
 
-  if (body.firstName !== undefined) update["about.firstName"] = body.firstName;
-  if (body.lastName !== undefined) update["about.lastName"] = body.lastName;
-  if (body.phone !== undefined) update["about.phone"] = body.phone;
+  if (isSelf) {
+    if (body.firstName !== undefined) update["about.firstName"] = body.firstName;
+    if (body.lastName !== undefined) update["about.lastName"] = body.lastName;
+    if (body.phone !== undefined) update["about.phone"] = body.phone;
+  }
 
-  if (session.user.role === "superadmin") {
+  if (isSuperAdmin(actor)) {
+    if (body.firstName !== undefined) update["about.firstName"] = body.firstName;
+    if (body.lastName !== undefined) update["about.lastName"] = body.lastName;
+    if (body.phone !== undefined) update["about.phone"] = body.phone;
+
     if (body.userRole) {
       if (body.userRole === "superadmin") return badRequest("Cannot promote to superadmin");
       update.userRole = body.userRole;
@@ -61,6 +64,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.department !== undefined) update.department = body.department || null;
     if (body.isActive !== undefined) update.isActive = body.isActive;
     if (body.workShift) update.workShift = body.workShift;
+    if (typeof body.crossDepartmentAccess === "boolean") update.crossDepartmentAccess = body.crossDepartmentAccess;
+    if (typeof body.teamStatsVisible === "boolean") update.teamStatsVisible = body.teamStatsVisible;
 
     if (body.email) {
       const dup = await User.findOne({ email: body.email.toLowerCase(), _id: { $ne: id } });
@@ -72,13 +77,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       if (dup) return badRequest("Username already in use");
       update.username = body.username.toLowerCase().trim();
     }
-  }
 
-  if (body.password && session.user.role === "superadmin") {
-    if (typeof body.password !== "string" || body.password.length < 8) {
-      return badRequest("Password must be at least 8 characters");
+    if (body.password) {
+      if (typeof body.password !== "string" || body.password.length < 8) {
+        return badRequest("Password must be at least 8 characters");
+      }
+      update.password = await bcrypt.hash(body.password, 12);
     }
-    update.password = await bcrypt.hash(body.password, 12);
   }
 
   const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
@@ -89,8 +94,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!user) return notFound("Employee not found");
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: "updated employee",
     entity: "employee",
     entityId: id,
@@ -101,22 +106,27 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!isSuperAdmin(actor)) return forbidden();
+
+  const { id } = await params;
+  if (!isValidId(id)) return badRequest("Invalid ID");
 
   await connectDB();
-  const { id } = await params;
 
-  if (!isValidId(id)) return badRequest("Invalid ID");
-  if (session.user.id === id) return badRequest("Cannot delete yourself");
+  if (actor.id === id) return badRequest("Cannot delete yourself");
+
+  const target = await User.findById(id).select("userRole").lean();
+  if (!target) return notFound("Employee not found");
+  if (target.userRole === "superadmin") return badRequest("Cannot delete superadmin");
 
   const user = await User.findByIdAndUpdate(id, { isActive: false }, { new: true }).select("-password").lean();
   if (!user) return notFound("Employee not found");
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: "deactivated employee",
     entity: "employee",
     entityId: id,

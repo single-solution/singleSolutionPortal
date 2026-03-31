@@ -1,28 +1,37 @@
 import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import {
+  getVerifiedSession,
+  isSuperAdmin,
+  isManager,
+  canManageTasks,
+  canAssignTaskTo,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
 
-  const role = session.user.role;
   let filter: Record<string, unknown> = { isActive: true };
 
-  if (role === "manager") {
-    const me = await User.findById(session.user.id).select("department").lean();
-    if (me?.department) {
-      const teamIds = await User.find({ department: me.department, isActive: true, userRole: { $ne: "superadmin" } }).distinct("_id");
+  if (isManager(actor)) {
+    if (actor.department) {
+      const teamIds = await User.find({
+        department: actor.department,
+        isActive: true,
+        userRole: { $ne: "superadmin" },
+      }).distinct("_id");
       filter.assignedTo = { $in: teamIds };
     } else {
-      filter.assignedTo = session.user.id;
+      filter.assignedTo = actor.id;
     }
-  } else if (role !== "superadmin") {
-    filter.assignedTo = session.user.id;
+  } else if (!isSuperAdmin(actor)) {
+    filter.assignedTo = actor.id;
   }
 
   const tasks = await ActivityTask.find(filter)
@@ -34,9 +43,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin" && session.user.role !== "manager") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!canManageTasks(actor)) return forbidden();
 
   await connectDB();
   const body = await req.json();
@@ -49,11 +58,8 @@ export async function POST(req: Request) {
   if (!assignee) return badRequest("Assignee not found");
   if (assignee.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
 
-  if (session.user.role === "manager") {
-    const me = await User.findById(session.user.id).select("department").lean();
-    if (!me?.department || !assignee.department || me.department.toString() !== assignee.department.toString()) {
-      return badRequest("Can only assign tasks to employees in your department");
-    }
+  if (!canAssignTaskTo(actor, assignee.department?.toString())) {
+    return badRequest("Can only assign tasks to employees in your department");
   }
 
   const task = await ActivityTask.create({
@@ -64,7 +70,7 @@ export async function POST(req: Request) {
     priority: body.priority ?? "medium",
     status: body.status ?? "pending",
     isActive: true,
-    createdBy: session.user.id,
+    createdBy: actor.id,
   });
 
   const populated = await ActivityTask.findById(task._id)
@@ -72,8 +78,8 @@ export async function POST(req: Request) {
     .lean();
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: "created task",
     entity: "task",
     entityId: task._id.toString(),

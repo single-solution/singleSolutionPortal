@@ -1,14 +1,14 @@
 import { connectDB } from "@/lib/db";
 import ActivityLog from "@/lib/models/ActivityLog";
-import { getSession, unauthorized, ok } from "@/lib/helpers";
+import { unauthorized, ok } from "@/lib/helpers";
+import { getVerifiedSession, canViewActivityLogs } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
-  const role = session.user.role;
-  if (role !== "superadmin" && role !== "manager") {
+  if (!canViewActivityLogs(actor)) {
     return ok({ logs: [] });
   }
 

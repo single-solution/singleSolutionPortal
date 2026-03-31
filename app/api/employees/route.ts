@@ -1,25 +1,30 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
-import { getSession, unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { getVerifiedSession, isSuperAdmin, isManager, isEmployee } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
 import { sendWelcomeEmail } from "@/lib/mail";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
 
-  const role = session.user.role;
   let filter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
 
-  if (role === "manager") {
-    const me = await User.findById(session.user.id).select("department");
-    if (me?.department) filter.department = me.department;
-  } else if (role !== "superadmin") {
-    filter._id = session.user.id;
+  if (isManager(actor)) {
+    if (actor.crossDepartmentAccess) {
+      // manager with cross-dept access sees all employees
+    } else if (actor.department) {
+      filter.department = actor.department;
+    } else {
+      filter._id = actor.id;
+    }
+  } else if (isEmployee(actor)) {
+    filter._id = actor.id;
   }
 
   const users = await User.find(filter)
@@ -28,16 +33,15 @@ export async function GET() {
     .sort({ createdAt: -1 })
     .lean();
 
-  // suppress TS unused warning
   void Department;
 
   return ok(users);
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!isSuperAdmin(actor)) return forbidden();
 
   await connectDB();
 
@@ -50,6 +54,9 @@ export async function POST(req: Request) {
 
   if (userRole === "superadmin") return badRequest("Cannot create superadmin accounts");
 
+  if (typeof password !== "string" || password.length < 8) {
+    return badRequest("Password must be at least 8 characters");
+  }
 
   const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }] });
   if (existing) return badRequest("Email or username already exists");
@@ -71,7 +78,7 @@ export async function POST(req: Request) {
     },
     isActive: true,
     isVerified: true,
-    createdBy: session.user.id,
+    createdBy: actor.id,
   });
 
   const populated = await User.findById(user._id)
@@ -83,8 +90,8 @@ export async function POST(req: Request) {
   sendWelcomeEmail(email, firstName, roleLabels[userRole] ?? userRole, password).catch(() => {});
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: "created employee",
     entity: "employee",
     entityId: user._id.toString(),

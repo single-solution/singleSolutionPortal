@@ -53,6 +53,8 @@ export interface IUser extends Document {
   resetToken?: string;
   resetTokenExpiry?: Date;
   lastSeenLogId?: string;
+  crossDepartmentAccess: boolean;
+  teamStatsVisible: boolean;
   isActive: boolean;
   isVerified: boolean;
   createdBy?: Types.ObjectId;
@@ -125,6 +127,8 @@ const userSchema = new Schema<IUser>(
     resetToken: String,
     resetTokenExpiry: Date,
     lastSeenLogId: { type: String, default: null },
+    crossDepartmentAccess: { type: Boolean, default: false },
+    teamStatsVisible: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
     isVerified: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },

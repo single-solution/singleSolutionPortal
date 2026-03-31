@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import SystemSettings from "@/lib/models/SystemSettings";
-import { getSession, unauthorized, forbidden, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, ok } from "@/lib/helpers";
+import { getVerifiedSession, canManageSettings } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 async function getOrCreateSettings() {
@@ -13,9 +14,8 @@ async function getOrCreateSettings() {
 }
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
   const settings = await getOrCreateSettings();
@@ -23,14 +23,14 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!canManageSettings(actor)) return forbidden();
 
   await connectDB();
   const body = await req.json();
 
-  const update: Record<string, unknown> = { updatedBy: session.user.id };
+  const update: Record<string, unknown> = { updatedBy: actor.id };
 
   if (body.office) {
     if (body.office.latitude !== undefined) update["office.latitude"] = body.office.latitude;
@@ -58,8 +58,8 @@ export async function PUT(req: Request) {
 
   const changed = Object.keys(update).filter((k) => k !== "updatedBy").join(", ");
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: "updated system settings",
     entity: "settings",
     details: changed,

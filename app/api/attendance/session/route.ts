@@ -3,7 +3,8 @@ import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, badRequest, ok } from "@/lib/helpers";
+import { getVerifiedSession } from "@/lib/permissions";
+import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice } from "@/lib/geo";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
@@ -24,23 +25,26 @@ function isSameDay(a: Date, b: Date) {
 
 // ─── GET: session state ────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
-  if (session.user.role === "superadmin") {
+  if (actor.role === "superadmin") {
     return ok({ activeSession: null, todayMinutes: 0, isStale: false });
   }
 
   await connectDB();
 
   const url = new URL(req.url);
-  const targetUserId = url.searchParams.get("userId") ?? session.user.id;
+  const targetUserId = url.searchParams.get("userId") ?? actor.id;
 
-  if (targetUserId !== session.user.id) {
-    if (session.user.role === "manager") {
-      const me = await User.findById(session.user.id).select("department").lean();
+  if (targetUserId !== actor.id) {
+    if (actor.role === "manager") {
       const target = await User.findById(targetUserId).select("department").lean();
-      if (!me?.department || !target?.department || me.department.toString() !== target.department.toString()) {
+      if (
+        !actor.department ||
+        !target?.department ||
+        actor.department !== target.department.toString()
+      ) {
         return ok({ activeSession: null });
       }
     } else {
@@ -73,9 +77,9 @@ export async function GET(req: NextRequest) {
 
 // ─── POST: check-in / check-out ───────────────────────────────────
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role === "superadmin") return ok({ message: "Superadmin is exempt from attendance tracking" });
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (actor.role === "superadmin") return ok({ message: "Superadmin is exempt from attendance tracking" });
 
   await connectDB();
 
@@ -96,9 +100,9 @@ export async function POST(req: Request) {
     if (body.isMobile) {
       return badRequest("Mobile devices cannot start attendance sessions. Use a laptop or PC.");
     }
-    return handleCheckIn(session.user.id, body);
+    return handleCheckIn(actor.id, body);
   } else if (action === "checkout") {
-    return handleCheckOut(session.user.id);
+    return handleCheckOut(actor.id);
   }
 
   return badRequest("Invalid action. Use 'checkin' or 'checkout'.");
@@ -106,9 +110,9 @@ export async function POST(req: Request) {
 
 // ─── PATCH: heartbeat + location ──────────────────────────────────
 export async function PATCH(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role === "superadmin") return ok({ status: "exempt" });
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (actor.role === "superadmin") return ok({ status: "exempt" });
 
   await connectDB();
 
@@ -123,7 +127,7 @@ export async function PATCH(req: Request) {
   const now = new Date();
 
   const active = await ActivitySession.findOne({
-    user: session.user.id,
+    user: actor.id,
     status: "active",
   });
 

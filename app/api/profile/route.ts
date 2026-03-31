@@ -1,16 +1,17 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, ok, notFound, badRequest } from "@/lib/helpers";
+import { getVerifiedSession } from "@/lib/permissions";
+import { unauthorized, ok, notFound, badRequest } from "@/lib/helpers";
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
 
-  const user = await User.findById(session.user.id)
+  const user = await User.findById(actor.id)
     .select("-password")
     .populate("department", "title slug")
     .lean();
@@ -20,8 +21,8 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
   const body = await req.json();
@@ -36,7 +37,7 @@ export async function PUT(req: Request) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       return badRequest("Invalid email format");
     }
-    const existing = await User.findOne({ email: trimmed, _id: { $ne: session.user.id } });
+    const existing = await User.findOne({ email: trimmed, _id: { $ne: actor.id } });
     if (existing) return badRequest("That email is already in use");
     update.email = trimmed;
   }
@@ -56,7 +57,7 @@ export async function PUT(req: Request) {
     }
   }
 
-  const user = await User.findByIdAndUpdate(session.user.id, { $set: update }, { new: true })
+  const user = await User.findByIdAndUpdate(actor.id, { $set: update }, { new: true })
     .select("-password")
     .populate("department", "title slug")
     .lean();

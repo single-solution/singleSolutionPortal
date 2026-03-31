@@ -1,12 +1,13 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { getVerifiedSession, canManageDepartments } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
 
@@ -31,9 +32,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!canManageDepartments(actor)) return forbidden();
 
   await connectDB();
   const body = await req.json();
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
     description: body.description ?? "",
     manager: body.managerId || undefined,
     isActive: true,
-    createdBy: session.user.id,
+    createdBy: actor.id,
   });
 
   const populated = await Department.findById(dept._id)
@@ -58,8 +59,8 @@ export async function POST(req: Request) {
     .lean();
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: "created department",
     entity: "department",
     entityId: dept._id.toString(),

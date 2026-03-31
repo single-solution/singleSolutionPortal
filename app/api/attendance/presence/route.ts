@@ -2,17 +2,18 @@ import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, ok } from "@/lib/helpers";
+import { unauthorized, ok } from "@/lib/helpers";
+import { getVerifiedSession, isAdmin, canViewTeamStats, isManager, isEmployee } from "@/lib/permissions";
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
-  if (session.user.role !== "superadmin" && session.user.role !== "manager") {
+  if (!isAdmin(actor) && !canViewTeamStats(actor)) {
     return ok([]);
   }
 
@@ -21,9 +22,10 @@ export async function GET() {
   const today = startOfDay(new Date());
 
   let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
-  if (session.user.role === "manager") {
-    const me = await User.findById(session.user.id).select("department").lean();
-    if (me?.department) empFilter.department = me.department;
+  if (isManager(actor) && !actor.crossDepartmentAccess && actor.department) {
+    empFilter.department = actor.department;
+  } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
+    empFilter.department = actor.department;
   }
 
   const employees = await User.find(empFilter)

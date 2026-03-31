@@ -1,11 +1,19 @@
 import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
-import { getSession, unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
+import User from "@/lib/models/User";
+import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
+import {
+  getVerifiedSession,
+  isAdmin,
+  isManager,
+  canManageTasks,
+  canAssignTaskTo,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -16,9 +24,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const task = await ActivityTask.findById(id);
   if (!task) return notFound("Task not found");
 
-  const isAdmin = session.user.role === "superadmin" || session.user.role === "manager";
-  const isOwner = task.assignedTo.toString() === session.user.id;
-  if (!isAdmin && !isOwner) return forbidden();
+  const isPrivileged = isAdmin(actor);
+  const isOwner = task.assignedTo.toString() === actor.id;
+  if (!isPrivileged && !isOwner) return forbidden();
 
   const validStatuses = ["pending", "in-progress", "completed", "cancelled"];
   const validPriorities = ["low", "medium", "high", "urgent"];
@@ -30,7 +38,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return badRequest(`Invalid priority. Must be one of: ${validPriorities.join(", ")}`);
   }
 
-  if (isOwner && !isAdmin) {
+  if (isOwner && !isPrivileged) {
     const ownerAllowed = ["status"];
     const attempted = Object.keys(body);
     const disallowed = attempted.filter((k) => !ownerAllowed.includes(k));
@@ -39,26 +47,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  if (isAdmin) {
+  if (isPrivileged) {
     if (body.title !== undefined) task.title = body.title;
     if (body.description !== undefined) task.description = body.description;
     if (body.priority !== undefined) task.priority = body.priority;
     if (body.deadline !== undefined) task.deadline = body.deadline;
     if (body.assignedTo) {
-      const { default: UserModel } = await import("@/lib/models/User");
-      const target = await UserModel.findById(body.assignedTo).select("userRole department").lean();
+      const target = await User.findById(body.assignedTo).select("userRole department").lean();
       if (target?.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
-      if (session.user.role === "manager") {
-        const me = await (await import("@/lib/models/User")).default.findById(session.user.id).select("department").lean();
-        if (!me?.department || !target?.department || me.department.toString() !== target.department.toString()) {
-          return badRequest("Can only assign tasks to employees in your department");
-        }
+      if (isManager(actor) && !canAssignTaskTo(actor, target?.department?.toString())) {
+        return badRequest("Can only assign tasks to employees in your department");
       }
       task.assignedTo = body.assignedTo;
     }
   }
   if (body.status !== undefined) task.status = body.status;
-  task.updatedBy = session.user.id as unknown as typeof task.updatedBy;
+  task.updatedBy = actor.id as unknown as typeof task.updatedBy;
 
   await task.save();
 
@@ -68,8 +72,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const changes = Object.keys(body).filter((k) => k !== "assignedTo").join(", ");
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: `updated task${body.status ? ` → ${body.status}` : ""}`,
     entity: "task",
     entityId: id,
@@ -80,9 +84,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin" && session.user.role !== "manager") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!canManageTasks(actor)) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -92,11 +96,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const task = await ActivityTask.findById(id).populate("assignedTo", "department");
   if (!task) return notFound("Task not found");
 
-  if (session.user.role === "manager") {
-    const { default: UserModel } = await import("@/lib/models/User");
-    const me = await UserModel.findById(session.user.id).select("department").lean();
+  if (isManager(actor)) {
     const assigneeDept = (task.assignedTo as unknown as { department?: { toString(): string } })?.department;
-    if (!me?.department || !assigneeDept || me.department.toString() !== assigneeDept.toString()) {
+    if (!canAssignTaskTo(actor, assigneeDept?.toString())) {
       return forbidden();
     }
   }
@@ -105,8 +107,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   await task.save();
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    userEmail: actor.email,
+    userName: "",
     action: "deleted task",
     entity: "task",
     entityId: id,

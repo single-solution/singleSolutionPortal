@@ -3,12 +3,20 @@ import DailyAttendance from "@/lib/models/DailyAttendance";
 import ActivitySession from "@/lib/models/ActivitySession";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, ok } from "@/lib/helpers";
+import { unauthorized, ok } from "@/lib/helpers";
+import {
+  getVerifiedSession,
+  canViewAttendance,
+  canViewTeamStats,
+  isSuperAdmin,
+  isManager,
+  isEmployee,
+} from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
 
@@ -16,27 +24,16 @@ export async function GET(req: NextRequest) {
   const type = url.searchParams.get("type") ?? "daily";
   const year = parseInt(url.searchParams.get("year") ?? String(new Date().getFullYear()));
   const month = parseInt(url.searchParams.get("month") ?? String(new Date().getMonth() + 1));
-  const userId = url.searchParams.get("userId") ?? session.user.id;
+  const userId = url.searchParams.get("userId") ?? actor.id;
 
-  const isAdmin = session.user.role === "superadmin" || session.user.role === "manager";
+  if (type === "team") {
+    if (!canViewTeamStats(actor)) return ok([]);
 
-  if (!isAdmin && userId !== session.user.id) {
-    return ok([]);
-  }
-
-  if (session.user.role === "manager" && userId !== session.user.id) {
-    const me = await User.findById(session.user.id).select("department").lean();
-    const target = await User.findById(userId).select("department").lean();
-    if (!me?.department || !target?.department || me.department.toString() !== target.department.toString()) {
-      return ok([]);
-    }
-  }
-
-  if (type === "team" && isAdmin) {
     let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
-    if (session.user.role === "manager") {
-      const me = await User.findById(session.user.id).select("department").lean();
-      if (me?.department) empFilter.department = me.department;
+    if (isManager(actor) && !actor.crossDepartmentAccess && actor.department) {
+      empFilter.department = actor.department;
+    } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
+      empFilter.department = actor.department;
     }
 
     const employees = await User.find(empFilter)
@@ -54,6 +51,14 @@ export async function GET(req: NextRequest) {
 
     return ok(team);
   }
+
+  let targetDept: string | null | undefined = undefined;
+  if (userId !== actor.id && isManager(actor) && !actor.crossDepartmentAccess && !isSuperAdmin(actor)) {
+    const target = await User.findById(userId).select("department").lean();
+    targetDept = target?.department?.toString();
+  }
+
+  if (!canViewAttendance(actor, userId, targetDept)) return ok([]);
 
   if (type === "monthly") {
     const stats = await MonthlyAttendanceStats.findOne({
