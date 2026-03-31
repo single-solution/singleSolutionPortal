@@ -198,7 +198,7 @@ function OverviewContent() {
             <div className="flex w-full items-center justify-between border-t border-[var(--border)] pt-3">
               <div className="text-center"><span className="text-caption">Sessions</span><p className="text-callout font-bold" style={{ color: "var(--fg)" }}>3</p></div>
               <div className="text-center"><span className="text-caption">Remote</span><p className="text-callout font-bold" style={{ color: "var(--fg)" }}>{formatMinutes(me.today.totalMinutes - me.today.officeMinutes)}</p></div>
-              <div className="text-center"><span className="text-caption">{me.today.isOnTime ? "On time" : "Late by"}</span><p className="text-callout font-bold" style={{ color: me.today.isOnTime ? "var(--teal)" : "var(--amber)" }}>{me.today.isOnTime ? "✓" : `${me.today.lateBy}m`}</p></div>
+              <div className="text-center"><span className="text-caption">{me.today.isOnTime ? "On time" : "Late by"}</span><p className="text-callout font-bold" style={{ color: me.today.isOnTime ? "var(--teal)" : "var(--amber)" }}>{me.today.isOnTime ? "✓" : formatMinutes(me.today.lateBy)}</p></div>
             </div>
           </div>
         </motion.div>
@@ -262,7 +262,7 @@ function OverviewContent() {
                 <motion.li key={emp._id} variants={slideUpItem} initial="hidden" animate="visible" className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--glass-bg)" }}>
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: "rgba(255,159,10,0.15)" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="var(--amber)" /></svg></span>
                   <div className="min-w-0 flex-1"><p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p><p className="text-caption">Late by {formatMinutes(emp.today.lateBy)}</p></div>
-                  <span className="text-footnote tabular-nums font-bold" style={{ color: "var(--amber)" }}>+{emp.today.lateBy}m</span>
+                  <span className="text-footnote tabular-nums font-bold" style={{ color: "var(--amber)" }}>+{formatMinutes(emp.today.lateBy)}</span>
                 </motion.li>
               ))}
             </ul>

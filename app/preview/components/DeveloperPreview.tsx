@@ -271,7 +271,7 @@ function AttendanceContent() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`badge ${STATUS_BADGE_CLASS[day.status]}`}>{STATUS_LABELS[day.status]}</span>
-                    {day.lateBy > 0 && <span className="text-caption font-semibold" style={{ color: "var(--amber)" }}>+{day.lateBy}m late</span>}
+                    {day.lateBy > 0 && <span className="text-caption font-semibold" style={{ color: "var(--amber)" }}>+{formatMinutes(day.lateBy)} late</span>}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-3 text-caption" style={{ color: "var(--fg-secondary)" }}>
                     <span>In: {day.firstEntry}</span>

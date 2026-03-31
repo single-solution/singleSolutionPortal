@@ -559,7 +559,7 @@ function SelfAssessmentSection({ pa }: { pa: PersonalAttendance }) {
             <div className="text-center">
               <span className="text-caption">{pa.isOnTime ? "On time" : "Late by"}</span>
               <p className="text-callout font-bold" style={{ color: pa.isOnTime ? "var(--teal)" : "var(--amber)" }}>
-                {pa.isOnTime ? "\u2713" : `${pa.lateBy}m`}
+                {pa.isOnTime ? "\u2713" : formatMinutes(pa.lateBy)}
               </p>
             </div>
           </div>
@@ -670,66 +670,66 @@ function ManagerOverview({
     [presenceEmps, presenceFilter],
   );
 
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-  const timeKey = `${now.getHours()}-${now.getMinutes()}`;
-
   const statItems = [
     { title: "My Team", value: totalEmp, caption: "Active roster", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
     { title: "Present Today", value: presentToday, caption: "Non-absent", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
     { title: "On-Time Rate", value: onTimePct, caption: "Among present", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
   ];
 
+  const pa = personalAttendance;
+  const myTodayHours = pa ? pa.todayMinutes / 60 : 0;
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Header: Greeting + Time Card */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Header: Greeting + Own Stats (compact) */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
-          <p className="text-caption mb-0.5">Single Solution Sync</p>
           <h1 className="text-title">
             <span className="gradient-text">{getGreeting()}</span>
             <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
           </h1>
-          <p className="text-subhead mt-1">
-            You have {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending
+          <p className="text-subhead mt-0.5">
+            {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending
           </p>
         </motion.div>
-        <motion.div className="flex shrink-0 items-center gap-3" variants={slideFromRight} initial="hidden" animate="visible">
-          <div className="card group relative overflow-hidden p-3 sm:min-w-[180px]">
-            <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
-            <p className="text-caption mb-0.5">Local time</p>
-            <AnimatePresence mode="wait">
-              <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
-                <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
-                <span className="text-caption">{formatClockDate(now)}</span>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </motion.div>
+        {pa && (
+          <motion.div className="flex shrink-0 flex-wrap items-center gap-2" variants={slideFromRight} initial="hidden" animate="visible">
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
+              <svg className="h-4 w-4 shrink-0" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{myTodayHours >= 1 ? myTodayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</span>
+              <span className="text-caption">today</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pa.isOnTime ? "var(--teal)" : "var(--amber)" }} />
+              <span className="text-callout font-semibold" style={{ color: pa.isOnTime ? "var(--teal)" : "var(--amber)" }}>{pa.isOnTime ? "On time" : formatMinutes(pa.lateBy) + " late"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
+              <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.todaySessions}</span>
+              <span className="text-caption">{pa.todaySessions === 1 ? "session" : "sessions"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
+              <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.monthlyAvgHours.toFixed(1)}h</span>
+              <span className="text-caption">avg/day</span>
+            </div>
+          </motion.div>
+        )}
       </header>
 
-      {/* 3 KPI Stat Cards */}
+      {/* 3 KPI Team Stat Cards */}
       <motion.div className="grid grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
         {statItems.map((stat, i) => (
-          <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
+          <motion.div key={stat.title} className="card group relative overflow-hidden p-3 sm:p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i % blobGradients.length] }} />
-            <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>
+            <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-white mb-1.5" style={{ background: statIconGradients[i] }}>
               {stat.icon}
             </div>
-            <p className="text-subhead">{stat.title}</p>
-            <p className="text-[22px] sm:text-[26px] font-semibold tabular-nums mt-0.5" style={{ color: "var(--fg)" }}>
+            <p className="text-caption">{stat.title}</p>
+            <p className="text-[20px] sm:text-[24px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
               <AnimatedNumber value={stat.value} />{stat.title === "On-Time Rate" ? "%" : ""}
             </p>
-            <p className="text-caption mt-0.5">{stat.caption}</p>
           </motion.div>
         ))}
       </motion.div>
-
-      {/* Self Assessment */}
-      {personalAttendance && <SelfAssessmentSection pa={personalAttendance} />}
 
       {/* Live Presence with filter toggles + fixed height scroll */}
       <motion.section className="card relative overflow-hidden" variants={slideUpItem} initial="hidden" animate="visible">
