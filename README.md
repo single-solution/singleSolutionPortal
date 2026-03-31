@@ -156,11 +156,15 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **System Settings** (SuperAdmin only): company name, timezone, office geofence (lat/lng/radius), shift defaults (start time, work hours, work days)
 - **Dark / Light / System** theme toggle (persisted to localStorage, no flash on load)
 
-### Notifications
+### Activity Log & Notifications
 
-- Dynamic attendance alerts (absent, late, overtime employees) — generated from daily attendance data
-- Browser push notifications with permission prompt (Notification API)
-- In-app notification dropdown in header
+- **DB-backed activity log** (`ActivityLog` model) — every CRUD action (employees, departments, tasks, settings) is recorded with user, action, entity, and details
+- **Cross-device read sync** — `lastSeenLogId` cursor on `User` model, synced via `GET/PUT /api/user/last-seen`
+- **30s polling** — bell automatically fetches latest 20 logs every 30 seconds
+- **Mark as read on open** — opening the bell panel marks all current entries as seen (sets `lastSeenLogId` to newest log)
+- **Unseen badge** — red badge with count (capped at 9+), derived from entries above `lastSeenLogId`
+- **Entity-colored dots** — blue (employee), green (department), amber (task), purple (attendance), gray (settings), rose (auth)
+- **"Mark all read" button** — persists to server for cross-device consistency
 
 ### PWA & Offline
 
@@ -254,21 +258,24 @@ app/
     auth/[...nextauth]/  # NextAuth route handler
     auth/forgot-password/# Token generation + email
     auth/reset-password/ # Token validation + password update
-    employees/           # CRUD with role scoping
-    departments/         # CRUD with manager population
-    tasks/               # CRUD with team scoping
+    employees/           # CRUD with role scoping + activity logging
+    departments/         # CRUD with manager population + activity logging
+    tasks/               # CRUD with team scoping + activity logging
     attendance/
       session/           # Check-in, check-out, heartbeat PATCH, session GET
       presence/          # Real-time employee status for dashboard
+    activity-logs/       # GET latest 20 activity log entries
+    user/last-seen/      # GET + PUT lastSeenLogId for notification read sync
     profile/             # Self profile + base64 image upload
     profile/password/    # Password change with current password validation
-    settings/            # SystemSettings CRUD (SuperAdmin only)
+    settings/            # SystemSettings CRUD (SuperAdmin only) + activity logging
     test-email/          # SMTP testing endpoint
 components/
   PasswordInput.tsx      # Reusable show/hide password field
   PasswordStrength.tsx   # Animated 5-bar strength meter
   ToasterProvider.tsx    # Global glass-styled toast notifications
 lib/
+  activityLogger.ts     # Fire-and-forget logActivity() utility
   auth.ts               # NextAuth config (credentials, JWT, callbacks)
   auth.config.ts        # Middleware auth config with route guards
   db.ts                 # MongoDB connection singleton
@@ -278,7 +285,8 @@ lib/
   rateLimit.ts          # In-memory rate limiter
   motion.ts             # Framer Motion animation presets
   models/
-    User.ts             # User (roles, shifts, BD fields, reset tokens)
+    ActivityLog.ts      # Append-only activity log (user, action, entity, details)
+    User.ts             # User (roles, shifts, BD fields, reset tokens, lastSeenLogId)
     Department.ts       # Department with manager ref
     ActivitySession.ts  # Session with office segments + heartbeat lastActivity
     ActivityTask.ts     # Task with priority, deadline, status

@@ -52,6 +52,7 @@ export interface IUser extends Document {
   };
   resetToken?: string;
   resetTokenExpiry?: Date;
+  lastSeenLogId?: string;
   isActive: boolean;
   isVerified: boolean;
   createdBy?: Types.ObjectId;
@@ -123,6 +124,7 @@ const userSchema = new Schema<IUser>(
     },
     resetToken: String,
     resetTokenExpiry: Date,
+    lastSeenLogId: { type: String, default: null },
     isActive: { type: Boolean, default: true },
     isVerified: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },

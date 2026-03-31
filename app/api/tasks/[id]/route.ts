@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
 import { getSession, unauthorized, forbidden, notFound, ok, badRequest } from "@/lib/helpers";
+import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -50,6 +51,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .populate("assignedTo", "about.firstName about.lastName email userRole")
     .lean();
 
+  const changes = Object.keys(body).filter((k) => k !== "assignedTo").join(", ");
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: `updated task${body.status ? ` → ${body.status}` : ""}`,
+    entity: "task",
+    entityId: id,
+    details: changes ? `Changed: ${changes}` : task.title,
+  });
+
   return ok(populated);
 }
 
@@ -66,6 +77,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   task.isActive = false;
   await task.save();
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "deleted task",
+    entity: "task",
+    entityId: id,
+    details: task.title,
+  });
 
   return ok({ message: "Task deleted" });
 }

@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
 import { getSession, unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
 import { sendWelcomeEmail } from "@/lib/mail";
 
@@ -77,6 +78,15 @@ export async function POST(req: Request) {
 
   const roleLabels: Record<string, string> = { superadmin: "Super Admin", manager: "Manager", businessDeveloper: "Business Developer", developer: "Developer" };
   sendWelcomeEmail(email, firstName, roleLabels[userRole] ?? userRole, password).catch(() => {});
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "created employee",
+    entity: "employee",
+    entityId: user._id.toString(),
+    details: `${firstName} ${lastName ?? ""} (${email})`.trim(),
+  });
 
   return ok(populated);
 }

@@ -42,11 +42,36 @@ const notifPanelVariants = {
   exit: { opacity: 0, y: -8, scale: 0.98 },
 };
 
-interface Notification {
-  id: string;
-  text: string;
-  time: string;
-  dotClass: string;
+interface LogEntry {
+  _id: string;
+  userEmail: string;
+  userName: string;
+  action: string;
+  entity: string;
+  entityId?: string;
+  details?: string;
+  createdAt: string;
+}
+
+const ENTITY_COLORS: Record<string, string> = {
+  employee: "bg-blue-500",
+  department: "bg-emerald-500",
+  task: "bg-amber-500",
+  attendance: "bg-purple-500",
+  settings: "bg-gray-500",
+  auth: "bg-rose-500",
+};
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 interface DashboardShellProps {
@@ -67,52 +92,44 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [themeOpen, setThemeOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [unseenCount, setUnseenCount] = useState(0);
+  const lastSeenRef = useRef<string | null>(null);
   const [installDismissed, setInstallDismissed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const themeRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (user.role !== "superadmin" && user.role !== "manager") return;
-    fetch("/api/attendance/presence")
-      .then((r) => r.json())
-      .then((data: Array<{ firstName: string; lastName: string; status: string; todayMinutes: number }>) => {
-        if (!Array.isArray(data)) return;
-        const notifs: Notification[] = [];
-        let idx = 0;
-        for (const p of data) {
-          if (p.status === "absent") {
-            notifs.push({ id: String(++idx), text: `${p.firstName} ${p.lastName} is absent today`, time: "Today", dotClass: "bg-rose-500" });
-          } else if (p.status === "late") {
-            notifs.push({ id: String(++idx), text: `${p.firstName} ${p.lastName} arrived late`, time: "Today", dotClass: "bg-amber-500" });
-          } else if (p.status === "overtime") {
-            notifs.push({ id: String(++idx), text: `${p.firstName} ${p.lastName} is in overtime`, time: "Today", dotClass: "bg-purple-500" });
-          }
-          if (notifs.length >= 10) break;
-        }
-        if (notifs.length === 0) {
-          notifs.push({ id: "0", text: "No attendance alerts today", time: "Now", dotClass: "bg-green-500" });
-        }
-        setNotifications(notifs);
+  const fetchLogs = useCallback(async () => {
+    try {
+      const [logsRes, seenRes] = await Promise.all([
+        fetch("/api/activity-logs?limit=20"),
+        fetch("/api/user/last-seen"),
+      ]);
+      if (!logsRes.ok) return;
+      const data = await logsRes.json();
+      const fetched: LogEntry[] = data.logs || [];
+      setLogs(fetched);
 
-        if (notifs.length > 0 && notifs[0].id !== "0" && "Notification" in window) {
-          if (Notification.permission === "default") {
-            Notification.requestPermission();
-          } else if (Notification.permission === "granted") {
-            const absentCount = data.filter((p) => p.status === "absent").length;
-            const lateCount = data.filter((p) => p.status === "late").length;
-            if (absentCount > 0 || lateCount > 0) {
-              const parts = [];
-              if (absentCount > 0) parts.push(`${absentCount} absent`);
-              if (lateCount > 0) parts.push(`${lateCount} late`);
-              new Notification("Attendance Alert", { body: parts.join(", "), icon: "/icons/icon-192.png", tag: "attendance-daily" });
-            }
-          }
-        }
-      })
-      .catch(() => {});
-  }, [user.role]);
+      const stored = seenRes.ok ? (await seenRes.json()).lastSeenLogId : null;
+      lastSeenRef.current = stored;
+
+      if (stored && fetched.length) {
+        const idx = fetched.findIndex((l) => l._id === stored);
+        setUnseenCount(idx === -1 ? fetched.length : idx);
+      } else if (fetched.length) {
+        setUnseenCount(fetched.length);
+      } else {
+        setUnseenCount(0);
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchLogs]);
 
   useEffect(() => {
     function handleBIP(e: Event) {
@@ -325,60 +342,110 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             </div>
 
             {/* Notification bell */}
-            {(user.role === "superadmin" || user.role === "manager") && (
-              <div className="relative" ref={notifRef}>
-                <button
-                  type="button"
-                  onClick={() => { setNotificationsOpen((o) => !o); setThemeOpen(false); }}
-                  className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
-                  aria-label="Notifications"
-                >
-                  <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.082A8.25 8.25 0 0021.75 8.25a8.25 8.25 0 00-16.5 0 8.25 8.25 0 001.439 8.75 23.848 23.848 0 005.454 1.082m-5.454-1.082A2.25 2.25 0 0012 19.5a2.25 2.25 0 002.25-2.418" />
-                  </svg>
-                  {notifications.length > 0 && (
-                    <motion.span
-                      className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
-                      style={{ background: "var(--rose)" }}
-                      animate={{ scale: [1, 1.15, 1] }}
-                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      {notifications.length}
-                    </motion.span>
-                  )}
-                </button>
-                <AnimatePresence>
-                  {notificationsOpen && (
-                    <motion.div
-                      className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),20rem)] overflow-hidden"
-                      style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
-                      variants={notifPanelVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                    >
-                      <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
-                        <span className="text-headline text-sm">Notifications</span>
-                        <button type="button" className="text-footnote font-medium" style={{ color: "var(--primary)" }} onClick={() => { setNotifications([]); setNotificationsOpen(false); }}>
+            <div className="relative" ref={notifRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  const wasOpen = notificationsOpen;
+                  setNotificationsOpen((o) => !o);
+                  setThemeOpen(false);
+                  if (!wasOpen && logs.length > 0) {
+                    setUnseenCount(0);
+                    fetch("/api/user/last-seen", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ lastSeenLogId: logs[0]._id }),
+                    }).catch(() => {});
+                    lastSeenRef.current = logs[0]._id;
+                  }
+                }}
+                className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
+                aria-label="Notifications"
+              >
+                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.082A8.25 8.25 0 0021.75 8.25a8.25 8.25 0 00-16.5 0 8.25 8.25 0 001.439 8.75 23.848 23.848 0 005.454 1.082m-5.454-1.082A2.25 2.25 0 0012 19.5a2.25 2.25 0 002.25-2.418" />
+                </svg>
+                {unseenCount > 0 && (
+                  <motion.span
+                    className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                    style={{ background: "var(--rose)" }}
+                    animate={{ scale: [1, 1.15, 1] }}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    {unseenCount > 9 ? "9+" : unseenCount}
+                  </motion.span>
+                )}
+              </button>
+              <AnimatePresence>
+                {notificationsOpen && (
+                  <motion.div
+                    className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),22rem)] overflow-hidden"
+                    style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
+                    variants={notifPanelVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                  >
+                    <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
+                      <span className="text-headline text-sm">Activity Log</span>
+                      {logs.length > 0 && (
+                        <button
+                          type="button"
+                          className="text-footnote font-medium"
+                          style={{ color: "var(--primary)" }}
+                          onClick={() => {
+                            if (logs.length > 0) {
+                              setUnseenCount(0);
+                              fetch("/api/user/last-seen", {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ lastSeenLogId: logs[0]._id }),
+                              }).catch(() => {});
+                              lastSeenRef.current = logs[0]._id;
+                            }
+                            setNotificationsOpen(false);
+                          }}
+                        >
                           Mark all read
                         </button>
-                      </div>
-                      <motion.ul className="max-h-[min(60vh,320px)] overflow-y-auto p-2" variants={staggerContainer} initial="hidden" animate="visible">
-                        {notifications.map((n) => (
-                          <motion.li key={n.id} variants={slideUpItem} className="flex cursor-default gap-2 rounded-lg px-2 py-2.5 text-callout" style={{ color: "var(--fg)" }} whileHover={{ x: 4 }}>
-                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.dotClass}`} />
+                      )}
+                    </div>
+                    <motion.ul className="max-h-[min(60vh,360px)] overflow-y-auto p-2" variants={staggerContainer} initial="hidden" animate="visible">
+                      {logs.length === 0 ? (
+                        <li className="py-6 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No activity yet</li>
+                      ) : logs.map((log, i) => {
+                        const isSeen = lastSeenRef.current
+                          ? i >= logs.findIndex((l) => l._id === lastSeenRef.current) && logs.findIndex((l) => l._id === lastSeenRef.current) !== -1
+                          : false;
+                        return (
+                          <motion.li
+                            key={log._id}
+                            variants={slideUpItem}
+                            className="flex gap-2.5 rounded-lg px-2 py-2.5 text-callout transition-colors"
+                            style={{ color: "var(--fg)", opacity: isSeen ? 0.55 : 1 }}
+                            whileHover={{ x: 4 }}
+                          >
+                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ENTITY_COLORS[log.entity] || "bg-gray-400"}`} />
                             <div className="min-w-0 flex-1">
-                              <p className="leading-snug">{n.text}</p>
-                              <p className="text-footnote mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{n.time}</p>
+                              <p className="leading-snug">
+                                <span className="font-semibold">{log.userName || log.userEmail}</span>{" "}
+                                {log.action}
+                              </p>
+                              {log.details && (
+                                <p className="text-footnote mt-0.5 line-clamp-1" style={{ color: "var(--fg-secondary)" }}>{log.details}</p>
+                              )}
+                              <p className="text-footnote mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                                {timeAgo(log.createdAt)} · {log.entity}
+                              </p>
                             </div>
                           </motion.li>
-                        ))}
-                      </motion.ul>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+                        );
+                      })}
+                    </motion.ul>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Settings link */}
             <Link

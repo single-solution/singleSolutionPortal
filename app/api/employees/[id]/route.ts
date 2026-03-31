@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import { getSession, unauthorized, forbidden, badRequest, notFound, ok } from "@/lib/helpers";
+import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -77,6 +78,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .lean();
 
   if (!user) return notFound("Employee not found");
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "updated employee",
+    entity: "employee",
+    entityId: id,
+    details: `${(user as Record<string, unknown> & { about?: { firstName?: string; lastName?: string } }).about?.firstName ?? ""} ${(user as Record<string, unknown> & { about?: { firstName?: string; lastName?: string } }).about?.lastName ?? ""}`.trim(),
+  });
+
   return ok(user);
 }
 
@@ -92,6 +103,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const user = await User.findByIdAndUpdate(id, { isActive: false }, { new: true }).select("-password").lean();
   if (!user) return notFound("Employee not found");
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "deactivated employee",
+    entity: "employee",
+    entityId: id,
+  });
 
   return ok({ message: "Employee deactivated" });
 }

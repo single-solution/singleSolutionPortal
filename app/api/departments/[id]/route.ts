@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import { getSession, unauthorized, forbidden, notFound, ok } from "@/lib/helpers";
+import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -22,6 +23,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .lean();
 
   if (!dept) return notFound("Department not found");
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "updated department",
+    entity: "department",
+    entityId: id,
+    details: (dept as Record<string, unknown> & { title?: string }).title ?? "",
+  });
+
   return ok(dept);
 }
 
@@ -35,6 +46,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const dept = await Department.findByIdAndUpdate(id, { isActive: false }, { new: true }).lean();
   if (!dept) return notFound("Department not found");
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "deleted department",
+    entity: "department",
+    entityId: id,
+  });
 
   return ok({ message: "Department deactivated" });
 }

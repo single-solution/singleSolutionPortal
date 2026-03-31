@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import SystemSettings from "@/lib/models/SystemSettings";
 import { getSession, unauthorized, forbidden, ok } from "@/lib/helpers";
+import { logActivity } from "@/lib/activityLogger";
 
 async function getOrCreateSettings() {
   let settings = await SystemSettings.findOne({ key: "global" }).lean();
@@ -54,6 +55,15 @@ export async function PUT(req: Request) {
     { $set: update },
     { new: true, upsert: true },
   ).lean();
+
+  const changed = Object.keys(update).filter((k) => k !== "updatedBy").join(", ");
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "updated system settings",
+    entity: "settings",
+    details: changed,
+  });
 
   return ok(settings);
 }

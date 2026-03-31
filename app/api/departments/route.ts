@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import { getSession, unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { logActivity } from "@/lib/activityLogger";
 
 export async function GET() {
   const session = await getSession();
@@ -50,6 +51,15 @@ export async function POST(req: Request) {
   const populated = await Department.findById(dept._id)
     .populate("manager", "about.firstName about.lastName email")
     .lean();
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "created department",
+    entity: "department",
+    entityId: dept._id.toString(),
+    details: body.title.trim(),
+  });
 
   return ok(populated);
 }

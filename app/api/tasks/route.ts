@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
 import User from "@/lib/models/User";
 import { getSession, unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { logActivity } from "@/lib/activityLogger";
 
 export async function GET() {
   const session = await getSession();
@@ -58,6 +59,15 @@ export async function POST(req: Request) {
   const populated = await ActivityTask.findById(task._id)
     .populate("assignedTo", "about.firstName about.lastName email userRole")
     .lean();
+
+  logActivity({
+    userEmail: session.user.email!,
+    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    action: "created task",
+    entity: "task",
+    entityId: task._id.toString(),
+    details: body.title.trim(),
+  });
 
   return ok(populated);
 }
