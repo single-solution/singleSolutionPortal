@@ -198,21 +198,11 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 # Install dependencies
 npm install
 
-# Seed the SuperAdmin account
-npx tsx scripts/seed.ts
-
 # Start the dev server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and log in with any test account:
-
-| Role | Email | Password |
-|------|-------|----------|
-| **SuperAdmin** | `admin@singlesolution.com` | `Test@1234` |
-| **Manager** | `manager@singlesolution.com` | `Test@1234` |
-| **Developer** | `developer@singlesolution.com` | `Test@1234` |
-| **Business Dev** | `bd@singlesolution.com` | `Test@1234` |
+Open [http://localhost:3000](http://localhost:3000) and log in with your admin account. Create employees, departments, and tasks from the dashboard — all accounts are managed through the app itself (no seeding required).
 
 ### Environment Variables
 
@@ -296,8 +286,6 @@ lib/
     MonthlyAttendanceStats.ts # Monthly aggregated stats
     SystemSettings.ts   # Global config (office, shifts, company)
 middleware.ts           # Auth + role-based route protection
-scripts/
-  seed.ts               # Seeds all 4 test roles (superadmin, manager, developer, businessDeveloper)
 types/
   global.d.ts           # BeforeInstallPromptEvent, PWA types
 public/

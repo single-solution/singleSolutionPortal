@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "seed": "npx tsx scripts/seed.ts"
+    "lint": "eslint"
   },
   "dependencies": {
     "@types/nodemailer": "^7.0.11",

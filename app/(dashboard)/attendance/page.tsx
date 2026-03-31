@@ -244,37 +244,37 @@ export default function AttendancePage() {
       {/* Today's Session — only for self */}
       {isViewingSelf && (
         <motion.div className="card-xl flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{
-              background: todaySession.active
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{
+            background: todaySession.active
                 ? todaySession.inOffice ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #3b82f6, #2563eb)"
-                : "linear-gradient(135deg, var(--fg-tertiary), var(--fg-secondary))",
-            }}>
+              : "linear-gradient(135deg, var(--fg-tertiary), var(--fg-secondary))",
+          }}>
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <div>
-              <p className="text-headline" style={{ color: "var(--fg)" }}>
+          </div>
+          <div>
+            <p className="text-headline" style={{ color: "var(--fg)" }}>
                 {todaySession.active ? (todaySession.inOffice ? "Working from Office" : "Working Remotely") : "Session Inactive"}
-              </p>
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
-                {todaySession.active && todaySession.startTime
-                  ? `Since ${new Date(todaySession.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — auto-tracked`
-                  : "Your session starts automatically when you open the app"}
-              </p>
-            </div>
+            </p>
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
+              {todaySession.active && todaySession.startTime
+                ? `Since ${new Date(todaySession.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — auto-tracked`
+                : "Your session starts automatically when you open the app"}
+            </p>
           </div>
-          <div className="flex items-center gap-4 text-right">
-            <div>
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Today Total</p>
+        </div>
+        <div className="flex items-center gap-4 text-right">
+          <div>
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Today Total</p>
               <p className="text-lg font-bold" style={{ color: "var(--primary)" }}>{fmtHours(todaySession.todayMinutes)}</p>
-            </div>
-            <span className="flex h-3 w-3 shrink-0">
-              <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: todaySession.active ? (todaySession.inOffice ? "#10b981" : "#3b82f6") : "var(--fg-tertiary)" }}>
-                {todaySession.active && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: todaySession.inOffice ? "#10b981" : "#3b82f6" }} />}
-              </span>
-            </span>
           </div>
-        </motion.div>
+          <span className="flex h-3 w-3 shrink-0">
+              <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: todaySession.active ? (todaySession.inOffice ? "#10b981" : "#3b82f6") : "var(--fg-tertiary)" }}>
+              {todaySession.active && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: todaySession.inOffice ? "#10b981" : "#3b82f6" }} />}
+            </span>
+          </span>
+        </div>
+      </motion.div>
       )}
 
       {/* Basic stats */}
@@ -294,7 +294,7 @@ export default function AttendancePage() {
       {/* Monthly analytics from MonthlyAttendanceStats */}
       <AnimatePresence>
         {monthlyStats && (
-          <motion.div
+      <motion.div
             className="card-static p-4"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -318,34 +318,34 @@ export default function AttendancePage() {
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
         {/* Calendar */}
         <motion.div className="card-static p-3 sm:p-4 lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <div className="mb-3 flex items-center justify-between">
-            <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <h2 className="text-headline">{MONTH_NAMES[month - 1]} {year}</h2>
-            <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
+        <div className="mb-3 flex items-center justify-between">
+          <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h2 className="text-headline">{MONTH_NAMES[month - 1]} {year}</h2>
+          <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {DAY_NAMES.map((d) => (
-              <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
-            ))}
-            <AnimatePresence mode="wait">
+        <div className="grid grid-cols-7 gap-1">
+          {DAY_NAMES.map((d) => (
+            <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
+          ))}
+          <AnimatePresence mode="wait">
               <motion.div key={`${year}-${month}-${viewingUserId}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                 {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`empty-${i}`} />)}
-                {Array.from({ length: daysInMonth }, (_, i) => {
-                  const day = i + 1;
-                  const rec = recordMap.get(day);
-                  const isToday = isCurrentMonth && day === today.getDate();
+              {Array.from({ length: daysInMonth }, (_, i) => {
+                const day = i + 1;
+                const rec = recordMap.get(day);
+                const isToday = isCurrentMonth && day === today.getDate();
                   const isSelected = selectedDay === day;
                   const isFuture = isCurrentMonth ? day > today.getDate() : new Date(year, month - 1, day) > today;
-                  let dotColor = "transparent";
-                  if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
-                  else if (rec) dotColor = "var(--rose)";
+                let dotColor = "transparent";
+                if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
+                else if (rec) dotColor = "var(--rose)";
 
-                  return (
+                return (
                     <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
                       className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all outline-none"
                       style={{
@@ -358,18 +358,18 @@ export default function AttendancePage() {
                       <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
                       <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
                     </motion.button>
-                  );
-                })}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
-          </div>
-        </motion.div>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
+        </div>
+      </motion.div>
 
         {/* Day detail panel */}
         <div className="flex flex-col lg:col-span-2">
@@ -572,19 +572,19 @@ export default function AttendancePage() {
                   style={isHighlighted ? { background: "color-mix(in srgb, var(--primary) 8%, transparent)" } : {}}
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.3) }} whileHover={{ x: 3 }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }} />
-                    <div>
-                      <p className="text-callout font-medium" style={{ color: "var(--fg)" }}>{new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
+                <div className="flex items-center gap-3">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }} />
+                  <div>
+                    <p className="text-callout font-medium" style={{ color: "var(--fg)" }}>{new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
                       <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(rec.firstOfficeEntry)} → {fmtTime(rec.lastOfficeExit)}</p>
                     </div>
-                  </div>
-                  <div className="text-right">
+                </div>
+                <div className="text-right">
                     <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
-                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: rec.isPresent ? (rec.isOnTime ? "color-mix(in srgb, var(--green) 15%, transparent)" : "color-mix(in srgb, var(--amber) 15%, transparent)") : "color-mix(in srgb, var(--rose) 15%, transparent)", color: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }}>
-                      {rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent"}
-                    </span>
-                  </div>
+                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: rec.isPresent ? (rec.isOnTime ? "color-mix(in srgb, var(--green) 15%, transparent)" : "color-mix(in srgb, var(--amber) 15%, transparent)") : "color-mix(in srgb, var(--rose) 15%, transparent)", color: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }}>
+                    {rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent"}
+                  </span>
+                </div>
                 </motion.button>
               );
             })}
