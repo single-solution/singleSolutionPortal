@@ -4,6 +4,9 @@ export function getBaseUrl(): string {
   if (process.env.AUTH_URL) return process.env.AUTH_URL.replace(/\/$/, "");
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL.replace(/\/$/, "");
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_URL or NEXTAUTH_URL must be set in production");
+  }
   return "http://localhost:3000";
 }
 
