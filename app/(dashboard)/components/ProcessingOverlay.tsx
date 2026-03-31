@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import { Portal } from "./Portal";
 
 interface ProcessingOverlayProps {
   visible: boolean;
@@ -9,6 +10,7 @@ interface ProcessingOverlayProps {
 
 export default function ProcessingOverlay({ visible, message = "Processing..." }: ProcessingOverlayProps) {
   return (
+    <Portal>
     <AnimatePresence>
       {visible && (
         <motion.div
@@ -41,5 +43,6 @@ export default function ProcessingOverlay({ visible, message = "Processing..." }
         </motion.div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Portal } from "../components/Portal";
 
 interface Team {
   _id: string;
@@ -471,6 +472,7 @@ export default function TeamsPage() {
       </div>
 
       {/* Create/Edit Modal */}
+      <Portal>
       <AnimatePresence>
         {modalOpen && (
           <motion.div
@@ -561,6 +563,7 @@ export default function TeamsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Portal>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

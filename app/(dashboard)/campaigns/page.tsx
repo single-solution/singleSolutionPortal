@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Portal } from "../components/Portal";
 
 type CampaignStatus = "active" | "paused" | "completed" | "cancelled";
 
@@ -512,6 +513,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Create/Edit Modal */}
+      <Portal>
       <AnimatePresence>
         {modalOpen && (
           <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -626,6 +628,7 @@ export default function CampaignsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Portal>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

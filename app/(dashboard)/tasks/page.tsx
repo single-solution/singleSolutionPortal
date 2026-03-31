@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Portal } from "../components/Portal";
 import { useSession } from "next-auth/react";
 
 interface Task {
@@ -399,6 +400,7 @@ export default function TasksPage() {
       </div>
 
       {/* Centered Glass Modal for Create/Edit Task */}
+      <Portal>
       <AnimatePresence>
         {modalOpen && (
           <motion.div
@@ -505,6 +507,7 @@ export default function TasksPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Portal>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

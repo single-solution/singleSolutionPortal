@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import { Portal } from "./Portal";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -24,6 +25,7 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
+    <Portal>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -68,5 +70,6 @@ export function ConfirmDialog({
         </motion.div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }
