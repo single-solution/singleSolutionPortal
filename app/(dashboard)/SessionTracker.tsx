@@ -285,6 +285,71 @@ export default function SessionTracker() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
+  // ─── Visibility change: handle OS user switch, tab hide/show ──
+  useEffect(() => {
+    async function handleVisibility() {
+      if (document.hidden) {
+        // Going hidden (OS user switch, tab switch, minimize):
+        // fire one last heartbeat to push lastActivity forward
+        if (modeRef.current === "active" && checkedInRef.current) {
+          const coords = lastCoordsRef.current;
+          try {
+            await fetch("/api/attendance/session", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: coords?.lat,
+                longitude: coords?.lng,
+              }),
+            });
+          } catch {
+            /* best-effort */
+          }
+        }
+      } else {
+        // Becoming visible again (switching back to this OS user/tab):
+        // immediately re-check session instead of waiting for next interval
+        if (isMobileRef.current) {
+          await fetchSession();
+          return;
+        }
+
+        const data = await fetchSession();
+
+        if (modeRef.current === "active") {
+          if (!data.active || data.isStale) {
+            // Session died while we were away — re-check-in
+            if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+            const ok = await doCheckIn();
+            if (ok) {
+              updateMode("active");
+              startHeartbeat();
+            } else {
+              updateMode("readonly");
+              startSyncPolling();
+            }
+          }
+          // else: still active and healthy, heartbeat will continue
+        } else if (modeRef.current === "readonly") {
+          if (!data.active || data.isStale) {
+            // Primary device died — take over
+            if (syncRef.current) clearInterval(syncRef.current);
+            const ok = await doCheckIn();
+            if (ok) {
+              updateMode("active");
+              startHeartbeat();
+            } else {
+              startSyncPolling();
+            }
+          }
+        }
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [fetchSession, doCheckIn, updateMode, startHeartbeat, startSyncPolling]);
+
   // ─── Elapsed timer ────────────────────────────────────────────
   useEffect(() => {
     if (session.active && session.startTime) {
