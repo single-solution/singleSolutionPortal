@@ -160,10 +160,12 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 - **DB-backed activity log** (`ActivityLog` model) — every CRUD action (employees, departments, tasks, settings) is recorded with user, action, entity, and details
 - **Cross-device read sync** — `lastSeenLogId` cursor on `User` model, synced via `GET/PUT /api/user/last-seen`
-- **30s polling** — bell automatically fetches latest 20 logs every 30 seconds
+- **Live polling (10s)** — bell automatically fetches latest 20 logs every 10 seconds for near real-time updates
 - **Mark as read on open** — opening the bell panel marks all current entries as seen (sets `lastSeenLogId` to newest log)
-- **Unseen badge** — red badge with count (capped at 9+), derived from entries above `lastSeenLogId`
-- **Entity-colored dots** — blue (employee), green (department), amber (task), purple (attendance), gray (settings), rose (auth)
+- **Unseen badge** — red pulsing badge with count (capped at 9+), derived from entries above `lastSeenLogId`
+- **Entity SVG icons** — each entity type has a distinct icon and color: blue (employee), green (department), amber (task), purple (attendance), gray (settings), rose (auth)
+- **Clickable links** — each log entry navigates to the relevant page (e.g., employee → `/employees/{id}/edit`, department → `/departments`, task → `/tasks`)
+- **Seen/unseen dimming** — read entries fade to 50% opacity, unread entries are full brightness
 - **"Mark all read" button** — persists to server for cross-device consistency
 
 ### PWA & Offline

@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
-  slideUpItem,
-  staggerContainer,
   tabIndicatorTransition,
   dockEntrance,
 } from "@/lib/motion";
@@ -53,25 +51,55 @@ interface LogEntry {
   createdAt: string;
 }
 
-const ENTITY_COLORS: Record<string, string> = {
-  employee: "bg-blue-500",
-  department: "bg-emerald-500",
-  task: "bg-amber-500",
-  attendance: "bg-purple-500",
-  settings: "bg-gray-500",
-  auth: "bg-rose-500",
+const ENTITY_ICONS: Record<string, string> = {
+  employee: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+  department: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+  task: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+  attendance: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+  settings: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
+  auth: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
 };
 
+const ENTITY_COLORS: Record<string, string> = {
+  employee: "text-blue-500",
+  department: "text-emerald-500",
+  task: "text-amber-500",
+  attendance: "text-purple-500",
+  settings: "text-gray-500",
+  auth: "text-rose-500",
+};
+
+function getEntityHref(entity: string, entityId?: string): string | null {
+  switch (entity) {
+    case "employee": return entityId ? `/employees/${entityId}/edit` : "/employees";
+    case "department": return "/departments";
+    case "task": return "/tasks";
+    case "attendance": return "/attendance";
+    case "settings": return "/settings";
+    default: return null;
+  }
+}
+
+function getEntityPageHref(entity: string): string | null {
+  switch (entity) {
+    case "employee": return "/employees";
+    case "department": return "/departments";
+    case "task": return "/tasks";
+    case "attendance": return "/attendance";
+    case "settings": return "/settings";
+    default: return null;
+  }
+}
+
 function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const mins = Math.floor(seconds / 60);
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${days}d ago`;
 }
 
 interface DashboardShellProps {
@@ -89,6 +117,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [themeOpen, setThemeOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -127,7 +156,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
   useEffect(() => {
     fetchLogs();
-    const interval = setInterval(fetchLogs, 30_000);
+    const interval = setInterval(fetchLogs, 10_000);
     return () => clearInterval(interval);
   }, [fetchLogs]);
 
@@ -363,7 +392,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 aria-label="Notifications"
               >
                 <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.082A8.25 8.25 0 0021.75 8.25a8.25 8.25 0 00-16.5 0 8.25 8.25 0 001.439 8.75 23.848 23.848 0 005.454 1.082m-5.454-1.082A2.25 2.25 0 0012 19.5a2.25 2.25 0 002.25-2.418" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {unseenCount > 0 && (
                   <motion.span
@@ -410,38 +439,58 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                         </button>
                       )}
                     </div>
-                    <motion.ul className="max-h-[min(60vh,360px)] overflow-y-auto p-2" variants={staggerContainer} initial="hidden" animate="visible">
+                    <div className="max-h-[min(60vh,380px)] overflow-y-auto divide-y divide-[var(--border)]">
                       {logs.length === 0 ? (
-                        <li className="py-6 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No activity yet</li>
+                        <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No activity yet</div>
                       ) : logs.map((log, i) => {
-                        const isSeen = lastSeenRef.current
-                          ? i >= logs.findIndex((l) => l._id === lastSeenRef.current) && logs.findIndex((l) => l._id === lastSeenRef.current) !== -1
-                          : false;
+                        const seenIdx = lastSeenRef.current ? logs.findIndex((l) => l._id === lastSeenRef.current) : -1;
+                        const isSeen = seenIdx !== -1 && i >= seenIdx;
+                        const href = getEntityHref(log.entity, log.entityId) || getEntityPageHref(log.entity);
                         return (
-                          <motion.li
+                          <div
                             key={log._id}
-                            variants={slideUpItem}
-                            className="flex gap-2.5 rounded-lg px-2 py-2.5 text-callout transition-colors"
-                            style={{ color: "var(--fg)", opacity: isSeen ? 0.55 : 1 }}
-                            whileHover={{ x: 4 }}
+                            className="px-3 py-2.5 transition-colors group"
+                            style={{ opacity: isSeen ? 0.5 : 1, background: "transparent" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--hover-bg)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                           >
-                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ENTITY_COLORS[log.entity] || "bg-gray-400"}`} />
-                            <div className="min-w-0 flex-1">
-                              <p className="leading-snug">
-                                <span className="font-semibold">{log.userName || log.userEmail}</span>{" "}
-                                {log.action}
-                              </p>
-                              {log.details && (
-                                <p className="text-footnote mt-0.5 line-clamp-1" style={{ color: "var(--fg-secondary)" }}>{log.details}</p>
-                              )}
-                              <p className="text-footnote mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
-                                {timeAgo(log.createdAt)} · {log.entity}
-                              </p>
+                            <div className="flex items-start gap-2.5">
+                              <svg className={`w-4 h-4 mt-0.5 shrink-0 ${ENTITY_COLORS[log.entity] || "text-[var(--fg-tertiary)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={ENTITY_ICONS[log.entity] || ENTITY_ICONS.employee} />
+                              </svg>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium leading-snug" style={{ color: "var(--fg)" }}>
+                                  {href ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setNotificationsOpen(false); router.push(href); }}
+                                      className="hover:underline transition-colors text-left"
+                                      style={{ color: "var(--fg)" }}
+                                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--primary)"; }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--fg)"; }}
+                                    >
+                                      <span className="font-semibold">{log.userName || log.userEmail.split("@")[0]}</span>{" "}
+                                      {log.action}
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <span className="font-semibold">{log.userName || log.userEmail.split("@")[0]}</span>{" "}
+                                      {log.action}
+                                    </>
+                                  )}
+                                </p>
+                                {log.details && (
+                                  <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                )}
+                                <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                                  {log.userEmail.split("@")[0]} · {timeAgo(log.createdAt)}
+                                </p>
+                              </div>
                             </div>
-                          </motion.li>
+                          </div>
                         );
                       })}
-                    </motion.ul>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
