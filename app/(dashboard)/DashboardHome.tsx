@@ -90,7 +90,27 @@ interface PresenceEmployee {
   department: string;
   status: PresenceStatus;
   todayMinutes: number;
+  lateBy: number;
   isActive: boolean;
+}
+
+interface ApiCampaign {
+  _id: string;
+  name: string;
+  status: "active" | "paused" | "completed" | "cancelled";
+  startDate?: string;
+  endDate?: string;
+  tags: {
+    employees: { _id: string; about: { firstName: string; lastName: string } }[];
+    departments: { _id: string; title: string }[];
+    teams: { _id: string; name: string }[];
+  };
+}
+
+interface TrendDay {
+  date: string;
+  label: string;
+  count: number;
 }
 
 /* ──────────────────────── CONSTANTS ──────────────────────── */
@@ -650,11 +670,15 @@ function ManagerOverview({
   presenceEmps,
   tasks,
   personalAttendance,
+  campaigns,
+  attendanceTrend,
 }: {
   user: User;
   presenceEmps: PresenceEmployee[];
   tasks: ApiTask[];
   personalAttendance: PersonalAttendance | null;
+  campaigns: ApiCampaign[];
+  attendanceTrend: TrendDay[];
 }) {
   const reduceMotion = useReducedMotion();
   const counts = useMemo(() => getStatusCounts(presenceEmps), [presenceEmps]);
@@ -663,6 +687,26 @@ function ManagerOverview({
   const onTimePct = totalEmp > 0 ? Math.round(((totalEmp - counts.late - counts.absent) / totalEmp) * 100) : 0;
 
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
+  const inProgressTasks = useMemo(() => tasks.filter((t) => t.status === "inProgress"), [tasks]);
+  const completedTasks = useMemo(() => tasks.filter((t) => t.status === "completed"), [tasks]);
+
+  const lateArrivals = useMemo(
+    () => presenceEmps.filter((e) => e.status === "late").sort((a, b) => b.lateBy - a.lateBy),
+    [presenceEmps],
+  );
+
+  const topWorkers = useMemo(
+    () => [...presenceEmps].filter((e) => e.todayMinutes > 0).sort((a, b) => b.todayMinutes - a.todayMinutes).slice(0, 5),
+    [presenceEmps],
+  );
+
+  const officeCount = counts.office + counts.overtime;
+  const remoteCount = counts.remote;
+  const totalOnline = officeCount + remoteCount;
+
+  const activeCampaigns = useMemo(() => campaigns.filter((c) => c.status === "active"), [campaigns]);
+
+  const trendMax = useMemo(() => Math.max(...attendanceTrend.map((d) => d.count), 1), [attendanceTrend]);
 
   const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>("all");
   const filteredPresence = useMemo(
@@ -671,13 +715,15 @@ function ManagerOverview({
   );
 
   const statItems = [
-    { title: "My Team", value: totalEmp, caption: "Active roster", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
-    { title: "Present Today", value: presentToday, caption: "Non-absent", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-    { title: "On-Time Rate", value: onTimePct, caption: "Among present", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+    { title: "My Team", value: totalEmp, icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
+    { title: "Present Today", value: presentToday, icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+    { title: "On-Time Rate", value: onTimePct, icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
   ];
 
   const pa = personalAttendance;
   const myTodayHours = pa ? pa.todayMinutes / 60 : 0;
+
+  const CAMPAIGN_STATUS_COLORS: Record<string, string> = { active: "var(--teal)", paused: "var(--amber)", completed: "var(--primary)", cancelled: "var(--rose)" };
 
   return (
     <div className="flex flex-col gap-4">
@@ -768,6 +814,243 @@ function ManagerOverview({
           )}
         </div>
       </motion.section>
+
+      {/* Late Arrivals + Attendance Trend */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Late Arrivals</h3>
+              <p className="text-caption mt-0.5">Today&apos;s team</p>
+            </div>
+            <span className="badge badge-late">{lateArrivals.length} total</span>
+          </div>
+          {lateArrivals.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {lateArrivals.slice(0, 5).map((emp, i) => (
+                <motion.li key={emp._id} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 * i }} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--glass-bg)" }}>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: "rgba(255,159,10,0.15)" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="var(--amber)" /></svg>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p>
+                    <p className="text-caption">{emp.lateBy > 0 ? `Late by ${formatMinutes(emp.lateBy)}` : "Late today"}</p>
+                  </div>
+                  {emp.lateBy > 0 && (
+                    <span className="text-footnote tabular-nums font-bold" style={{ color: "var(--amber)" }}>+{formatMinutes(emp.lateBy)}</span>
+                  )}
+                </motion.li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-6 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No late arrivals today</p>
+          )}
+        </motion.section>
+
+        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Team Attendance</h3>
+              <p className="text-caption mt-0.5">Last 5 working days</p>
+            </div>
+            <span className="badge badge-office">Trend</span>
+          </div>
+          {attendanceTrend.length > 0 ? (
+            <div className="flex h-36 items-end justify-between gap-2 px-1">
+              {attendanceTrend.map((d, i) => (
+                <div key={d.date} className="flex min-h-0 flex-1 flex-col items-center gap-2">
+                  <div className="relative flex h-28 w-full items-end justify-center">
+                    <motion.div
+                      className="w-[55%] max-w-[40px] rounded-t-lg"
+                      style={{ background: "linear-gradient(180deg, var(--primary), var(--cyan))" }}
+                      initial={{ height: "0%" }}
+                      animate={{ height: `${(d.count / trendMax) * 100}%` }}
+                      transition={{ duration: 0.65, delay: 0.08 * i, ease: [0.22, 1, 0.36, 1] }}
+                    />
+                  </div>
+                  <span className="text-caption font-medium" style={{ color: "var(--fg-secondary)" }}>{d.label}</span>
+                  <span className="text-footnote tabular-nums font-semibold" style={{ color: "var(--fg)" }}>{d.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-6 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No trend data yet</p>
+          )}
+        </motion.section>
+      </div>
+
+      {/* Task Breakdown + Office vs Remote */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+          <h3 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Task Status</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "Total", value: tasks.length, color: "var(--fg)" },
+              { label: "Pending", value: pendingTasks.length, color: "var(--amber)" },
+              { label: "In Progress", value: inProgressTasks.length, color: "var(--primary)" },
+              { label: "Completed", value: completedTasks.length, color: "var(--teal)" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl p-3" style={{ background: "var(--glass-bg)" }}>
+                <p className="text-caption">{item.label}</p>
+                <p className="text-headline tabular-nums font-bold mt-1" style={{ color: item.color }}>
+                  <AnimatedNumber value={item.value} />
+                </p>
+              </div>
+            ))}
+          </div>
+          {tasks.length > 0 && (
+            <div className="mt-3">
+              <div className="flex h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                {completedTasks.length > 0 && (
+                  <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${(completedTasks.length / tasks.length) * 100}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
+                )}
+                {inProgressTasks.length > 0 && (
+                  <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${(inProgressTasks.length / tasks.length) * 100}%` }} transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }} />
+                )}
+                {pendingTasks.length > 0 && (
+                  <motion.div className="h-full" style={{ background: "var(--amber)" }} initial={{ width: 0 }} animate={{ width: `${(pendingTasks.length / tasks.length) * 100}%` }} transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }} />
+                )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
+                <span style={{ color: "var(--teal)" }}>{Math.round((completedTasks.length / tasks.length) * 100)}% done</span>
+                <span style={{ color: "var(--primary)" }}>{Math.round((inProgressTasks.length / tasks.length) * 100)}% active</span>
+                <span style={{ color: "var(--amber)" }}>{Math.round((pendingTasks.length / tasks.length) * 100)}% pending</span>
+              </div>
+            </div>
+          )}
+        </motion.section>
+
+        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+          <h3 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Office vs Remote</h3>
+          <div className="flex items-center gap-4">
+            <div className="relative flex shrink-0 items-center justify-center">
+              <svg className="h-28 w-28" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="38" stroke="var(--border)" strokeWidth="10" fill="transparent" />
+                {totalOnline > 0 && (
+                  <>
+                    <motion.circle cx="50" cy="50" r="38" fill="none" stroke="var(--teal)" strokeWidth="10" strokeLinecap="round"
+                      strokeDasharray={`${(officeCount / totalOnline) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
+                      initial={{ strokeDashoffset: 2 * Math.PI * 38 }} animate={{ strokeDashoffset: 0 }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
+                    />
+                    <motion.circle cx="50" cy="50" r="38" fill="none" stroke="var(--primary)" strokeWidth="10" strokeLinecap="round"
+                      strokeDasharray={`${(remoteCount / totalOnline) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
+                      initial={{ strokeDashoffset: 2 * Math.PI * 38 }} animate={{ strokeDashoffset: -(officeCount / totalOnline) * 2 * Math.PI * 38 }}
+                      transition={{ duration: 1, delay: 0.1, ease: "easeOut" }}
+                      style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
+                    />
+                  </>
+                )}
+              </svg>
+              <div className="absolute flex flex-col items-center">
+                <span className="text-headline tabular-nums font-bold" style={{ color: "var(--fg)" }}>{totalOnline}</span>
+                <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>online</span>
+              </div>
+            </div>
+            <div className="flex flex-1 flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full" style={{ background: "var(--teal)" }} />
+                <span className="text-callout flex-1" style={{ color: "var(--fg)" }}>Office</span>
+                <span className="text-headline tabular-nums font-bold" style={{ color: "var(--fg)" }}>{officeCount}</span>
+                <span className="text-caption tabular-nums w-10 text-right">{totalOnline > 0 ? Math.round((officeCount / totalOnline) * 100) : 0}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full" style={{ background: "var(--primary)" }} />
+                <span className="text-callout flex-1" style={{ color: "var(--fg)" }}>Remote</span>
+                <span className="text-headline tabular-nums font-bold" style={{ color: "var(--fg)" }}>{remoteCount}</span>
+                <span className="text-caption tabular-nums w-10 text-right">{totalOnline > 0 ? Math.round((remoteCount / totalOnline) * 100) : 0}%</span>
+              </div>
+              <div className="flex items-center gap-2 border-t border-[var(--border)] pt-2">
+                <span className="h-3 w-3 rounded-full" style={{ background: "var(--rose)" }} />
+                <span className="text-callout flex-1" style={{ color: "var(--fg)" }}>Absent</span>
+                <span className="text-headline tabular-nums font-bold" style={{ color: "var(--fg)" }}>{counts.absent}</span>
+                <span className="text-caption tabular-nums w-10 text-right">{totalEmp > 0 ? Math.round((counts.absent / totalEmp) * 100) : 0}%</span>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+      </div>
+
+      {/* Top Workers + Active Campaigns */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Top Workers</h3>
+              <p className="text-caption mt-0.5">Most hours logged today</p>
+            </div>
+            <svg className="h-5 w-5" style={{ color: "var(--amber)" }} fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z" /></svg>
+          </div>
+          {topWorkers.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {topWorkers.map((emp, i) => {
+                const maxMins = topWorkers[0].todayMinutes || 1;
+                return (
+                  <motion.li key={emp._id} initial={{ x: -12, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.08 * i }} className="flex items-center gap-3">
+                    <span className="text-caption w-5 text-center font-bold" style={{ color: i < 3 ? "var(--amber)" : "var(--fg-tertiary)" }}>
+                      {i === 0 ? "\ud83e\udd47" : i === 1 ? "\ud83e\udd48" : i === 2 ? "\ud83e\udd49" : `${i + 1}`}
+                    </span>
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]}`}>
+                      {initials(emp.firstName, emp.lastName)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                        <motion.div className="h-full rounded-full" style={{ background: i === 0 ? "var(--amber)" : "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${(emp.todayMinutes / maxMins) * 100}%` }} transition={{ duration: 0.6, delay: 0.1 * i }} />
+                      </div>
+                    </div>
+                    <span className="text-callout tabular-nums font-bold" style={{ color: "var(--fg)" }}>{formatMinutes(emp.todayMinutes)}</span>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="py-6 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No activity yet today</p>
+          )}
+        </motion.section>
+
+        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
+              <p className="text-caption mt-0.5">{activeCampaigns.length} running · {campaigns.length} total</p>
+            </div>
+            <Link href="/campaigns">
+              <motion.span className="text-caption font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.05 }}>View All</motion.span>
+            </Link>
+          </div>
+          {activeCampaigns.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {activeCampaigns.slice(0, 5).map((camp, ci) => {
+                const tagCount = camp.tags.employees.length + camp.tags.departments.length + camp.tags.teams.length;
+                return (
+                  <motion.li key={camp._id} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 * ci }} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--glass-bg)" }}>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
+                      <div className="mt-0.5 flex flex-wrap gap-1.5">
+                        {camp.tags.departments.slice(0, 2).map((d) => (
+                          <span key={d._id} className="text-[10px] rounded-md px-1.5 py-0.5" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>
+                        ))}
+                        {camp.tags.teams.slice(0, 2).map((t) => (
+                          <span key={t._id} className="text-[10px] rounded-md px-1.5 py-0.5" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>
+                        ))}
+                        {tagCount > 4 && <span className="text-[10px] rounded-md px-1.5 py-0.5" style={{ background: "var(--glass-bg)", color: "var(--fg-tertiary)" }}>+{tagCount - 4}</span>}
+                      </div>
+                    </div>
+                    <span className="badge text-[10px]" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 12%, transparent)`, color: CAMPAIGN_STATUS_COLORS[camp.status] }}>{camp.status}</span>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="py-6 text-center text-callout" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
+          )}
+        </motion.section>
+      </div>
 
       {/* Attendance Overview + Checklist (same row) */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -948,6 +1231,8 @@ export default function DashboardHome({ user }: { user: User }) {
 
   const [realPresence, setRealPresence] = useState<PresenceEmployee[] | null>(null);
   const [personalAttendance, setPersonalAttendance] = useState<PersonalAttendance | null>(null);
+  const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
+  const [attendanceTrend, setAttendanceTrend] = useState<TrendDay[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -962,9 +1247,11 @@ export default function DashboardHome({ user }: { user: User }) {
 
         if (isAdminRole) {
           fetches.push(fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []));
+          fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
+          fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
         }
 
-        const [empRes, taskRes, deptRes, presenceRes] = await Promise.all(fetches);
+        const [empRes, taskRes, deptRes, presenceRes, campaignRes, trendRes] = await Promise.all(fetches);
 
         if (!isSuperAdmin) {
           try {
@@ -991,10 +1278,12 @@ export default function DashboardHome({ user }: { user: User }) {
         setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
         setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
         setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
+        if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
+        if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
 
         if (Array.isArray(presenceRes)) {
           setRealPresence(
-            (presenceRes as Array<{ _id: string; firstName: string; lastName: string; userRole: string; department: string; status: string; todayMinutes: number; isActive: boolean }>).map((p) => ({
+            (presenceRes as Array<{ _id: string; firstName: string; lastName: string; userRole: string; department: string; status: string; todayMinutes: number; lateBy: number; isActive: boolean }>).map((p) => ({
               _id: p._id,
               firstName: p.firstName,
               lastName: p.lastName,
@@ -1002,6 +1291,7 @@ export default function DashboardHome({ user }: { user: User }) {
               department: p.department,
               status: p.status as PresenceStatus,
               todayMinutes: p.todayMinutes,
+              lateBy: p.lateBy ?? 0,
               isActive: p.isActive,
             })),
           );
@@ -1022,6 +1312,7 @@ export default function DashboardHome({ user }: { user: User }) {
       department: (e.department as { title?: string })?.title ?? "Unassigned",
       status: "absent" as PresenceStatus,
       todayMinutes: 0,
+      lateBy: 0,
       isActive: true,
     }));
   }, [realPresence, employees]);
@@ -1189,6 +1480,8 @@ export default function DashboardHome({ user }: { user: User }) {
         presenceEmps={presenceEmps}
         tasks={tasks}
         personalAttendance={personalAttendance}
+        campaigns={campaigns}
+        attendanceTrend={attendanceTrend}
       />
     );
   }

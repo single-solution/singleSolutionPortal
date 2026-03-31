@@ -229,11 +229,16 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Checklist with assignee names, deadlines, and priority icons
 
 **Manager / Team Lead:**
-- Greeting header with live clock card
+- Compact header: greeting + personal stats glass pills (today hours, on-time/late, sessions, avg/day)
 - KPI cards: My Team count, Present Today, On-Time Rate (3 columns)
-- **Self-assessment section**: "Today" card (circular progress ring, sessions, remote time, on-time/late) + 4 monthly stat cards (Avg Hours/Day, On-Time %, Avg Check-in, Avg Check-out)
 - Live Presence board with filter toggles (All / Office / Remote / Late / Absent) + fixed-height scrollable grid
-- Attendance Overview + Checklist side-by-side (2-column grid)
+- **Late Arrivals** list: employees who arrived late today, sorted by severity, with `lateBy` duration
+- **Team Attendance Trend** bar chart: last 5 working days present count (new `/api/attendance/trend` endpoint)
+- **Task Status** breakdown: total / pending / in-progress / completed counts with animated stacked progress bar
+- **Office vs Remote** donut chart: live split of in-office vs remote employees with percentage and absent count
+- **Top Workers Today**: leaderboard of employees by hours logged, with animated progress bars and medal icons
+- **Active Campaigns**: running campaigns tagged to the manager's scope, with department/team tag pills
+- Attendance Overview donut + Checklist side-by-side (2-column grid)
 
 **Developer / Business Developer:**
 - Greeting + role label
@@ -300,7 +305,7 @@ app/
   reset-password/        # Reset password with strength meter
   (dashboard)/           # Route group — all authenticated pages (no /dashboard/ in URL)
     page.tsx             # Dashboard entry (reads session, renders DashboardHome)
-    DashboardHome.tsx    # SuperAdmin/Manager overview with KPI + presence + checklist
+    DashboardHome.tsx    # SuperAdmin/Manager overview with KPI, presence, trend, campaigns, tasks, checklist
     DashboardShell.tsx   # Header, dock nav, theme, notifications, PWA install prompt
     SessionTracker.tsx   # Heartbeat attendance: active/readonly/booting modes
     employees/
@@ -329,7 +334,8 @@ app/
     tasks/               # CRUD with team scoping + activity logging
     attendance/
       session/           # Check-in, check-out, heartbeat PATCH, session GET
-      presence/          # Real-time employee status for dashboard
+      presence/          # Real-time employee status for dashboard (includes lateBy)
+      trend/             # Last 5 working days present count for team attendance chart
     activity-logs/       # GET latest 20 activity log entries
     user/last-seen/      # GET + PUT lastSeenLogId for notification read sync
     profile/             # Self profile + base64 image upload

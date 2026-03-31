@@ -89,6 +89,7 @@ export async function GET() {
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
       status,
       todayMinutes,
+      lateBy: daily?.lateBy ?? 0,
       isActive: true,
     };
   });
