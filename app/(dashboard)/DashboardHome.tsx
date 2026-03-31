@@ -636,19 +636,145 @@ export default function DashboardHome({ user }: { user: User }) {
   }, [realPresence, employees]);
 
   if (loading) {
+    const isAdminRole = user.role === "superadmin" || user.role === "manager" || user.role === "teamLead";
+    if (!isAdminRole) {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="space-y-2">
+            <div className="shimmer h-3 w-32 rounded" />
+            <div className="shimmer h-9 w-64 max-w-full rounded" />
+            <div className="shimmer h-4 w-56 max-w-full rounded" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="card group relative overflow-hidden p-4">
+                <div className="shimmer mb-2 h-9 w-9 rounded-xl" />
+                <div className="shimmer mb-1 h-4 w-24 rounded" />
+                <div className="shimmer mt-0.5 h-8 w-14 rounded" />
+                <div className="shimmer mt-0.5 h-3 w-20 rounded" />
+              </div>
+            ))}
+          </div>
+          <section className="card p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="shimmer h-6 w-28 rounded" />
+              <div className="shimmer h-5 w-20 rounded-full" />
+            </div>
+            <div className="flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="shimmer mt-0.5 h-8 w-8 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-4 w-full max-w-xs rounded" />
+                    <div className="shimmer h-3 w-full max-w-sm rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="shimmer mx-auto mt-4 h-4 w-36 rounded" />
+          </section>
+        </div>
+      );
+    }
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-2 flex-1"><div className="shimmer h-4 w-1/4 rounded" /><div className="shimmer h-8 w-1/2 rounded" /></div>
-          <div className="shimmer h-16 w-40 rounded-2xl" />
+      <div className="flex flex-col gap-4">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="shimmer h-3 w-36 rounded" />
+            <div className="shimmer h-9 w-72 max-w-full rounded" />
+            <div className="shimmer h-4 w-52 max-w-full rounded" />
+          </div>
+          <div className="card flex shrink-0 flex-col gap-2 p-3 sm:min-w-[180px]">
+            <div className="shimmer h-3 w-16 rounded" />
+            <div className="shimmer h-8 w-28 rounded" />
+            <div className="shimmer h-3 w-36 rounded" />
+          </div>
+        </header>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="card group relative overflow-hidden p-4">
+              <div className="shimmer mb-2 h-9 w-9 rounded-xl" />
+              <div className="shimmer h-4 w-28 rounded" />
+              <div className="shimmer mt-0.5 h-8 w-12 rounded" />
+              <div className="shimmer mt-0.5 h-3 w-24 rounded" />
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[1,2,3,4].map(i => <div key={i} className="shimmer h-28 rounded-2xl" />)}
-        </div>
-        <div className="shimmer h-48 rounded-2xl" />
+        <section className="card relative overflow-hidden p-4 sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="shimmer h-2.5 w-2.5 rounded-full" />
+            <div className="shimmer h-6 w-36 rounded" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="card-static card-shine flex flex-col gap-3 rounded-[var(--radius)] p-3">
+                <div className="flex items-start gap-3">
+                  <div className="shimmer h-11 w-11 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-4 w-28 rounded" />
+                    <div className="shimmer h-3 w-32 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                    <div className="shimmer mt-2 h-5 w-20 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
+                  <div className="shimmer h-3 w-10 rounded" />
+                  <div className="shimmer h-4 w-14 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <div className="shimmer h-40 rounded-2xl" /><div className="shimmer h-40 rounded-2xl" />
+          <section className="card p-3 sm:p-4">
+            <div className="shimmer mb-3 h-6 w-44 rounded" />
+            <div className="flex items-center gap-4">
+              <div className="min-w-0 flex-1 space-y-2.5">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
+                    <div className="shimmer h-3 flex-1 rounded" />
+                    <div className="shimmer h-5 w-7 rounded" />
+                    <div className="shimmer h-3 w-9 rounded" />
+                  </div>
+                ))}
+              </div>
+              <div className="shimmer h-32 w-32 shrink-0 rounded-full sm:h-36 sm:w-36" />
+            </div>
+          </section>
+          <section className="card p-3 sm:p-4">
+            <div className="shimmer mb-3 h-6 w-40 rounded" />
+            <div className="flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i}>
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <div className="shimmer h-3 w-28 rounded" />
+                    <div className="shimmer h-3 w-16 rounded" />
+                  </div>
+                  <div className="shimmer h-2 w-full rounded-full" />
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
+        <section className="card p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="shimmer h-6 w-24 rounded" />
+            <div className="shimmer h-5 w-20 rounded-full" />
+          </div>
+          <div className="flex flex-col gap-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className="shimmer mt-0.5 h-8 w-8 shrink-0 rounded-lg" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="shimmer h-4 w-full max-w-sm rounded" />
+                  <div className="shimmer h-3 w-full max-w-md rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="shimmer mx-auto mt-4 h-4 w-40 rounded" />
+        </section>
       </div>
     );
   }

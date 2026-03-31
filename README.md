@@ -96,7 +96,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 ### Employee Management
 
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages their team)
-- Full-page create/edit forms (`/employees/new`, `/employees/[id]/edit`) with sectioned cards
+- Full-width create/edit forms (`/employees/new`, `/employees/[id]/edit`) with 2-column grid layout: Personal Info + Role & Department side-by-side on desktop, full-width Shift Configuration card with internal grid below
 - ConfirmDialog for all destructive actions (deactivate single + bulk)
 - Profile image upload (base64, max 2MB) with initials fallback avatar
 - Shift configuration per employee (shift type, start/end hours, working days, break time, grace period)
@@ -180,7 +180,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Floating dock navigation**: `.dock-glass` class with dark-mode-optimized borders and shadows, no visible border artifacts in either theme
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
-- **Shimmer skeleton loading**: on all pages (no spinners anywhere, including ProcessingOverlay)
+- **Shimmer skeleton loading**: pixel-perfect skeletons on all pages that structurally match actual card layouts — same grids, card shapes, avatar circles, badge pills, action button positions, and table column widths (no spinners anywhere, including ProcessingOverlay)
 - **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; stagger entrances for card grids and table rows; blur-in page transitions; card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in; content reveal with blur defogging
 - **Form labels**: standardized `text-xs font-medium text-[var(--fg-secondary)] mb-1`
 - **Input icons**: all icon-prefixed inputs use `left-3.5` icon + `paddingLeft: 40px`

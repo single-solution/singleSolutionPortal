@@ -165,18 +165,68 @@ export default function TasksPage() {
   if (loading) {
     return (
       <motion.div
-        className="space-y-4"
+        className="flex flex-col gap-0"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center justify-between gap-3 mb-6">
-          <div className="space-y-2 flex-1"><div className="shimmer h-5 w-1/4 rounded" /><div className="shimmer h-8 w-1/3 rounded" /></div>
-          <div className="shimmer h-9 w-28 rounded-full" />
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="shimmer h-8 w-32 rounded" />
+            <div className="shimmer h-4 w-44 rounded" />
+          </div>
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+            <div className="shimmer h-7 w-14 rounded-md" />
+            <div className="shimmer h-7 w-20 rounded-md" />
+            <div className="shimmer h-7 w-14 rounded-md" />
+          </div>
         </div>
-        <div className="shimmer h-24 rounded-2xl" />
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {[1,2,3,4,5,6].map(i => <div key={i} className="shimmer h-36 rounded-2xl" />)}
+        <div className="card-static mb-4 flex items-center gap-3 p-4">
+          <div className="relative h-10 flex-1">
+            <div className="shimmer h-10 w-full rounded-lg" />
+          </div>
+          <div className="shimmer h-9 w-36 shrink-0 rounded-lg" />
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="shimmer h-7 w-16 rounded-md" />
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="card card-shine flex h-full flex-col overflow-hidden">
+              <div className="flex-1 p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="shimmer h-5 w-16 rounded-full" />
+                  <div className="shimmer h-5 w-24 rounded-full" />
+                </div>
+                <div className="shimmer h-4 w-full max-w-[220px] rounded" />
+                <div className="shimmer mt-1 h-3 w-full max-w-sm rounded" />
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="shimmer h-6 w-6 shrink-0 rounded-full" />
+                    <div className="min-w-0 space-y-1">
+                      <div className="shimmer h-3 w-32 rounded" />
+                      <div className="shimmer h-3 w-24 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="shimmer h-3 w-3 rounded" />
+                    <div className="shimmer h-3 w-36 rounded" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between border-t px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--border)" }}>
+                <div className="shimmer h-3 w-28 rounded" />
+                <div className="flex items-center gap-1">
+                  <div className="shimmer h-7 w-7 rounded-lg" />
+                  <div className="shimmer h-7 w-7 rounded-lg" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </motion.div>
     );

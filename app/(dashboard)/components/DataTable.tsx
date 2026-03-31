@@ -97,8 +97,33 @@ export default function DataTable<T>({
       </div>
 
       {loading ? (
-        <div className="p-4 sm:p-5 space-y-3">
-          {[1,2,3,4,5].map(i => <div key={i} className="shimmer h-12 rounded-xl" />)}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                {columns.map((col) => (
+                  <th key={col.key} className="whitespace-nowrap px-4 py-3 sm:px-5">
+                    <div
+                      className={`shimmer h-3 rounded ${col.key === columns[0]?.key ? "w-28" : col.sortable ? "w-24" : "w-20"}`}
+                    />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
+                <tr key={row} className="border-b" style={{ borderColor: "var(--border)" }}>
+                  {columns.map((col, ci) => (
+                    <td key={col.key} className="whitespace-nowrap px-4 py-3 sm:px-5">
+                      <div
+                        className={`shimmer h-4 rounded ${ci === 0 ? "w-40 max-w-full" : ci === columns.length - 1 ? "w-16" : "w-24"}`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="overflow-x-auto">

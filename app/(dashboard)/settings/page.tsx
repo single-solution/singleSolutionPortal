@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { slideUpItem, staggerContainer, fadeInItem } from "@/lib/motion";
 import { useSession } from "next-auth/react";
+
+const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 interface Profile {
   _id: string;
@@ -177,28 +178,30 @@ export default function SettingsPage() {
 
   if (loadingProfile) {
     return (
-      <motion.div
-        className="space-y-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="card-xl p-8 space-y-4">
-          <div className="shimmer h-4 w-1/3 rounded" />
-          <div className="shimmer h-12 rounded" />
-          <div className="shimmer h-12 rounded" />
-          <div className="shimmer h-12 rounded" />
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="shimmer h-11 w-11 rounded-xl" />
+          <div className="space-y-2"><div className="shimmer h-5 w-40 rounded" /><div className="shimmer h-3 w-60 rounded" /></div>
         </div>
-      </motion.div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="card-xl p-8 space-y-4"><div className="shimmer h-4 w-1/3 rounded" /><div className="shimmer h-14 w-14 rounded-2xl" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
+          <div className="card-xl p-8 space-y-4"><div className="shimmer h-4 w-1/3 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
+        </div>
+      </div>
     );
   }
 
   const avatarGradient = profile ? getAvatarGradient(fullName) : AVATAR_GRADIENTS[0];
 
   return (
-    <motion.div className="flex flex-col gap-5" variants={staggerContainer} initial="hidden" animate="visible">
+    <div className="flex flex-col gap-5">
       {/* Page header */}
-      <motion.div className="flex items-center gap-3" variants={slideUpItem}>
+      <motion.div
+        className="flex items-center gap-3"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease }}
+      >
         <div className="page-icon bg-gradient-to-br from-purple-500 to-pink-400 text-white shadow-lg shadow-purple-500/20">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
         </div>
@@ -213,10 +216,15 @@ export default function SettingsPage() {
         className="grid grid-cols-1 gap-5 lg:grid-cols-2"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.4, delay: 0.05, ease }}
       >
         {/* Profile card */}
-        <motion.div className="card-xl card-shine p-6 sm:p-8" variants={slideUpItem}>
+        <motion.div
+          className="card-xl card-shine p-6 sm:p-8"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.1, ease }}
+        >
           <h2 className="text-headline mb-4">Profile</h2>
           <div className="mb-5 flex items-center gap-4">
             <motion.div
@@ -234,7 +242,7 @@ export default function SettingsPage() {
                       initial={{ opacity: 0, scale: 0.94 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.94 }}
-                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      transition={{ duration: 0.22, ease }}
                     />
                   ) : (
                     <motion.div
@@ -243,7 +251,7 @@ export default function SettingsPage() {
                       initial={{ opacity: 0, scale: 0.94 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.94 }}
-                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      transition={{ duration: 0.22, ease }}
                     >
                       {fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
                     </motion.div>
@@ -302,7 +310,11 @@ export default function SettingsPage() {
         </motion.div>
 
         {/* Account card — email + password */}
-        <motion.div variants={slideUpItem}>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.15, ease }}
+        >
           <form onSubmit={handleAccountSubmit} className="card-xl card-shine p-6 sm:p-8 h-full flex flex-col">
             <h2 className="text-headline mb-4">Email & Password</h2>
             <div className="space-y-5 flex-1">
@@ -384,9 +396,14 @@ export default function SettingsPage() {
 
       {/* SuperAdmin row: Test Email + System Settings side by side */}
       {isSuperAdmin && (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <motion.div
+          className="grid grid-cols-1 gap-5 lg:grid-cols-2"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2, ease }}
+        >
           {/* Test Email */}
-          <motion.div className="card-xl card-shine p-6 sm:p-8" variants={slideUpItem}>
+          <div className="card-xl card-shine p-6 sm:p-8">
             <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>Test Email</h2>
             <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Send a test email to verify SMTP configuration.</p>
 
@@ -418,14 +435,14 @@ export default function SettingsPage() {
                 {sendingTestEmail ? "Sending..." : "Send Test Email"}
               </motion.button>
             </div>
-          </motion.div>
+          </div>
 
           <SystemSettingsSection />
-        </div>
+        </motion.div>
       )}
 
       {isSuperAdmin && <SystemSettingsDetailSection />}
-    </motion.div>
+    </div>
   );
 }
 
@@ -472,7 +489,7 @@ function SystemSettingsSection() {
   if (sysLoading) return null;
 
   return (
-    <motion.div className="card-xl card-shine p-6 sm:p-8" variants={fadeInItem}>
+    <div className="card-xl card-shine p-6 sm:p-8">
       <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>System</h2>
       <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Company name and timezone.</p>
       <div className="space-y-4">
@@ -493,7 +510,7 @@ function SystemSettingsSection() {
         </AnimatePresence>
         <motion.button type="button" className="w-full btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -503,8 +520,13 @@ function SystemSettingsDetailSection() {
   if (sysLoading) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-      <motion.section className="card-static p-5" variants={fadeInItem}>
+    <motion.div
+      className="grid grid-cols-1 gap-5 lg:grid-cols-2"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.25, ease }}
+    >
+      <section className="card-static p-5">
         <h3 className="text-headline mb-4" style={{ color: "var(--fg)" }}>Office Location</h3>
         <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -521,9 +543,9 @@ function SystemSettingsDetailSection() {
             <input className="input" type="number" value={settings.office.radiusMeters} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, radiusMeters: parseInt(e.target.value) || 50 } })} />
           </div>
         </div>
-      </motion.section>
+      </section>
 
-      <motion.section className="card-static p-5" variants={fadeInItem}>
+      <section className="card-static p-5">
         <h3 className="text-headline mb-4" style={{ color: "var(--fg)" }}>Shift Defaults</h3>
         <p className="text-caption mb-4">Default shift configuration for new employees.</p>
         <div className="grid grid-cols-2 gap-4">
@@ -551,7 +573,7 @@ function SystemSettingsDetailSection() {
           <motion.button type="button" className="btn btn-secondary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setSettings(DEFAULTS)}>Reset</motion.button>
           <motion.button type="button" className="btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
         </div>
-      </motion.section>
-    </div>
+      </section>
+    </motion.div>
   );
 }

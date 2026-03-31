@@ -425,10 +425,58 @@ export default function AttendancePage() {
                 </div>
 
                 {detailLoading ? (
-                  <motion.div className="flex-1 space-y-3 p-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="shimmer h-10 rounded-xl" />
-                    ))}
+                  <motion.div className="flex flex-1 flex-col overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="shimmer h-6 w-48 rounded" />
+                          <div className="shimmer h-3 w-14 rounded" />
+                        </div>
+                        <div className="shimmer h-8 w-8 rounded-lg" />
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-5 overflow-y-auto p-5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="shimmer h-6 w-20 rounded-full" />
+                        <div className="shimmer h-6 w-24 rounded-full" />
+                        <div className="shimmer h-6 w-28 rounded-full" />
+                      </div>
+                      <div className="shimmer h-4 w-full max-w-md rounded" />
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="shimmer h-14 w-full rounded-xl" />
+                        <div className="shimmer h-14 w-full rounded-xl" />
+                        <div className="shimmer h-14 w-full rounded-xl" />
+                      </div>
+                      <div>
+                        <div className="mb-1.5 flex justify-between">
+                          <div className="shimmer h-3 w-16 rounded" />
+                          <div className="shimmer h-3 w-32 rounded" />
+                        </div>
+                        <div className="shimmer h-2.5 w-full rounded-full" />
+                      </div>
+                      <div>
+                        <div className="shimmer mb-3 h-3 w-32 rounded" />
+                        <div className="relative pl-5">
+                          <div className="absolute bottom-1 left-[7px] top-1 w-0.5 rounded-full" style={{ background: "var(--border)" }} />
+                          {[1, 2].map((i) => (
+                            <div key={i} className="relative mb-4 last:mb-0">
+                              <div className="absolute -left-5 top-1 h-3.5 w-3.5 rounded-full shimmer" />
+                              <div className="rounded-xl p-3" style={{ background: "var(--glass-bg)" }}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="shimmer h-4 w-40 rounded" />
+                                  <div className="shimmer h-5 w-14 rounded-full" />
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  <div className="shimmer h-5 w-16 rounded-full" />
+                                  <div className="shimmer h-5 w-20 rounded-full" />
+                                  <div className="shimmer h-5 w-14 rounded-full" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </motion.div>
                 ) : detailData ? (
                   <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -621,10 +669,29 @@ export default function AttendancePage() {
 
       {/* Monthly records list */}
       {loading ? (
-        <motion.div className="animate-pulse space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="shimmer h-14 rounded-xl" />
-          ))}
+        <motion.div className="card-static overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+            <div className="shimmer h-5 w-40 rounded" />
+          </div>
+          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="flex w-full items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
+                  <div className="space-y-1.5">
+                    <div className="shimmer h-4 w-28 rounded" />
+                    <div className="shimmer h-3 w-36 rounded" />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="shimmer ml-auto h-4 w-12 rounded" />
+                  <div className="mt-1.5 flex justify-end">
+                    <div className="shimmer h-5 w-16 rounded-full" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </motion.div>
       ) : records.length > 0 ? (
         <motion.div className="card-static overflow-hidden" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
