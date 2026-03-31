@@ -267,7 +267,7 @@ export default function SettingsPage() {
                 )}
                 {profile?.userRole && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
-                    {({ superadmin: "Super Admin", manager: "Manager", businessDeveloper: "Business Dev", developer: "Developer" } as Record<string, string>)[profile.userRole] ?? profile.userRole}
+                    {({ superadmin: "Super Admin", manager: "Manager", teamLead: "Team Lead", businessDeveloper: "Business Dev", developer: "Developer" } as Record<string, string>)[profile.userRole] ?? profile.userRole}
                   </span>
                 )}
                 {profile?.department?.title && (

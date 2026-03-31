@@ -17,12 +17,21 @@ Automatic employee presence and attendance tracking system. Detects when employe
 
 ## Roles
 
+5-level role hierarchy:
+
+```
+superadmin (100) → manager (50) → teamLead (30) → businessDeveloper / developer (10)
+```
+
 | Role | Access |
 |------|--------|
-| **SuperAdmin** | Full CRUD on employees, departments, tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role |
-| **Manager** | Department-scoped team view, task management, attendance presence for their team |
+| **SuperAdmin** | Full CRUD on employees, departments, teams, tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role ("god mode") |
+| **Manager** | Department-scoped team/employee view, task management, team CRUD within own department, attendance presence for their department |
+| **Team Lead** | Team-scoped view of employees, tasks, and attendance for teams they lead. Can create/manage tasks for team members. Has admin nav access (employees, departments, teams pages). Sits under a manager |
 | **Business Developer** | Job pipeline tracking (17 BD fields), personal attendance |
 | **Developer** | Personal attendance, task status updates, profile management |
+
+Employees can belong to **multiple teams simultaneously** — enabling cross-team/cross-project membership. Team Leads manage the teams they're assigned to lead, while managers oversee their entire department.
 
 ---
 
@@ -107,6 +116,19 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Hover-visible edit/delete action buttons in card footer
 - Equal-height cards across all CRUD pages (flex-based stretch)
 
+### Team Management
+
+- **Teams as department sub-sections**: e.g., "Node Team" and "Laravel Team" under the "Development" department
+- Full CRUD: create, edit, delete teams with department assignment and optional team lead
+- Card grid with gradient avatars, member count badges, lead info display
+- Search + filter by department toggle pills
+- Centered glass modal for create/edit (department selector, lead selector from employees, description)
+- Delete confirmation via ConfirmDialog (removes team references from members on delete)
+- Sort toggles: Most Members / Name
+- Card footer: StatusToggle + creation date + hover-visible edit/delete buttons
+- Role-scoped: SuperAdmin sees all teams; Manager sees teams in their department; Team Lead sees teams they lead
+- Employee form includes **multi-team selector** (toggle chips) — employees can belong to multiple teams simultaneously
+
 ### Task Management
 
 - Priority-based task assignment with deadline tracking
@@ -175,7 +197,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - "Install App" prompt (hidden when already in standalone mode)
 - `sendBeacon` for best-effort check-out on tab/browser close
 
-### Dashboard (SuperAdmin/Manager)
+### Dashboard (SuperAdmin/Manager/Team Lead)
 
 - Greeting header with current date/time
 - KPI cards: total employees, present today, on-time percentage, average daily hours
@@ -248,7 +270,8 @@ app/
       EmployeeForm.tsx   # Shared full-page create/edit form
       new/page.tsx       # Create employee route
       [id]/edit/page.tsx # Edit employee route
-    departments/page.tsx # Department management (search, inline add/edit)
+    departments/page.tsx # Department management (search, inline add/edit, team count)
+    teams/page.tsx       # Team management (search, dept filter, create/edit modal)
     tasks/page.tsx       # Task board (search, centered glass modal)
     components/
       ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
@@ -262,6 +285,7 @@ app/
     auth/reset-password/ # Token validation + password update
     employees/           # CRUD with role scoping + activity logging
     departments/         # CRUD with manager population + activity logging
+    teams/               # CRUD with dept scoping + member count aggregation
     tasks/               # CRUD with team scoping + activity logging
     attendance/
       session/           # Check-in, check-out, heartbeat PATCH, session GET
@@ -280,6 +304,7 @@ lib/
   activityLogger.ts     # Fire-and-forget logActivity() utility
   auth.ts               # NextAuth config (credentials, JWT, callbacks)
   auth.config.ts        # Middleware auth config with route guards
+  permissions.ts        # DB-verified session, role hierarchy, team/dept scoping helpers
   db.ts                 # MongoDB connection singleton
   geo.ts                # Haversine + office geofence (reads SystemSettings)
   helpers.ts            # Response helpers (ok, badRequest, forbidden, etc.)
@@ -288,8 +313,9 @@ lib/
   motion.ts             # Framer Motion animation presets
   models/
     ActivityLog.ts      # Append-only activity log (user, action, entity, details)
-    User.ts             # User (roles, shifts, BD fields, reset tokens, lastSeenLogId)
+    User.ts             # User (5 roles incl. teamLead, shifts, teams[], BD fields, reset tokens, lastSeenLogId)
     Department.ts       # Department with manager ref
+    Team.ts             # Team (name, slug, department, lead, description)
     ActivitySession.ts  # Session with office segments + heartbeat lastActivity
     ActivityTask.ts     # Task with priority, deadline, status
     DailyAttendance.ts  # Daily rollup (sessions, minutes, on-time)

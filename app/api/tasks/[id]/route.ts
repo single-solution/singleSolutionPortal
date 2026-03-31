@@ -6,8 +6,10 @@ import {
   getVerifiedSession,
   isAdmin,
   isManager,
+  isTeamLead,
   canManageTasks,
   canAssignTaskTo,
+  getTeamMemberIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -53,10 +55,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.priority !== undefined) task.priority = body.priority;
     if (body.deadline !== undefined) task.deadline = body.deadline;
     if (body.assignedTo) {
-      const target = await User.findById(body.assignedTo).select("userRole department").lean();
+      const target = await User.findById(body.assignedTo).select("userRole department teams").lean();
       if (target?.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
-      if (isManager(actor) && !canAssignTaskTo(actor, target?.department?.toString())) {
+
+      const targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [];
+
+      if (isManager(actor) && !canAssignTaskTo(actor, target?.department?.toString(), targetTeams)) {
         return badRequest("Can only assign tasks to employees in your department");
+      }
+      if (isTeamLead(actor)) {
+        const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+        if (!memberIds.includes(body.assignedTo) && body.assignedTo !== actor.id) {
+          return badRequest("Can only assign tasks to your team members");
+        }
       }
       task.assignedTo = body.assignedTo;
     }
@@ -93,12 +104,20 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   await connectDB();
 
-  const task = await ActivityTask.findById(id).populate("assignedTo", "department");
+  const task = await ActivityTask.findById(id).populate("assignedTo", "department teams");
   if (!task) return notFound("Task not found");
 
   if (isManager(actor)) {
     const assigneeDept = (task.assignedTo as unknown as { department?: { toString(): string } })?.department;
     if (!canAssignTaskTo(actor, assigneeDept?.toString())) {
+      return forbidden();
+    }
+  }
+
+  if (isTeamLead(actor)) {
+    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+    const assigneeId = (task.assignedTo as unknown as { _id?: { toString(): string } })?._id?.toString() ?? task.assignedTo.toString();
+    if (!memberIds.includes(assigneeId) && assigneeId !== actor.id) {
       return forbidden();
     }
   }

@@ -10,7 +10,9 @@ import {
   canViewTeamStats,
   isSuperAdmin,
   isManager,
+  isTeamLead,
   isEmployee,
+  getTeamMemberIds,
 } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
@@ -32,6 +34,13 @@ export async function GET(req: NextRequest) {
     let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
     if (isManager(actor) && !actor.crossDepartmentAccess && actor.department) {
       empFilter.department = actor.department;
+    } else if (isTeamLead(actor)) {
+      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+      if (memberIds.length > 0) {
+        empFilter._id = { $in: memberIds };
+      } else {
+        return ok([]);
+      }
     } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
       empFilter.department = actor.department;
     }
@@ -53,12 +62,14 @@ export async function GET(req: NextRequest) {
   }
 
   let targetDept: string | null | undefined = undefined;
-  if (userId !== actor.id && isManager(actor) && !actor.crossDepartmentAccess && !isSuperAdmin(actor)) {
-    const target = await User.findById(userId).select("department").lean();
+  let targetTeams: string[] | undefined = undefined;
+  if (userId !== actor.id && !isSuperAdmin(actor)) {
+    const target = await User.findById(userId).select("department teams").lean();
     targetDept = target?.department?.toString();
+    targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString());
   }
 
-  if (!canViewAttendance(actor, userId, targetDept)) return ok([]);
+  if (!canViewAttendance(actor, userId, targetDept, targetTeams)) return ok([]);
 
   if (type === "monthly") {
     const stats = await MonthlyAttendanceStats.findOne({

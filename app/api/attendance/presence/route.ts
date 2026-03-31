@@ -3,7 +3,15 @@ import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
-import { getVerifiedSession, isAdmin, canViewTeamStats, isManager, isEmployee } from "@/lib/permissions";
+import {
+  getVerifiedSession,
+  isAdmin,
+  canViewTeamStats,
+  isManager,
+  isTeamLead,
+  isEmployee,
+  getTeamMemberIds,
+} from "@/lib/permissions";
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -24,6 +32,13 @@ export async function GET() {
   let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
   if (isManager(actor) && !actor.crossDepartmentAccess && actor.department) {
     empFilter.department = actor.department;
+  } else if (isTeamLead(actor)) {
+    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+    if (memberIds.length > 0) {
+      empFilter._id = { $in: memberIds };
+    } else {
+      return ok([]);
+    }
   } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
     empFilter.department = actor.department;
   }

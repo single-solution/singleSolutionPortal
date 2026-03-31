@@ -18,6 +18,7 @@ interface Department {
   description?: string;
   manager?: { _id: string; about: { firstName: string; lastName: string }; email?: string };
   employeeCount: number;
+  teamCount: number;
   isActive: boolean;
   createdAt: string;
 }
@@ -57,11 +58,21 @@ export default function DepartmentsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
-    const [deptRes, empRes] = await Promise.all([
+    const [deptRes, empRes, teamsRes] = await Promise.all([
       fetch("/api/departments").then((r) => r.json()),
       fetch("/api/employees").then((r) => r.json()),
+      fetch("/api/teams").then((r) => (r.ok ? r.json() : [])),
     ]);
-    setDepartments(Array.isArray(deptRes) ? deptRes : []);
+    const rawDepts: Department[] = Array.isArray(deptRes) ? deptRes : [];
+    const rawTeams: Array<{ department?: { _id: string } | string }> = Array.isArray(teamsRes) ? teamsRes : [];
+
+    const teamCountMap = new Map<string, number>();
+    for (const t of rawTeams) {
+      const dId = typeof t.department === "object" && t.department ? t.department._id : String(t.department ?? "");
+      teamCountMap.set(dId, (teamCountMap.get(dId) ?? 0) + 1);
+    }
+
+    setDepartments(rawDepts.map((d) => ({ ...d, teamCount: teamCountMap.get(d._id) ?? 0 })));
     const emps: Employee[] = Array.isArray(empRes) ? empRes : [];
     setManagers(emps.filter((e) => e.userRole === "manager"));
     setLoading(false);
@@ -391,7 +402,10 @@ export default function DepartmentsPage() {
                     {!isEditing && (
                       <div className="mt-3">
                         <div className="flex items-baseline justify-between mb-1.5">
-                          <span className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>{dept.employeeCount} employee{dept.employeeCount !== 1 ? "s" : ""}</span>
+                          <span className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>
+                            {dept.employeeCount} employee{dept.employeeCount !== 1 ? "s" : ""}
+                            {dept.teamCount > 0 && <span style={{ color: "var(--fg-tertiary)" }}> · {dept.teamCount} team{dept.teamCount !== 1 ? "s" : ""}</span>}
+                          </span>
                           <span className="text-[12px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{pct}%</span>
                         </div>
                         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>

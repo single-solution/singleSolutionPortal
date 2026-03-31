@@ -1,7 +1,14 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
+import Team from "@/lib/models/Team";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin, isManager, canViewEmployee } from "@/lib/permissions";
+import {
+  getVerifiedSession,
+  isSuperAdmin,
+  isManager,
+  isTeamLead,
+  canViewEmployee,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
 
@@ -13,10 +20,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!isValidId(id)) return badRequest("Invalid ID");
 
   await connectDB();
+  void Team;
 
   const user = await User.findById(id)
     .select("-password")
     .populate("department", "title slug")
+    .populate("teams", "name slug department")
     .lean();
 
   if (!user) return notFound("Employee not found");
@@ -25,7 +34,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     ? (typeof user.department === "object" && "_id" in user.department ? (user.department as { _id: { toString(): string } })._id.toString() : user.department.toString())
     : null;
 
-  if (!canViewEmployee(actor, id, targetDept)) return forbidden();
+  const targetTeams = ((user as Record<string, unknown>).teams as { _id?: { toString(): string } }[] | undefined)?.map((t) => (t._id ? t._id.toString() : String(t))) ?? [];
+
+  if (!canViewEmployee(actor, id, targetDept, targetTeams)) return forbidden();
 
   return ok(user);
 }
@@ -39,7 +50,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const isSelf = actor.id === id;
 
-  if (!isSelf && !isSuperAdmin(actor)) return forbidden();
+  if (!isSelf && !isSuperAdmin(actor) && !isManager(actor) && !isTeamLead(actor)) return forbidden();
 
   await connectDB();
   const body = await req.json();
@@ -62,6 +73,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       update.userRole = body.userRole;
     }
     if (body.department !== undefined) update.department = body.department || null;
+    if (body.teams !== undefined) update.teams = body.teams ?? [];
     if (body.isActive !== undefined) update.isActive = body.isActive;
     if (body.workShift) update.workShift = body.workShift;
     if (typeof body.crossDepartmentAccess === "boolean") update.crossDepartmentAccess = body.crossDepartmentAccess;
@@ -84,11 +96,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
       update.password = await bcrypt.hash(body.password, 12);
     }
+  } else if (isManager(actor) && !isSelf) {
+    if (body.workShift) update.workShift = body.workShift;
+    if (body.teams !== undefined) update.teams = body.teams ?? [];
+  } else if (isTeamLead(actor) && !isSelf) {
+    if (body.workShift) update.workShift = body.workShift;
   }
 
   const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
     .select("-password")
     .populate("department", "title slug")
+    .populate("teams", "name slug department")
     .lean();
 
   if (!user) return notFound("Employee not found");

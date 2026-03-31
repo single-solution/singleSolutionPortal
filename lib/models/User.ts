@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Document, type Types } from "mongoose";
 
-export type UserRole = "superadmin" | "manager" | "businessDeveloper" | "developer";
+export type UserRole = "superadmin" | "manager" | "teamLead" | "businessDeveloper" | "developer";
 export type ShiftType = "fullTime" | "partTime" | "contract";
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
@@ -18,6 +18,7 @@ export interface IUser extends Document {
     profileImage?: string;
   };
   department?: Types.ObjectId;
+  teams: Types.ObjectId[];
   userRole: UserRole;
   workShift: {
     type: ShiftType;
@@ -78,9 +79,10 @@ const userSchema = new Schema<IUser>(
       profileImage: { type: String, default: "" },
     },
     department: { type: Schema.Types.ObjectId, ref: "Department" },
+    teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
     userRole: {
       type: String,
-      enum: ["superadmin", "manager", "businessDeveloper", "developer"],
+      enum: ["superadmin", "manager", "teamLead", "businessDeveloper", "developer"],
       required: true,
     },
     workShift: {

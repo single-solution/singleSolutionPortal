@@ -47,6 +47,13 @@ export async function GET(req: NextRequest) {
       ) {
         return ok({ activeSession: null });
       }
+    } else if (actor.role === "teamLead") {
+      const target = await User.findById(targetUserId).select("teams").lean();
+      const targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [];
+      const hasOverlap = targetTeams.some((t) => actor.leadOfTeams.includes(t));
+      if (!hasOverlap) {
+        return ok({ activeSession: null });
+      }
     } else {
       return ok({ activeSession: null });
     }

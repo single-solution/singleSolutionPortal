@@ -6,8 +6,10 @@ import {
   getVerifiedSession,
   isSuperAdmin,
   isManager,
+  isTeamLead,
   canManageTasks,
   canAssignTaskTo,
+  getTeamMemberIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -30,12 +32,19 @@ export async function GET() {
     } else {
       filter.assignedTo = actor.id;
     }
+  } else if (isTeamLead(actor)) {
+    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+    if (memberIds.length > 0) {
+      filter.assignedTo = { $in: [...memberIds, actor.id] };
+    } else {
+      filter.assignedTo = actor.id;
+    }
   } else if (!isSuperAdmin(actor)) {
     filter.assignedTo = actor.id;
   }
 
   const tasks = await ActivityTask.find(filter)
-    .populate("assignedTo", "about.firstName about.lastName email userRole department")
+    .populate("assignedTo", "about.firstName about.lastName email userRole department teams")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -54,12 +63,14 @@ export async function POST(req: Request) {
     return badRequest("Title and assignedTo are required");
   }
 
-  const assignee = await User.findById(body.assignedTo).select("userRole department").lean();
+  const assignee = await User.findById(body.assignedTo).select("userRole department teams").lean();
   if (!assignee) return badRequest("Assignee not found");
   if (assignee.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
 
-  if (!canAssignTaskTo(actor, assignee.department?.toString())) {
-    return badRequest("Can only assign tasks to employees in your department");
+  const assigneeTeams = (assignee.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [];
+
+  if (!canAssignTaskTo(actor, assignee.department?.toString(), assigneeTeams)) {
+    return badRequest("Can only assign tasks to employees in your department or team");
   }
 
   const task = await ActivityTask.create({

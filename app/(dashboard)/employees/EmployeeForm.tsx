@@ -8,9 +8,11 @@ import { PasswordStrength } from "@/components/PasswordStrength";
 import toast from "react-hot-toast";
 
 interface Department { _id: string; title: string; }
+interface TeamOption { _id: string; name: string; department?: { _id: string } | string; }
 
 const ROLES = [
   { value: "manager", label: "Manager" },
+  { value: "teamLead", label: "Team Lead" },
   { value: "businessDeveloper", label: "Business Developer" },
   { value: "developer", label: "Developer" },
 ];
@@ -30,6 +32,7 @@ interface FormState {
   password: string;
   userRole: string;
   department: string;
+  teams: string[];
   shiftType: string;
   shiftStart: string;
   shiftEnd: string;
@@ -39,7 +42,7 @@ interface FormState {
 
 const INITIAL: FormState = {
   firstName: "", lastName: "", email: "", username: "", password: "",
-  userRole: "developer", department: "",
+  userRole: "developer", department: "", teams: [],
   shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
   workingDays: ["mon", "tue", "wed", "thu", "fri"],
   breakTime: 60,
@@ -50,12 +53,17 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   const isEdit = !!employeeId;
   const [form, setForm] = useState<FormState>(INITIAL);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [allTeams, setAllTeams] = useState<TeamOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const deptRes = await fetch("/api/departments").then((r) => r.ok ? r.json() : []);
+    const [deptRes, teamsRes] = await Promise.all([
+      fetch("/api/departments").then((r) => r.ok ? r.json() : []),
+      fetch("/api/teams").then((r) => r.ok ? r.json() : []),
+    ]);
     setDepartments(Array.isArray(deptRes) ? deptRes : []);
+    setAllTeams(Array.isArray(teamsRes) ? teamsRes : []);
 
     if (employeeId) {
       const empRes = await fetch(`/api/employees/${employeeId}`).then((r) => r.ok ? r.json() : null);
@@ -68,6 +76,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           password: "",
           userRole: empRes.userRole ?? "developer",
           department: empRes.department?._id ?? "",
+          teams: (empRes.teams ?? []).map((t: { _id: string }) => t._id),
           shiftType: empRes.workShift?.type ?? "fullTime",
           shiftStart: empRes.workShift?.shift?.start ?? "10:00",
           shiftEnd: empRes.workShift?.shift?.end ?? "19:00",
@@ -95,6 +104,21 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   // suppress unused warning
   void strength;
 
+  const filteredTeams = useMemo(() => {
+    if (!form.department) return allTeams;
+    return allTeams.filter((t) => {
+      const dId = typeof t.department === "object" && t.department ? t.department._id : String(t.department ?? "");
+      return dId === form.department;
+    });
+  }, [allTeams, form.department]);
+
+  function toggleTeam(teamId: string) {
+    setForm((f) => ({
+      ...f,
+      teams: f.teams.includes(teamId) ? f.teams.filter((id) => id !== teamId) : [...f.teams, teamId],
+    }));
+  }
+
   function toggleWorkingDay(day: string) {
     setForm((f) => ({
       ...f,
@@ -117,6 +141,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         const body: Record<string, unknown> = {
           firstName: form.firstName, lastName: form.lastName,
           userRole: form.userRole, department: form.department || null,
+          teams: form.teams,
           workShift,
         };
         if (form.password) body.password = form.password;
@@ -132,7 +157,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         const res = await fetch("/api/employees", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, workShift }),
+          body: JSON.stringify({ ...form, teams: form.teams, workShift }),
         });
         if (res.ok) {
           toast.success("Employee created");
@@ -245,6 +270,37 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
               </select>
             </div>
           </div>
+          {filteredTeams.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Teams</label>
+              <div className="flex flex-wrap gap-2">
+                {filteredTeams.map((t) => {
+                  const active = form.teams.includes(t._id);
+                  return (
+                    <motion.button
+                      key={t._id}
+                      type="button"
+                      onClick={() => toggleTeam(t._id)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        active
+                          ? "bg-[var(--teal)] text-white shadow-sm"
+                          : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                      }`}
+                      style={!active ? { background: "var(--glass-bg)" } : undefined}
+                    >
+                      {t.name}
+                    </motion.button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                Select one or more teams. Employees can belong to multiple teams.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Shift Configuration */}

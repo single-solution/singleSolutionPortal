@@ -117,6 +117,7 @@ const STATUS_BADGE_CLASS: Record<PresenceStatus, string> = {
 const ROLE_DESIGNATION: Record<string, string> = {
   superadmin: "System Administrator",
   manager: "Team Manager",
+  teamLead: "Team Lead",
   businessDeveloper: "Business Developer",
   developer: "Software Developer",
 };
@@ -584,13 +585,14 @@ export default function DashboardHome({ user }: { user: User }) {
     async function load() {
       try {
         const isSuperAdmin = user.role === "superadmin";
+        const isAdminRole = isSuperAdmin || user.role === "manager" || user.role === "teamLead";
         const fetches: Promise<unknown>[] = [
           fetch("/api/employees").then((r) => r.ok ? r.json() : []),
           fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
           isSuperAdmin ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
         ];
 
-        if (isSuperAdmin || user.role === "manager") {
+        if (isAdminRole) {
           fetches.push(fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []));
         }
 
@@ -651,7 +653,7 @@ export default function DashboardHome({ user }: { user: User }) {
     );
   }
 
-  if (user.role === "superadmin") {
+  if (user.role === "superadmin" || user.role === "manager" || user.role === "teamLead") {
     return (
       <SuperAdminOverview
         user={user}

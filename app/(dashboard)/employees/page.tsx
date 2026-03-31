@@ -13,6 +13,7 @@ interface Employee {
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   userRole: string;
   department?: { _id: string; title: string };
+  teams?: { _id: string; name: string }[];
   isActive: boolean;
   isVerified?: boolean;
   workShift?: {
@@ -45,14 +46,16 @@ const AVATAR_GRADIENTS = [
 const DESIGNATION_LABELS: Record<string, string> = {
   superadmin: "System Administrator",
   manager: "Team Manager",
+  teamLead: "Team Lead",
   businessDeveloper: "Business Developer",
   developer: "Software Developer",
 };
 
-type RoleFilter = "all" | "manager" | "businessDeveloper" | "developer";
+type RoleFilter = "all" | "manager" | "teamLead" | "businessDeveloper" | "developer";
 const ROLE_FILTER_LABELS: Record<RoleFilter, string> = {
   all: "All",
   manager: "Managers",
+  teamLead: "Leads",
   businessDeveloper: "BD",
   developer: "Developers",
 };
@@ -394,6 +397,18 @@ export default function EmployeesPage() {
                           <span style={{ color: "var(--fg-tertiary)" }}>Department</span>
                           <span className="font-medium" style={{ color: "var(--fg)" }}>{emp.department?.title ?? "—"}</span>
                         </div>
+                        {emp.teams && emp.teams.length > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span style={{ color: "var(--fg-tertiary)" }}>Teams</span>
+                            <div className="flex flex-wrap gap-1 justify-end">
+                              {emp.teams.map((t) => (
+                                <span key={t._id} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+                                  {t.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {emp.workShift && (
                           <>
                             <div className="flex items-center justify-between">
