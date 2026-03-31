@@ -235,7 +235,7 @@ function LoginForm() {
               <motion.button
                 type="submit"
                 disabled={loading}
-                whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(0,113,227,0.35)" }}
+                whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(0,122,255,0.3)" }}
                 whileTap={{ scale: 0.98 }}
                 className="w-full btn btn-primary disabled:opacity-50 relative overflow-hidden"
               >

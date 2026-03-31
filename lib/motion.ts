@@ -170,10 +170,84 @@ export const tabIndicatorTransition: Transition = {
   duration: 0.4,
 };
 
+// --- Scale-in (for badges, chips, pills) ---
+
+export const scaleIn: Variants = {
+  hidden: { scale: 0, opacity: 0 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 500, damping: 28 },
+  },
+  exit: { scale: 0, opacity: 0, transition: { duration: 0.15 } },
+};
+
+// --- Blur-in (glass-feel entrance) ---
+
+export const blurIn: Variants = {
+  hidden: { opacity: 0, filter: "blur(8px)", y: 12 },
+  visible: {
+    opacity: 1,
+    filter: "blur(0px)",
+    y: 0,
+    transition: { duration: 0.5, ease },
+  },
+};
+
+// --- Skeleton → content crossfade ---
+
+export const contentReveal: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: "easeOut" },
+  },
+};
+
+// --- Stagger with blur (premium entrance) ---
+
+export const staggerBlur: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+  },
+};
+
+export const blurItem: Variants = {
+  hidden: { opacity: 0, filter: "blur(6px)", y: 16, scale: 0.97 },
+  visible: {
+    opacity: 1,
+    filter: "blur(0px)",
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.45, ease },
+  },
+};
+
 // --- Floating dock entrance (from voting app) ---
 
 export const dockEntrance = {
   initial: { y: 40, opacity: 0 },
   animate: { y: 0, opacity: 1 },
   transition: { delay: 0.6, duration: 0.5, ease },
+};
+
+// --- Smooth page transition (enhanced) ---
+
+export const smoothPage: Variants = {
+  initial: { opacity: 0, y: 16, filter: "blur(4px)" },
+  animate: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.35, ease },
+  },
+  exit: {
+    opacity: 0,
+    y: -8,
+    filter: "blur(4px)",
+    transition: { duration: 0.2 },
+  },
 };

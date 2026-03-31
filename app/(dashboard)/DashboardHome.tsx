@@ -239,7 +239,7 @@ function AttendanceDonut({ counts, total }: { counts: ReturnType<typeof getStatu
 
 function EmployeePresenceCard({ emp, idx, reduceMotion }: { emp: PresenceEmployee; idx: number; reduceMotion: boolean }) {
   return (
-    <motion.div custom={idx} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className="card-static group flex flex-col gap-3 rounded-[var(--radius)] p-3">
+    <motion.div custom={idx} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className="card-static card-shine group flex flex-col gap-3 rounded-[var(--radius)] p-3">
       <div className="flex items-start gap-3">
         <motion.div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]}`}

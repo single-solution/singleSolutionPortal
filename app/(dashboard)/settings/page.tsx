@@ -177,14 +177,19 @@ export default function SettingsPage() {
 
   if (loadingProfile) {
     return (
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="card-xl p-8 space-y-4">
           <div className="shimmer h-4 w-1/3 rounded" />
           <div className="shimmer h-12 rounded" />
           <div className="shimmer h-12 rounded" />
           <div className="shimmer h-12 rounded" />
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -204,19 +209,46 @@ export default function SettingsPage() {
       </motion.div>
 
       {/* Grid layout: profile + account side-by-side on desktop */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <motion.div
+        className="grid grid-cols-1 gap-5 lg:grid-cols-2"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
         {/* Profile card */}
-        <motion.div className="card-xl p-6 sm:p-8" variants={slideUpItem}>
+        <motion.div className="card-xl card-shine p-6 sm:p-8" variants={slideUpItem}>
           <h2 className="text-headline mb-4">Profile</h2>
           <div className="mb-5 flex items-center gap-4">
-            <div className="relative group">
-              {profileImage ? (
-                <img src={profileImage} alt="Profile" className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
-              ) : (
-                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-lg font-bold text-white ${avatarGradient}`}>
-                  {fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
-                </div>
-              )}
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <div className="relative group h-14 w-14 shrink-0">
+                <AnimatePresence mode="wait">
+                  {profileImage ? (
+                    <motion.img
+                      key={profileImage}
+                      src={profileImage}
+                      alt="Profile"
+                      className="h-14 w-14 shrink-0 rounded-2xl object-cover"
+                      initial={{ opacity: 0, scale: 0.94 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.94 }}
+                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    />
+                  ) : (
+                    <motion.div
+                      key="initials"
+                      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-lg font-bold text-white ${avatarGradient}`}
+                      initial={{ opacity: 0, scale: 0.94 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.94 }}
+                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      {fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               <label className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-2xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                 <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 <input type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
@@ -224,7 +256,8 @@ export default function SettingsPage() {
               {profileImage && (
                 <button type="button" className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-white text-xs opacity-0 transition-opacity group-hover:opacity-100" onClick={() => setProfileImage("")}>×</button>
               )}
-            </div>
+              </div>
+            </motion.div>
             <div className="min-w-0">
               <p className="text-headline truncate">{fullName || "Unnamed"}</p>
               <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{profile?.email}</p>
@@ -270,7 +303,7 @@ export default function SettingsPage() {
 
         {/* Account card — email + password */}
         <motion.div variants={slideUpItem}>
-          <form onSubmit={handleAccountSubmit} className="card-xl p-6 sm:p-8 h-full flex flex-col">
+          <form onSubmit={handleAccountSubmit} className="card-xl card-shine p-6 sm:p-8 h-full flex flex-col">
             <h2 className="text-headline mb-4">Email & Password</h2>
             <div className="space-y-5 flex-1">
               <div>
@@ -307,7 +340,12 @@ export default function SettingsPage() {
                 {newPassword && (
                   <div className="mt-2 flex gap-1.5">
                     {[0, 1, 2, 3, 4].map((i) => (
-                      <motion.div key={i} className="h-1 flex-1 rounded-full" animate={{ backgroundColor: i < strength ? strengthColor(strength) : "var(--border)", opacity: i < strength ? 1 : 0.45 }} transition={{ type: "spring", stiffness: 380, damping: 28 }} />
+                      <motion.div
+                        key={i}
+                        className="h-1 flex-1 rounded-full"
+                        animate={{ backgroundColor: i < strength ? strengthColor(strength) : "var(--border)", opacity: i < strength ? 1 : 0.45 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 28, delay: i * 0.05 }}
+                      />
                     ))}
                   </div>
                 )}
@@ -342,13 +380,13 @@ export default function SettingsPage() {
             </motion.button>
           </form>
         </motion.div>
-      </div>
+      </motion.div>
 
       {/* SuperAdmin row: Test Email + System Settings side by side */}
       {isSuperAdmin && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           {/* Test Email */}
-          <motion.div className="card-xl p-6 sm:p-8" variants={slideUpItem}>
+          <motion.div className="card-xl card-shine p-6 sm:p-8" variants={slideUpItem}>
             <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>Test Email</h2>
             <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Send a test email to verify SMTP configuration.</p>
 
@@ -434,7 +472,7 @@ function SystemSettingsSection() {
   if (sysLoading) return null;
 
   return (
-    <motion.div className="card-xl p-6 sm:p-8" variants={fadeInItem}>
+    <motion.div className="card-xl card-shine p-6 sm:p-8" variants={fadeInItem}>
       <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>System</h2>
       <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Company name and timezone.</p>
       <div className="space-y-4">

@@ -171,7 +171,12 @@ export default function EmployeesPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="flex items-center justify-between gap-3 mb-6">
           <div className="space-y-2 flex-1"><div className="shimmer h-5 w-1/4 rounded" /><div className="shimmer h-8 w-1/3 rounded" /></div>
           <div className="shimmer h-9 w-32 rounded-full" />
@@ -180,12 +185,17 @@ export default function EmployeesPage() {
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[1,2,3,4,5,6].map(i => <div key={i} className="shimmer h-44 rounded-2xl" />)}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <motion.div
+      className="flex flex-col gap-0"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+    >
       {/* Header: title left, sort right */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
@@ -310,7 +320,12 @@ export default function EmployeesPage() {
 
       {/* Count + Select all */}
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-footnote" style={{ color: "var(--fg-secondary)" }}>{filtered.length} employee{filtered.length !== 1 ? "s" : ""}</p>
+        <p className="text-footnote" style={{ color: "var(--fg-secondary)" }}>
+          <motion.span key={filtered.length} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+            {filtered.length}
+          </motion.span>
+          {" "}employee{filtered.length !== 1 ? "s" : ""}
+        </p>
         <button type="button" onClick={toggleSelectAll} className="text-footnote font-medium hover:underline" style={{ color: "var(--primary)" }}>
           {selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
         </button>
@@ -320,7 +335,7 @@ export default function EmployeesPage() {
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full card p-12 text-center">
+            <motion.div key="empty" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full card p-12 text-center">
               <p style={{ color: "var(--fg-secondary)" }}>No employees found.</p>
             </motion.div>
           ) : (
@@ -338,7 +353,7 @@ export default function EmployeesPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
                 >
-                  <div className="card group relative overflow-hidden flex h-full flex-col">
+                  <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -462,6 +477,6 @@ export default function EmployeesPage() {
         onConfirm={handleBulkDeactivate}
         onCancel={() => setBulkDeleteOpen(false)}
       />
-    </div>
+    </motion.div>
   );
 }

@@ -144,7 +144,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
 - **Shimmer skeleton loading**: on all pages (no spinners anywhere, including ProcessingOverlay)
-- **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; stagger entrances for card grids and table rows
+- **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; stagger entrances for card grids and table rows; blur-in page transitions; card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in; content reveal with blur defogging
 - **Form labels**: standardized `text-xs font-medium text-[var(--fg-secondary)] mb-1`
 - **Input icons**: all icon-prefixed inputs use `left-3.5` icon + `paddingLeft: 40px`
 

@@ -163,7 +163,12 @@ export default function TasksPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="flex items-center justify-between gap-3 mb-6">
           <div className="space-y-2 flex-1"><div className="shimmer h-5 w-1/4 rounded" /><div className="shimmer h-8 w-1/3 rounded" /></div>
           <div className="shimmer h-9 w-28 rounded-full" />
@@ -172,12 +177,17 @@ export default function TasksPage() {
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[1,2,3,4,5,6].map(i => <div key={i} className="shimmer h-36 rounded-2xl" />)}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <motion.div
+      className="flex flex-col gap-0"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+    >
       {/* Header: title left, sort right */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
@@ -264,7 +274,13 @@ export default function TasksPage() {
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full card p-12 text-center">
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="col-span-full card p-12 text-center"
+            >
               <p style={{ color: "var(--fg-secondary)" }}>No tasks found.</p>
             </motion.div>
           ) : (
@@ -283,7 +299,7 @@ export default function TasksPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
                 >
-                  <div className="card group relative overflow-hidden flex h-full flex-col">
+                  <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                     <div className="p-3 sm:p-4 flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
@@ -291,7 +307,7 @@ export default function TasksPage() {
                         </span>
                         {!isAdmin && task.assignedTo?._id === session?.user?.id ? (
                           <select
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold cursor-pointer border-0 bg-transparent"
+                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold cursor-pointer border-0 bg-transparent transition-colors duration-200"
                             style={{
                               background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
                               color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
@@ -311,7 +327,7 @@ export default function TasksPage() {
                             <option value="completed">Completed</option>
                           </select>
                         ) : (
-                          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{
+                          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors duration-200" style={{
                             background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
                             color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
                           }}>
@@ -416,67 +432,74 @@ export default function TasksPage() {
               </div>
 
               {/* Modal Body */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                <div>
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label>
-                  <input className="input" placeholder="Task title..." required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label>
-                  <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                </div>
-                {isAdmin && (
+              <form onSubmit={handleSubmit} className="p-6 max-h-[70vh] overflow-y-auto">
+                <motion.div
+                  className="space-y-4"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.3 }}
+                >
                   <div>
-                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To</label>
-                    <select className="input" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
-                      <option value="">Select employee</option>
-                      {employees.filter((e) => e.userRole !== "superadmin").map((e) => (
-                        <option key={e._id} value={e._id}>{e.about.firstName} {e.about.lastName} — {DESIGNATION_LABELS[e.userRole] ?? e.userRole}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Priority</label>
-                    <select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label>
+                    <input className="input" placeholder="Task title..." required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Deadline</label>
-                    <input className="input" type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label>
+                    <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                   </div>
-                </div>
-                {editing && (
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label>
-                    <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                      <option value="pending">Pending</option>
-                      <option value="inProgress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
+                  {isAdmin && (
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To</label>
+                      <select className="input transition-colors duration-200" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
+                        <option value="">Select employee</option>
+                        {employees.filter((e) => e.userRole !== "superadmin").map((e) => (
+                          <option key={e._id} value={e._id}>{e.about.firstName} {e.about.lastName} — {DESIGNATION_LABELS[e.userRole] ?? e.userRole}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Priority</label>
+                      <select className="input transition-colors duration-200" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Deadline</label>
+                      <input className="input" type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                    </div>
                   </div>
-                )}
+                  {editing && (
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label>
+                      <select className="input transition-colors duration-200" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                        <option value="pending">Pending</option>
+                        <option value="inProgress">In Progress</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                  )}
 
-                {/* Modal Footer */}
-                <div className="flex gap-3 pt-2">
-                  <motion.button
-                    type="submit"
-                    disabled={saving}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="btn btn-primary flex-1"
-                  >
-                    {saving ? "Saving..." : editing ? "Update Task" : "Create Task"}
-                  </motion.button>
-                  <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary flex-1">
-                    Cancel
-                  </button>
-                </div>
+                  {/* Modal Footer */}
+                  <div className="flex gap-3 pt-2">
+                    <motion.button
+                      type="submit"
+                      disabled={saving}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="btn btn-primary flex-1"
+                    >
+                      {saving ? "Saving..." : editing ? "Update Task" : "Create Task"}
+                    </motion.button>
+                    <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary flex-1">
+                      Cancel
+                    </button>
+                  </div>
+                </motion.div>
               </form>
             </motion.div>
           </motion.div>
@@ -494,6 +517,6 @@ export default function TasksPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </div>
+    </motion.div>
   );
 }

@@ -302,14 +302,34 @@ export default function AttendancePage() {
             transition={{ duration: 0.3 }}
           >
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-              <AnalyticChip label="Avg Daily" value={`${monthlyStats.averageDailyHours.toFixed(1)}h`} color="var(--primary)" />
-              <AnalyticChip label="Avg Arrival" value={monthlyStats.averageOfficeInTime ?? "—"} color="var(--green)" />
-              <AnalyticChip label="Avg Departure" value={monthlyStats.averageOfficeOutTime ?? "—"} color="var(--amber)" />
-              <AnalyticChip label="On-Time %" value={`${Math.round(monthlyStats.onTimePercentage)}%`} color={monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)"} />
-              <AnalyticChip label="Attendance %" value={`${Math.round(monthlyStats.attendancePercentage)}%`} color={monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)"} />
-              <AnalyticChip label="Office / Remote" value={`${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--teal)" />
-            </div>
+            <motion.div
+              className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+              }}
+            >
+              {[
+                { label: "Avg Daily", value: `${monthlyStats.averageDailyHours.toFixed(1)}h`, color: "var(--primary)" },
+                { label: "Avg Arrival", value: monthlyStats.averageOfficeInTime ?? "—", color: "var(--green)" },
+                { label: "Avg Departure", value: monthlyStats.averageOfficeOutTime ?? "—", color: "var(--amber)" },
+                { label: "On-Time %", value: `${Math.round(monthlyStats.onTimePercentage)}%`, color: monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" },
+                { label: "Attendance %", value: `${Math.round(monthlyStats.attendancePercentage)}%`, color: monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)" },
+                { label: "Office / Remote", value: `${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`, color: "var(--teal)" },
+              ].map((chip) => (
+                <motion.div
+                  key={chip.label}
+                  variants={{
+                    hidden: { opacity: 0, y: 8 },
+                    visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+                  }}
+                >
+                  <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
+                </motion.div>
+              ))}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -322,7 +342,18 @@ export default function AttendancePage() {
           <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <h2 className="text-headline">{MONTH_NAMES[month - 1]} {year}</h2>
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={`${month}-${year}`}
+              className="text-headline"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+            >
+              {MONTH_NAMES[month - 1]} {year}
+            </motion.span>
+          </AnimatePresence>
           <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
           </button>
@@ -394,7 +425,11 @@ export default function AttendancePage() {
                 </div>
 
                 {detailLoading ? (
-                  <div className="flex-1 space-y-3 p-5">{[1,2,3,4].map(i => <div key={i} className="shimmer h-10 rounded-xl" />)}</div>
+                  <motion.div className="flex-1 space-y-3 p-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="shimmer h-10 rounded-xl" />
+                    ))}
+                  </motion.div>
                 ) : detailData ? (
                   <div className="flex-1 overflow-y-auto p-5 space-y-5">
                     {/* Status pills */}
@@ -443,10 +478,18 @@ export default function AttendancePage() {
                         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Session Timeline</p>
                         <div className="relative pl-5">
                           <div className="absolute left-[7px] top-1 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
-                          <div className="space-y-4">
+                          <motion.div
+                            className="space-y-4"
+                            initial="hidden"
+                            animate="visible"
+                            variants={{
+                              hidden: { opacity: 0 },
+                              visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+                            }}
+                          >
                             {detailData.activitySessions
                               .sort((a, b) => new Date(a.sessionTime.start).getTime() - new Date(b.sessionTime.start).getTime())
-                              .map((sess, idx) => {
+                              .map((sess) => {
                                 const device = detectDevice(sess.platform);
                                 const statusConf = sess.status === "active"
                                   ? { color: "var(--green)", label: "Active" }
@@ -455,7 +498,14 @@ export default function AttendancePage() {
                                     : { color: "var(--fg-tertiary)", label: "Ended" };
 
                                 return (
-                                  <motion.div key={sess._id} className="relative" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, delay: idx * 0.08 }}>
+                                  <motion.div
+                                    key={sess._id}
+                                    className="relative"
+                                    variants={{
+                                      hidden: { opacity: 0, x: -12 },
+                                      visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } },
+                                    }}
+                                  >
                                     {/* Timeline dot */}
                                     <div className="absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${sess.location.inOffice ? "var(--green)" : "var(--teal)"}` }}>
                                       {sess.status === "active" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--green)" }} />}
@@ -501,9 +551,24 @@ export default function AttendancePage() {
                                       {sess.officeSegments && sess.officeSegments.length > 0 && (
                                         <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "color-mix(in srgb, var(--border) 60%, transparent)" }}>
                                           <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Office Segments</p>
-                                          <div className="space-y-1">
+                                          <motion.div
+                                            className="space-y-1"
+                                            initial="hidden"
+                                            animate="visible"
+                                            variants={{
+                                              hidden: { opacity: 0 },
+                                              visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+                                            }}
+                                          >
                                             {sess.officeSegments.map((seg, si) => (
-                                              <div key={si} className="flex items-center justify-between text-[10px]">
+                                              <motion.div
+                                                key={si}
+                                                className="flex items-center justify-between text-[10px]"
+                                                variants={{
+                                                  hidden: { opacity: 0, x: -10 },
+                                                  visible: { opacity: 1, x: 0 },
+                                                }}
+                                              >
                                                 <div className="flex items-center gap-1.5">
                                                   <span className="h-1 w-1 rounded-full" style={{ background: "var(--green)" }} />
                                                   <span style={{ color: "var(--fg-secondary)" }}>
@@ -513,16 +578,16 @@ export default function AttendancePage() {
                                                 <span className="font-semibold" style={{ color: "var(--green)" }}>
                                                   {fmtHours(seg.durationMinutes)}
                                                 </span>
-                                              </div>
+                                              </motion.div>
                                             ))}
-                                          </div>
+                                          </motion.div>
                                         </div>
                                       )}
                                     </div>
                                   </motion.div>
                                 );
                               })}
-                          </div>
+                          </motion.div>
                         </div>
                       </div>
                     )}
@@ -556,7 +621,11 @@ export default function AttendancePage() {
 
       {/* Monthly records list */}
       {loading ? (
-        <div className="animate-pulse space-y-2">{[1,2,3,4].map(i => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
+        <motion.div className="animate-pulse space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="shimmer h-14 rounded-xl" />
+          ))}
+        </motion.div>
       ) : records.length > 0 ? (
         <motion.div className="card-static overflow-hidden" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
           <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>

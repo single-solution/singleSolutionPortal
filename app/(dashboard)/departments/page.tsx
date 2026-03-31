@@ -146,7 +146,12 @@ export default function DepartmentsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="flex items-center justify-between gap-3 mb-6">
           <div className="space-y-2"><div className="shimmer h-5 w-28 rounded" /><div className="shimmer h-8 w-40 rounded" /></div>
           <div className="shimmer h-9 w-36 rounded-lg" />
@@ -155,12 +160,17 @@ export default function DepartmentsPage() {
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[1,2,3].map(i => <div key={i} className="shimmer h-40 rounded-2xl" />)}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <motion.div
+      className="flex flex-col gap-0"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+    >
       {/* Header */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
@@ -270,7 +280,13 @@ export default function DepartmentsPage() {
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <AnimatePresence mode="popLayout">
           {sorted.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full card p-12 text-center">
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="col-span-full card card-shine p-12 text-center"
+            >
               <p style={{ color: "var(--fg-secondary)" }}>No departments yet. Add one above.</p>
             </motion.div>
           ) : sorted.map((dept, i) => {
@@ -288,7 +304,7 @@ export default function DepartmentsPage() {
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
               >
-                <div className="card group relative overflow-hidden flex h-full flex-col">
+                <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                   <div className="flex-1 p-3 sm:p-4">
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
@@ -430,6 +446,6 @@ export default function DepartmentsPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </div>
+    </motion.div>
   );
 }
