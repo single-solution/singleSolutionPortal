@@ -534,51 +534,56 @@ function SystemSettingsDetailSection() {
   if (sysLoading) return null;
 
   return (
-    <FadeUp delay={0.25} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+    <FadeUp delay={0.25}>
       <section className="card-static p-5">
-        <h3 className="text-headline mb-4" style={{ color: "var(--fg)" }}>Office Location</h3>
-        <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Latitude</label>
-            <input className="input" type="number" step="any" value={settings.office.latitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, latitude: parseFloat(e.target.value) || 0 } })} />
+            <h3 className="text-headline mb-1" style={{ color: "var(--fg)" }}>Office Location</h3>
+            <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Latitude</label>
+                <input className="input" type="number" step="any" value={settings.office.latitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, latitude: parseFloat(e.target.value) || 0 } })} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Longitude</label>
+                <input className="input" type="number" step="any" value={settings.office.longitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, longitude: parseFloat(e.target.value) || 0 } })} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Radius (m)</label>
+                <input className="input" type="number" value={settings.office.radiusMeters} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, radiusMeters: parseInt(e.target.value) || 50 } })} />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Longitude</label>
-            <input className="input" type="number" step="any" value={settings.office.longitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, longitude: parseFloat(e.target.value) || 0 } })} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Radius (m)</label>
-            <input className="input" type="number" value={settings.office.radiusMeters} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, radiusMeters: parseInt(e.target.value) || 50 } })} />
-          </div>
-        </div>
-      </section>
 
-      <section className="card-static p-5">
-        <h3 className="text-headline mb-4" style={{ color: "var(--fg)" }}>Shift Defaults</h3>
-        <p className="text-caption mb-4">Default shift configuration for new employees.</p>
-        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start Time</label>
-            <input className="input" type="time" value={settings.shiftDefaults.start} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, start: e.target.value } })} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End Time</label>
-            <input className="input" type="time" value={settings.shiftDefaults.end} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, end: e.target.value } })} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Break (min)</label>
-            <input className="input" type="number" value={settings.shiftDefaults.breakMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, breakMinutes: parseInt(e.target.value) || 60 } })} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Grace (min)</label>
-            <input className="input" type="number" value={settings.shiftDefaults.graceMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, graceMinutes: parseInt(e.target.value) || 30 } })} />
+            <h3 className="text-headline mb-1" style={{ color: "var(--fg)" }}>Shift Defaults</h3>
+            <p className="text-caption mb-4">Default shift configuration for new employees.</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start Time</label>
+                <input className="input" type="time" value={settings.shiftDefaults.start} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, start: e.target.value } })} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End Time</label>
+                <input className="input" type="time" value={settings.shiftDefaults.end} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, end: e.target.value } })} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Break (min)</label>
+                <input className="input" type="number" value={settings.shiftDefaults.breakMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, breakMinutes: parseInt(e.target.value) || 60 } })} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Grace (min)</label>
+                <input className="input" type="number" value={settings.shiftDefaults.graceMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, graceMinutes: parseInt(e.target.value) || 30 } })} />
+              </div>
+            </div>
           </div>
         </div>
+
         <AnimatePresence>
-          {sysMsg && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-3 text-sm font-medium" style={{ color: "var(--green)" }}>{sysMsg}</motion.p>}
+          {sysMsg && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-4 text-sm font-medium" style={{ color: "var(--green)" }}>{sysMsg}</motion.p>}
         </AnimatePresence>
-        <div className="flex justify-end gap-3 mt-4">
+        <div className="flex justify-end gap-3 mt-5 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <motion.button type="button" className="btn btn-secondary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setSettings(DEFAULTS)}>Reset</motion.button>
           <motion.button type="button" className="btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
         </div>
