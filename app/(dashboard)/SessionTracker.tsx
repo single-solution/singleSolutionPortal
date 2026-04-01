@@ -75,6 +75,7 @@ export default function SessionTracker() {
   const [mode, setMode] = useState<DeviceMode>("booting");
   const [elapsed, setElapsed] = useState(0);
   const [idle, setIdle] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const isMobileRef = useRef(false);
   const modeRef = useRef<DeviceMode>("booting");
@@ -125,16 +126,16 @@ export default function SessionTracker() {
   // ─── Check-in ─────────────────────────────────────────────────
   const doCheckIn = useCallback(
     async (retries = 0): Promise<boolean> => {
-      const coords = await getGeo();
-      if (coords) lastCoordsRef.current = coords;
+      const geo = await getGeo();
+      if (geo) { lastCoordsRef.current = geo; setCoords(geo); }
       try {
         const res = await fetch("/api/attendance/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "checkin",
-            latitude: coords?.lat,
-            longitude: coords?.lng,
+            latitude: geo?.lat,
+            longitude: geo?.lng,
             platform: navigator.platform,
             userAgent: navigator.userAgent,
             deviceId: getDeviceId(),
@@ -175,15 +176,15 @@ export default function SessionTracker() {
 
     const beat = async () => {
       if (modeRef.current !== "active") return;
-      const coords = await getGeo();
-      if (coords) lastCoordsRef.current = coords;
+      const geo = await getGeo();
+      if (geo) { lastCoordsRef.current = geo; setCoords(geo); }
       try {
         const res = await fetch("/api/attendance/session", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            latitude: coords?.lat ?? lastCoordsRef.current?.lat,
-            longitude: coords?.lng ?? lastCoordsRef.current?.lng,
+            latitude: geo?.lat ?? lastCoordsRef.current?.lat,
+            longitude: geo?.lng ?? lastCoordsRef.current?.lng,
           }),
         });
         const data = await res.json();
@@ -563,47 +564,54 @@ export default function SessionTracker() {
           initial={{ y: 20, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: idle && isActive ? 0.5 : 1, scale: 1 }}
           transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
-          className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white backdrop-blur-xl"
+          className="mx-auto flex w-fit flex-col items-center gap-1 rounded-[20px] px-4 py-2 text-white backdrop-blur-xl"
           style={pillStyle}
         >
-          {isActive && !idle && (
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+          <div className="flex items-center gap-3">
+            {isActive && !idle && (
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+              </span>
+            )}
+
+            {idle && isActive && !isReadonly && (
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
+              </span>
+            )}
+
+            <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">
+              {idle && isActive && !isReadonly ? "Paused" : statusLabel}
+            </span>
+
+            {isReadonly && isActive && (
+              <span className="text-[9px] font-semibold opacity-80 tracking-wide">
+                {isMobileRef.current ? "synced" : "another device"}
+              </span>
+            )}
+
+            {session.isStale && session.active && (
+              <span className="text-[9px] font-semibold opacity-75 tracking-wide">inactive</span>
+            )}
+
+            <span className="h-3.5 w-px bg-white/40 rounded-full" />
+
+            <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
+              {isActive ? (idle ? formatElapsed(pausedAtRef.current || elapsed) : formatElapsed(elapsed)) : "--:--:--"}
+            </span>
+
+            <span className="h-3.5 w-px bg-white/40 rounded-full" />
+
+            <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
+              {formatTodayHours(todayTotal)}
+            </span>
+          </div>
+          {coords && (
+            <span className="text-[9px] font-mono tabular-nums opacity-70 tracking-wide">
+              {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
             </span>
           )}
-
-          {idle && isActive && !isReadonly && (
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
-            </span>
-          )}
-
-          <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">
-            {idle && isActive && !isReadonly ? "Paused" : statusLabel}
-          </span>
-
-          {isReadonly && isActive && (
-            <span className="text-[9px] font-semibold opacity-80 tracking-wide">
-              {isMobileRef.current ? "synced" : "another device"}
-            </span>
-          )}
-
-          {session.isStale && session.active && (
-            <span className="text-[9px] font-semibold opacity-75 tracking-wide">inactive</span>
-          )}
-
-          <span className="h-3.5 w-px bg-white/40 rounded-full" />
-
-          <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
-            {isActive ? (idle ? formatElapsed(pausedAtRef.current || elapsed) : formatElapsed(elapsed)) : "--:--:--"}
-          </span>
-
-          <span className="h-3.5 w-px bg-white/40 rounded-full" />
-
-          <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
-            {formatTodayHours(todayTotal)}
-          </span>
         </motion.div>
       </AnimatePresence>
     </>
