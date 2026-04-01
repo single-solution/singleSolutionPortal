@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     entityId: dept._id.toString(),
     details: body.title.trim(),
     targetDepartmentId: dept._id.toString(),
-    targetUserIds: body.managerId ? [body.managerId, actor.id] : [actor.id],
+    targetUserIds: body.managerId ? [body.managerId] : [],
     visibility: "targeted",
   });
 

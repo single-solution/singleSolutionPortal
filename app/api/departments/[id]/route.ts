@@ -44,6 +44,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     details: (dept as Record<string, unknown> & { title?: string }).title ?? "",
     targetDepartmentId: id,
     targetUserIds: body.managerId ? [body.managerId] : [],
+    visibility: "targeted",
   });
 
   return ok(dept);
@@ -70,6 +71,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     entity: "department",
     entityId: id,
     targetDepartmentId: id,
+    visibility: "targeted",
   });
 
   return ok({ message: "Department deactivated" });

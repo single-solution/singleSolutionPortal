@@ -126,6 +126,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .lean();
 
   const statusChange = body.status ? ` → ${body.status}` : "";
+  const updatedEmps = (campaign.tags.employees as unknown as string[]).map((e) => e.toString());
+  const updatedDepts = (campaign.tags.departments as unknown as string[]).map((d) => d.toString());
+  const updatedTeamsArr = (campaign.tags.teams as unknown as string[]).map((t) => t.toString());
   logActivity({
     userEmail: actor.email,
     userName: "",
@@ -134,6 +137,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     entity: "campaign",
     entityId: id,
     details: campaign.name,
+    targetUserIds: updatedEmps,
+    targetDepartmentId: updatedDepts[0] || undefined,
+    targetTeamIds: updatedTeamsArr,
+    visibility: updatedEmps.length === 0 && updatedDepts.length === 0 && updatedTeamsArr.length === 0 ? "all" : "targeted",
   });
 
   return ok(populated);
@@ -167,7 +174,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     entity: "campaign",
     entityId: id,
     details: campaign.name,
-    targetUserIds: [...delEmps, actor.id],
+    targetUserIds: delEmps,
     targetDepartmentId: delDepts[0] || undefined,
     targetTeamIds: delTeamsArr,
   });

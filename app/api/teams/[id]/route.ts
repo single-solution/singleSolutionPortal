@@ -93,7 +93,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     details: team.name,
     targetTeamIds: [id],
     targetDepartmentId: team.department.toString(),
-    targetUserIds: leadId ? [leadId, actor.id] : [actor.id],
+    targetUserIds: leadId ? [leadId] : [],
+    visibility: "targeted",
   });
 
   return ok(populated);
@@ -127,6 +128,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     details: team.name,
     targetTeamIds: [id],
     targetDepartmentId: team.department.toString(),
+    visibility: "targeted",
   });
 
   return ok({ message: "Team deactivated" });

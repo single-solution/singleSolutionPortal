@@ -197,15 +197,16 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **System Settings** (SuperAdmin only): company name, timezone, office geofence (lat/lng/radius), shift defaults (start time, work hours, work days)
 - **Dark / Light / System** theme toggle (persisted to localStorage, no flash on load)
 
-### Activity Log & Notifications (Context-Aware)
+### Activity Log & Notifications (Role-Hierarchical)
 
 - **DB-backed activity log** (`ActivityLog` model) — every CRUD action recorded with user, action, entity, details, and **targeting metadata**
-- **Context-aware visibility** — notifications are not role-gated but based on relevance:
-  - **`targetUserIds[]`**: specific users the action is about (task assignee, employee created, campaign-tagged employees)
-  - **`targetDepartmentId`**: department this action relates to (employee's dept, team's dept, campaign-tagged dept)
-  - **`targetTeamIds[]`**: teams this action relates to (employee's teams, campaign-tagged teams)
-  - **`visibility`**: `"all"` (everyone sees) | `"targeted"` (only matching users/dept/teams) | `"self"` (only the actor)
-  - **SuperAdmin** sees everything; everyone else sees logs where they're targeted, in their department, on their team, or performed the action themselves
+- **Role-hierarchical visibility** — notifications respect the org hierarchy, not just department/team membership:
+  - **`targetUserIds[]`**: specific users the action is about (task assignee, employee created, campaign-tagged employees) — these users always see the log regardless of role
+  - **`targetDepartmentId`**: department this action relates to — **only visible to managers** of that department (not regular developers/BDs)
+  - **`targetTeamIds[]`**: teams this action relates to — **only visible to team leads** who lead those teams (not regular team members) + department managers
+  - **`visibility`**: `"all"` (everyone sees) | `"targeted"` (role-filtered matching) | `"self"` (only the actor)
+  - **`userEmail` match**: actors always see their own actions
+  - **SuperAdmin** sees everything; **Manager** sees department + team scope; **Team Lead** sees teams they lead; **Developer/BD** only sees logs where they're directly targeted or performed the action
 - **Cross-device read sync** — `lastSeenLogId` cursor on `User` model, synced via `GET/PUT /api/user/last-seen`
 - **Live polling (10s)** — bell automatically fetches latest 20 logs every 10 seconds for near real-time updates
 - **Mark as read on open** — opening the bell panel marks all current entries as seen

@@ -135,6 +135,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     targetUserIds: [id],
     targetDepartmentId: empDeptId || undefined,
     targetTeamIds: empTeamIds,
+    visibility: "targeted",
   });
 
   return ok(user);
@@ -166,9 +167,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     action: "deactivated employee",
     entity: "employee",
     entityId: id,
-    targetUserIds: [id],
+    targetUserIds: [],
     targetDepartmentId: target?.department?.toString() || undefined,
     targetTeamIds: (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [],
+    visibility: "targeted",
   });
 
   return ok({ message: "Employee deactivated" });

@@ -161,6 +161,7 @@ export async function POST(req: Request) {
     targetUserIds: [user._id.toString()],
     targetDepartmentId: department || undefined,
     targetTeamIds: (teams ?? []).map((t: string) => t),
+    visibility: "targeted",
   });
 
   return ok(populated);

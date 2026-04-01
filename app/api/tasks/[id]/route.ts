@@ -82,6 +82,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .lean();
 
   const changes = Object.keys(body).filter((k) => k !== "assignedTo").join(", ");
+  const assigneeIdStr = task.assignedTo.toString();
   logActivity({
     userEmail: actor.email,
     userName: "",
@@ -90,6 +91,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     entity: "task",
     entityId: id,
     details: changes ? `Changed: ${changes}` : task.title,
+    targetUserIds: assigneeIdStr !== actor.id ? [assigneeIdStr] : [],
+    visibility: "targeted",
   });
 
   return ok(populated);
@@ -135,7 +138,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     entity: "task",
     entityId: id,
     details: task.title,
-    targetUserIds: [delAssigneeId, actor.id].filter(Boolean),
+    targetUserIds: delAssigneeId ? [delAssigneeId] : [],
+    visibility: "targeted",
   });
 
   return ok({ message: "Task deleted" });

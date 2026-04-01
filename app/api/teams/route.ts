@@ -110,7 +110,8 @@ export async function POST(req: Request) {
     details: body.name.trim(),
     targetTeamIds: [team._id.toString()],
     targetDepartmentId: body.department,
-    targetUserIds: body.lead ? [body.lead, actor.id] : [actor.id],
+    targetUserIds: body.lead ? [body.lead] : [],
+    visibility: "targeted",
   });
 
   return ok(populated);

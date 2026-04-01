@@ -96,9 +96,10 @@ export async function POST(req: Request) {
     entity: "task",
     entityId: task._id.toString(),
     details: body.title.trim(),
-    targetUserIds: [body.assignedTo, actor.id],
+    targetUserIds: [body.assignedTo],
     targetDepartmentId: assignee.department?.toString() || undefined,
     targetTeamIds: assigneeTeams,
+    visibility: "targeted",
   });
 
   return ok(populated);

@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import ActivityLog from "@/lib/models/ActivityLog";
 import { unauthorized, ok } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, isManager, isTeamLead } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -27,13 +27,19 @@ export async function GET(req: NextRequest) {
     { userEmail: actor.email },
   ];
 
-  if (actor.department) {
+  if (isManager(actor) && actor.department) {
     conditions.push({ targetDepartmentId: actor.department });
   }
 
-  const allTeams = [...new Set([...actor.teams, ...actor.leadOfTeams])];
-  if (allTeams.length > 0) {
-    conditions.push({ targetTeamIds: { $in: allTeams } });
+  if (isTeamLead(actor) && actor.leadOfTeams.length > 0) {
+    conditions.push({ targetTeamIds: { $in: actor.leadOfTeams } });
+  }
+
+  if (isManager(actor)) {
+    const mgrTeams = [...new Set([...actor.teams, ...actor.leadOfTeams])];
+    if (mgrTeams.length > 0) {
+      conditions.push({ targetTeamIds: { $in: mgrTeams } });
+    }
   }
 
   const logs = await ActivityLog.find({ $or: conditions })

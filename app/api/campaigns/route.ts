@@ -126,7 +126,7 @@ export async function POST(req: Request) {
     entity: "campaign",
     entityId: campaign._id.toString(),
     details: body.name.trim(),
-    targetUserIds: [...tagEmployees, actor.id],
+    targetUserIds: tagEmployees,
     targetDepartmentId: tagDepartments[0] || undefined,
     targetTeamIds: tagTeams,
     visibility: tagEmployees.length === 0 && tagDepartments.length === 0 && tagTeams.length === 0 ? "all" : "targeted",
