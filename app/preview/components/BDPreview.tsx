@@ -82,7 +82,7 @@ function OverviewContent() {
   const avatarGrad = AVATAR_GRADIENTS[gi % AVATAR_GRADIENTS.length];
 
   return (
-    <div className="aurora-bg flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <motion.div variants={slideFromLeft} initial="hidden" animate="visible" className="flex min-w-0 items-center gap-3 sm:gap-4">
           <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${avatarGrad}`}>{initials(me.firstName, me.lastName)}</div>
@@ -104,17 +104,17 @@ function OverviewContent() {
             <div className="text-right"><p className="text-caption">Total hours</p><p className="text-headline tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(me.today.totalMinutes)}</p></div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-            <span className="text-caption rounded-lg px-2 py-1" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>Office {formatMinutes(me.today.officeMinutes)}</span>
-            <span className="text-caption rounded-lg px-2 py-1" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>Remote {formatMinutes(me.today.remoteMinutes)}</span>
+            <span className="text-caption rounded-lg px-2 py-1" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Office {formatMinutes(me.today.officeMinutes)}</span>
+            <span className="text-caption rounded-lg px-2 py-1" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Remote {formatMinutes(me.today.remoteMinutes)}</span>
             <span className="text-caption rounded-lg px-2 py-1 font-semibold" style={{ background: me.today.isOnTime ? "rgba(48,209,88,0.12)" : "rgba(255,159,10,0.12)", color: me.today.isOnTime ? "var(--teal)" : "var(--amber)" }}>{me.today.isOnTime ? "On time" : "Late"}</span>
           </div>
         </motion.div>
         <motion.div className="card-static relative overflow-hidden p-4 sm:p-5" custom={1} variants={cardVariants}>
           <p className="text-caption mb-3 font-semibold uppercase tracking-wide">This Month</p>
           <div className="grid grid-cols-3 gap-3">
-            <div><p className="text-caption">Present days</p><p className="text-title tabular-nums"><span className="gradient-text"><AnimatedNumber value={monthlyStats.presentDays} /></span></p></div>
-            <div><p className="text-caption">On-time</p><p className="text-title tabular-nums"><span className="gradient-text"><AnimatedNumber value={monthlyStats.onTimePercentage} suffix="%" /></span></p></div>
-            <div><p className="text-caption">Total hrs</p><p className="text-title tabular-nums"><span className="gradient-text"><AnimatedNumber value={monthlyStats.totalWorkingHours} /></span></p></div>
+            <div><p className="text-caption">Present days</p><p className="text-title tabular-nums"><span className="text-[var(--primary)]"><AnimatedNumber value={monthlyStats.presentDays} /></span></p></div>
+            <div><p className="text-caption">On-time</p><p className="text-title tabular-nums"><span className="text-[var(--primary)]"><AnimatedNumber value={monthlyStats.onTimePercentage} suffix="%" /></span></p></div>
+            <div><p className="text-caption">Total hrs</p><p className="text-title tabular-nums"><span className="text-[var(--primary)]"><AnimatedNumber value={monthlyStats.totalWorkingHours} /></span></p></div>
           </div>
           <p className="text-subhead mt-4">{monthlyStats.month} {monthlyStats.year} · Avg {monthlyStats.averageDailyHours}h / day</p>
         </motion.div>
@@ -124,12 +124,12 @@ function OverviewContent() {
         <div className="flex flex-col gap-4 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" style={{ borderColor: "var(--border)" }}>
           <div><h2 className="text-headline">Job Tracker</h2><p className="text-caption mt-0.5">Pipeline · {myJobs.length} jobs assigned to you</p></div>
           <LayoutGroup id="bd-pipeline-filters">
-            <div className="relative flex max-w-full flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+            <div className="relative flex max-w-full flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
               {FILTER_ORDER.map((f) => {
                 const active = filter === f;
                 return (
                   <button key={f} type="button" className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-3 py-1.5 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }} onClick={() => setFilter(f)}>
-                    {active && <motion.span layoutId="bd-filter" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                    {active && <motion.span layoutId="bd-filter" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                     <span className="relative text-caption font-semibold sm:text-callout">{FILTER_LABELS[f]}</span>
                   </button>
                 );
@@ -144,7 +144,7 @@ function OverviewContent() {
             { key: "interviewing", label: "Interviewing", count: pipelineCounts.interviewing, dot: "var(--amber)" },
             { key: "won", label: "Won", count: pipelineCounts.won, dot: "var(--teal)" },
           ] as const).map((s) => (
-            <motion.div key={s.key} whileHover={listItemHover} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)" }}>
+            <motion.div key={s.key} whileHover={listItemHover} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: "var(--bg-grouped)", border: "0.5px solid var(--border)" }}>
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.dot }} aria-hidden />
               <span className="text-caption font-semibold" style={{ color: "var(--fg-secondary)" }}>{s.label}: <span className="tabular-nums" style={{ color: "var(--fg)" }}>{s.count}</span></span>
             </motion.div>
@@ -164,7 +164,7 @@ function OverviewContent() {
                   </div>
                   <div><h3 className="text-callout font-bold" style={{ color: "var(--fg)" }}>{job.jobTitle}</h3><p className="text-subhead mt-1">{job.clientCompanyName} · {job.clientCountry}</p></div>
                   <p className="text-footnote font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{job.expectedSalaryBudget}</p>
-                  <div className="flex flex-wrap gap-1.5">{tags.map((tag) => <span key={tag} className="text-caption rounded-lg px-2 py-0.5" style={{ background: "var(--glass-bg)", border: "0.5px solid var(--glass-border)", color: "var(--fg-secondary)" }}>{tag}</span>)}</div>
+                  <div className="flex flex-wrap gap-1.5">{tags.map((tag) => <span key={tag} className="text-caption rounded-lg px-2 py-0.5" style={{ background: "var(--bg-grouped)", border: "0.5px solid var(--border)", color: "var(--fg-secondary)" }}>{tag}</span>)}</div>
                   <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
                     <span className="text-caption rounded-full px-2.5 py-1 font-semibold" style={{ background: `${statusColor}18`, color: statusColor, border: `0.5px solid ${statusColor}33` }}>{PIPELINE_LABELS[job.proposalStatus]}</span>
                     <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{job.jobID}</span>
@@ -204,7 +204,7 @@ function ProfileContent() {
           <p className="text-caption mt-0.5">{me.department} · {me.email}</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
             <span className={`badge ${STATUS_BADGE_CLASS[me.status]}`}>{STATUS_LABELS[me.status]}</span>
-            <span className="badge" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>{me.shift.type === "fullTime" ? "Full Time" : me.shift.type === "partTime" ? "Part Time" : "Contract"}</span>
+            <span className="badge" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{me.shift.type === "fullTime" ? "Full Time" : me.shift.type === "partTime" ? "Part Time" : "Contract"}</span>
           </div>
         </div>
       </motion.div>
@@ -268,12 +268,12 @@ export default function BDPreview() {
   return (
     <div className="flex flex-col gap-4 py-4 sm:gap-5 sm:py-5">
       <LayoutGroup id="bd-inner-tabs">
-        <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+        <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
           {INNER_TABS.map((tab) => {
             const active = innerTab === tab.id;
             return (
               <button key={tab.id} type="button" onClick={() => setInnerTab(tab.id)} className="btn btn-sm relative z-10 min-h-0 shrink-0 border-0 bg-transparent px-4 py-2 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                {active && <motion.span layoutId="bd-inner-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                {active && <motion.span layoutId="bd-inner-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                 <span className="relative text-callout font-semibold">{tab.label}</span>
               </button>
             );

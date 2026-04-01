@@ -59,7 +59,7 @@ export default function SettingsLoading() {
         <div className="card-xl p-6 sm:p-8 space-y-4">
           <div className="shimmer h-3 w-20 rounded" />
           <div className="shimmer h-3 w-48 rounded" />
-          <div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--glass-bg)" }}>
+          <div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--bg-grouped)" }}>
             <div className="shimmer h-7 w-20 rounded-md" />
             <div className="shimmer h-7 w-24 rounded-md" />
             <div className="shimmer h-7 w-28 rounded-md" />

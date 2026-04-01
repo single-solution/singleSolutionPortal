@@ -268,7 +268,7 @@ export default function TasksPage() {
                   className="h-full"
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
+                  <div className="card group relative overflow-hidden flex h-full flex-col">
                     <div className="p-3 sm:p-4 flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
@@ -278,7 +278,7 @@ export default function TasksPage() {
                           <select
                             className="rounded-full px-2 py-0.5 text-[11px] font-semibold cursor-pointer border-0 bg-transparent transition-colors duration-200"
                             style={{
-                              background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
+                              background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
                               color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
                             }}
                             value={task.status}
@@ -297,7 +297,7 @@ export default function TasksPage() {
                           </select>
                         ) : (
                           <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors duration-200" style={{
-                            background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)",
+                            background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
                             color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
                           }}>
                             {TASK_STATUS_LABELS[task.status] ?? task.status}
@@ -384,7 +384,7 @@ export default function TasksPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-lg shadow-2xl bg-[var(--glass-bg-heavy)] backdrop-blur-3xl border border-[var(--glass-border)] rounded-3xl overflow-hidden"
+              className="w-full max-w-lg shadow-2xl bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl overflow-hidden"
               style={{ WebkitBackdropFilter: "saturate(200%) blur(60px)" }}
               onClick={(e) => e.stopPropagation()}
             >

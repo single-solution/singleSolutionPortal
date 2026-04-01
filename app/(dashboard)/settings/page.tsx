@@ -223,7 +223,7 @@ export default function SettingsPage() {
         </div>
         {/* Superadmin row skeleton */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="card-xl p-6 sm:p-8 space-y-4"><div className="shimmer h-3 w-20 rounded" /><div className="shimmer h-3 w-48 rounded" /><div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--glass-bg)" }}><div className="shimmer h-7 w-20 rounded-md" /><div className="shimmer h-7 w-24 rounded-md" /><div className="shimmer h-7 w-28 rounded-md" /></div><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded-xl" /></div>
+          <div className="card-xl p-6 sm:p-8 space-y-4"><div className="shimmer h-3 w-20 rounded" /><div className="shimmer h-3 w-48 rounded" /><div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-7 w-20 rounded-md" /><div className="shimmer h-7 w-24 rounded-md" /><div className="shimmer h-7 w-28 rounded-md" /></div><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded-xl" /></div>
           <div className="card-xl p-6 sm:p-8 space-y-4"><div className="shimmer h-3 w-16 rounded" /><div className="shimmer h-3 w-44 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded-xl" /></div>
         </div>
       </div>
@@ -248,7 +248,7 @@ export default function SettingsPage() {
       {/* Grid layout: profile + account side-by-side */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {/* Profile card */}
-        <FadeUp delay={0.08} className="card-xl card-shine p-6 sm:p-8">
+        <FadeUp delay={0.08} className="card-xl p-6 sm:p-8">
           <h2 className="text-headline mb-4">Profile</h2>
           <div className="mb-5 flex items-center gap-4">
             <motion.div
@@ -295,7 +295,7 @@ export default function SettingsPage() {
               <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{profile?.email}</p>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 {profile?.username && (
-                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>@{profile.username}</span>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>@{profile.username}</span>
                 )}
                 {profile?.userRole && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
@@ -303,7 +303,7 @@ export default function SettingsPage() {
                   </span>
                 )}
                 {profile?.department?.title && (
-                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>{profile.department.title}</span>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{profile.department.title}</span>
                 )}
               </div>
             </div>
@@ -335,7 +335,7 @@ export default function SettingsPage() {
 
         {/* Account card — email + password */}
         <FadeUp delay={0.14}>
-          <form onSubmit={handleAccountSubmit} className="card-xl card-shine p-6 sm:p-8 h-full flex flex-col">
+          <form onSubmit={handleAccountSubmit} className="card-xl p-6 sm:p-8 h-full flex flex-col">
             <h2 className="text-headline mb-4">Email & Password</h2>
             <div className="space-y-5 flex-1">
               <div>
@@ -436,7 +436,7 @@ function SuperAdminSettings({
   return (
     <>
       <FadeUp delay={0.2} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <div className="card-xl card-shine p-6 sm:p-8">
+        <div className="card-xl p-6 sm:p-8">
           <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>Test Email</h2>
           <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Send a test email to verify SMTP configuration.</p>
           <div className="space-y-3">
@@ -516,7 +516,7 @@ function SystemSettingsSection({ sys }: { sys: ReturnType<typeof useSystemSettin
   if (sysLoading) return null;
 
   return (
-    <div className="card-xl card-shine p-6 sm:p-8">
+    <div className="card-xl p-6 sm:p-8">
       <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>System</h2>
       <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Company name and timezone.</p>
       <div className="space-y-4">

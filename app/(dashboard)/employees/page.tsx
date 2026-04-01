@@ -385,7 +385,7 @@ export default function EmployeesPage() {
                   className="h-full"
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
+                  <div className="card group relative overflow-hidden flex h-full flex-col">
                     {isSuperAdmin && (
                     <input
                       type="checkbox"

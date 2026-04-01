@@ -237,7 +237,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   }
 
   return (
-    <div className="min-h-screen gradient-mesh">
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       {/* ── Floating Install App pill ── */}
       <AnimatePresence>
         {!installDismissed && (
@@ -314,7 +314,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             href="/"
             className="flex items-center gap-2 shrink-0"
           >
-            <span className="gradient-text text-[15px] font-bold tracking-tight sm:text-lg">
+            <span className="text-[15px] font-bold tracking-tight sm:text-lg" style={{ color: "var(--primary)" }}>
             Single Solution Sync
             </span>
           </Link>
@@ -340,8 +340,8 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
                     transition={{ duration: 0.12 }}
-                    className="absolute right-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-2xl border shadow-lg"
-                    style={{ background: "var(--glass-bg-heavy)", borderColor: "var(--glass-border)", backdropFilter: "saturate(200%) blur(40px)", WebkitBackdropFilter: "saturate(200%) blur(40px)" }}
+                    className="absolute right-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-xl border shadow-lg"
+                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                   >
                     {THEME_OPTIONS.map((opt) => (
                       <button
@@ -398,7 +398,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                   {notificationsOpen && (
                     <motion.div
                     className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),22rem)] overflow-hidden"
-                      style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
+                      style={{ background: "var(--bg-elevated)" }}
                       variants={notifPanelVariants}
                       initial="hidden"
                       animate="visible"

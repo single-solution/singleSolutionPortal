@@ -37,7 +37,7 @@ export default function LoginPreview() {
 
   return (
     <div
-      className="aurora-bg relative flex min-h-screen items-center justify-center overflow-hidden p-4"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden p-4"
       style={{ minHeight: "100dvh" }}
     >
       <div className="relative z-10 flex w-full max-w-md flex-col items-center">
@@ -72,7 +72,7 @@ export default function LoginPreview() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </motion.div>
-              <h1 className="gradient-text-animated text-title">
+              <h1 className="text-title" style={{ color: "var(--primary)" }}>
                 Single Solution Sync
               </h1>
               <p className="text-subhead">Employee Presence System</p>

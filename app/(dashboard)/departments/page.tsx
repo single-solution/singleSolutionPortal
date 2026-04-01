@@ -283,7 +283,7 @@ export default function DepartmentsPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="col-span-full card card-shine p-12 text-center"
+              className="col-span-full card p-12 text-center"
             >
               <p style={{ color: "var(--fg-secondary)" }}>No departments yet. Add one above.</p>
             </motion.div>
@@ -302,7 +302,7 @@ export default function DepartmentsPage() {
                 className="h-full"
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
+                <div className="card group relative overflow-hidden flex h-full flex-col">
                   <div className="flex-1 p-3 sm:p-4">
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}>

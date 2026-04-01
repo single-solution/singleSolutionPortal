@@ -214,19 +214,19 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           <div className="flex gap-2 shrink-0"><div className="shimmer h-9 w-20 rounded-lg hidden sm:block" /><div className="shimmer h-9 w-20 rounded-lg" /></div>
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="card-xl card-shine p-6 space-y-4">
+          <div className="card-xl p-6 space-y-4">
             <div className="shimmer h-4 w-36 rounded" />
             <div className="shimmer h-10 rounded" />
             <div className="shimmer h-10 rounded" />
             <div className="flex gap-3"><div className="shimmer h-5 w-24 rounded" /><div className="shimmer h-3 w-40 rounded mt-1" /></div>
           </div>
-          <div className="card-xl card-shine p-6 space-y-4">
+          <div className="card-xl p-6 space-y-4">
             <div className="shimmer h-4 w-36 rounded" />
             <div className="grid grid-cols-2 gap-3"><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div>
             <div className="flex flex-wrap gap-2"><div className="shimmer h-7 w-16 rounded-lg" /><div className="shimmer h-7 w-20 rounded-lg" /><div className="shimmer h-7 w-14 rounded-lg" /></div>
           </div>
         </div>
-        <div className="card-xl card-shine p-6 space-y-4">
+        <div className="card-xl p-6 space-y-4">
           <div className="shimmer h-4 w-40 rounded" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="space-y-4"><div className="shimmer h-10 rounded" /><div className="grid grid-cols-2 gap-3"><div className="shimmer h-10 rounded" /><div className="shimmer h-10 rounded" /></div><div className="shimmer h-10 rounded" /></div>
@@ -274,7 +274,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       >
         {/* Personal Information card */}
         <motion.div
-          className="card-xl card-shine p-6"
+          className="card-xl p-6"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.1, ease }}
@@ -321,7 +321,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
 
         {/* Role & Department card */}
         <motion.div
-          className="card-xl card-shine p-6"
+          className="card-xl p-6"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.15, ease }}
@@ -386,7 +386,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                               ? "bg-[var(--teal)] text-white shadow-sm"
                               : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
                           }`}
-                          style={!active ? { background: "var(--glass-bg)" } : undefined}
+                          style={!active ? { background: "var(--bg-grouped)" } : undefined}
                         >
                           {t.name}
                         </motion.button>
@@ -405,7 +405,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
 
       {/* Bottom row: Shift Configuration (full width with internal grid) */}
       <motion.div
-        className="card-xl card-shine p-6 mb-5"
+        className="card-xl p-6 mb-5"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.2, ease }}
@@ -456,7 +456,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                         ? "bg-[var(--primary)] text-white shadow-sm"
                         : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
                     }`}
-                    style={!active ? { background: "var(--glass-bg)" } : undefined}
+                    style={!active ? { background: "var(--bg-grouped)" } : undefined}
                   >
                     {day}
                   </motion.button>

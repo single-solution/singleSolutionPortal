@@ -461,7 +461,7 @@ export default function AttendancePage() {
                           {[1, 2].map((i) => (
                             <div key={i} className="relative mb-4 last:mb-0">
                               <div className="absolute -left-5 top-1 h-3.5 w-3.5 rounded-full shimmer" />
-                              <div className="rounded-xl p-3" style={{ background: "var(--glass-bg)" }}>
+                              <div className="rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="shimmer h-4 w-40 rounded" />
                                   <div className="shimmer h-5 w-14 rounded-full" />
@@ -559,7 +559,7 @@ export default function AttendancePage() {
                                       {sess.status === "active" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--green)" }} />}
                                     </div>
 
-                                    <div className="rounded-xl p-3 transition-colors" style={{ background: "var(--glass-bg)" }}>
+                                    <div className="rounded-xl p-3 transition-colors" style={{ background: "var(--bg-grouped)" }}>
                                       {/* Time range + duration */}
                                       <div className="flex items-center justify-between gap-2">
                                         <span className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
@@ -642,7 +642,7 @@ export default function AttendancePage() {
                   </div>
                 ) : (
                   <div className="flex flex-1 flex-col items-center justify-center p-5 text-center">
-                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "var(--glass-bg)" }}>
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "var(--bg-grouped)" }}>
                       <svg className="h-6 w-6" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </div>
                     <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>
@@ -656,7 +656,7 @@ export default function AttendancePage() {
               </motion.div>
             ) : (
               <motion.div key="placeholder" className="card-xl flex flex-1 flex-col items-center justify-center p-8 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "var(--glass-bg)" }}>
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "var(--bg-grouped)" }}>
                   <svg className="h-7 w-7" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
                 </div>
                 <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>Select a date</p>
@@ -762,7 +762,7 @@ function Pill({ color, label, variant = "filled", size = "md", icon }: {
 
 function StatChip({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--glass-bg)" }}>
+    <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
       <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
       <p className="text-sm font-bold" style={{ color }}>{value}</p>
     </div>
@@ -771,7 +771,7 @@ function StatChip({ label, value, color }: { label: string; value: string; color
 
 function AnalyticChip({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="rounded-xl p-2.5" style={{ background: "var(--glass-bg)" }}>
+    <div className="rounded-xl p-2.5" style={{ background: "var(--bg-grouped)" }}>
       <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
       <p className="mt-0.5 text-sm font-bold" style={{ color }}>{value}</p>
     </div>

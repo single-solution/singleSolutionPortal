@@ -34,33 +34,19 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen aurora-bg flex flex-col items-center justify-center px-4 sm:px-6 py-12 relative overflow-hidden">
-      {/* Animated orbs */}
-      <motion.div
-        className="absolute w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(0,113,227,0.12), transparent)" }}
-        animate={{ x: ["-30%", "30%", "-30%"], y: ["-20%", "20%", "-20%"] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-      />
-      <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(191,90,242,0.08), transparent)" }}
-        animate={{ x: ["20%", "-20%", "20%"], y: ["30%", "-10%", "30%"] }}
-        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-      />
-
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-12" style={{ background: "var(--bg)" }}>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="mb-8 relative z-10"
+        className="mb-8"
       >
-        <Link href="/login" className="text-lg font-bold gradient-text tracking-tight">
+        <Link href="/login" className="text-lg font-bold tracking-tight" style={{ color: "var(--primary)" }}>
           Single Solution Sync
         </Link>
       </motion.div>
 
-      <div className="w-full max-w-[420px] relative z-10">
+      <div className="w-full max-w-[420px]">
         <AnimatePresence mode="wait">
           {!sent ? (
             <motion.div

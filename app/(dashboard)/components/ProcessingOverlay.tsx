@@ -25,7 +25,7 @@ export default function ProcessingOverlay({ visible, message = "Processing..." }
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             className="flex flex-col items-center gap-4 rounded-2xl p-8"
-            style={{ background: "var(--bg-solid)", boxShadow: "var(--glass-shadow-xl)" }}
+            style={{ background: "var(--bg-solid)", boxShadow: "var(--shadow)" }}
           >
             <div className="flex gap-1.5">
               {[0, 1, 2, 3].map((i) => (

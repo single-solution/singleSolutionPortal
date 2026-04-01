@@ -60,7 +60,7 @@ export default function PreviewPage() {
   const isLogin = active === "login";
 
   return (
-    <div className="min-h-screen gradient-mesh">
+    <div className="min-h-screen">
       {!isLogin && (
         <PreviewHeader
           currentRole={ROLE_LABELS[active] ?? "SuperAdmin"}
@@ -118,8 +118,8 @@ export default function PreviewPage() {
                         className="absolute inset-x-1.5 inset-y-1 sm:inset-0 rounded-xl sm:rounded-full"
                         style={{
                           background: "var(--primary-light)",
-                          border: "0.5px solid var(--glass-border)",
-                          boxShadow: "inset 0 0.5px 0 var(--glass-border-inner)",
+                          border: "0.5px solid var(--border)",
+                          boxShadow: "inset 0 0.5px 0 var(--border)",
                         }}
                         transition={tabIndicatorTransition}
                       />

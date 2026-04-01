@@ -352,7 +352,7 @@ export default function CampaignsPage() {
       <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="col-span-full card card-shine p-12 text-center">
+            <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="col-span-full card p-12 text-center">
               <p style={{ color: "var(--fg-secondary)" }}>No campaigns found. Create one above.</p>
             </motion.div>
           ) : (
@@ -371,7 +371,7 @@ export default function CampaignsPage() {
                   className="h-full"
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
+                  <div className="card group relative overflow-hidden flex h-full flex-col">
                     <div className="flex-1 p-3 sm:p-4">
                       {/* Header row */}
                       <div className="flex items-start gap-3">
@@ -492,7 +492,7 @@ export default function CampaignsPage() {
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
             <motion.div
               className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
-              style={{ background: "var(--glass-bg-heavy)", borderColor: "var(--glass-border)" }}
+              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -542,7 +542,7 @@ export default function CampaignsPage() {
                       {allDepartments.map((d) => {
                         const active = formTagDepts.includes(d._id);
                         return (
-                          <motion.button key={d._id} type="button" onClick={() => setFormTagDepts(toggleArrayItem(formTagDepts, d._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--primary)" } : { background: "var(--glass-bg)" }}>
+                          <motion.button key={d._id} type="button" onClick={() => setFormTagDepts(toggleArrayItem(formTagDepts, d._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>
                             {d.label}
                           </motion.button>
                         );
@@ -559,7 +559,7 @@ export default function CampaignsPage() {
                       {allTeams.map((t) => {
                         const active = formTagTeams.includes(t._id);
                         return (
-                          <motion.button key={t._id} type="button" onClick={() => setFormTagTeams(toggleArrayItem(formTagTeams, t._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--teal)" } : { background: "var(--glass-bg)" }}>
+                          <motion.button key={t._id} type="button" onClick={() => setFormTagTeams(toggleArrayItem(formTagTeams, t._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--teal)" } : { background: "var(--bg-grouped)" }}>
                             {t.label}
                           </motion.button>
                         );
@@ -576,7 +576,7 @@ export default function CampaignsPage() {
                       {allEmployees.map((e) => {
                         const active = formTagEmployees.includes(e._id);
                         return (
-                          <motion.button key={e._id} type="button" onClick={() => setFormTagEmployees(toggleArrayItem(formTagEmployees, e._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--purple)" } : { background: "var(--glass-bg)" }}>
+                          <motion.button key={e._id} type="button" onClick={() => setFormTagEmployees(toggleArrayItem(formTagEmployees, e._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>
                             {e.label}
                           </motion.button>
                         );

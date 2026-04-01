@@ -193,7 +193,7 @@ function OverviewContent() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <motion.div className="min-w-0" variants={slideFromLeft} initial="hidden" animate="visible">
           <p className="text-caption mb-0.5">Single Solution Sync</p>
-          <h1 className="text-title"><span className="gradient-text">{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {superAdmin.firstName}!</span></h1>
+          <h1 className="text-title"><span className="text-[var(--primary)]">{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {superAdmin.firstName}!</span></h1>
           <p className="text-subhead mt-1">You have {activityTasks.filter((t) => t.status === "pending").length} tasks pending</p>
         </motion.div>
         <motion.div className="card group relative overflow-hidden p-4 sm:min-w-[200px]" variants={slideFromRight} initial="hidden" animate="visible">
@@ -437,7 +437,7 @@ function EmployeesContent() {
             <label className="text-caption mb-2 block font-semibold" style={{ color: "var(--fg)" }}>Working Days</label>
             <div className="flex flex-wrap gap-2">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => (
-                <label key={day} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-caption font-medium" style={{ background: i < 5 ? "var(--primary-light)" : "var(--glass-bg)", color: i < 5 ? "var(--primary)" : "var(--fg-secondary)" }}>
+                <label key={day} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-caption font-medium" style={{ background: i < 5 ? "var(--primary-light)" : "var(--bg-grouped)", color: i < 5 ? "var(--primary)" : "var(--fg-secondary)" }}>
                   <input type="checkbox" defaultChecked={i < 5} className="accent-[var(--primary)]" />
                   {day}
                 </label>
@@ -522,12 +522,12 @@ function ActivityContent() {
           <div><h2 className="text-headline" style={{ color: "var(--fg)" }}>Activity Tasks</h2><p className="text-caption mt-0.5">{activityTasks.length} tasks total · {pendingCount} pending</p></div>
           <div className="flex flex-wrap items-center gap-2">
             <LayoutGroup id="sa-prio-filter">
-              <div className="flex gap-1 rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+              <div className="flex gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
                 {(["all", "low", "medium", "high", "urgent"] as PriorityFilter[]).map((f) => {
                   const active = prioFilter === f;
                   return (
                     <button key={f} type="button" onClick={() => setPrioFilter(f)} className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-2.5 py-1 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                      {active && <motion.span layoutId="sa-prio-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                      {active && <motion.span layoutId="sa-prio-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                       <span className="relative text-caption font-semibold">{f === "all" ? "All" : PRIORITY_LABELS[f]}</span>
                     </button>
                   );
@@ -566,7 +566,7 @@ function ActivityContent() {
                     </div>
                   </div>
                 </div>
-                <span className="badge shrink-0" style={{ background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--glass-bg)", color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)" }}>
+                <span className="badge shrink-0" style={{ background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)", color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)" }}>
                   {TASK_STATUS_LABELS[task.status]}
                 </span>
               </motion.div>
@@ -647,7 +647,7 @@ export default function SuperAdminPreview() {
   return (
     <div className="flex flex-col gap-4 py-4 sm:gap-5 sm:py-5">
       <LayoutGroup id="sa-inner-tabs">
-        <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+        <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
           {INNER_TABS.map((tab) => {
             const active = innerTab === tab.id;
             return (
@@ -662,7 +662,7 @@ export default function SuperAdminPreview() {
                   <motion.span
                     layoutId="sa-inner-active"
                     className="absolute inset-0 rounded-lg"
-                    style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }}
+                    style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }}
                     transition={{ type: "spring", bounce: 0.2, duration: 0.45 }}
                   />
                 )}

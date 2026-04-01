@@ -174,19 +174,12 @@ function ResetForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen aurora-bg flex flex-col items-center justify-center px-4 sm:px-6 py-12 relative overflow-hidden">
-      <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(191,90,242,0.1), transparent)" }}
-        animate={{ x: ["-20%", "20%", "-20%"], y: ["-10%", "20%", "-10%"] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-      />
-
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 relative z-10">
-        <Link href="/login" className="text-lg font-bold gradient-text tracking-tight">Single Solution Sync</Link>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-12" style={{ background: "var(--bg)" }}>
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+        <Link href="/login" className="text-lg font-bold tracking-tight" style={{ color: "var(--primary)" }}>Single Solution Sync</Link>
       </motion.div>
 
-      <div className="w-full max-w-[420px] relative z-10">
+      <div className="w-full max-w-[420px]">
         <Suspense fallback={<div className="shimmer h-[420px] rounded-3xl" />}>
           <ResetForm />
         </Suspense>

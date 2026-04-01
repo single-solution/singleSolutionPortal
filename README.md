@@ -5,7 +5,7 @@ Automatic employee presence and attendance tracking system. Detects when employe
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router, TypeScript)
-- **Styling**: Tailwind CSS 4, iOS 26.4 Liquid Glass design system (theme-aware glass dock, frosted header, aurora mesh)
+- **Styling**: Tailwind CSS 4, Poppins font, clean professional SaaS design (solid white/dark surfaces, shadow-based depth, red brand accent, floating glass dock)
 - **Animations**: Framer Motion (spring-based micro-interactions, stagger entrances, layout animations)
 - **Database**: MongoDB Atlas (Mongoose ODM)
 - **Auth**: NextAuth.js v5 (Credentials provider, JWT strategy)
@@ -125,7 +125,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Full CRUD: create, edit, delete teams with department assignment and optional team lead
 - Card grid with gradient avatars, member count badges, lead info display
 - Search + filter by department toggle pills
-- Centered glass modal for create/edit (department selector, lead selector from employees, description)
+- Centered modal for create/edit (department selector, lead selector from employees, description)
 - Delete confirmation via ConfirmDialog (removes team references from members on delete)
 - Sort toggles: Most Members / Name
 - Card footer: StatusToggle + creation date + hover-visible edit/delete buttons
@@ -141,7 +141,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Search across campaign names, descriptions, and tagged entity names
 - Filter pills by status (All, Active, Paused, Completed, Cancelled) with counts
 - Sort toggles: Recent / A–Z
-- Centered glass modal for create/edit with date pickers, budget field, multi-select tags, notes
+- Centered modal for create/edit with date pickers, budget field, multi-select tags, notes
 - ConfirmDialog for delete confirmation (SuperAdmin only)
 - StatusToggle for quick active/inactive flag in card footer
 - Activity logging for all campaign CRUD actions
@@ -150,7 +150,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 ### Task Management
 
 - Priority-based task assignment with deadline tracking
-- Centered glass modal for create/edit (no page navigation required)
+- Centered modal for create/edit (no page navigation required)
 - Search field in action bar
 - Filter pills by status (All, Pending, In Progress, Completed, Cancelled)
 - Sort toggles: Recent / Name

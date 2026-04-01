@@ -487,7 +487,7 @@ export default function SessionTracker() {
             onClick={() => { clearNudges(); setIdle(false); }}
           >
             <div
-              className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl backdrop-blur-xl"
+              className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl"
               style={{
                 background: "linear-gradient(135deg, rgba(255,159,10,0.9), rgba(245,158,11,0.85))",
                 border: "1px solid rgba(255,255,255,0.2)",
@@ -515,7 +515,7 @@ export default function SessionTracker() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-[9998] flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+            style={{ background: "rgba(0,0,0,0.5)" }}
             onClick={() => { setIdle(false); clearNudges(); }}
           >
             <motion.div
@@ -525,8 +525,8 @@ export default function SessionTracker() {
               transition={{ type: "spring", stiffness: 350, damping: 30 }}
               className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-3xl p-8 text-center"
               style={{
-                background: "var(--glass-bg-heavy, rgba(30,30,40,0.85))",
-                border: "1px solid var(--glass-border, rgba(255,255,255,0.1))",
+                background: "var(--bg-elevated, rgba(30,30,40,0.85))",
+                border: "1px solid var(--border, rgba(255,255,255,0.1))",
                 boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
               }}
               onClick={(e) => e.stopPropagation()}
@@ -563,7 +563,7 @@ export default function SessionTracker() {
           initial={{ y: 20, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: idle && isActive ? 0.5 : 1, scale: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
-          className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white backdrop-blur-xl"
+          className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white "
           style={pillStyle}
         >
           {isActive && !idle && (

@@ -270,7 +270,7 @@ function getStatusCounts(emps: PresenceEmployee[]) {
 
 function LivePulse() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, #10b981 12%, transparent)" }}>
+    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5" style={{ background: "#ECFDF5" }}>
       <span className="relative inline-flex h-2 w-2 rounded-full live-dot" style={{ background: "#10b981" }} />
       <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#10b981" }}>Live</span>
     </span>
@@ -341,7 +341,7 @@ const STATUS_RING_CLASS: Record<PresenceStatus, string> = {
 function EmployeePresenceCard({ emp, idx }: { emp: PresenceEmployee; idx: number }) {
   const ringCls = STATUS_RING_CLASS[emp.status] ?? "";
   return (
-    <motion.div custom={idx} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className="card-static card-shine group flex flex-col gap-3 rounded-[var(--radius)] p-3">
+    <motion.div custom={idx} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className="card-static group flex flex-col gap-3 rounded-[var(--radius)] p-3">
       <div className="flex items-start gap-3">
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]} ${ringCls}`}
@@ -370,7 +370,7 @@ function PresenceGridShimmer() {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="card-static card-shine flex flex-col gap-3 rounded-[var(--radius)] p-3">
+        <div key={i} className="card-static flex flex-col gap-3 rounded-[var(--radius)] p-3">
           <div className="flex items-start gap-3">
             <div className="shimmer h-11 w-11 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1 space-y-2">
@@ -437,8 +437,6 @@ function SuperAdminOverview({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, var(--teal) 0%, transparent 70%)" }} aria-hidden />
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
             <div className="flex items-center gap-2 mb-0.5">
@@ -446,7 +444,7 @@ function SuperAdminOverview({
               <LivePulse />
             </div>
             <h1 className="text-title">
-              <span className="gradient-text">{getGreeting()}</span>
+              <span style={{ color: "var(--primary)" }}>{getGreeting()}</span>
               <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
             </h1>
             <p className="text-subhead mt-1">
@@ -454,7 +452,7 @@ function SuperAdminOverview({
             </p>
           </motion.div>
           <motion.div className="flex shrink-0 items-center gap-3" variants={slideFromRight} initial="hidden" animate="visible">
-            <div className="relative overflow-hidden rounded-xl p-3 sm:min-w-[180px]" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+            <div className="relative overflow-hidden rounded-xl p-3 sm:min-w-[180px]" style={{ background: "var(--bg-grouped)", border: "1px solid var(--border)" }}>
               <p className="text-caption mb-0.5">Local time</p>
               <AnimatePresence mode="wait">
                 <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
@@ -582,7 +580,7 @@ function SuperAdminOverview({
           <div className="flex flex-col gap-3">
             {pendingTasks.slice(0, 5).map((task, ti) => (
               <motion.div key={task._id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 + ti * 0.1 }} whileHover={{ x: 5 }} className="flex cursor-pointer items-start gap-3">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} 15%, transparent)` }}>
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--bg-grouped)" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     {task.priority === "urgent" ? (
                       <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></>
@@ -859,15 +857,13 @@ function ManagerOverview({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, var(--teal) 0%, transparent 70%)" }} aria-hidden />
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <motion.div className="min-w-0 flex-1" variants={slideFromLeft} initial="hidden" animate="visible">
             <div className="flex items-center gap-2 mb-0.5">
               <LivePulse />
             </div>
             <h1 className="text-title">
-              <span className="gradient-text">{getGreeting()}</span>
+              <span style={{ color: "var(--primary)" }}>{getGreeting()}</span>
               <span style={{ color: "var(--fg)" }}>, {user.firstName}!</span>
             </h1>
             <p className="text-subhead mt-0.5">
@@ -876,20 +872,20 @@ function ManagerOverview({
           </motion.div>
           {pa && (
             <motion.div className="flex shrink-0 flex-wrap items-center gap-2" variants={slideFromRight} initial="hidden" animate="visible">
-              <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)", border: "1px solid var(--border)" }}>
                 <svg className="h-4 w-4 shrink-0" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                 <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{myTodayHours >= 1 ? myTodayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</span>
                 <span className="text-caption">today</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)", border: "1px solid var(--border)" }}>
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pa.isOnTime ? "var(--teal)" : "var(--amber)" }} />
                 <span className="text-callout font-semibold" style={{ color: pa.isOnTime ? "var(--teal)" : "var(--amber)" }}>{pa.isOnTime ? "On time" : formatMinutes(pa.lateBy) + " late"}</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)", border: "1px solid var(--border)" }}>
                 <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.todaySessions}</span>
                 <span className="text-caption">{pa.todaySessions === 1 ? "session" : "sessions"}</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "color-mix(in srgb, var(--glass-bg-heavy) 60%, transparent)", border: "0.5px solid var(--glass-border)" }}>
+              <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)", border: "1px solid var(--border)" }}>
                 <span className="text-callout font-bold tabular-nums" style={{ color: "var(--fg)" }}>{pa.monthlyAvgHours.toFixed(1)}h</span>
                 <span className="text-caption">avg/day</span>
               </div>
@@ -946,7 +942,7 @@ function ManagerOverview({
                     animate="visible"
                     whileHover={cardHover}
                     className={`card-static relative flex flex-col gap-3 rounded-2xl p-4 text-left transition-all ${isSelected ? "ring-2" : ""}`}
-                    style={isSelected ? { boxShadow: "0 0 0 2px var(--primary), var(--glass-shadow)" } : undefined}
+                    style={isSelected ? { boxShadow: "0 0 0 2px var(--primary), var(--shadow)" } : undefined}
                   >
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]}`}>
@@ -989,13 +985,13 @@ function ManagerOverview({
                     )}
                     <div className="flex flex-wrap gap-1">
                       {tb.members.slice(0, 6).map((m) => (
-                        <div key={m._id} className="flex items-center gap-1 rounded-full px-1.5 py-0.5" style={{ background: "var(--glass-bg)" }}>
+                        <div key={m._id} className="flex items-center gap-1 rounded-full px-1.5 py-0.5" style={{ background: "var(--bg-grouped)" }}>
                           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS[m.status] ?? STATUS_COLORS.absent }} />
                           <span className="text-[10px] truncate max-w-[60px]" style={{ color: "var(--fg-secondary)" }}>{m.firstName}</span>
                         </div>
                       ))}
                       {tb.members.length > 6 && (
-                        <span className="text-[10px] rounded-full px-1.5 py-0.5" style={{ background: "var(--glass-bg)", color: "var(--fg-tertiary)" }}>+{tb.members.length - 6}</span>
+                        <span className="text-[10px] rounded-full px-1.5 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>+{tb.members.length - 6}</span>
                       )}
                     </div>
                   </motion.button>
@@ -1004,7 +1000,7 @@ function ManagerOverview({
               {unassignedMembers.length > 0 && isManager && (
                 <motion.div custom={teamBreakdown.length} variants={cardVariants} initial="hidden" animate="visible" className="card-static flex flex-col gap-3 rounded-2xl p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold" style={{ background: "var(--glass-bg-heavy)", color: "var(--fg-tertiary)" }}>?</div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>?</div>
                     <div className="min-w-0 flex-1">
                       <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>Unassigned</p>
                       <p className="text-caption mt-0.5">No team assigned</p>
@@ -1035,12 +1031,12 @@ function ManagerOverview({
               )}
             </div>
             <LayoutGroup id="mgr-presence-filter">
-              <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+              <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
                 {PRESENCE_FILTER_ORDER.map((f) => {
                   const active = presenceFilter === f;
                   return (
                     <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="relative z-10 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                      {active && <motion.span layoutId="mgr-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                      {active && <motion.span layoutId="mgr-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                       <span className="relative">{PRESENCE_FILTER_LABELS[f]}</span>
                     </button>
                   );
@@ -1077,7 +1073,7 @@ function ManagerOverview({
           {lateArrivals.length > 0 ? (
             <ul className="flex flex-col gap-2">
               {lateArrivals.slice(0, 5).map((emp, i) => (
-                <motion.li key={emp._id} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 * i }} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--glass-bg)" }}>
+                <motion.li key={emp._id} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 * i }} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}>
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: "rgba(255,159,10,0.15)" }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="var(--amber)" /></svg>
                   </span>
@@ -1139,7 +1135,7 @@ function ManagerOverview({
               { label: "In Progress", value: inProgressTasks.length, color: "var(--primary)" },
               { label: "Completed", value: completedTasks.length, color: "var(--teal)" },
             ].map((item) => (
-              <div key={item.label} className="rounded-xl p-3" style={{ background: "var(--glass-bg)" }}>
+              <div key={item.label} className="rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
                 <p className="text-caption">{item.label}</p>
                 <p className="text-headline tabular-nums font-bold mt-1" style={{ color: item.color }}>
                   <AnimatedNumber value={item.value} />
@@ -1274,7 +1270,7 @@ function ManagerOverview({
               {activeCampaigns.slice(0, 5).map((camp, ci) => {
                 const tagCount = camp.tags.employees.length + camp.tags.departments.length + camp.tags.teams.length;
                 return (
-                  <motion.li key={camp._id} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 * ci }} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--glass-bg)" }}>
+                  <motion.li key={camp._id} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 * ci }} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}>
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
                     </span>
@@ -1287,7 +1283,7 @@ function ManagerOverview({
                         {camp.tags.teams.slice(0, 2).map((t) => (
                           <span key={t._id} className="text-[10px] rounded-md px-1.5 py-0.5" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>
                         ))}
-                        {tagCount > 4 && <span className="text-[10px] rounded-md px-1.5 py-0.5" style={{ background: "var(--glass-bg)", color: "var(--fg-tertiary)" }}>+{tagCount - 4}</span>}
+                        {tagCount > 4 && <span className="text-[10px] rounded-md px-1.5 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>+{tagCount - 4}</span>}
                       </div>
                     </div>
                     <span className="badge text-[10px]" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 12%, transparent)`, color: CAMPAIGN_STATUS_COLORS[camp.status] }}>{camp.status}</span>
@@ -1342,7 +1338,7 @@ function ManagerOverview({
           <div className="flex flex-col gap-3">
             {pendingTasks.slice(0, 5).map((task, ti) => (
               <motion.div key={task._id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 + ti * 0.1 }} whileHover={{ x: 5 }} className="flex cursor-pointer items-start gap-3">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} 15%, transparent)` }}>
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--bg-grouped)" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     {task.priority === "urgent" ? (
                       <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></>
@@ -1423,7 +1419,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           <LivePulse />
         </div>
         <h1 className="text-title">
-          <span className="gradient-text">{getGreeting()}</span>
+          <span style={{ color: "var(--primary)" }}>{getGreeting()}</span>
           <span style={{ color: "var(--fg)" }}>, {profileName}!</span>
         </h1>
         <p className="text-subhead mt-1">{designation} · {pendingTasks.length} task{pendingTasks.length !== 1 ? "s" : ""} pending</p>
@@ -1514,7 +1510,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               const isToday = day.date === new Date().toISOString().slice(0, 10);
               const dotColor = !day.isPresent ? STATUS_COLORS.absent : !day.isOnTime ? STATUS_COLORS.late : STATUS_COLORS.office;
               return (
-                <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "ring-2" : ""}`} style={isToday ? { boxShadow: "0 0 0 2px var(--primary), var(--glass-shadow)" } : undefined}>
+                <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "ring-2" : ""}`} style={isToday ? { boxShadow: "0 0 0 2px var(--primary), var(--shadow)" } : undefined}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold" style={{ color: "var(--fg-secondary)" }}>{dayName}</span>
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} />
@@ -1539,7 +1535,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             </div>
             <div className="card-static rounded-xl p-4">
               <p className="text-caption">On-time</p>
-              <p className="text-title mt-1 gradient-text"><AnimatedNumber value={ms.onTimePercentage} />%</p>
+              <p className="text-title mt-1" style={{ color: "var(--primary)" }}><AnimatedNumber value={ms.onTimePercentage} />%</p>
             </div>
             <div className="card-static rounded-xl p-4">
               <p className="text-caption">Avg. daily hours</p>
@@ -1580,7 +1576,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           <div className="flex flex-col gap-3">
             {pendingTasks.slice(0, 5).map((task, ti) => (
               <motion.div key={task._id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 + ti * 0.1 }} whileHover={{ x: 5 }} className="flex cursor-pointer items-start gap-3">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} 15%, transparent)` }}>
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--bg-grouped)" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     {task.priority === "urgent" ? (<><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></>) : task.priority === "high" ? (<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />) : (<><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>)}
                   </svg>

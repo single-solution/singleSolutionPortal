@@ -8,15 +8,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { PasswordInput } from "@/components/PasswordInput";
 
-const particles = Array.from({ length: 20 }, (_, i) => ({
-  id: i,
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  size: Math.random() * 4 + 2,
-  duration: Math.random() * 4 + 6,
-  delay: Math.random() * 3,
-}));
-
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,62 +44,16 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen aurora-bg flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-16 relative overflow-hidden">
-      {/* Floating particles */}
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            background: `rgba(0, 113, 227, ${0.1 + Math.random() * 0.15})`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            x: [0, Math.random() * 20 - 10, 0],
-            opacity: [0.3, 0.7, 0.3],
-          }}
-          transition={{
-            duration: p.duration,
-            repeat: Infinity,
-            delay: p.delay,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
-
-      {/* Large animated gradient orbs */}
-      <motion.div
-        className="absolute w-[700px] h-[700px] rounded-full blur-3xl pointer-events-none opacity-40"
-        style={{ background: "radial-gradient(circle, rgba(0,113,227,0.15), transparent 60%)" }}
-        animate={{ x: ["-30%", "10%", "-30%"], y: ["-20%", "10%", "-20%"], scale: [1, 1.2, 1] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none opacity-30"
-        style={{ background: "radial-gradient(circle, rgba(48,209,88,0.12), transparent 60%)" }}
-        animate={{ x: ["20%", "-15%", "20%"], y: ["30%", "-5%", "30%"], scale: [1, 1.15, 1] }}
-        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute w-[400px] h-[400px] rounded-full blur-3xl pointer-events-none opacity-20"
-        style={{ background: "radial-gradient(circle, rgba(191,90,242,0.15), transparent 60%)" }}
-        animate={{ x: ["5%", "-25%", "5%"], y: ["-10%", "25%", "-10%"], scale: [1.1, 0.9, 1.1] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-      />
-
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-16" style={{ background: "var(--bg)" }}>
       {/* Hero text */}
-      <div className="relative z-10 text-center mb-8 sm:mb-10">
+      <div className="text-center mb-8 sm:mb-10">
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
-            <span className="gradient-text-animated">Single Solution Sync</span>
+            <span style={{ color: "var(--primary)" }}>Single Solution Sync</span>
           </h1>
         </motion.div>
 
@@ -143,7 +88,7 @@ function LoginForm() {
       </div>
 
       {/* Sign-in card */}
-      <div className="relative z-10 w-full max-w-[420px]">
+      <div className="w-full max-w-[420px]">
         <motion.div
           key={shakeKey}
           initial={{ opacity: 0, y: 20 }}
@@ -152,11 +97,11 @@ function LoginForm() {
           className="card-xl p-8 sm:p-10 relative overflow-hidden"
         >
           <motion.div
-            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--primary)] via-[var(--purple)] to-[var(--teal)]"
+            className="absolute top-0 left-0 right-0 h-1"
+            style={{ background: "var(--primary)", originX: 0 }}
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            style={{ originX: 0 }}
           />
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -266,7 +211,7 @@ function LoginForm() {
       </div>
 
       {/* Footer security badges */}
-      <div className="relative z-10 mt-8 flex items-center gap-4 text-xs text-[var(--fg-tertiary)]">
+      <div className="mt-8 flex items-center gap-4 text-xs text-[var(--fg-tertiary)]">
         <span className="flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           Encrypted

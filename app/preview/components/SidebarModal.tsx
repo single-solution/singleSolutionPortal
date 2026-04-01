@@ -50,7 +50,7 @@ export default function SidebarModal({
             className="relative z-10 flex h-full w-full max-w-md flex-col"
             style={{
               background: "var(--bg-solid)",
-              boxShadow: "var(--glass-shadow-xl)",
+              boxShadow: "var(--shadow-sm)",
             }}
             variants={sidebarContent}
             initial="hidden"

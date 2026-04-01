@@ -84,12 +84,12 @@ function OverviewContent() {
   ];
 
   return (
-    <div className="aurora-bg relative min-h-full w-full overflow-x-hidden">
+    <div className="relative min-h-full w-full overflow-x-hidden">
       <div className="relative z-10 mx-auto max-w-6xl space-y-6">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <motion.div variants={slideFromLeft} initial="hidden" animate="visible" className="space-y-1">
             <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Single Solution Sync</p>
-            <h1 className="text-title"><span className="gradient-text">{getGreeting()}, {me.firstName}!</span></h1>
+            <h1 className="text-title"><span className="text-[var(--primary)]">{getGreeting()}, {me.firstName}!</span></h1>
           </motion.div>
           <motion.div variants={slideFromRight} initial="hidden" animate="visible" className="flex flex-col items-start gap-0.5 sm:items-end">
             <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Local time</span>
@@ -148,7 +148,7 @@ function OverviewContent() {
               const isToday = day.date === PREVIEW_TODAY;
               const dot = STATUS_COLORS[day.status];
               return (
-                <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--glass-shadow), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
+                <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
                   <div className="flex items-center justify-between gap-2"><span className="text-footnote font-semibold" style={{ color: "var(--fg-secondary)" }}>{dayName}</span><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} title={STATUS_LABELS[day.status]} /></div>
                   <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                   <span className="text-headline tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(day.totalMinutes)}</span>
@@ -162,7 +162,7 @@ function OverviewContent() {
           <h3 className="text-section-header mb-4">Monthly summary</h3>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div className="card-static rounded-xl p-4"><p className="text-caption">Present / Total</p><p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={monthlyStats.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={monthlyStats.totalWorkingDays} /><span className="text-subhead"> days</span></p></div>
-            <div className="card-static rounded-xl p-4"><p className="text-caption">On-time</p><p className="text-title mt-1 gradient-text"><AnimatedNumber value={monthlyStats.onTimePercentage} suffix="%" /></p></div>
+            <div className="card-static rounded-xl p-4"><p className="text-caption">On-time</p><p className="text-title mt-1 text-[var(--primary)]"><AnimatedNumber value={monthlyStats.onTimePercentage} suffix="%" /></p></div>
             <div className="card-static rounded-xl p-4"><p className="text-caption">Avg. daily hours</p><p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={monthlyStats.averageDailyHours} suffix="h" /></p></div>
             <div className="card-static rounded-xl p-4"><p className="text-caption">Total hours</p><p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={monthlyStats.totalWorkingHours} suffix="h" /></p></div>
           </div>
@@ -234,7 +234,7 @@ function AttendanceContent() {
                 key={cell.day}
                 className={`relative flex flex-col items-center justify-center rounded-xl py-2.5 ${isToday ? "ring-2" : ""}`}
                 style={{
-                  background: cell.status ? `color-mix(in srgb, ${STATUS_COLORS[cell.status]} 12%, transparent)` : "var(--glass-bg)",
+                  background: cell.status ? `color-mix(in srgb, ${STATUS_COLORS[cell.status]} 12%, transparent)` : "var(--bg-grouped)",
                   ...(isToday ? { boxShadow: "0 0 0 2px var(--primary)" } : {}),
                 }}
                 whileHover={{ scale: 1.08 }}
@@ -259,7 +259,7 @@ function AttendanceContent() {
                 variants={slideUpItem}
                 className={`flex items-center gap-4 rounded-xl px-4 py-3 ${isToday ? "border" : ""}`}
                 style={{
-                  background: isToday ? "var(--primary-light)" : "var(--glass-bg)",
+                  background: isToday ? "var(--primary-light)" : "var(--bg-grouped)",
                   borderColor: isToday ? "var(--primary)" : undefined,
                 }}
               >
@@ -310,7 +310,7 @@ function ProfileContent() {
           <p className="text-caption mt-0.5">{me.department} · {me.email}</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
             <span className={`badge ${STATUS_BADGE_CLASS[me.status]}`}>{STATUS_LABELS[me.status]}</span>
-            <span className="badge" style={{ background: "var(--glass-bg)", color: "var(--fg-secondary)" }}>{me.shift.type === "fullTime" ? "Full Time" : me.shift.type === "partTime" ? "Part Time" : "Contract"}</span>
+            <span className="badge" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{me.shift.type === "fullTime" ? "Full Time" : me.shift.type === "partTime" ? "Part Time" : "Contract"}</span>
           </div>
         </div>
       </motion.div>
@@ -374,12 +374,12 @@ export default function DeveloperPreview() {
   return (
     <div className="flex flex-col gap-4 py-4 sm:gap-5 sm:py-5">
       <LayoutGroup id="dev-inner-tabs">
-        <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: "var(--glass-bg)" }}>
+        <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
           {INNER_TABS.map((tab) => {
             const active = innerTab === tab.id;
             return (
               <button key={tab.id} type="button" onClick={() => setInnerTab(tab.id)} className="btn btn-sm relative z-10 min-h-0 shrink-0 border-0 bg-transparent px-4 py-2 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                {active && <motion.span layoutId="dev-inner-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--glass-bg-heavy)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                {active && <motion.span layoutId="dev-inner-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                 <span className="relative text-callout font-semibold">{tab.label}</span>
               </button>
             );

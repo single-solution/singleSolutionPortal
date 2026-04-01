@@ -127,14 +127,14 @@ export default function PreviewHeader({ currentRole, roleUser }: PreviewHeaderPr
       <header className="frosted sticky top-0 z-30">
         <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-3 px-4 sm:h-14 sm:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <span className="gradient-text truncate text-[15px] font-bold tracking-tight sm:text-lg">
+            <span className="truncate text-[15px] font-bold tracking-tight text-[var(--primary)] sm:text-lg">
               Single Solution Sync
             </span>
             <span
               className="badge shrink-0 border text-caption"
               style={{
-                background: "var(--glass-bg-heavy)",
-                borderColor: "var(--glass-border)",
+                background: "var(--bg-elevated)",
+                borderColor: "var(--border)",
                 color: "var(--fg-secondary)",
               }}
             >
@@ -164,7 +164,7 @@ export default function PreviewHeader({ currentRole, roleUser }: PreviewHeaderPr
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
                     transition={{ duration: 0.12 }}
                     className="absolute right-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-2xl border shadow-lg"
-                    style={{ background: "var(--glass-bg-heavy)", borderColor: "var(--glass-border)", backdropFilter: "saturate(200%) blur(40px)", WebkitBackdropFilter: "saturate(200%) blur(40px)" }}
+                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                   >
                     {THEME_OPTIONS.map((opt) => (
                       <button
@@ -210,7 +210,7 @@ export default function PreviewHeader({ currentRole, roleUser }: PreviewHeaderPr
                 {notificationsOpen && (
                   <motion.div
                     className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),20rem)] overflow-hidden"
-                    style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
+                    style={{ background: "var(--bg-elevated)" }}
                     variants={notifPanelVariants}
                     initial="hidden"
                     animate="visible"
@@ -252,7 +252,7 @@ export default function PreviewHeader({ currentRole, roleUser }: PreviewHeaderPr
                 {userMenuOpen && (
                   <motion.div
                     className="card-static absolute right-0 top-full z-50 mt-2 w-[min(calc(100vw-2rem),16rem)] origin-top-right overflow-hidden p-1"
-                    style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
+                    style={{ background: "var(--bg-elevated)" }}
                     variants={modalContent}
                     initial="hidden"
                     animate="visible"
