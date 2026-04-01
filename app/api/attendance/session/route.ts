@@ -6,6 +6,7 @@ import User from "@/lib/models/User";
 import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice } from "@/lib/geo";
+import { notifyChange } from "@/lib/eventBus";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 
@@ -169,6 +170,7 @@ export async function PATCH(req: Request) {
     }
 
     await active.save();
+    if (wasInOffice !== nowInOffice) notifyChange("presence");
     return ok({
       updated: true,
       inOffice: nowInOffice,
@@ -366,6 +368,8 @@ async function handleCheckIn(
   const freshDaily = await DailyAttendance.findOne({ user: userId, date: today }).lean();
   if (freshDaily) todayMinutes = freshDaily.totalWorkingMinutes ?? 0;
 
+  notifyChange("presence");
+
   return ok({
     message: "Checked in successfully",
     session: {
@@ -393,6 +397,7 @@ async function handleCheckOut(userId: string) {
   await closeSession(activeSession, now);
 
   const durationMinutes = activeSession.durationMinutes;
+  notifyChange("presence");
   return ok({ message: "Checked out successfully", duration: durationMinutes });
 }
 

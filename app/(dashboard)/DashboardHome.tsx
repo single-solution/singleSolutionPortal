@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEventStream } from "@/lib/useEventStream";
 import Link from "next/link";
 import {
   AnimatePresence,
@@ -1747,39 +1748,22 @@ export default function DashboardHome({ user }: { user: User }) {
     });
   }, [fetchFull]);
 
-  /* ── Polling intervals — pause when tab is hidden ── */
-  useEffect(() => {
-    if (!initialDone.current) return;
-
-    let fastId: ReturnType<typeof setInterval> | null = null;
-    let slowId: ReturnType<typeof setInterval> | null = null;
-
-    function startPolling() {
-      if (!fastId) fastId = setInterval(fetchLive, 20_000);
-      if (!slowId) slowId = setInterval(fetchFull, 120_000);
-    }
-
-    function stopPolling() {
-      if (fastId) { clearInterval(fastId); fastId = null; }
-      if (slowId) { clearInterval(slowId); slowId = null; }
-    }
-
-    function handleVisibility() {
-      if (document.hidden) {
-        stopPolling();
-      } else {
-        fetchLive();
-        startPolling();
-      }
-    }
-
-    startPolling();
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      stopPolling();
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [fetchLive, fetchFull, loading]);
+  /* ── Event-driven updates via SSE (replaces polling) ── */
+  useEventStream(
+    useMemo(
+      () => ({
+        presence: () => { if (initialDone.current) fetchLive(); },
+        employees: () => { if (initialDone.current) fetchFull(); },
+        tasks: () => { if (initialDone.current) fetchFull(); },
+        departments: () => { if (initialDone.current) fetchFull(); },
+        teams: () => { if (initialDone.current) fetchFull(); },
+        campaigns: () => { if (initialDone.current) fetchFull(); },
+        settings: () => { if (initialDone.current) fetchFull(); },
+      }),
+      [fetchLive, fetchFull],
+    ),
+    !loading,
+  );
 
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;

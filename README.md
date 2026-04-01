@@ -10,7 +10,7 @@ Automatic employee presence and attendance tracking system. Detects when employe
 - **Database**: MongoDB Atlas (Mongoose ODM)
 - **Auth**: NextAuth.js v5 (Credentials provider, JWT strategy)
 - **Email**: Nodemailer (SMTP — welcome, password reset, attendance alerts)
-- **Real-time**: Heartbeat polling (30s), Browser Notifications API, Dashboard dual-cadence live polling (20s/120s) — all polling pauses when tab is hidden
+- **Real-time**: SSE event stream (`/api/events`) for push-based dashboard updates — data fetched only when server signals a change. Heartbeat polling (30s) for attendance tracking. Browser Notifications API
 - **Geolocation**: Haversine formula, configurable office geofence (50m default)
 - **PWA**: Progressive Web App (installable, offline-first service worker)
 - **Deployment**: Vercel (serverless, no persistent backend required)
@@ -183,7 +183,8 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **iOS 26.4 Liquid Glass**: theme-aware glass surfaces (`--glass-bg`, `--glass-border`), frosted blur on header + dock only (16–20px), inset highlights (`--glass-border-inner`). `backdrop-filter` removed from cards, inputs, badges, and buttons for performance — replaced with slightly more opaque solid-glass backgrounds
 - **Floating dock navigation**: `.dock-glass` with dark-mode-optimized borders and shadows, Framer Motion `layoutId` sliding active indicator (LayoutGroup scoped to dock only — lightweight on 7 items)
 - **Performance-first route transitions**: `AnimatePresence mode="wait"` with opacity + scale(0.985→1) + translateY (all GPU-compositable, no filter:blur). Prevents dual-page rendering during route changes
-- **Dashboard load reduction**: All polling (presence 20s, full data 120s, notifications 30s) pauses via `visibilitychange` when tab is hidden. Presence fetch deduplicated from slow poll (fast poll already handles it). `AnimatedNumber` only runs rAF on initial mount, subsequent updates are instant. `backdrop-filter` removed from all 3 dashboard role headers. Infinite Framer Motion `boxShadow` loops on N employee avatars replaced with CSS `pulse-ring-*` classes. `animate-ping` replaced with CSS `.live-dot` class
+- **SSE event bus**: `EventBus` MongoDB model (single document tracking per-channel timestamps), `notifyChange()` utility (called from `logActivity` + attendance routes), `/api/events` SSE endpoint (4s server poll, pushes only diffs), `useEventStream` React hook (auto-connects, pauses on tab hide, auto-reconnects). Replaces all dashboard and notification polling — data fetched only when server confirms a change
+- **Dashboard GPU reduction**: `AnimatedNumber` only runs rAF on initial mount, subsequent updates are instant. `backdrop-filter` removed from all 3 dashboard role headers. Infinite Framer Motion `boxShadow` loops on N employee avatars replaced with CSS `pulse-ring-*` classes. `animate-ping` replaced with CSS `.live-dot` class
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
 - **Shimmer skeleton loading**: pixel-perfect skeletons on all pages that structurally match actual card layouts — same grids, card shapes, avatar circles, badge pills, action button positions, and table column widths (no spinners anywhere, including ProcessingOverlay)
@@ -211,7 +212,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
   - **`userEmail` match**: actors always see their own actions
   - **SuperAdmin** sees everything; **Manager** sees department + team scope; **Team Lead** sees teams they lead; **Developer/BD** only sees logs where they're directly targeted or performed the action
 - **Cross-device read sync** — `lastSeenLogId` cursor on `User` model, synced via `GET/PUT /api/user/last-seen`
-- **Live polling (30s)** — bell fetches latest 20 logs every 30 seconds (pauses when tab hidden)
+- **SSE push** — bell auto-fetches latest 20 logs only when the `activity` channel fires (no polling)
 - **Mark as read on open** — opening the bell panel marks all current entries as seen
 - **Unseen badge** — red pulsing badge with count (capped at 9+)
 - **Entity SVG icons** — each entity type has a distinct icon and color
@@ -228,11 +229,12 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 ### Dashboard (Real-Time)
 
-The dashboard is **fully real-time** — no manual refresh needed. Data updates are silent (no loading spinners or skeleton flashes during polls).
+The dashboard is **fully real-time** — no manual refresh needed. Data updates are silent (no loading spinners or skeleton flashes during updates).
 
-- **Fast polling (20s)**: Presence status, personal attendance — any check-in, check-out, or location change reflects within 20 seconds
-- **Slow polling (120s)**: Full data set (employees, tasks, departments, campaigns, attendance trend) — catches structural changes
-- **Tab-aware**: All polling pauses when the browser tab is hidden (via `visibilitychange`), eliminating background CPU/network drain when multitasking
+- **SSE event stream**: Single persistent connection to `/api/events` replaces all polling. Server monitors an `EventBus` document (one lightweight DB read every 4s) and pushes change events only when data actually mutates. Client fetches only the affected data channel — zero wasted requests
+- **Push channels**: `presence` (check-in/out/location transition), `employees`, `tasks`, `departments`, `teams`, `campaigns`, `activity` (notification log), `settings` — each channel triggers only its specific data fetch
+- **Tab-aware**: SSE connection closes when tab is hidden, reconnects when visible — zero background CPU/network drain
+- **Auto-reconnect**: SSE auto-closes after 55s (Vercel serverless limit); `EventSource` natively reconnects within 1s
 - **Live indicator**: Pulsing green "LIVE" badge on all dashboard headers to show real-time status
 
 **SuperAdmin:**
@@ -356,6 +358,7 @@ app/
       presence/          # Real-time employee status for dashboard (includes lateBy)
       trend/             # Last 5 working days present count for team attendance chart
     activity-logs/       # GET latest 20 activity log entries
+    events/              # SSE endpoint — streams change events per channel (replaces all polling)
     user/last-seen/      # GET + PUT lastSeenLogId for notification read sync
     profile/             # Self profile + base64 image upload
     profile/password/    # Password change with current password validation
@@ -366,7 +369,9 @@ components/
   PasswordStrength.tsx   # Animated 5-bar strength meter
   ToasterProvider.tsx    # Global glass-styled toast notifications
 lib/
-  activityLogger.ts     # Fire-and-forget logActivity() utility
+  activityLogger.ts     # Fire-and-forget logActivity() utility + notifyChange() integration
+  eventBus.ts           # notifyChange() — bumps EventBus channel timestamps
+  useEventStream.ts     # React hook: SSE connection to /api/events, dispatches per-channel handlers
   auth.ts               # NextAuth config (credentials, JWT, callbacks)
   auth.config.ts        # Middleware auth config with route guards
   permissions.ts        # DB-verified session, role hierarchy, team/dept scoping helpers
@@ -378,6 +383,7 @@ lib/
   motion.ts             # Framer Motion animation presets
   models/
     ActivityLog.ts      # Append-only activity log (user, action, entity, details, targeting: targetUserIds, targetDepartmentId, targetTeamIds, visibility)
+    EventBus.ts         # Singleton document tracking per-channel last-modified timestamps (presence, employees, tasks, etc.)
     User.ts             # User (5 roles incl. teamLead, shifts, teams[], reportsTo supervisor ref, BD fields, reset tokens, lastSeenLogId)
     Department.ts       # Department with manager ref + optional parentDepartment ref (hierarchical)
     Team.ts             # Team (name, slug, department, lead, description)

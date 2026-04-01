@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useEventStream } from "@/lib/useEventStream";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { dockEntrance, tabIndicatorTransition } from "@/lib/motion";
 import type { UserRole } from "@/lib/models/User";
@@ -161,25 +162,11 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => {
-    fetchLogs();
-    let interval: ReturnType<typeof setInterval> | null = setInterval(fetchLogs, 30_000);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-    function handleVis() {
-      if (document.hidden) {
-        if (interval) { clearInterval(interval); interval = null; }
-      } else {
-        fetchLogs();
-        if (!interval) interval = setInterval(fetchLogs, 30_000);
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVis);
-    return () => {
-      if (interval) clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVis);
-    };
-  }, [fetchLogs]);
+  useEventStream(
+    useMemo(() => ({ activity: fetchLogs }), [fetchLogs]),
+  );
 
   useEffect(() => {
     function handleBIP(e: Event) {
