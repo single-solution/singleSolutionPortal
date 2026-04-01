@@ -10,7 +10,7 @@ Automatic employee presence and attendance tracking system. Detects when employe
 - **Database**: MongoDB Atlas (Mongoose ODM)
 - **Auth**: NextAuth.js v5 (Credentials provider, JWT strategy)
 - **Email**: Nodemailer (SMTP — welcome, password reset, attendance alerts)
-- **Real-time**: Heartbeat polling (30s), Browser Notifications API, Dashboard dual-cadence live polling (10s/60s)
+- **Real-time**: Heartbeat polling (30s), Browser Notifications API, Dashboard dual-cadence live polling (20s/120s) — all polling pauses when tab is hidden
 - **Geolocation**: Haversine formula, configurable office geofence (50m default)
 - **PWA**: Progressive Web App (installable, offline-first service worker)
 - **Deployment**: Vercel (serverless, no persistent backend required)
@@ -183,6 +183,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **iOS 26.4 Liquid Glass**: theme-aware glass surfaces (`--glass-bg`, `--glass-border`), frosted blur on header + dock only (16–20px), inset highlights (`--glass-border-inner`). `backdrop-filter` removed from cards, inputs, badges, and buttons for performance — replaced with slightly more opaque solid-glass backgrounds
 - **Floating dock navigation**: `.dock-glass` with dark-mode-optimized borders and shadows, Framer Motion `layoutId` sliding active indicator (LayoutGroup scoped to dock only — lightweight on 7 items)
 - **Performance-first route transitions**: `AnimatePresence mode="wait"` with opacity + scale(0.985→1) + translateY (all GPU-compositable, no filter:blur). Prevents dual-page rendering during route changes
+- **Dashboard load reduction**: All polling (presence 20s, full data 120s, notifications 30s) pauses via `visibilitychange` when tab is hidden. Presence fetch deduplicated from slow poll (fast poll already handles it). `AnimatedNumber` only runs rAF on initial mount, subsequent updates are instant. `backdrop-filter` removed from all 3 dashboard role headers. Infinite Framer Motion `boxShadow` loops on N employee avatars replaced with CSS `pulse-ring-*` classes. `animate-ping` replaced with CSS `.live-dot` class
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
 - **Shimmer skeleton loading**: pixel-perfect skeletons on all pages that structurally match actual card layouts — same grids, card shapes, avatar circles, badge pills, action button positions, and table column widths (no spinners anywhere, including ProcessingOverlay)
@@ -210,7 +211,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
   - **`userEmail` match**: actors always see their own actions
   - **SuperAdmin** sees everything; **Manager** sees department + team scope; **Team Lead** sees teams they lead; **Developer/BD** only sees logs where they're directly targeted or performed the action
 - **Cross-device read sync** — `lastSeenLogId` cursor on `User` model, synced via `GET/PUT /api/user/last-seen`
-- **Live polling (10s)** — bell automatically fetches latest 20 logs every 10 seconds for near real-time updates
+- **Live polling (30s)** — bell fetches latest 20 logs every 30 seconds (pauses when tab hidden)
 - **Mark as read on open** — opening the bell panel marks all current entries as seen
 - **Unseen badge** — red pulsing badge with count (capped at 9+)
 - **Entity SVG icons** — each entity type has a distinct icon and color
@@ -229,8 +230,9 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 The dashboard is **fully real-time** — no manual refresh needed. Data updates are silent (no loading spinners or skeleton flashes during polls).
 
-- **Fast polling (10s)**: Presence status, personal attendance — any check-in, check-out, or location change reflects within 10 seconds
-- **Slow polling (60s)**: Full data set (employees, tasks, departments, campaigns, attendance trend) — catches structural changes
+- **Fast polling (20s)**: Presence status, personal attendance — any check-in, check-out, or location change reflects within 20 seconds
+- **Slow polling (120s)**: Full data set (employees, tasks, departments, campaigns, attendance trend) — catches structural changes
+- **Tab-aware**: All polling pauses when the browser tab is hidden (via `visibilitychange`), eliminating background CPU/network drain when multitasking
 - **Live indicator**: Pulsing green "LIVE" badge on all dashboard headers to show real-time status
 
 **SuperAdmin:**

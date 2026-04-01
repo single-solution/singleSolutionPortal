@@ -163,8 +163,22 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
   useEffect(() => {
     fetchLogs();
-    const interval = setInterval(fetchLogs, 10_000);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = setInterval(fetchLogs, 30_000);
+
+    function handleVis() {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        fetchLogs();
+        if (!interval) interval = setInterval(fetchLogs, 30_000);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVis);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVis);
+    };
   }, [fetchLogs]);
 
   useEffect(() => {

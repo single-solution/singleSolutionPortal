@@ -6,7 +6,6 @@ import {
   AnimatePresence,
   LayoutGroup,
   motion,
-  useReducedMotion,
 } from "framer-motion";
 import {
   buttonHover,
@@ -272,28 +271,31 @@ function getStatusCounts(emps: PresenceEmployee[]) {
 function LivePulse() {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, #10b981 12%, transparent)" }}>
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: "#10b981" }} />
-        <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "#10b981" }} />
-      </span>
+      <span className="relative inline-flex h-2 w-2 rounded-full live-dot" style={{ background: "#10b981" }} />
       <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#10b981" }}>Live</span>
     </span>
   );
 }
 
 function AnimatedNumber({ value, prefix = "" }: { value: number; prefix?: string }) {
+  const mountedRef = useRef(false);
   const [display, setDisplay] = useState(0);
   useEffect(() => {
-    const duration = 800;
-    const start = Date.now();
-    const step = () => {
-      const elapsed = Date.now() - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(value * eased);
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      const duration = 600;
+      const start = Date.now();
+      const step = () => {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setDisplay(value * eased);
+        if (progress < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    } else {
+      setDisplay(value);
+    }
   }, [value]);
   return <>{prefix}{Math.round(display)}</>;
 }
@@ -328,18 +330,25 @@ function AttendanceDonut({ counts, total }: { counts: ReturnType<typeof getStatu
   );
 }
 
-function EmployeePresenceCard({ emp, idx, reduceMotion }: { emp: PresenceEmployee; idx: number; reduceMotion: boolean }) {
+const STATUS_RING_CLASS: Record<PresenceStatus, string> = {
+  office: "pulse-ring-office",
+  remote: "",
+  late: "pulse-ring-late",
+  overtime: "",
+  absent: "pulse-ring-absent",
+};
+
+function EmployeePresenceCard({ emp, idx }: { emp: PresenceEmployee; idx: number }) {
+  const ringCls = STATUS_RING_CLASS[emp.status] ?? "";
   return (
     <motion.div custom={idx} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className="card-static card-shine group flex flex-col gap-3 rounded-[var(--radius)] p-3">
       <div className="flex items-start gap-3">
-        <motion.div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]}`}
-          animate={reduceMotion ? undefined : { boxShadow: [`0 0 0 2px ${STATUS_COLORS[emp.status]}`, `0 0 0 3px ${STATUS_COLORS[emp.status]}`, `0 0 0 2px ${STATUS_COLORS[emp.status]}`] }}
-          style={reduceMotion ? { boxShadow: `0 0 0 2px ${STATUS_COLORS[emp.status]}` } : undefined}
-          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]} ${ringCls}`}
+          style={{ boxShadow: `0 0 0 2px ${STATUS_COLORS[emp.status]}` }}
         >
           {initials(emp.firstName, emp.lastName)}
-        </motion.div>
+        </div>
         <div className="min-w-0 flex-1">
           <p className="text-callout truncate font-semibold" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p>
           <p className="text-caption truncate">{emp.designation}</p>
@@ -370,7 +379,6 @@ function SuperAdminOverview({
   departments: ApiDepartment[];
   employees: ApiEmployee[];
 }) {
-  const reduceMotion = useReducedMotion();
   const counts = useMemo(() => getStatusCounts(presenceEmps), [presenceEmps]);
   const totalEmp = counts.total;
   const inOffice = counts.office;
@@ -398,14 +406,7 @@ function SuperAdminOverview({
     <div className="flex flex-col gap-4">
       {/* ── Header: Greeting + Actions + Clock — glass blended ── */}
       <motion.header
-        className="relative overflow-hidden rounded-2xl p-4 sm:p-5"
-        style={{
-          background: "var(--glass-bg)",
-          backdropFilter: "blur(20px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
-          border: "0.5px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
+        className="card-xl relative overflow-hidden p-4 sm:p-5"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -460,16 +461,13 @@ function SuperAdminOverview({
       {/* ── Live Presence Board ── */}
       <motion.section className="card relative overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} />
-          </span>
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full live-dot" style={{ background: "var(--teal)" }} />
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Live Presence</h2>
         </div>
         {presenceEmps.length > 0 ? (
           <motion.div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
             {presenceEmps.map((emp, idx) => (
-              <EmployeePresenceCard key={emp._id} emp={emp} idx={idx} reduceMotion={!!reduceMotion} />
+              <EmployeePresenceCard key={emp._id} emp={emp} idx={idx} />
             ))}
           </motion.div>
         ) : (
@@ -547,9 +545,9 @@ function SuperAdminOverview({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
           {pendingTasks.length > 0 && (
-            <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
+            <span className="notif-badge-pulse rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
               {pendingTasks.length} Pending
-            </motion.div>
+            </span>
           )}
         </div>
         {pendingTasks.length > 0 ? (
@@ -754,7 +752,6 @@ function ManagerOverview({
   attendanceTrend: TrendDay[];
   teams: ApiTeam[];
 }) {
-  const reduceMotion = useReducedMotion();
   const isManager = user.role === "manager";
   const counts = useMemo(() => getStatusCounts(presenceEmps), [presenceEmps]);
   const totalEmp = counts.total;
@@ -827,14 +824,7 @@ function ManagerOverview({
     <div className="flex flex-col gap-4">
       {/* Header: Greeting + Own Stats — glass blended */}
       <motion.header
-        className="relative overflow-hidden rounded-2xl p-4 sm:p-5"
-        style={{
-          background: "var(--glass-bg)",
-          backdropFilter: "blur(20px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
-          border: "0.5px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
+        className="card-xl relative overflow-hidden p-4 sm:p-5"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -1005,10 +995,7 @@ function ManagerOverview({
         <div className="flex flex-col gap-3 border-b p-4 sm:p-5" style={{ borderColor: "var(--border)" }}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} />
-              </span>
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full live-dot" style={{ background: "var(--teal)" }} />
               <h2 className="text-headline" style={{ color: "var(--fg)" }}>Live Presence</h2>
               <span className="text-caption ml-1">{filteredPresence.length} of {totalEmp}</span>
               {selectedTeamId && (
@@ -1036,7 +1023,7 @@ function ManagerOverview({
           {filteredPresence.length > 0 ? (
             <motion.div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
               {filteredPresence.map((emp, idx) => (
-                <EmployeePresenceCard key={emp._id} emp={emp} idx={idx} reduceMotion={!!reduceMotion} />
+                <EmployeePresenceCard key={emp._id} emp={emp} idx={idx} />
               ))}
             </motion.div>
           ) : (
@@ -1314,9 +1301,9 @@ function ManagerOverview({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
           {pendingTasks.length > 0 && (
-            <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
+            <span className="notif-badge-pulse rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
               {pendingTasks.length} Pending
-            </motion.div>
+            </span>
           )}
         </div>
         {pendingTasks.length > 0 ? (
@@ -1394,8 +1381,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
     <motion.div className="flex flex-col gap-4" variants={staggerContainer} initial="hidden" animate="visible">
       {/* Header */}
       <motion.div
-        className="relative overflow-hidden rounded-2xl p-4 sm:p-5"
-        style={{ background: "var(--glass-bg)", backdropFilter: "blur(20px) saturate(1.8)", WebkitBackdropFilter: "blur(20px) saturate(1.8)", border: "0.5px solid var(--glass-border)", boxShadow: "var(--glass-shadow)" }}
+        className="card-xl relative overflow-hidden p-4 sm:p-5"
         variants={slideUpItem}
       >
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
@@ -1415,13 +1401,13 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="card p-5 sm:p-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
             <div className="flex flex-col items-center gap-3 sm:items-start">
-              <motion.div className="relative" animate={{ boxShadow: [`0 0 0 0 ${statusColor}73`, `0 0 0 14px ${statusColor}00`] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} style={{ borderRadius: "9999px" }}>
+              <div className="relative rounded-full" style={{ boxShadow: `0 0 0 3px ${statusColor}` }}>
                 {userProfile?.profileImage ? (
                   <img src={userProfile.profileImage} alt="" className="h-24 w-24 rounded-full object-cover shadow-lg sm:h-28 sm:w-28" />
                 ) : (
                   <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br text-2xl font-semibold text-white shadow-lg sm:h-28 sm:w-28 sm:text-3xl ${avatarGrad}`}>{initials(profileName, profileLast)}</div>
                 )}
-              </motion.div>
+              </div>
               <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase" style={{ background: `${statusColor}1a`, color: statusColor }}>{statusLabel}</span>
             </div>
             <div className="min-w-0 flex-1 space-y-4">
@@ -1552,9 +1538,9 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
           {pendingTasks.length > 0 && (
-            <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
+            <span className="notif-badge-pulse rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
               {pendingTasks.length} Pending
-            </motion.div>
+            </span>
           )}
         </div>
         {pendingTasks.length > 0 ? (
@@ -1733,12 +1719,11 @@ export default function DashboardHome({ user }: { user: User }) {
         isSuperAdmin ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
       ];
       if (isAdminRole) {
-        fetches.push(fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []));
         fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
         fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
         fetches.push(fetch("/api/teams").then((r) => r.ok ? r.json() : []));
       }
-      const [empRes, taskRes, deptRes, presenceRes, campaignRes, trendRes, teamsRes] = await Promise.all(fetches);
+      const [empRes, taskRes, deptRes, campaignRes, trendRes, teamsRes] = await Promise.all(fetches);
 
       setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
       setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
@@ -1746,7 +1731,6 @@ export default function DashboardHome({ user }: { user: User }) {
       if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
       if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
       if (Array.isArray(teamsRes)) setTeams(teamsRes as ApiTeam[]);
-      parsePresence(presenceRes);
 
       if (!isSuperAdmin) {
         await parsePersonalAttendance();
@@ -1763,19 +1747,39 @@ export default function DashboardHome({ user }: { user: User }) {
     });
   }, [fetchFull]);
 
-  /* ── Fast poll interval (presence: 10s) ── */
+  /* ── Polling intervals — pause when tab is hidden ── */
   useEffect(() => {
     if (!initialDone.current) return;
-    const id = window.setInterval(fetchLive, 10_000);
-    return () => window.clearInterval(id);
-  }, [fetchLive, loading]);
 
-  /* ── Slow poll interval (full data: 60s) ── */
-  useEffect(() => {
-    if (!initialDone.current) return;
-    const id = window.setInterval(fetchFull, 60_000);
-    return () => window.clearInterval(id);
-  }, [fetchFull, loading]);
+    let fastId: ReturnType<typeof setInterval> | null = null;
+    let slowId: ReturnType<typeof setInterval> | null = null;
+
+    function startPolling() {
+      if (!fastId) fastId = setInterval(fetchLive, 20_000);
+      if (!slowId) slowId = setInterval(fetchFull, 120_000);
+    }
+
+    function stopPolling() {
+      if (fastId) { clearInterval(fastId); fastId = null; }
+      if (slowId) { clearInterval(slowId); slowId = null; }
+    }
+
+    function handleVisibility() {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchLive();
+        startPolling();
+      }
+    }
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [fetchLive, fetchFull, loading]);
 
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;

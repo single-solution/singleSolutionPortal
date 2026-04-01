@@ -690,6 +690,20 @@ select.input {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes live-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0; }
+}
+
+.live-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: live-dot 2s ease-in-out infinite;
+}
+
 @keyframes notif-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.12); }
