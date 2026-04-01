@@ -19,9 +19,9 @@ export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: 
 export async function getOfficeConfig(): Promise<{ lat: number; lng: number; radius: number }> {
   if (cachedConfig && Date.now() - cacheTime < CACHE_TTL) return cachedConfig;
 
-  const envLat = parseFloat(process.env.OFFICE_LAT ?? "31.4697");
-  const envLng = parseFloat(process.env.OFFICE_LNG ?? "74.2728");
-  const envRadius = parseFloat(process.env.OFFICE_RADIUS_METERS ?? "50");
+  const envLat = parseFloat(process.env.OFFICE_LAT ?? "31.4763416");
+  const envLng = parseFloat(process.env.OFFICE_LNG ?? "74.2687022");
+  const envRadius = parseFloat(process.env.OFFICE_RADIUS_METERS ?? "300");
 
   try {
     await connectDB();

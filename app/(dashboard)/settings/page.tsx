@@ -467,7 +467,7 @@ interface SysSettings {
 }
 
 const DEFAULTS: SysSettings = {
-  office: { latitude: 31.4697, longitude: 74.2728, radiusMeters: 50 },
+  office: { latitude: 31.4763416, longitude: 74.2687022, radiusMeters: 300 },
   shiftDefaults: { start: "10:00", end: "19:00", breakMinutes: 60, graceMinutes: 30 },
   company: { name: "Single Solution", timezone: "asia-karachi" },
 };
