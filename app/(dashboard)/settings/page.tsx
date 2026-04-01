@@ -419,7 +419,6 @@ export default function SettingsPage() {
         testEmail={testEmail} setTestEmail={setTestEmail}
         testType={testType} setTestType={setTestType}
         sendingTestEmail={sendingTestEmail} handleTestEmail={handleTestEmail}
-        message={message} setMessage={setMessage}
       />}
     </div>
   );
@@ -431,8 +430,6 @@ function SuperAdminSettings({
   testEmail: string; setTestEmail: (v: string) => void;
   testType: TestEmailType; setTestType: (v: TestEmailType) => void;
   sendingTestEmail: boolean; handleTestEmail: () => void;
-  message: { type: "success" | "error"; text: string } | null;
-  setMessage: (v: { type: "success" | "error"; text: string } | null) => void;
 }) {
   const sys = useSystemSettings();
 

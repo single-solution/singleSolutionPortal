@@ -232,6 +232,8 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 The dashboard is **fully real-time** — no manual refresh needed. Data updates are silent (no loading spinners or skeleton flashes during updates).
 
+- **Per-section loading**: No global skeleton gate — header and static sections render immediately while data-dependent sections (presence grid, attendance stats) show inline shimmers only for their own loading state. Presence data (`fetchLive`) loads in parallel with core data (`fetchFull`) on initial mount
+- **Live attendance detail**: `/api/attendance?type=detail` now includes elapsed minutes from the currently active session (not just closed sessions), so "hours logged" and status badges reflect real-time presence
 - **SSE event stream**: Single persistent connection to `/api/events` replaces all polling. Server monitors an `EventBus` document (one lightweight DB read every 4s) and pushes change events only when data actually mutates. Client fetches only the affected data channel — zero wasted requests
 - **Push channels**: `presence` (check-in/out/location transition), `employees`, `tasks`, `departments`, `teams`, `campaigns`, `activity` (notification log), `settings` — each channel triggers only its specific data fetch
 - **Tab-aware**: SSE connection closes when tab is hidden, reconnects when visible — zero background CPU/network drain

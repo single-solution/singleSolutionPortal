@@ -94,13 +94,49 @@ export async function GET(req: NextRequest) {
       date: { $gte: start, $lte: end },
     }).lean();
 
-    if (!daily) return ok(null);
-
-    void ActivitySession;
+    if (!daily) {
+      const activeOnly = await ActivitySession.findOne({
+        user: userId,
+        sessionDate: { $gte: start, $lte: end },
+        status: "active",
+      }).lean();
+      if (activeOnly) {
+        const elapsed = Math.floor((Date.now() - activeOnly.sessionTime.start.getTime()) / 60000);
+        return ok({
+          user: userId,
+          date: start,
+          totalWorkingMinutes: elapsed,
+          officeMinutes: activeOnly.location?.inOffice ? elapsed : 0,
+          remoteMinutes: activeOnly.location?.inOffice ? 0 : elapsed,
+          isPresent: true,
+          isOnTime: true,
+          lateBy: 0,
+          firstOfficeEntry: activeOnly.location?.inOffice ? activeOnly.sessionTime.start : null,
+          activitySessions: [activeOnly],
+          _synthesized: true,
+        });
+      }
+      return ok(null);
+    }
 
     const populated = await DailyAttendance.findById(daily._id)
       .populate("activitySessions")
       .lean();
+
+    if (populated) {
+      const activeSession = await ActivitySession.findOne({
+        user: userId,
+        sessionDate: { $gte: start, $lte: end },
+        status: "active",
+      }).lean();
+      if (activeSession) {
+        const elapsed = Math.floor((Date.now() - activeSession.sessionTime.start.getTime()) / 60000);
+        const isInOffice = activeSession.location?.inOffice ?? false;
+        (populated as Record<string, unknown>).totalWorkingMinutes = (populated.totalWorkingMinutes ?? 0) + elapsed;
+        (populated as Record<string, unknown>).officeMinutes = (populated.officeMinutes ?? 0) + (isInOffice ? elapsed : 0);
+        (populated as Record<string, unknown>).remoteMinutes = (populated.remoteMinutes ?? 0) + (isInOffice ? 0 : elapsed);
+      }
+    }
 
     return ok(populated);
   }

@@ -366,15 +366,41 @@ function EmployeePresenceCard({ emp, idx }: { emp: PresenceEmployee; idx: number
 
 /* ──────────────────────── SUPERADMIN OVERVIEW ──────────────────────── */
 
+function PresenceGridShimmer() {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="card-static card-shine flex flex-col gap-3 rounded-[var(--radius)] p-3">
+          <div className="flex items-start gap-3">
+            <div className="shimmer h-11 w-11 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="shimmer h-4 w-28 rounded" />
+              <div className="shimmer h-3 w-32 rounded" />
+              <div className="shimmer h-3 w-24 rounded" />
+              <div className="shimmer mt-2 h-5 w-20 rounded-full" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
+            <div className="shimmer h-3 w-10 rounded" />
+            <div className="shimmer h-4 w-14 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SuperAdminOverview({
   user,
   presenceEmps,
+  presenceLoading,
   tasks,
   departments,
   employees,
 }: {
   user: User;
   presenceEmps: PresenceEmployee[];
+  presenceLoading: boolean;
   tasks: ApiTask[];
   departments: ApiDepartment[];
   employees: ApiEmployee[];
@@ -464,7 +490,9 @@ function SuperAdminOverview({
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full live-dot" style={{ background: "var(--teal)" }} />
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Live Presence</h2>
         </div>
-        {presenceEmps.length > 0 ? (
+        {presenceLoading ? (
+          <PresenceGridShimmer />
+        ) : presenceEmps.length > 0 ? (
           <motion.div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
             {presenceEmps.map((emp, idx) => (
               <EmployeePresenceCard key={emp._id} emp={emp} idx={idx} />
@@ -738,6 +766,7 @@ function matchPresenceFilter(status: PresenceStatus, f: PresenceFilter): boolean
 function ManagerOverview({
   user,
   presenceEmps,
+  presenceLoading,
   tasks,
   personalAttendance,
   campaigns,
@@ -746,6 +775,7 @@ function ManagerOverview({
 }: {
   user: User;
   presenceEmps: PresenceEmployee[];
+  presenceLoading: boolean;
   tasks: ApiTask[];
   personalAttendance: PersonalAttendance | null;
   campaigns: ApiCampaign[];
@@ -1020,7 +1050,9 @@ function ManagerOverview({
           </div>
         </div>
         <div className="max-h-[420px] overflow-y-auto p-4 sm:p-5">
-          {filteredPresence.length > 0 ? (
+          {presenceLoading ? (
+            <PresenceGridShimmer />
+          ) : filteredPresence.length > 0 ? (
             <motion.div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
               {filteredPresence.map((emp, idx) => (
                 <EmployeePresenceCard key={emp._id} emp={emp} idx={idx} />
@@ -1365,8 +1397,9 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
   const monthlyOfficePct = ms && (ms.totalOfficeHours + ms.totalRemoteHours > 0) ? (ms.totalOfficeHours / (ms.totalOfficeHours + ms.totalRemoteHours)) * 100 : 0;
   const monthlyRemotePct = 100 - monthlyOfficePct;
 
-  const statusColor = pa && pa.todayMinutes > 0 ? (pa.isOnTime ? "#10b981" : "#f59e0b") : "#f43f5e";
-  const statusLabel = pa && pa.todayMinutes > 0 ? (pa.isOnTime ? "On Time" : "Late") : "Absent";
+  const isLive = pa && (pa.todaySessions > 0 || pa.todayMinutes > 0);
+  const statusColor = isLive ? (pa!.isOnTime ? "#10b981" : "#f59e0b") : "#f43f5e";
+  const statusLabel = isLive ? (pa!.isOnTime ? "On Time" : "Late") : "Absent";
 
   const timelineEvents = useMemo(() => {
     const evs: { key: string; dot: string; time: string; label: string }[] = [];
@@ -1762,15 +1795,15 @@ export default function DashboardHome({ user }: { user: User }) {
 
       if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [isSuperAdmin, isAdminRole, parsePresence, fetchPersonalData]);
+  }, [isSuperAdmin, isAdminRole, fetchPersonalData]);
 
   /* ── Initial load ── */
   useEffect(() => {
-    fetchFull().finally(() => {
+    Promise.all([fetchFull(), fetchLive()]).finally(() => {
       setLoading(false);
       initialDone.current = true;
     });
-  }, [fetchFull]);
+  }, [fetchFull, fetchLive]);
 
   /* ── Event-driven updates via SSE (replaces polling) ── */
   useEventStream(
@@ -1789,6 +1822,7 @@ export default function DashboardHome({ user }: { user: User }) {
     !loading,
   );
 
+  const presenceLoading = realPresence === null && isAdminRole;
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;
     return employees.map((e) => ({
@@ -1805,155 +1839,12 @@ export default function DashboardHome({ user }: { user: User }) {
     }));
   }, [realPresence, employees]);
 
-  if (loading) {
-    const isAdminRole = user.role === "superadmin" || user.role === "manager" || user.role === "teamLead";
-    if (!isAdminRole) {
-      return (
-        <div className="flex flex-col gap-4">
-          <div className="space-y-2">
-            <div className="shimmer h-3 w-32 rounded" />
-            <div className="shimmer h-9 w-64 max-w-full rounded" />
-            <div className="shimmer h-4 w-56 max-w-full rounded" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card group relative overflow-hidden p-4">
-                <div className="shimmer mb-2 h-9 w-9 rounded-xl" />
-                <div className="shimmer mb-1 h-4 w-24 rounded" />
-                <div className="shimmer mt-0.5 h-8 w-14 rounded" />
-                <div className="shimmer mt-0.5 h-3 w-20 rounded" />
-              </div>
-            ))}
-          </div>
-          <section className="card p-4 sm:p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="shimmer h-6 w-28 rounded" />
-              <div className="shimmer h-5 w-20 rounded-full" />
-            </div>
-            <div className="flex flex-col gap-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className="shimmer mt-0.5 h-8 w-8 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="shimmer h-4 w-full max-w-xs rounded" />
-                    <div className="shimmer h-3 w-full max-w-sm rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="shimmer mx-auto mt-4 h-4 w-36 rounded" />
-          </section>
-        </div>
-      );
-    }
-    return (
-      <div className="flex flex-col gap-4">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="shimmer h-3 w-36 rounded" />
-            <div className="shimmer h-9 w-72 max-w-full rounded" />
-            <div className="shimmer h-4 w-52 max-w-full rounded" />
-          </div>
-          <div className="card flex shrink-0 flex-col gap-2 p-3 sm:min-w-[180px]">
-            <div className="shimmer h-3 w-16 rounded" />
-            <div className="shimmer h-8 w-28 rounded" />
-            <div className="shimmer h-3 w-36 rounded" />
-          </div>
-        </header>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card group relative overflow-hidden p-4">
-              <div className="shimmer mb-2 h-9 w-9 rounded-xl" />
-              <div className="shimmer h-4 w-28 rounded" />
-              <div className="shimmer mt-0.5 h-8 w-12 rounded" />
-              <div className="shimmer mt-0.5 h-3 w-24 rounded" />
-            </div>
-          ))}
-        </div>
-        <section className="card relative overflow-hidden p-4 sm:p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <div className="shimmer h-2.5 w-2.5 rounded-full" />
-            <div className="shimmer h-6 w-36 rounded" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card-static card-shine flex flex-col gap-3 rounded-[var(--radius)] p-3">
-                <div className="flex items-start gap-3">
-                  <div className="shimmer h-11 w-11 shrink-0 rounded-full" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="shimmer h-4 w-28 rounded" />
-                    <div className="shimmer h-3 w-32 rounded" />
-                    <div className="shimmer h-3 w-24 rounded" />
-                    <div className="shimmer mt-2 h-5 w-20 rounded-full" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
-                  <div className="shimmer h-3 w-10 rounded" />
-                  <div className="shimmer h-4 w-14 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <section className="card p-3 sm:p-4">
-            <div className="shimmer mb-3 h-6 w-44 rounded" />
-            <div className="flex items-center gap-4">
-              <div className="min-w-0 flex-1 space-y-2.5">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="flex items-center gap-2.5">
-                    <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
-                    <div className="shimmer h-3 flex-1 rounded" />
-                    <div className="shimmer h-5 w-7 rounded" />
-                    <div className="shimmer h-3 w-9 rounded" />
-                  </div>
-                ))}
-              </div>
-              <div className="shimmer h-32 w-32 shrink-0 rounded-full sm:h-36 sm:w-36" />
-            </div>
-          </section>
-          <section className="card p-3 sm:p-4">
-            <div className="shimmer mb-3 h-6 w-40 rounded" />
-            <div className="flex flex-col gap-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i}>
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <div className="shimmer h-3 w-28 rounded" />
-                    <div className="shimmer h-3 w-16 rounded" />
-                  </div>
-                  <div className="shimmer h-2 w-full rounded-full" />
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-        <section className="card p-4 sm:p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="shimmer h-6 w-24 rounded" />
-            <div className="shimmer h-5 w-20 rounded-full" />
-          </div>
-          <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="shimmer mt-0.5 h-8 w-8 shrink-0 rounded-lg" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="shimmer h-4 w-full max-w-sm rounded" />
-                  <div className="shimmer h-3 w-full max-w-md rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="shimmer mx-auto mt-4 h-4 w-40 rounded" />
-        </section>
-      </div>
-    );
-  }
-
   if (user.role === "superadmin") {
     return (
       <SuperAdminOverview
         user={user}
         presenceEmps={presenceEmps}
+        presenceLoading={presenceLoading}
         tasks={tasks}
         departments={departments}
         employees={employees}
@@ -1966,6 +1857,7 @@ export default function DashboardHome({ user }: { user: User }) {
       <ManagerOverview
         user={user}
         presenceEmps={presenceEmps}
+        presenceLoading={presenceLoading}
         tasks={tasks}
         personalAttendance={personalAttendance}
         campaigns={campaigns}
