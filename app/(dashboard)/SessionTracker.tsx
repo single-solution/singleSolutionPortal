@@ -75,7 +75,6 @@ export default function SessionTracker() {
   const [mode, setMode] = useState<DeviceMode>("booting");
   const [elapsed, setElapsed] = useState(0);
   const [idle, setIdle] = useState(false);
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const isMobileRef = useRef(false);
   const modeRef = useRef<DeviceMode>("booting");
@@ -127,7 +126,7 @@ export default function SessionTracker() {
   const doCheckIn = useCallback(
     async (retries = 0): Promise<boolean> => {
       const geo = await getGeo();
-      if (geo) { lastCoordsRef.current = geo; setCoords(geo); }
+      if (geo) lastCoordsRef.current = geo;
       try {
         const res = await fetch("/api/attendance/session", {
           method: "POST",
@@ -177,7 +176,7 @@ export default function SessionTracker() {
     const beat = async () => {
       if (modeRef.current !== "active") return;
       const geo = await getGeo();
-      if (geo) { lastCoordsRef.current = geo; setCoords(geo); }
+      if (geo) lastCoordsRef.current = geo;
       try {
         const res = await fetch("/api/attendance/session", {
           method: "PATCH",
@@ -564,11 +563,10 @@ export default function SessionTracker() {
           initial={{ y: 20, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: idle && isActive ? 0.5 : 1, scale: 1 }}
           transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
-          className="mx-auto flex w-fit flex-col items-center gap-1 rounded-[20px] px-4 py-2 text-white backdrop-blur-xl"
+          className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white backdrop-blur-xl"
           style={pillStyle}
         >
-          <div className="flex items-center gap-3">
-            {isActive && !idle && (
+          {isActive && !idle && (
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
@@ -603,15 +601,9 @@ export default function SessionTracker() {
 
             <span className="h-3.5 w-px bg-white/40 rounded-full" />
 
-            <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
-              {formatTodayHours(todayTotal)}
-            </span>
-          </div>
-          {coords && (
-            <span className="text-[9px] font-mono tabular-nums opacity-70 tracking-wide">
-              {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
-            </span>
-          )}
+          <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
+            {formatTodayHours(todayTotal)}
+          </span>
         </motion.div>
       </AnimatePresence>
     </>
