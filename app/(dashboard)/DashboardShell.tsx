@@ -4,11 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import {
-  tabIndicatorTransition,
-  dockEntrance,
-} from "@/lib/motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { dockEntrance } from "@/lib/motion";
 import type { UserRole } from "@/lib/models/User";
 import SessionTracker from "./SessionTracker";
 
@@ -388,14 +385,12 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                 {unseenCount > 0 && (
-                    <motion.span
-                      className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                    <span
+                      className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white notif-badge-pulse"
                       style={{ background: "var(--rose)" }}
-                      animate={{ scale: [1, 1.15, 1] }}
-                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
                     >
                     {unseenCount > 9 ? "9+" : unseenCount}
-                    </motion.span>
+                    </span>
                   )}
                 </button>
                 <AnimatePresence>
@@ -520,13 +515,13 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
       {/* ── Main content with page transition ── */}
       <main className="mx-auto max-w-7xl px-4 py-4 pb-40 sm:px-6 sm:py-5 sm:pb-40">
-        <AnimatePresence mode="popLayout" initial={false}>
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -6, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
           >
             {children}
           </motion.div>
@@ -548,70 +543,66 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             <SessionTracker />
           </div>
           )}
-          <LayoutGroup>
-            <nav
-              className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
-              style={{ padding: "8px 12px" }}
-            >
-              {visibleLinks.map((link) => {
-                const active = isActive(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="relative flex flex-1 flex-col items-center justify-center py-2 sm:flex-initial sm:flex-row sm:h-11 sm:px-4 sm:py-0 sm:rounded-full"
-                    style={{ gap: 4 }}
-                  >
-                    {active && (
-                      <motion.span
-                        layoutId="dock-active"
-                        className="absolute inset-x-1.5 inset-y-1 rounded-xl sm:inset-0 sm:rounded-full"
-                        style={{
-                          background: "var(--primary-light)",
-                          border: "0.5px solid var(--glass-border)",
-                          boxShadow:
-                            "inset 0 0.5px 0 var(--glass-border-inner)",
-                        }}
-                        transition={tabIndicatorTransition}
-                      />
-                    )}
-                    <svg
-                      className="relative"
-                      style={{
-                        width: 20,
-                        height: 20,
-                        color: active
-                          ? "var(--primary)"
-                          : "var(--fg-tertiary)",
-                      }}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={active ? 2 : 1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d={link.icon}
-                      />
-                    </svg>
+          <nav
+            className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
+            style={{ padding: "8px 12px" }}
+          >
+            {visibleLinks.map((link) => {
+              const active = isActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="relative flex flex-1 flex-col items-center justify-center py-2 sm:flex-initial sm:flex-row sm:h-11 sm:px-4 sm:py-0 sm:rounded-full"
+                  style={{ gap: 4 }}
+                >
+                  {active && (
                     <span
-                      className="relative font-semibold"
+                      className="absolute inset-x-1.5 inset-y-1 rounded-xl sm:inset-0 sm:rounded-full transition-all duration-200"
                       style={{
-                        fontSize: 10,
-                        lineHeight: 1,
-                        color: active
-                          ? "var(--primary)"
-                          : "var(--fg-tertiary)",
+                        background: "var(--primary-light)",
+                        border: "0.5px solid var(--glass-border)",
+                        boxShadow:
+                          "inset 0 0.5px 0 var(--glass-border-inner)",
                       }}
-                    >
-                      {link.label}
-                    </span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </LayoutGroup>
+                    />
+                  )}
+                  <svg
+                    className="relative"
+                    style={{
+                      width: 20,
+                      height: 20,
+                      color: active
+                        ? "var(--primary)"
+                        : "var(--fg-tertiary)",
+                    }}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={active ? 2 : 1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d={link.icon}
+                    />
+                  </svg>
+                  <span
+                    className="relative font-semibold"
+                    style={{
+                      fontSize: 10,
+                      lineHeight: 1,
+                      color: active
+                        ? "var(--primary)"
+                        : "var(--fg-tertiary)",
+                    }}
+                  >
+                    {link.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </motion.div>
     </div>

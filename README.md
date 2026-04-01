@@ -180,12 +180,13 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 ### Design System
 
-- **iOS 26.4 Liquid Glass**: theme-aware glass surfaces (`--glass-bg`, `--glass-border`), frosted blur (`saturate(200%) blur(40px)`), inset highlights (`--glass-border-inner`)
-- **Floating dock navigation**: `.dock-glass` class with dark-mode-optimized borders and shadows, no visible border artifacts in either theme
+- **iOS 26.4 Liquid Glass**: theme-aware glass surfaces (`--glass-bg`, `--glass-border`), frosted blur on header + dock only (16–20px), inset highlights (`--glass-border-inner`). `backdrop-filter` removed from cards, inputs, badges, and buttons for performance — replaced with slightly more opaque solid-glass backgrounds
+- **Floating dock navigation**: `.dock-glass` class with dark-mode-optimized borders and shadows, CSS-only active indicator (no LayoutGroup)
+- **Performance-first route transitions**: `AnimatePresence mode="wait"` with opacity+translateY only (no blur filter). Prevents dual-page rendering during route changes
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
 - **Shimmer skeleton loading**: pixel-perfect skeletons on all pages that structurally match actual card layouts — same grids, card shapes, avatar circles, badge pills, action button positions, and table column widths (no spinners anywhere, including ProcessingOverlay)
-- **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; stagger entrances for card grids and table rows; blur-in page transitions; card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in; content reveal with blur defogging
+- **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; stagger entrances for card grids and table rows; card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in. All infinite Framer Motion animations replaced with CSS (notification badge pulse, status rings) or made static (pulse-glow, glass-glow → hover-only). No infinite `box-shadow` animations anywhere
 - **Form labels**: standardized `text-xs font-medium text-[var(--fg-secondary)] mb-1`
 - **Input icons**: all icon-prefixed inputs use `left-3.5` icon + `paddingLeft: 40px`
 
