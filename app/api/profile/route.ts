@@ -1,9 +1,12 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
+import ActivityLog from "@/lib/models/ActivityLog";
+import bcrypt from "bcryptjs";
 import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, ok, notFound, badRequest } from "@/lib/helpers";
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+const EMAIL_CHANGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export async function GET() {
   const actor = await getVerifiedSession();
@@ -35,14 +38,39 @@ export async function PUT(req: Request) {
   }
   if (body.phone !== undefined) update["about.phone"] = body.phone;
 
+  let oldEmail: string | null = null;
   if (typeof body.email === "string" && body.email.trim()) {
     const trimmed = body.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       return badRequest("Invalid email format");
     }
-    const existing = await User.findOne({ email: trimmed, _id: { $ne: actor.id } });
-    if (existing) return badRequest("That email is already in use");
-    update.email = trimmed;
+
+    const currentUser = await User.findById(actor.id).select("+password lastEmailChange email username");
+    if (!currentUser) return notFound("User not found");
+
+    if (trimmed === currentUser.email) {
+      // No change
+    } else {
+      if (!body.currentPassword) return badRequest("Current password is required to change email");
+      const valid = await bcrypt.compare(body.currentPassword, currentUser.password);
+      if (!valid) return badRequest("Current password is incorrect");
+
+      const lastChange = currentUser.lastEmailChange as Date | undefined;
+      if (lastChange && Date.now() - new Date(lastChange).getTime() < EMAIL_CHANGE_COOLDOWN_MS) {
+        const hoursLeft = Math.ceil((EMAIL_CHANGE_COOLDOWN_MS - (Date.now() - new Date(lastChange).getTime())) / 3600000);
+        return badRequest(`Email can only be changed once every 24 hours. Try again in ~${hoursLeft}h.`);
+      }
+
+      const existing = await User.findOne({ email: trimmed, _id: { $ne: actor.id } });
+      if (existing) return badRequest("That email is already in use");
+
+      oldEmail = currentUser.email;
+      const newUsername = trimmed.split("@")[0];
+      const usernameConflict = await User.findOne({ username: newUsername, _id: { $ne: actor.id } });
+      update.email = trimmed;
+      update.username = usernameConflict ? `${newUsername}-${Date.now().toString(36).slice(-4)}` : newUsername;
+      update.lastEmailChange = new Date();
+    }
   }
 
   if (body.profileImage !== undefined) {
@@ -66,5 +94,13 @@ export async function PUT(req: Request) {
     .lean();
 
   if (!user) return notFound("User not found");
+
+  if (oldEmail && update.email) {
+    await ActivityLog.updateMany(
+      { userEmail: oldEmail },
+      { $set: { userEmail: update.email as string, userName: update.username as string } },
+    );
+  }
+
   return ok(user);
 }

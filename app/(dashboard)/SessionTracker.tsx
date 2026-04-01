@@ -404,7 +404,7 @@ export default function SessionTracker() {
 
     function handleActivity() {
       if (idle) {
-        setIdle(false);
+      setIdle(false);
         startHeartbeat();
       }
       clearNudges();
@@ -558,11 +558,11 @@ export default function SessionTracker() {
       </AnimatePresence>
 
       {/* Timer pill */}
-      <AnimatePresence>
-        <motion.div
+    <AnimatePresence>
+      <motion.div
           initial={{ y: 20, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: idle && isActive ? 0.5 : 1, scale: 1 }}
-          transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
+        transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
           className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white backdrop-blur-xl"
           style={pillStyle}
         >
@@ -576,20 +576,20 @@ export default function SessionTracker() {
             {idle && isActive && !isReadonly && (
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
-              </span>
-            )}
+          </span>
+        )}
 
             <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">
               {idle && isActive && !isReadonly ? "Paused" : statusLabel}
             </span>
 
-            {isReadonly && isActive && (
+        {isReadonly && isActive && (
               <span className="text-[9px] font-semibold opacity-80 tracking-wide">
                 {isMobileRef.current ? "synced" : "another device"}
-              </span>
-            )}
+          </span>
+        )}
 
-            {session.isStale && session.active && (
+        {session.isStale && session.active && (
               <span className="text-[9px] font-semibold opacity-75 tracking-wide">inactive</span>
             )}
 
@@ -597,15 +597,15 @@ export default function SessionTracker() {
 
             <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
               {isActive ? (idle ? formatElapsed(pausedAtRef.current || elapsed) : formatElapsed(elapsed)) : "--:--:--"}
-            </span>
+        </span>
 
             <span className="h-3.5 w-px bg-white/40 rounded-full" />
 
           <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
-            {formatTodayHours(todayTotal)}
-          </span>
-        </motion.div>
-      </AnimatePresence>
+          {formatTodayHours(todayTotal)}
+        </span>
+      </motion.div>
+    </AnimatePresence>
     </>
   );
 }

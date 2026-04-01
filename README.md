@@ -190,7 +190,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 ### Settings & Configuration
 
 - **Profile card**: full name, phone, profile image (base64 upload), metadata pills (@username, role badge, department)
-- **Security card**: email change (current password required), password change with PasswordStrength meter
+- **Security card**: email change (current password required, 24h cooldown, auto-updates username and activity logs), password change with PasswordStrength meter
 - **Email testing**: toggle between invite/reset/alert types, centered send button, toast feedback
 - **System Settings** (SuperAdmin only): company name, timezone, office geofence (lat/lng/radius), shift defaults (start time, work hours, work days)
 - **Dark / Light / System** theme toggle (persisted to localStorage, no flash on load)

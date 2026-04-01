@@ -296,7 +296,7 @@ export default function EmployeesPage() {
               </div>
             </div>
           ))}
-        </div>
+      </div>
       </motion.div>
     );
   }
@@ -359,16 +359,16 @@ export default function EmployeesPage() {
           />
         </div>
         {isSuperAdmin && (
-          <motion.button
-            type="button"
+        <motion.button
+          type="button"
             onClick={() => router.push("/employees/new")}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="btn btn-primary btn-sm shrink-0"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Add Employee
-          </motion.button>
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="btn btn-primary btn-sm shrink-0"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+          Add Employee
+        </motion.button>
         )}
       </motion.div>
 
@@ -441,9 +441,9 @@ export default function EmployeesPage() {
           {" "}employee{filtered.length !== 1 ? "s" : ""}
         </p>
         {isSuperAdmin && (
-          <button type="button" onClick={toggleSelectAll} className="text-footnote font-medium hover:underline" style={{ color: "var(--primary)" }}>
-            {selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
-          </button>
+        <button type="button" onClick={toggleSelectAll} className="text-footnote font-medium hover:underline" style={{ color: "var(--primary)" }}>
+          {selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
+        </button>
         )}
       </div>
 
@@ -471,12 +471,12 @@ export default function EmployeesPage() {
                 >
                   <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                     {isSuperAdmin && (
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(emp._id)}
-                        className="absolute top-3 left-3 z-10 w-4 h-4 rounded accent-[var(--primary)] opacity-0 group-hover:opacity-100 checked:opacity-100 transition-opacity"
-                      />
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(emp._id)}
+                      className="absolute top-3 left-3 z-10 w-4 h-4 rounded accent-[var(--primary)] opacity-0 group-hover:opacity-100 checked:opacity-100 transition-opacity"
+                    />
                     )}
 
                     <div className="flex-1 p-3 sm:p-4 pb-2 sm:pb-3">
@@ -484,13 +484,13 @@ export default function EmployeesPage() {
                         {emp.about.profileImage ? (
                           <img src={emp.about.profileImage} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
                         ) : (
-                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
-                            {initials(emp.about.firstName, emp.about.lastName)}
-                          </div>
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
+                          {initials(emp.about.firstName, emp.about.lastName)}
+                        </div>
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
+                          <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
                             {emp.isVerified === false && (
                               <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>Pending</span>
                             )}
@@ -603,13 +603,13 @@ export default function EmployeesPage() {
                         )}
                         {canManage && (
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => router.push(`/employees/${emp._id}/edit`)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                          </motion.button>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </motion.button>
                         )}
                         {isSuperAdmin && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(emp)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                          </motion.button>
+                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(emp)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                        </motion.button>
                         )}
                       </div>
                     </div>

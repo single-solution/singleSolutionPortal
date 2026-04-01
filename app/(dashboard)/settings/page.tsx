@@ -166,8 +166,9 @@ export default function SettingsPage() {
         if (!pwRes.ok) { setMessage({ type: "error", text: pwData.error || "Password update failed" }); setSaving(false); return; }
       }
       if (emailChanged) {
-        const emRes = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newEmail.trim() }) });
-        if (!emRes.ok) { setMessage({ type: "error", text: "Email update failed" }); setSaving(false); return; }
+        const emRes = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newEmail.trim(), currentPassword: currentPassword.trim() }) });
+        const emData = await emRes.json().catch(() => ({}));
+        if (!emRes.ok) { setMessage({ type: "error", text: emData.error || "Email update failed" }); setSaving(false); return; }
         setEmail(newEmail.trim());
       }
       setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");

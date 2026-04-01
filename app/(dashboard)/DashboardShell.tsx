@@ -317,7 +317,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             className="flex items-center gap-2 shrink-0"
           >
             <span className="gradient-text text-[15px] font-bold tracking-tight sm:text-lg">
-              Single Solution Sync
+            Single Solution Sync
             </span>
           </Link>
 
@@ -364,9 +364,9 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             </div>
 
             {/* Notification bell */}
-            <div className="relative" ref={notifRef}>
-              <button
-                type="button"
+              <div className="relative" ref={notifRef}>
+                <button
+                  type="button"
                 onClick={() => {
                   const wasOpen = notificationsOpen;
                   setNotificationsOpen((o) => !o);
@@ -381,34 +381,34 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                     lastSeenRef.current = logs[0]._id;
                   }
                 }}
-                className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
-                aria-label="Notifications"
-              >
-                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
+                  aria-label="Notifications"
+                >
+                  <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
+                  </svg>
                 {unseenCount > 0 && (
-                  <motion.span
-                    className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
-                    style={{ background: "var(--rose)" }}
-                    animate={{ scale: [1, 1.15, 1] }}
-                    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-                  >
+                    <motion.span
+                      className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                      style={{ background: "var(--rose)" }}
+                      animate={{ scale: [1, 1.15, 1] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                    >
                     {unseenCount > 9 ? "9+" : unseenCount}
-                  </motion.span>
-                )}
-              </button>
-              <AnimatePresence>
-                {notificationsOpen && (
-                  <motion.div
+                    </motion.span>
+                  )}
+                </button>
+                <AnimatePresence>
+                  {notificationsOpen && (
+                    <motion.div
                     className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),22rem)] overflow-hidden"
-                    style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
-                    variants={notifPanelVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                  >
-                    <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
+                      style={{ background: "var(--glass-bg-heavy)", backdropFilter: "var(--glass-blur)", WebkitBackdropFilter: "var(--glass-blur)" }}
+                      variants={notifPanelVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                    >
+                      <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
                       <span className="text-headline text-sm">Activity Log</span>
                       {logs.length > 0 && (
                         <button
@@ -478,16 +478,16 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                                 <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                                   {log.userEmail.split("@")[0]} · {timeAgo(log.createdAt)}
                                 </p>
-                              </div>
+                      </div>
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
             {/* Settings link */}
             <Link
@@ -506,7 +506,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
               type="button"
               onClick={async () => {
                 if (user.role !== "superadmin") {
-                  try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+                try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
                 }
                 signOut({ callbackUrl: "/login" });
               }}
@@ -544,9 +544,9 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         <div className="mx-3 mb-2 sm:mx-0">
           {/* Session timer bar — superadmin doesn't track attendance */}
           {user.role !== "superadmin" && (
-            <div className="mb-2">
-              <SessionTracker />
-            </div>
+          <div className="mb-2">
+            <SessionTracker />
+          </div>
           )}
           <LayoutGroup>
             <nav

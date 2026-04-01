@@ -53,6 +53,7 @@ export interface IUser extends Document {
   };
   resetToken?: string;
   resetTokenExpiry?: Date;
+  lastEmailChange?: Date;
   lastSeenLogId?: string;
   crossDepartmentAccess: boolean;
   teamStatsVisible: boolean;
@@ -128,6 +129,7 @@ const userSchema = new Schema<IUser>(
     },
     resetToken: String,
     resetTokenExpiry: Date,
+    lastEmailChange: { type: Date, default: null },
     lastSeenLogId: { type: String, default: null },
     crossDepartmentAccess: { type: Boolean, default: false },
     teamStatsVisible: { type: Boolean, default: true },
