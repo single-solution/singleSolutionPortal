@@ -9,8 +9,9 @@ import toast from "react-hot-toast";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-interface Department { _id: string; title: string; }
+interface Department { _id: string; title: string; manager?: string | { _id: string }; }
 interface TeamOption { _id: string; name: string; department?: { _id: string } | string; }
+interface SupervisorOption { _id: string; fullName: string; userRole: string; departmentId: string; }
 
 const ROLES = [
   { value: "manager", label: "Manager" },
@@ -32,6 +33,7 @@ interface FormState {
   password: string;
   userRole: string;
   department: string;
+  reportsTo: string;
   teams: string[];
   shiftType: string;
   shiftStart: string;
@@ -42,7 +44,7 @@ interface FormState {
 
 const INITIAL: FormState = {
   fullName: "", email: "", password: "",
-  userRole: "developer", department: "", teams: [],
+  userRole: "developer", department: "", reportsTo: "", teams: [],
   shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
   workingDays: ["mon", "tue", "wed", "thu", "fri"],
   breakTime: 60,
@@ -54,6 +56,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   const [form, setForm] = useState<FormState>(INITIAL);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [allTeams, setAllTeams] = useState<TeamOption[]>([]);
+  const [supervisors, setSupervisors] = useState<SupervisorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -63,12 +66,25 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   }, [form.email]);
 
   const load = useCallback(async () => {
-    const [deptRes, teamsRes] = await Promise.all([
+    const [deptRes, teamsRes, empListRes] = await Promise.all([
       fetch("/api/departments").then((r) => r.ok ? r.json() : []),
       fetch("/api/teams").then((r) => r.ok ? r.json() : []),
+      fetch("/api/employees").then((r) => r.ok ? r.json() : []),
     ]);
     setDepartments(Array.isArray(deptRes) ? deptRes : []);
     setAllTeams(Array.isArray(teamsRes) ? teamsRes : []);
+
+    const empList: Array<{ _id: string; about: { firstName: string; lastName: string }; userRole: string; department?: { _id: string } | string }> = Array.isArray(empListRes) ? empListRes : [];
+    setSupervisors(
+      empList
+        .filter((e) => e.userRole === "manager" || e.userRole === "teamLead")
+        .map((e) => ({
+          _id: e._id,
+          fullName: `${e.about.firstName} ${e.about.lastName}`.trim(),
+          userRole: e.userRole,
+          departmentId: typeof e.department === "object" && e.department ? e.department._id : String(e.department ?? ""),
+        })),
+    );
 
     if (employeeId) {
       const empRes = await fetch(`/api/employees/${employeeId}`).then((r) => r.ok ? r.json() : null);
@@ -81,6 +97,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           password: "",
           userRole: empRes.userRole ?? "developer",
           department: empRes.department?._id ?? "",
+          reportsTo: empRes.reportsTo?._id ?? "",
           teams: (empRes.teams ?? []).map((t: { _id: string }) => t._id),
           shiftType: empRes.workShift?.type ?? "fullTime",
           shiftStart: empRes.workShift?.shift?.start ?? "10:00",
@@ -102,6 +119,20 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       return dId === form.department;
     });
   }, [allTeams, form.department]);
+
+  const filteredSupervisors = useMemo(() => {
+    if (!form.department) return supervisors;
+    return supervisors.filter((s) => s.departmentId === form.department);
+  }, [supervisors, form.department]);
+
+  const deptManagerName = useMemo(() => {
+    if (!form.department) return null;
+    const dept = departments.find((d) => d._id === form.department);
+    if (!dept?.manager) return null;
+    const mgrId = typeof dept.manager === "object" ? dept.manager._id : dept.manager;
+    const mgr = supervisors.find((s) => s._id === mgrId);
+    return mgr?.fullName ?? null;
+  }, [form.department, departments, supervisors]);
 
   function toggleTeam(teamId: string) {
     setForm((f) => ({
@@ -133,6 +164,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           fullName: form.fullName,
           userRole: form.userRole,
           department: form.department || null,
+          reportsTo: form.reportsTo || null,
           teams: form.teams,
           workShift,
         };
@@ -154,6 +186,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
             fullName: form.fullName,
             userRole: form.userRole,
             department: form.department || undefined,
+            reportsTo: form.reportsTo || undefined,
             teams: form.teams,
             workShift,
           }),
@@ -309,6 +342,23 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                   {departments.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Reports To</label>
+              <select className="input" value={form.reportsTo} onChange={(e) => setForm({ ...form, reportsTo: e.target.value })}>
+                <option value="">{form.department ? "Auto (Department Manager)" : "None"}</option>
+                {filteredSupervisors.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.fullName} ({s.userRole === "teamLead" ? "Team Lead" : "Manager"})
+                  </option>
+                ))}
+              </select>
+              {!form.reportsTo && deptManagerName && (
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[11px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                  Will default to <span style={{ color: "var(--fg-secondary)" }}>{deptManagerName}</span>
+                </motion.p>
+              )}
             </div>
 
             <AnimatePresence>

@@ -13,6 +13,7 @@ export async function GET() {
 
   const departments = await Department.find({ isActive: true })
     .populate("manager", "about.firstName about.lastName email")
+    .populate("parentDepartment", "title slug")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -50,12 +51,14 @@ export async function POST(req: Request) {
     title: body.title.trim(),
     description: body.description ?? "",
     manager: body.managerId || undefined,
+    parentDepartment: body.parentId || undefined,
     isActive: true,
     createdBy: actor.id,
   });
 
   const populated = await Department.findById(dept._id)
     .populate("manager", "about.firstName about.lastName email")
+    .populate("parentDepartment", "title slug")
     .lean();
 
   logActivity({

@@ -98,6 +98,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages their team)
 - Full-width create/edit forms (`/employees/new`, `/employees/[id]/edit`) with 2-column grid layout: Personal Info + Role & Department side-by-side on desktop, full-width Shift Configuration card with internal grid below
+- **Reports To (Team Lead assignment)**: dropdown selector showing team leads and managers filtered by the selected department. If no supervisor is explicitly chosen, the employee is **automatically assigned to the department manager** as a fallback (resolved server-side on create)
 - ConfirmDialog for all destructive actions (deactivate single + bulk)
 - Profile image upload (base64, max 2MB) with initials fallback avatar
 - Shift configuration per employee (shift type, start/end hours, working days, break time, grace period)
@@ -109,10 +110,11 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 ### Department Management
 
 - Search + "Add Department" button in action bar (matches employees/tasks layout)
-- Collapsible inline add row with name input + Create/Cancel buttons
-- Inline edit within card (expand fields on edit click)
+- Collapsible inline add row with name input + **parent department selector** + Create/Cancel buttons
+- **Parent Department hierarchy**: departments can optionally reference a parent department, enabling nested organizational structures (displayed as "↳ Parent Name" on cards)
+- Inline edit within card (expand fields on edit click) — includes parent department selector (self-reference excluded from options)
 - ConfirmDialog for delete confirmation
-- Card grid with gradient avatars, employee count progress bars, manager display + email
+- Card grid with gradient avatars, employee count progress bars, manager display + email + parent department label
 - Sort toggles: Most Employees / Name
 - Hover-visible edit/delete action buttons in card footer
 - Equal-height cards across all CRUD pages (flex-based stretch)
@@ -371,8 +373,8 @@ lib/
   motion.ts             # Framer Motion animation presets
   models/
     ActivityLog.ts      # Append-only activity log (user, action, entity, details, targeting: targetUserIds, targetDepartmentId, targetTeamIds, visibility)
-    User.ts             # User (5 roles incl. teamLead, shifts, teams[], BD fields, reset tokens, lastSeenLogId)
-    Department.ts       # Department with manager ref
+    User.ts             # User (5 roles incl. teamLead, shifts, teams[], reportsTo supervisor ref, BD fields, reset tokens, lastSeenLogId)
+    Department.ts       # Department with manager ref + optional parentDepartment ref (hierarchical)
     Team.ts             # Team (name, slug, department, lead, description)
     Campaign.ts         # Campaign (name, status lifecycle, tagged employees/departments/teams, dates, budget)
     ActivitySession.ts  # Session with office segments + heartbeat lastActivity

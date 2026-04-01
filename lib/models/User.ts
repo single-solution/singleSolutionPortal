@@ -19,6 +19,7 @@ export interface IUser extends Document {
   };
   department?: Types.ObjectId;
   teams: Types.ObjectId[];
+  reportsTo?: Types.ObjectId;
   userRole: UserRole;
   workShift: {
     type: ShiftType;
@@ -81,6 +82,7 @@ const userSchema = new Schema<IUser>(
     },
     department: { type: Schema.Types.ObjectId, ref: "Department" },
     teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
+    reportsTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
     userRole: {
       type: String,
       enum: ["superadmin", "manager", "teamLead", "businessDeveloper", "developer"],

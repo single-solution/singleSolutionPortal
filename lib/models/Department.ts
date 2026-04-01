@@ -6,6 +6,7 @@ export interface IDepartment extends Document {
   slug: string;
   description?: string;
   manager?: Types.ObjectId;
+  parentDepartment?: Types.ObjectId;
   isActive: boolean;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -28,6 +29,7 @@ const departmentSchema = new Schema<IDepartment>(
     slug: { type: String, unique: true },
     description: { type: String, default: "" },
     manager: { type: Schema.Types.ObjectId, ref: "User" },
+    parentDepartment: { type: Schema.Types.ObjectId, ref: "Department", default: null },
     isActive: { type: Boolean, default: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },

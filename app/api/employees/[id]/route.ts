@@ -26,6 +26,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
+    .populate("reportsTo", "about.firstName about.lastName email userRole")
     .lean();
 
   if (!user) return notFound("Employee not found");
@@ -79,6 +80,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       update.userRole = body.userRole;
     }
     if (body.department !== undefined) update.department = body.department || null;
+    if (body.reportsTo !== undefined) update.reportsTo = body.reportsTo || null;
     if (body.teams !== undefined) update.teams = body.teams ?? [];
     if (body.isActive !== undefined) update.isActive = body.isActive;
     if (body.workShift) update.workShift = body.workShift;
@@ -113,6 +115,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
+    .populate("reportsTo", "about.firstName about.lastName email userRole")
     .lean();
 
   if (!user) return notFound("Employee not found");

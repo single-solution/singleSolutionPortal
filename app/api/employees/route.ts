@@ -47,6 +47,7 @@ export async function GET() {
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
+    .populate("reportsTo", "about.firstName about.lastName email userRole")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
   await connectDB();
 
   const body = await req.json();
-  const { email, fullName, userRole, department, workShift, teams } = body;
+  const { email, fullName, userRole, department, workShift, teams, reportsTo } = body;
 
   if (!email || !fullName || !userRole) {
     return badRequest("Missing required fields: email, fullName, userRole");
@@ -82,6 +83,12 @@ export async function POST(req: Request) {
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ");
 
+  let resolvedReportsTo = reportsTo || null;
+  if (!resolvedReportsTo && department) {
+    const dept = await Department.findById(department).select("manager").lean();
+    if (dept?.manager) resolvedReportsTo = dept.manager.toString();
+  }
+
   const tempPassword = crypto.randomUUID() + "Aa1!";
   const hashed = await bcrypt.hash(tempPassword, 12);
 
@@ -92,6 +99,7 @@ export async function POST(req: Request) {
     about: { firstName, lastName },
     userRole,
     department: department || undefined,
+    reportsTo: resolvedReportsTo || undefined,
     teams: teams ?? [],
     workShift: workShift ?? {
       type: "fullTime",
@@ -108,6 +116,7 @@ export async function POST(req: Request) {
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
+    .populate("reportsTo", "about.firstName about.lastName email userRole")
     .lean();
 
   const rawToken = crypto.randomBytes(32).toString("hex");

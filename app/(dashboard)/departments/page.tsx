@@ -18,6 +18,7 @@ interface Department {
   slug: string;
   description?: string;
   manager?: { _id: string; about: { firstName: string; lastName: string }; email?: string };
+  parentDepartment?: { _id: string; title: string } | null;
   employeeCount: number;
   teamCount: number;
   isActive: boolean;
@@ -55,6 +56,10 @@ export default function DepartmentsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editManagerId, setEditManagerId] = useState("");
+  const [editParentId, setEditParentId] = useState("");
+
+  // Quick-add parent
+  const [newParentId, setNewParentId] = useState("");
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
@@ -103,9 +108,10 @@ export default function DepartmentsPage() {
       await fetch("/api/departments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle.trim(), description: "", managerId: "" }),
+        body: JSON.stringify({ title: newTitle.trim(), description: "", managerId: "", parentId: newParentId }),
       });
       setNewTitle("");
+      setNewParentId("");
       setAddingOpen(false);
       await load();
     } catch { /* ignore */ }
@@ -117,6 +123,7 @@ export default function DepartmentsPage() {
     setEditTitle(dept.title);
     setEditDescription(dept.description ?? "");
     setEditManagerId(dept.manager?._id ?? "");
+    setEditParentId(dept.parentDepartment?._id ?? "");
   }
 
   function cancelEdit() {
@@ -130,7 +137,7 @@ export default function DepartmentsPage() {
       await fetch(`/api/departments/${dept._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editTitle.trim(), description: editDescription, managerId: editManagerId }),
+        body: JSON.stringify({ title: editTitle.trim(), description: editDescription, managerId: editManagerId, parentId: editParentId }),
       });
       setEditingId(null);
       await load();
@@ -301,16 +308,24 @@ export default function DepartmentsPage() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden mb-4"
           >
-            <div className="card-static p-4 flex gap-3 items-center">
+            <div className="card-static p-4 flex gap-3 items-center flex-wrap">
               <input
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
                 placeholder="Department name..."
-                className="input flex-1"
+                className="input flex-1 min-w-[140px]"
                 autoFocus
               />
+              <select
+                value={newParentId}
+                onChange={(e) => setNewParentId(e.target.value)}
+                className="input w-auto min-w-[160px]"
+              >
+                <option value="">No parent department</option>
+                {departments.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
+              </select>
               <motion.button
                 type="button"
                 onClick={handleQuickAdd}
@@ -394,6 +409,11 @@ export default function DepartmentsPage() {
                             {dept.manager?.email && (
                               <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{dept.manager.email}</p>
                             )}
+                            {dept.parentDepartment && (
+                              <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                                ↳ {dept.parentDepartment.title}
+                              </p>
+                            )}
                           </>
                         )}
                       </div>
@@ -422,6 +442,14 @@ export default function DepartmentsPage() {
                           >
                             <option value="">No manager</option>
                             {managers.map((m) => <option key={m._id} value={m._id}>{m.about.firstName} {m.about.lastName}</option>)}
+                          </select>
+                          <select
+                            value={editParentId}
+                            onChange={(e) => setEditParentId(e.target.value)}
+                            className="input text-sm w-full"
+                          >
+                            <option value="">No parent department</option>
+                            {departments.filter((d) => d._id !== dept._id).map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
                           </select>
                           <div className="flex gap-2">
                             <motion.button

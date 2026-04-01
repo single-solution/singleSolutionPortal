@@ -24,10 +24,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (body.title?.trim()) update.title = body.title.trim();
   if (body.description !== undefined) update.description = body.description;
   if (body.managerId !== undefined) update.manager = body.managerId || null;
+  if (body.parentId !== undefined) update.parentDepartment = body.parentId || null;
   if (body.isActive !== undefined) update.isActive = body.isActive;
 
   const dept = await Department.findByIdAndUpdate(id, { $set: update }, { new: true })
     .populate("manager", "about.firstName about.lastName email")
+    .populate("parentDepartment", "title slug")
     .lean();
 
   if (!dept) return notFound("Department not found");
