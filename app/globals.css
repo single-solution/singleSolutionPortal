@@ -399,12 +399,18 @@ select.input {
   .badge:hover { transform: scale(1.04); }
 }
 
+@keyframes badge-breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.7); opacity: 0.5; }
+}
+
 .badge::before {
   content: "";
   width: 6px;
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+  animation: badge-breathe 3s ease-in-out infinite;
 }
 
 .badge-office { background: rgba(16,185,129,0.16); color: #065f46; border: 0.5px solid rgba(16,185,129,0.22); }
@@ -467,10 +473,17 @@ select.input {
   position: relative;
 }
 
+@keyframes aurora-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(2%, -1%) scale(1.01); }
+  66%  { transform: translate(-1%, 1.5%) scale(0.99); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
 .aurora-bg::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -5%;
   background:
     radial-gradient(ellipse 80% 60% at 20% 80%, rgba(0,122,255,0.10) 0%, transparent 50%),
     radial-gradient(ellipse 60% 80% at 80% 20%, rgba(48,209,88,0.07) 0%, transparent 50%),
@@ -478,6 +491,8 @@ select.input {
     radial-gradient(ellipse 40% 40% at 70% 70%, rgba(100,210,255,0.06) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
+  animation: aurora-drift 30s ease-in-out infinite;
 }
 
 .gradient-mesh {
@@ -582,12 +597,43 @@ select.input {
 /* ============================================ */
 /* PULSE GLOW                                   */
 /* ============================================ */
-.pulse-glow { box-shadow: 0 0 12px 2px rgba(0,122,255,0.10); }
+@keyframes subtle-glow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
 
-/* Status-specific pulse rings — static glow for performance */
-.pulse-ring-office { box-shadow: 0 0 0 3px rgba(16,185,129,0.25); }
-.pulse-ring-late { box-shadow: 0 0 0 3px rgba(245,158,11,0.25); }
-.pulse-ring-absent { box-shadow: 0 0 0 3px rgba(244,63,94,0.25); }
+.pulse-glow {
+  box-shadow: 0 0 12px 2px rgba(0,122,255,0.10);
+  animation: subtle-glow 4s ease-in-out infinite;
+}
+
+/* Status-specific pulse rings — GPU-optimized via transform+opacity */
+@keyframes ring-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.pulse-ring-office,
+.pulse-ring-late,
+.pulse-ring-absent {
+  position: relative;
+}
+
+.pulse-ring-office::after,
+.pulse-ring-late::after,
+.pulse-ring-absent::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: ring-pulse 2.5s ease-out infinite;
+}
+
+.pulse-ring-office::after { border: 2.5px solid rgba(16,185,129,0.45); }
+.pulse-ring-late::after { border: 2.5px solid rgba(245,158,11,0.45); }
+.pulse-ring-absent::after { border: 2.5px solid rgba(244,63,94,0.45); }
 
 /* ============================================ */
 /* CARD GLASS GLOW (hover)                      */
@@ -640,8 +686,8 @@ select.input {
 /* SMOOTH CONTENT REVEAL                        */
 /* ============================================ */
 @keyframes content-fade-in {
-  from { opacity: 0; transform: translateY(8px); filter: blur(4px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes notif-pulse {
@@ -655,9 +701,11 @@ select.input {
   animation: content-fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.animate-reveal-delay-1 { animation-delay: 0.1s; opacity: 0; }
-.animate-reveal-delay-2 { animation-delay: 0.2s; opacity: 0; }
-.animate-reveal-delay-3 { animation-delay: 0.3s; opacity: 0; }
+.animate-reveal-delay-1 { animation-delay: 0.08s; opacity: 0; }
+.animate-reveal-delay-2 { animation-delay: 0.16s; opacity: 0; }
+.animate-reveal-delay-3 { animation-delay: 0.24s; opacity: 0; }
+.animate-reveal-delay-4 { animation-delay: 0.32s; opacity: 0; }
+.animate-reveal-delay-5 { animation-delay: 0.40s; opacity: 0; }
 
 /* ============================================ */
 /* FOCUS / SCROLLBAR / SELECTION                */

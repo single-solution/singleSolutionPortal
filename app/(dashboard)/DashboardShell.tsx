@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { dockEntrance } from "@/lib/motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { dockEntrance, tabIndicatorTransition } from "@/lib/motion";
 import type { UserRole } from "@/lib/models/User";
 import SessionTracker from "./SessionTracker";
 
@@ -518,10 +518,10 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: 10, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.99 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             {children}
           </motion.div>
@@ -543,66 +543,70 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             <SessionTracker />
           </div>
           )}
-          <nav
-            className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
-            style={{ padding: "8px 12px" }}
-          >
-            {visibleLinks.map((link) => {
-              const active = isActive(link.href);
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="relative flex flex-1 flex-col items-center justify-center py-2 sm:flex-initial sm:flex-row sm:h-11 sm:px-4 sm:py-0 sm:rounded-full"
-                  style={{ gap: 4 }}
-                >
-                  {active && (
-                    <span
-                      className="absolute inset-x-1.5 inset-y-1 rounded-xl sm:inset-0 sm:rounded-full transition-all duration-200"
+          <LayoutGroup>
+            <nav
+              className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
+              style={{ padding: "8px 12px" }}
+            >
+              {visibleLinks.map((link) => {
+                const active = isActive(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="relative flex flex-1 flex-col items-center justify-center py-2 sm:flex-initial sm:flex-row sm:h-11 sm:px-4 sm:py-0 sm:rounded-full"
+                    style={{ gap: 4 }}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="dock-active"
+                        className="absolute inset-x-1.5 inset-y-1 rounded-xl sm:inset-0 sm:rounded-full"
+                        style={{
+                          background: "var(--primary-light)",
+                          border: "0.5px solid var(--glass-border)",
+                          boxShadow:
+                            "inset 0 0.5px 0 var(--glass-border-inner)",
+                        }}
+                        transition={tabIndicatorTransition}
+                      />
+                    )}
+                    <svg
+                      className="relative"
                       style={{
-                        background: "var(--primary-light)",
-                        border: "0.5px solid var(--glass-border)",
-                        boxShadow:
-                          "inset 0 0.5px 0 var(--glass-border-inner)",
+                        width: 20,
+                        height: 20,
+                        color: active
+                          ? "var(--primary)"
+                          : "var(--fg-tertiary)",
                       }}
-                    />
-                  )}
-                  <svg
-                    className="relative"
-                    style={{
-                      width: 20,
-                      height: 20,
-                      color: active
-                        ? "var(--primary)"
-                        : "var(--fg-tertiary)",
-                    }}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={active ? 2 : 1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d={link.icon}
-                    />
-                  </svg>
-                  <span
-                    className="relative font-semibold"
-                    style={{
-                      fontSize: 10,
-                      lineHeight: 1,
-                      color: active
-                        ? "var(--primary)"
-                        : "var(--fg-tertiary)",
-                    }}
-                  >
-                    {link.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={active ? 2 : 1.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d={link.icon}
+                      />
+                    </svg>
+                    <span
+                      className="relative font-semibold"
+                      style={{
+                        fontSize: 10,
+                        lineHeight: 1,
+                        color: active
+                          ? "var(--primary)"
+                          : "var(--fg-tertiary)",
+                      }}
+                    >
+                      {link.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </LayoutGroup>
         </div>
       </motion.div>
     </div>
