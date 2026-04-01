@@ -27,6 +27,7 @@ interface Employee {
   userRole: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained for consistency / future use
 const AVATAR_GRADIENTS = [
   "from-blue-500 to-cyan-400",
   "from-emerald-500 to-teal-400",
@@ -48,16 +49,6 @@ const PRIORITY_COLORS: Record<string, string> = { low: "var(--primary)", medium:
 const PRIORITY_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
 const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgress: "In Progress", completed: "Completed" };
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-
-function initials(first: string, last: string) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
-}
-
-function stableHash(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
-  return Math.abs(h);
-}
 
 export default function TasksPage() {
   const { data: session } = useSession();
@@ -159,7 +150,7 @@ export default function TasksPage() {
     <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
       {/* Header: title left, sort right */}
       <motion.div
-        className="flex items-center justify-between gap-3 mb-6"
+        className="flex items-center justify-between gap-3 mb-4"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -174,8 +165,7 @@ export default function TasksPage() {
               key={s}
               type="button"
               onClick={() => setSortMode(s)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                 sortMode === s
@@ -218,8 +208,7 @@ export default function TasksPage() {
                 key={f}
                 type="button"
                 onClick={() => setPrioFilter(f)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.92 }}
+                whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                   active
@@ -240,7 +229,7 @@ export default function TasksPage() {
       </div>
 
       {/* Task Card Grid */}
-      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div
@@ -255,8 +244,6 @@ export default function TasksPage() {
           ) : (
             filtered.map((task, i) => {
               const assignee = task.assignedTo;
-              const gi = assignee ? stableHash(assignee._id ?? "") : 0;
-              const grad = AVATAR_GRADIENTS[gi % AVATAR_GRADIENTS.length];
               const prioColor = PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)";
               return (
                 <motion.div
@@ -269,14 +256,14 @@ export default function TasksPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
                   <div className="card group relative overflow-hidden flex h-full flex-col">
-                    <div className="p-3 flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
+                    <div className="p-2.5 flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
                           {PRIORITY_LABELS[task.priority] ?? task.priority}
                         </span>
                         {!isAdmin && task.assignedTo?._id === session?.user?.id ? (
                           <select
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold cursor-pointer border-0 bg-transparent transition-colors duration-200"
+                            className="rounded-full px-2 py-0.5 text-[9px] font-semibold cursor-pointer border-0 bg-transparent transition-colors duration-200"
                             style={{
                               background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
                               color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
@@ -296,7 +283,7 @@ export default function TasksPage() {
                             <option value="completed">Completed</option>
                           </select>
                         ) : (
-                          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors duration-200" style={{
+                          <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold transition-colors duration-200" style={{
                             background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
                             color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
                           }}>
@@ -305,35 +292,25 @@ export default function TasksPage() {
                         )}
                       </div>
 
-                      <p className="font-semibold" style={{ color: "var(--fg)" }}>{task.title}</p>
-                      {task.description && <p className="text-caption mt-1 line-clamp-2">{task.description}</p>}
+                      <p className="text-[13px] font-semibold truncate" style={{ color: "var(--fg)" }}>{task.title}</p>
+                      {task.description && <p className="text-[10px] mt-1 line-clamp-1">{task.description}</p>}
 
-                      <div className="mt-3 space-y-1.5 text-[13px]">
+                      <div className="mt-1.5 space-y-0.5 text-[11px]">
                         {assignee?.about && (
-                          <div className="flex items-center gap-2">
-                            <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white ${grad}`}>
-                              {initials(assignee.about.firstName, assignee.about.lastName)}
-                            </span>
-                            <div className="min-w-0">
-                              <span className="font-medium" style={{ color: "var(--fg)" }}>{assignee.about.firstName} {assignee.about.lastName}</span>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {assignee.userRole && (
-                                  <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{DESIGNATION_LABELS[assignee.userRole] ?? assignee.userRole}</span>
-                                )}
-                                {assignee.department && typeof assignee.department === "object" && "title" in assignee.department && (
-                                  <>
-                                    <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>·</span>
-                                    <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{assignee.department.title}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <span className="font-medium" style={{ color: "var(--fg)" }}>{assignee.about.firstName} {assignee.about.lastName}</span>
+                            {assignee.userRole && (
+                              <>
+                                <span style={{ color: "var(--fg-tertiary)" }}>·</span>
+                                <span style={{ color: "var(--fg-tertiary)" }}>{DESIGNATION_LABELS[assignee.userRole] ?? assignee.userRole}</span>
+                              </>
+                            )}
                           </div>
                         )}
                         {task.deadline && (
                           <div className="flex items-center gap-1.5">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-                            <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                            <span className="tabular-nums text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                               {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                             </span>
                           </div>
@@ -342,19 +319,19 @@ export default function TasksPage() {
                     </div>
 
                     {/* Footer: date left, actions right (matches employee card) */}
-                    <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t" style={{ borderColor: "var(--border)" }}>
-                      <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
+                      <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                         {task.updatedAt && task.updatedAt !== task.createdAt
                           ? `Updated ${new Date(task.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                           : new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                       {isAdmin && (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(task)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(task)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                           </motion.button>
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(task)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(task)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                           </motion.button>
                         </div>
                       )}

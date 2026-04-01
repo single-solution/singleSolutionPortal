@@ -34,17 +34,6 @@ interface UserOption {
   userRole: string;
 }
 
-const TEAM_GRADIENTS = [
-  "from-teal-500 to-cyan-400",
-  "from-blue-500 to-indigo-400",
-  "from-purple-500 to-pink-400",
-  "from-amber-500 to-orange-400",
-  "from-emerald-500 to-green-400",
-  "from-rose-500 to-red-400",
-  "from-indigo-500 to-blue-400",
-  "from-fuchsia-500 to-purple-400",
-];
-
 type SortMode = "most" | "name";
 type DeptFilter = "all" | string;
 
@@ -192,7 +181,7 @@ export default function TeamsPage() {
     <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
       {/* Header */}
       <motion.div
-        className="flex items-center justify-between gap-3 mb-6"
+        className="flex items-center justify-between gap-3 mb-4"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -212,8 +201,7 @@ export default function TeamsPage() {
               key={s}
               type="button"
               onClick={() => setSortMode(s)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                 sortMode === s ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
@@ -277,8 +265,7 @@ export default function TeamsPage() {
           <motion.button
             type="button"
             onClick={() => setDeptFilter("all")}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
             className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
               deptFilter === "all" ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
@@ -291,8 +278,7 @@ export default function TeamsPage() {
               key={d._id}
               type="button"
               onClick={() => setDeptFilter(d._id)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                 deptFilter === d._id ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
@@ -318,7 +304,7 @@ export default function TeamsPage() {
       </div>
 
       {/* Team Card Grid */}
-      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div
@@ -332,8 +318,6 @@ export default function TeamsPage() {
             </motion.div>
           ) : (
             filtered.map((team, i) => {
-              const grad = TEAM_GRADIENTS[i % TEAM_GRADIENTS.length];
-
               return (
                 <motion.div
                   key={team._id}
@@ -345,42 +329,29 @@ export default function TeamsPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
                   <div className="card group relative overflow-hidden flex h-full flex-col">
-                    <div className="flex-1 p-3">
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}
-                        >
-                          {team.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>
-                            {team.name}
-                          </p>
-                          <p className="text-caption truncate mt-0.5">{team.department?.title ?? "No department"}</p>
-                        </div>
+                    <div className="flex-1 p-2.5">
+                      <div>
+                        <p className="text-[13px] font-semibold truncate" style={{ color: "var(--fg)" }}>
+                          {team.name}
+                        </p>
+                        <p className="text-[10px] truncate" style={{ color: "var(--fg-secondary)" }}>
+                          {team.department?.title ?? "No department"}
+                        </p>
                       </div>
 
-                      <div className="mt-3 space-y-1.5 text-[13px]">
-                        <div className="flex items-center justify-between">
+                      <div className="mt-1.5 space-y-0.5 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
                           <span style={{ color: "var(--fg-tertiary)" }}>Lead</span>
-                          <span className="font-medium truncate ml-2" style={{ color: "var(--fg)" }}>
+                          <span className="font-medium truncate text-right min-w-0" style={{ color: "var(--fg)" }}>
                             {team.lead
                               ? `${team.lead.about.firstName} ${team.lead.about.lastName}`
                               : "—"}
                           </span>
                         </div>
-                        {team.lead?.email && (
-                          <div className="flex items-center justify-between">
-                            <span style={{ color: "var(--fg-tertiary)" }}>Email</span>
-                            <span className="text-[11px] truncate ml-2" style={{ color: "var(--fg-secondary)" }}>
-                              {team.lead.email}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <span style={{ color: "var(--fg-tertiary)" }}>Members</span>
                           <span
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold shrink-0"
                             style={{
                               background: "color-mix(in srgb, var(--teal) 12%, transparent)",
                               color: "var(--teal)",
@@ -390,14 +361,14 @@ export default function TeamsPage() {
                           </span>
                         </div>
                         {team.description && (
-                          <p className="text-caption line-clamp-2 mt-1">{team.description}</p>
+                          <p className="text-[10px] line-clamp-1 mt-1" style={{ color: "var(--fg-secondary)" }}>{team.description}</p>
                         )}
                       </div>
                     </div>
 
                     {/* Footer */}
                     <div
-                      className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t"
+                      className="flex items-center justify-between px-2.5 py-1.5 border-t"
                       style={{ borderColor: "var(--border)" }}
                     >
                       <div className="flex items-center gap-2">
@@ -411,28 +382,26 @@ export default function TeamsPage() {
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <motion.button
                             type="button"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
+                            whileTap={{ scale: 0.97 }}
                             onClick={() => openEditModal(team)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+                            className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors"
                             style={{ color: "var(--primary)" }}
                             title="Edit"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                           </motion.button>
                           <motion.button
                             type="button"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
+                            whileTap={{ scale: 0.97 }}
                             onClick={() => setDeleteTarget(team)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+                            className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors"
                             style={{ color: "var(--rose)" }}
                             title="Delete"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                             </svg>
                           </motion.button>

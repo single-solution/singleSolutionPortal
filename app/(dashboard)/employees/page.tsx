@@ -36,17 +36,6 @@ const SHIFT_TYPE_LABELS: Record<string, string> = {
   intern: "Intern",
 };
 
-const AVATAR_GRADIENTS = [
-  "from-blue-500 to-cyan-400",
-  "from-emerald-500 to-teal-400",
-  "from-purple-500 to-pink-400",
-  "from-amber-500 to-orange-400",
-  "from-rose-500 to-red-400",
-  "from-indigo-500 to-blue-400",
-  "from-green-500 to-lime-400",
-  "from-fuchsia-500 to-purple-400",
-];
-
 const DESIGNATION_LABELS: Record<string, string> = {
   superadmin: "System Administrator",
   manager: "Team Manager",
@@ -221,7 +210,7 @@ export default function EmployeesPage() {
     >
       {/* Header: title left, sort right */}
       <motion.div
-        className="flex items-center justify-between gap-3 mb-6"
+        className="flex items-center justify-between gap-3 mb-4"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -293,8 +282,7 @@ export default function EmployeesPage() {
                 key={k}
                 type="button"
                 onClick={() => setRoleFilter(k)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.92 }}
+                whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                   active
@@ -360,7 +348,7 @@ export default function EmployeesPage() {
 
       {/* Employee Card Grid */}
       <motion.div
-        className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         variants={staggerContainerFast}
         initial="hidden"
         animate="visible"
@@ -373,7 +361,6 @@ export default function EmployeesPage() {
           ) : (
             filtered.map((emp, i) => {
               const status = presenceMap.get(emp._id) ?? "absent";
-              const grad = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
               const isSelected = selected.has(emp._id);
               return (
                 <motion.div
@@ -395,31 +382,28 @@ export default function EmployeesPage() {
                     />
                     )}
 
-                    <div className="flex-1 p-3 pb-2">
+                    <div className="flex-1 p-2.5">
                       <div className="flex items-start gap-3">
                         {emp.about.profileImage ? (
-                          <img src={emp.about.profileImage} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
+                          <img src={emp.about.profileImage} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
                         ) : (
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-grouped)] text-[10px] font-bold text-[var(--fg-secondary)]">
                           {initials(emp.about.firstName, emp.about.lastName)}
                         </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                          <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="font-semibold truncate min-w-0 flex-1" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
+                            <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${STATUS_COLORS[status]} 15%, transparent)`, color: STATUS_COLORS[status] }}>{STATUS_LABELS[status]}</span>
                             {emp.isVerified === false && (
                               <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>Pending</span>
                             )}
                           </div>
                           <p className="text-caption truncate">{emp.email}</p>
                         </div>
-                        <span className="relative flex h-2.5 w-2.5 shrink-0 mt-1.5">
-                          <span className="absolute inline-flex h-full w-full rounded-full opacity-40" style={{ background: STATUS_COLORS[status], animation: status !== "absent" ? "ping 1.5s cubic-bezier(0,0,0.2,1) infinite" : "none" }} />
-                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLORS[status] }} />
-                        </span>
                       </div>
 
-                      <div className="mt-3 space-y-1.5 text-[13px]">
+                      <div className="mt-1.5 space-y-0.5 text-[11px]">
                         <div className="flex items-center justify-between">
                           <span style={{ color: "var(--fg-tertiary)" }}>Role</span>
                           <span className="font-medium" style={{ color: "var(--fg)" }}>{DESIGNATION_LABELS[emp.userRole] ?? emp.userRole}</span>
@@ -433,7 +417,7 @@ export default function EmployeesPage() {
                             <span style={{ color: "var(--fg-tertiary)" }}>Teams</span>
                             <div className="flex flex-wrap gap-1 justify-end">
                               {emp.teams.map((t) => (
-                                <span key={t._id} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+                                <span key={t._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
                                   {t.name}
                                 </span>
                               ))}
@@ -441,25 +425,14 @@ export default function EmployeesPage() {
                           </div>
                         )}
                         {emp.workShift && (
-                          <>
-                            <div className="flex items-center justify-between">
-                              <span style={{ color: "var(--fg-tertiary)" }}>Shift</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>{SHIFT_TYPE_LABELS[emp.workShift.type] ?? emp.workShift.type}</span>
-                                <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
-                                  {emp.workShift.shift.start} – {emp.workShift.shift.end}
-                                </span>
-                              </div>
-                            </div>
-                            {emp.workShift.workingDays?.length > 0 && (
-                              <div className="flex items-center justify-between">
-                                <span style={{ color: "var(--fg-tertiary)" }}>Days</span>
-                                <span className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>
-                                  {formatWorkingDays(emp.workShift.workingDays)}
-                                </span>
-                              </div>
-                            )}
-                          </>
+                          <div className="flex items-center justify-between gap-2">
+                            <span style={{ color: "var(--fg-tertiary)" }}>Shift</span>
+                            <span className="text-[11px] font-medium text-right" style={{ color: "var(--fg-secondary)" }}>
+                              {SHIFT_TYPE_LABELS[emp.workShift.type] ?? emp.workShift.type}{" "}
+                              {emp.workShift.shift.start}–{emp.workShift.shift.end}
+                              {emp.workShift.workingDays?.length > 0 ? ` · ${formatWorkingDays(emp.workShift.workingDays)}` : ""}
+                            </span>
+                          </div>
                         )}
                         {emp.about.phone && (
                           <div className="flex items-center justify-between">
@@ -467,16 +440,10 @@ export default function EmployeesPage() {
                             <span className="font-medium" style={{ color: "var(--fg)" }}>{emp.about.phone}</span>
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
-                          <span style={{ color: "var(--fg-tertiary)" }}>Status</span>
-                          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${STATUS_COLORS[status]} 15%, transparent)`, color: STATUS_COLORS[status] }}>
-                            {STATUS_LABELS[status]}
-                          </span>
-                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t" style={{ borderColor: "var(--border)" }}>
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
                       <div className="flex items-center gap-2">
                         {isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
                         <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
@@ -505,26 +472,26 @@ export default function EmployeesPage() {
                               whileTap={{ scale: 0.9 }}
                               disabled={copyingId === emp._id}
                               onClick={() => copyInviteLink(emp)}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+                              className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
                               style={{ color: "var(--fg-secondary)" }}
                               title="Copy invite link"
                             >
                               {copyingId === emp._id ? (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
                               ) : (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                               )}
                             </motion.button>
                           </>
                         )}
                         {canManage && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => router.push(`/employees/${emp._id}/edit`)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => router.push(`/employees/${emp._id}/edit`)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                         </motion.button>
                         )}
                         {isSuperAdmin && (
-                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(emp)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(emp)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                         </motion.button>
                         )}
                       </div>

@@ -61,17 +61,6 @@ const STATUS_CONFIG: Record<CampaignStatus, { label: string; color: string; bg: 
   cancelled: { label: "Cancelled", color: "var(--rose)", bg: "color-mix(in srgb, var(--rose) 12%, transparent)" },
 };
 
-const CARD_GRADIENTS = [
-  "from-indigo-500 to-purple-400",
-  "from-teal-500 to-emerald-400",
-  "from-amber-500 to-orange-400",
-  "from-rose-500 to-pink-400",
-  "from-blue-500 to-cyan-400",
-  "from-fuchsia-500 to-purple-400",
-  "from-green-500 to-lime-400",
-  "from-red-500 to-rose-400",
-];
-
 type StatusFilter = "all" | CampaignStatus;
 type SortMode = "recent" | "name";
 
@@ -258,7 +247,7 @@ export default function CampaignsPage() {
     <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
       {/* Header */}
       <motion.div
-        className="flex items-center justify-between gap-3 mb-6"
+        className="flex items-center justify-between gap-3 mb-4"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -275,8 +264,7 @@ export default function CampaignsPage() {
               key={s}
               type="button"
               onClick={() => setSortMode(s)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                 sortMode === s ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
@@ -330,8 +318,7 @@ export default function CampaignsPage() {
               key={s}
               type="button"
               onClick={() => setStatusFilter(s)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                 statusFilter === s ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
@@ -349,7 +336,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Cards */}
-      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="col-span-full card p-12 text-center">
@@ -357,7 +344,6 @@ export default function CampaignsPage() {
             </motion.div>
           ) : (
             filtered.map((c, i) => {
-              const grad = CARD_GRADIENTS[i % CARD_GRADIENTS.length];
               const sc = STATUS_CONFIG[c.status];
               const totalTags = c.tags.employees.length + c.tags.departments.length + c.tags.teams.length;
 
@@ -372,24 +358,22 @@ export default function CampaignsPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
                   <div className="card group relative overflow-hidden flex h-full flex-col">
-                    <div className="flex-1 p-3">
+                    <div className="flex-1 p-2.5">
                       {/* Header row */}
-                      <div className="flex items-start gap-3">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
-                          {c.name.charAt(0).toUpperCase()}
-                        </div>
+                      <div className="flex items-start gap-2 justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate" style={{ color: "var(--fg)" }}>{c.name}</p>
-                          {c.description && <p className="text-caption line-clamp-1 mt-0.5">{c.description}</p>}
+                          <div className="flex items-start gap-2">
+                            <p className="text-[13px] font-semibold truncate flex-1 min-w-0" style={{ color: "var(--fg)" }}>{c.name}</p>
+                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: sc.bg, color: sc.color }}>
+                              {sc.label}
+                            </span>
+                          </div>
+                          {c.description && <p className="text-caption line-clamp-1 mt-0.5 text-[10px]" style={{ color: "var(--fg-secondary)" }}>{c.description}</p>}
                         </div>
-                        {/* Status badge */}
-                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: sc.bg, color: sc.color }}>
-                          {sc.label}
-                        </span>
                       </div>
 
                       {/* Info rows */}
-                      <div className="mt-3 space-y-1.5 text-[13px]">
+                      <div className="mt-1.5 space-y-0.5 text-[11px]">
                         <div className="flex items-center justify-between">
                           <span style={{ color: "var(--fg-tertiary)" }}>Duration</span>
                           <span className="font-medium" style={{ color: "var(--fg)" }}>
@@ -406,20 +390,20 @@ export default function CampaignsPage() {
                         {/* Tagged entities */}
                         {totalTags > 0 && (
                           <div className="pt-1">
-                            <span className="text-[11px] font-medium block mb-1" style={{ color: "var(--fg-tertiary)" }}>Tagged</span>
+                            <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Tagged</span>
                             <div className="flex flex-wrap gap-1">
                               {c.tags.departments.map((d) => (
-                                <span key={d._id} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+                                <span key={d._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
                                   {d.title}
                                 </span>
                               ))}
                               {c.tags.teams.map((t) => (
-                                <span key={t._id} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
+                                <span key={t._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
                                   {t.name}
                                 </span>
                               ))}
                               {c.tags.employees.map((e) => (
-                                <span key={e._id} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>
+                                <span key={e._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>
                                   {e.about.firstName} {e.about.lastName}
                                 </span>
                               ))}
@@ -428,27 +412,27 @@ export default function CampaignsPage() {
                         )}
 
                         {c.notes && (
-                          <p className="text-caption line-clamp-2 mt-1 italic">{c.notes}</p>
+                          <p className="line-clamp-1 text-[10px] mt-1 italic" style={{ color: "var(--fg-secondary)" }}>{c.notes}</p>
                         )}
                       </div>
 
                       {/* Quick status actions */}
                       {c.status === "active" && (
-                        <div className="mt-2.5 flex gap-1.5">
-                          <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} onClick={() => quickStatus(c, "paused")} className="rounded-md px-2 py-1 text-[10px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.paused.bg, color: STATUS_CONFIG.paused.color }}>
+                        <div className="mt-1.5 flex gap-1">
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "paused")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.paused.bg, color: STATUS_CONFIG.paused.color }}>
                             Pause
                           </motion.button>
-                          <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} onClick={() => quickStatus(c, "completed")} className="rounded-md px-2 py-1 text-[10px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.completed.bg, color: STATUS_CONFIG.completed.color }}>
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "completed")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.completed.bg, color: STATUS_CONFIG.completed.color }}>
                             Complete
                           </motion.button>
                         </div>
                       )}
                       {c.status === "paused" && (
-                        <div className="mt-2.5 flex gap-1.5">
-                          <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} onClick={() => quickStatus(c, "active")} className="rounded-md px-2 py-1 text-[10px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.active.bg, color: STATUS_CONFIG.active.color }}>
+                        <div className="mt-1.5 flex gap-1">
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "active")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.active.bg, color: STATUS_CONFIG.active.color }}>
                             Resume
                           </motion.button>
-                          <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} onClick={() => quickStatus(c, "cancelled")} className="rounded-md px-2 py-1 text-[10px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.cancelled.bg, color: STATUS_CONFIG.cancelled.color }}>
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "cancelled")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.cancelled.bg, color: STATUS_CONFIG.cancelled.color }}>
                             Cancel
                           </motion.button>
                         </div>
@@ -456,7 +440,7 @@ export default function CampaignsPage() {
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t" style={{ borderColor: "var(--border)" }}>
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
                       <div className="flex items-center gap-2">
                         <StatusToggle active={c.isActive !== false} onChange={() => toggleActive(c)} />
                         <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
@@ -466,12 +450,12 @@ export default function CampaignsPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditModal(c)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => openEditModal(c)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                         </motion.button>
                         {canDelete && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(c)} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => setDeleteTarget(c)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                           </motion.button>
                         )}
                       </div>
