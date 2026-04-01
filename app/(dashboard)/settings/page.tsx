@@ -415,49 +415,64 @@ export default function SettingsPage() {
       </div>
 
       {/* SuperAdmin row: Test Email + System Settings side by side */}
-      {isSuperAdmin && (
-        <FadeUp delay={0.2} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {/* Test Email */}
-          <div className="card-xl card-shine p-6 sm:p-8">
-            <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>Test Email</h2>
-            <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Send a test email to verify SMTP configuration.</p>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-                {EMAIL_TYPES.map(([t, label]) => (
-                  <motion.button
-                    key={t}
-                    type="button"
-                    onClick={() => setTestType(t)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.92 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                      testType === t
-                        ? "bg-[var(--primary)] text-white shadow-sm"
-                        : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                    }`}
-                  >
-                    {label}
-                  </motion.button>
-                ))}
-              </div>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
-                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "40px" }} />
-              </div>
-              <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleTestEmail} disabled={sendingTestEmail} className="w-full btn btn-primary disabled:opacity-50">
-                {sendingTestEmail ? "Sending..." : "Send Test Email"}
-              </motion.button>
-            </div>
-          </div>
-
-          <SystemSettingsSection />
-        </FadeUp>
-      )}
-
-      {isSuperAdmin && <SystemSettingsDetailSection />}
+      {isSuperAdmin && <SuperAdminSettings
+        testEmail={testEmail} setTestEmail={setTestEmail}
+        testType={testType} setTestType={setTestType}
+        sendingTestEmail={sendingTestEmail} handleTestEmail={handleTestEmail}
+        message={message} setMessage={setMessage}
+      />}
     </div>
+  );
+}
+
+function SuperAdminSettings({
+  testEmail, setTestEmail, testType, setTestType, sendingTestEmail, handleTestEmail,
+}: {
+  testEmail: string; setTestEmail: (v: string) => void;
+  testType: TestEmailType; setTestType: (v: TestEmailType) => void;
+  sendingTestEmail: boolean; handleTestEmail: () => void;
+  message: { type: "success" | "error"; text: string } | null;
+  setMessage: (v: { type: "success" | "error"; text: string } | null) => void;
+}) {
+  const sys = useSystemSettings();
+
+  return (
+    <>
+      <FadeUp delay={0.2} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="card-xl card-shine p-6 sm:p-8">
+          <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>Test Email</h2>
+          <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Send a test email to verify SMTP configuration.</p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+              {EMAIL_TYPES.map(([t, label]) => (
+                <motion.button
+                  key={t}
+                  type="button"
+                  onClick={() => setTestType(t)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    testType === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                  }`}
+                >
+                  {label}
+                </motion.button>
+              ))}
+            </div>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
+              <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "40px" }} />
+            </div>
+            <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleTestEmail} disabled={sendingTestEmail} className="w-full btn btn-primary disabled:opacity-50">
+              {sendingTestEmail ? "Sending..." : "Send Test Email"}
+            </motion.button>
+          </div>
+        </div>
+        <SystemSettingsSection sys={sys} />
+      </FadeUp>
+      <SystemSettingsDetailSection sys={sys} />
+    </>
   );
 }
 
@@ -498,8 +513,8 @@ function useSystemSettings() {
   return { settings, setSettings, sysLoading, sysSaving, sysMsg, handleSave };
 }
 
-function SystemSettingsSection() {
-  const { settings, setSettings, sysLoading, sysSaving, sysMsg, handleSave } = useSystemSettings();
+function SystemSettingsSection({ sys }: { sys: ReturnType<typeof useSystemSettings> }) {
+  const { settings, setSettings, sysLoading, sysSaving, sysMsg, handleSave } = sys;
 
   if (sysLoading) return null;
 
@@ -529,8 +544,8 @@ function SystemSettingsSection() {
   );
 }
 
-function SystemSettingsDetailSection() {
-  const { settings, setSettings, sysLoading, sysSaving, sysMsg, handleSave } = useSystemSettings();
+function SystemSettingsDetailSection({ sys }: { sys: ReturnType<typeof useSystemSettings> }) {
+  const { settings, setSettings, sysLoading, sysSaving, sysMsg, handleSave } = sys;
 
   if (sysLoading) return null;
 

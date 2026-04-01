@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 import { useSession } from "next-auth/react";
@@ -59,9 +61,8 @@ function stableHash(str: string): number {
 
 export default function TasksPage() {
   const { data: session } = useSession();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager" || session?.user?.role === "teamLead";
+
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
@@ -76,22 +77,14 @@ export default function TasksPage() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager" || session?.user?.role === "teamLead";
+  const { data: tasks, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "tasks");
+  const { data: employeesRaw } = useQuery<Employee[]>(isAdmin ? "/api/employees/dropdown" : null, "employees");
 
-  const load = useCallback(async () => {
-    const [taskRes, empRes] = await Promise.all([
-      fetch("/api/tasks").then((r) => r.json()),
-      isAdmin ? fetch("/api/employees").then((r) => r.json()) : Promise.resolve([]),
-    ]);
-    setTasks(Array.isArray(taskRes) ? taskRes : []);
-    setEmployees(Array.isArray(empRes) ? empRes : []);
-    setLoading(false);
-  }, [isAdmin]);
-
-  useEffect(() => { load(); }, [load]);
+  const taskList = tasks ?? [];
+  const employees = employeesRaw ?? [];
 
   const filtered = useMemo(() => {
-    let list = tasks;
+    let list = taskList;
     if (prioFilter !== "all") list = list.filter((t) => t.priority === prioFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -112,9 +105,9 @@ export default function TasksPage() {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [tasks, prioFilter, search, sortMode]);
+  }, [taskList, prioFilter, search, sortMode]);
 
-  const pendingCount = useMemo(() => tasks.filter((t) => t.status === "pending").length, [tasks]);
+  const pendingCount = useMemo(() => taskList.filter((t) => t.status === "pending").length, [taskList]);
 
   function openCreate() {
     setEditing(null);
@@ -146,7 +139,7 @@ export default function TasksPage() {
         await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       }
       setModalOpen(false);
-      await load();
+      await refetchTasks();
     } catch { /* ignore */ }
     setSaving(false);
   }
@@ -157,88 +150,13 @@ export default function TasksPage() {
     try {
       await fetch(`/api/tasks/${deleteTarget._id}`, { method: "DELETE" });
       setDeleteTarget(null);
-      await load();
+      await refetchTasks();
     } catch { /* ignore */ }
     setDeleting(false);
   }
 
-  if (loading) {
-    return (
-      <motion.div
-        className="flex flex-col gap-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="space-y-2">
-            <div className="shimmer h-8 w-32 rounded" />
-            <div className="shimmer h-4 w-44 rounded" />
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            <div className="shimmer h-7 w-14 rounded-md" />
-            <div className="shimmer h-7 w-20 rounded-md" />
-            <div className="shimmer h-7 w-14 rounded-md" />
-          </div>
-        </div>
-        <div className="card-static mb-4 flex items-center gap-3 p-4">
-          <div className="relative h-10 flex-1">
-            <div className="shimmer h-10 w-full rounded-lg" />
-          </div>
-          <div className="shimmer h-9 w-36 shrink-0 rounded-lg" />
-        </div>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="shimmer h-7 w-16 rounded-md" />
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card card-shine flex h-full flex-col overflow-hidden">
-              <div className="flex-1 p-3 sm:p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="shimmer h-5 w-16 rounded-full" />
-                  <div className="shimmer h-5 w-24 rounded-full" />
-                </div>
-                <div className="shimmer h-4 w-full max-w-[220px] rounded" />
-                <div className="shimmer mt-1 h-3 w-full max-w-sm rounded" />
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className="shimmer h-6 w-6 shrink-0 rounded-full" />
-                    <div className="min-w-0 space-y-1">
-                      <div className="shimmer h-3 w-32 rounded" />
-                      <div className="shimmer h-3 w-24 rounded" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="shimmer h-3 w-3 rounded" />
-                    <div className="shimmer h-3 w-36 rounded" />
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--border)" }}>
-                <div className="shimmer h-3 w-28 rounded" />
-                <div className="flex items-center gap-1">
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    );
-  }
-
   return (
-    <motion.div
-      className="flex flex-col gap-0"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
       {/* Header: title left, sort right */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
@@ -248,7 +166,7 @@ export default function TasksPage() {
       >
         <div>
           <h1 className="text-title">Tasks</h1>
-          <p className="text-subhead hidden sm:block">{tasks.length} total · {pendingCount} pending</p>
+          <p className="text-subhead hidden sm:block">{taskList.length} total · {pendingCount} pending</p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["recent", "deadline", "priority"] as SortMode[]).map((s) => (
@@ -322,7 +240,7 @@ export default function TasksPage() {
       </div>
 
       {/* Task Card Grid */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div
@@ -343,12 +261,12 @@ export default function TasksPage() {
               return (
                 <motion.div
                   key={task._id}
+                  variants={cardVariants}
+                  custom={i}
+                  whileHover={cardHover}
                   layout
                   className="h-full"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
                 >
                   <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                     <div className="p-3 sm:p-4 flex-1">
@@ -370,7 +288,7 @@ export default function TasksPage() {
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ status: e.target.value }),
                               });
-                              await load();
+                              await refetchTasks();
                             }}
                           >
                             <option value="pending">Pending</option>
@@ -447,7 +365,7 @@ export default function TasksPage() {
             })
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Centered Glass Modal for Create/Edit Task */}
       <Portal>

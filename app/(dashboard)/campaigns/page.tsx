@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
@@ -82,11 +84,28 @@ export default function CampaignsPage() {
   const { data: session } = useSession();
   const role = session?.user?.role;
   const canDelete = role === "superadmin" || role === "manager";
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [allEmployees, setAllEmployees] = useState<SelectOption[]>([]);
-  const [allDepartments, setAllDepartments] = useState<SelectOption[]>([]);
-  const [allTeams, setAllTeams] = useState<SelectOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: campaigns, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
+  const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
+  const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");
+  const { data: teamsRaw } = useQuery<Array<Record<string, unknown>>>("/api/teams", "teams");
+
+  const campaignList = campaigns ?? [];
+  const allEmployees: SelectOption[] = useMemo(
+    () =>
+      (employeesRaw ?? []).map((e) => ({
+        _id: e._id as string,
+        label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}`,
+      })),
+    [employeesRaw],
+  );
+  const allDepartments: SelectOption[] = useMemo(
+    () => (deptsRaw ?? []).map((d) => ({ _id: d._id as string, label: d.title as string })),
+    [deptsRaw],
+  );
+  const allTeams: SelectOption[] = useMemo(
+    () => (teamsRaw ?? []).map((t) => ({ _id: t._id as string, label: t.name as string })),
+    [teamsRaw],
+  );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
@@ -110,47 +129,14 @@ export default function CampaignsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    const [cRes, eRes, dRes, tRes] = await Promise.all([
-      fetch("/api/campaigns").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/employees").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/departments").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/teams").then((r) => (r.ok ? r.json() : [])),
-    ]);
-    setCampaigns(Array.isArray(cRes) ? cRes : []);
-    setAllEmployees(
-      (Array.isArray(eRes) ? eRes : []).map((e: Record<string, unknown>) => ({
-        _id: e._id as string,
-        label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}`,
-      })),
-    );
-    setAllDepartments(
-      (Array.isArray(dRes) ? dRes : []).map((d: Record<string, unknown>) => ({
-        _id: d._id as string,
-        label: d.title as string,
-      })),
-    );
-    setAllTeams(
-      (Array.isArray(tRes) ? tRes : []).map((t: Record<string, unknown>) => ({
-        _id: t._id as string,
-        label: t.name as string,
-      })),
-    );
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
   const statusCounts = useMemo(() => {
-    const m: Record<string, number> = { all: campaigns.length, active: 0, paused: 0, completed: 0, cancelled: 0 };
-    for (const c of campaigns) m[c.status] = (m[c.status] ?? 0) + 1;
+    const m: Record<string, number> = { all: campaignList.length, active: 0, paused: 0, completed: 0, cancelled: 0 };
+    for (const c of campaignList) m[c.status] = (m[c.status] ?? 0) + 1;
     return m;
-  }, [campaigns]);
+  }, [campaignList]);
 
   const filtered = useMemo(() => {
-    let list = campaigns;
+    let list = campaignList;
     if (statusFilter !== "all") list = list.filter((c) => c.status === statusFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -164,7 +150,7 @@ export default function CampaignsPage() {
       list = [...list].sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime());
     }
     return list;
-  }, [campaigns, statusFilter, search, sortMode]);
+  }, [campaignList, statusFilter, search, sortMode]);
 
   function openCreateModal() {
     setEditingCampaign(null);
@@ -226,7 +212,7 @@ export default function CampaignsPage() {
         });
       }
       setModalOpen(false);
-      await load();
+      await refetchCampaigns();
     } catch {
       /* ignore */
     }
@@ -239,7 +225,7 @@ export default function CampaignsPage() {
     try {
       await fetch(`/api/campaigns/${deleteTarget._id}`, { method: "DELETE" });
       setDeleteTarget(null);
-      await load();
+      await refetchCampaigns();
     } catch {
       /* ignore */
     }
@@ -252,7 +238,7 @@ export default function CampaignsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !c.isActive }),
     });
-    await load();
+    await refetchCampaigns();
   }
 
   async function quickStatus(c: Campaign, newStatus: CampaignStatus) {
@@ -261,98 +247,15 @@ export default function CampaignsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
-    await load();
+    await refetchCampaigns();
   }
 
   function toggleArrayItem(arr: string[], item: string): string[] {
     return arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
   }
 
-  if (loading) {
-    return (
-      <motion.div className="flex flex-col gap-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="space-y-2">
-            <div className="shimmer h-8 w-40 rounded" />
-            <div className="shimmer h-4 w-52 max-w-[90vw] rounded" />
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            <div className="shimmer h-7 w-16 rounded-md" />
-            <div className="shimmer h-7 w-14 rounded-md" />
-          </div>
-        </div>
-        <div className="card-static mb-4 flex items-center gap-3 p-4">
-          <div className="relative h-10 flex-1">
-            <div className="shimmer h-10 w-full rounded-lg" />
-          </div>
-          <div className="shimmer h-9 w-40 shrink-0 rounded-lg" />
-        </div>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="shimmer h-7 w-20 rounded-md" />
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card card-shine flex h-full flex-col overflow-hidden">
-              <div className="flex-1 p-3 sm:p-4">
-                <div className="flex items-start gap-3">
-                  <div className="shimmer h-10 w-10 shrink-0 rounded-xl" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="shimmer h-4 w-36 rounded" />
-                    <div className="shimmer h-3 w-full max-w-xs rounded" />
-                  </div>
-                  <div className="shimmer h-5 w-14 shrink-0 rounded-full" />
-                </div>
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-16 rounded" />
-                    <div className="shimmer h-3 w-40 rounded" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-14 rounded" />
-                    <div className="shimmer h-3 w-20 rounded" />
-                  </div>
-                  <div className="pt-1">
-                    <div className="shimmer mb-1 h-3 w-12 rounded" />
-                    <div className="flex flex-wrap gap-1">
-                      <div className="shimmer h-5 w-16 rounded-full" />
-                      <div className="shimmer h-5 w-20 rounded-full" />
-                      <div className="shimmer h-5 w-24 rounded-full" />
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2.5 flex gap-1.5">
-                  <div className="shimmer h-6 w-14 rounded-md" />
-                  <div className="shimmer h-6 w-16 rounded-md" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--border)" }}>
-                <div className="flex items-center gap-2">
-                  <div className="shimmer h-7 w-12 rounded-full" />
-                  <div className="shimmer h-3 w-32 rounded" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    );
-  }
-
   return (
-    <motion.div
-      className="flex flex-col gap-0"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
       {/* Header */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
@@ -363,7 +266,7 @@ export default function CampaignsPage() {
         <div>
           <h1 className="text-title">Campaigns</h1>
           <p className="text-subhead hidden sm:block">
-            {campaigns.length} campaign{campaigns.length !== 1 ? "s" : ""} · {statusCounts.active} active
+            {campaignList.length} campaign{campaignList.length !== 1 ? "s" : ""} · {statusCounts.active} active
           </p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
@@ -446,7 +349,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="col-span-full card card-shine p-12 text-center">
@@ -461,12 +364,12 @@ export default function CampaignsPage() {
               return (
                 <motion.div
                   key={c._id}
+                  variants={cardVariants}
+                  custom={i}
+                  whileHover={cardHover}
                   layout
                   className="h-full"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
                 >
                   <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                     <div className="flex-1 p-3 sm:p-4">
@@ -579,7 +482,7 @@ export default function CampaignsPage() {
             })
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Create/Edit Modal */}
       <Portal>

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useRouter } from "next/navigation";
@@ -91,41 +93,29 @@ export default function EmployeesPage() {
   const isSuperAdmin = role === "superadmin";
   const isManager = role === "manager";
   const canManage = isSuperAdmin || isManager;
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [presenceMap, setPresenceMap] = useState<Map<string, PresenceStatus>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "employees");
+  const { data: presenceData } = useQuery<Array<{ _id: string; status: string }>>("/api/attendance/presence", "presence");
+
+  const presenceMap = useMemo(() => {
+    const map = new Map<string, PresenceStatus>();
+    if (presenceData) for (const p of presenceData) map.set(p._id, p.status as PresenceStatus);
+    return map;
+  }, [presenceData]);
+
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
-  // Bulk delete confirm
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    const [empRes, presRes] = await Promise.all([
-      fetch("/api/employees").then((r) => r.ok ? r.json() : []),
-      fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []),
-    ]);
-    setEmployees(Array.isArray(empRes) ? empRes : []);
-    if (Array.isArray(presRes)) {
-      const map = new Map<string, PresenceStatus>();
-      for (const p of presRes as Array<{ _id: string; status: string }>) {
-        map.set(p._id, p.status as PresenceStatus);
-      }
-      setPresenceMap(map);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const empList = employees ?? [];
 
   const filtered = useMemo(() => {
-    let list = employees;
+    let list = empList;
     if (roleFilter !== "all") list = list.filter((e) => e.userRole === roleFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -137,7 +127,7 @@ export default function EmployeesPage() {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [employees, roleFilter, search, sortMode]);
+  }, [empList, roleFilter, search, sortMode]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -154,7 +144,7 @@ export default function EmployeesPage() {
     try {
       await fetch(`/api/employees/${deleteTarget._id}`, { method: "DELETE" });
       setDeleteTarget(null);
-      await load();
+      await refetchEmployees();
     } catch { /* ignore */ }
     setDeleting(false);
   }
@@ -165,7 +155,7 @@ export default function EmployeesPage() {
       await Promise.all([...selected].map((id) => fetch(`/api/employees/${id}`, { method: "DELETE" })));
       setSelected(new Set());
       setBulkDeleteOpen(false);
-      await load();
+      await refetchEmployees();
     } catch { /* ignore */ }
     setBulkDeleting(false);
   }
@@ -219,94 +209,15 @@ export default function EmployeesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !emp.isActive }),
     });
-    await load();
-  }
-
-  if (loading) {
-    return (
-      <motion.div
-        className="flex flex-col gap-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="space-y-2">
-            <div className="shimmer h-8 w-40 rounded" />
-            <div className="shimmer h-4 w-48 max-w-[90vw] rounded" />
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            <div className="shimmer h-7 w-14 rounded-md" />
-            <div className="shimmer h-7 w-14 rounded-md" />
-          </div>
-        </div>
-        <div className="card-static mb-4 flex items-center gap-3 p-4">
-          <div className="relative h-10 flex-1">
-            <div className="shimmer h-10 w-full rounded-lg" />
-          </div>
-          <div className="shimmer h-9 w-36 shrink-0 rounded-lg" />
-        </div>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="shimmer h-7 w-16 rounded-md" />
-            ))}
-          </div>
-        </div>
-        <div className="mb-3 flex items-center justify-between">
-          <div className="shimmer h-3 w-32 rounded" />
-          <div className="shimmer h-3 w-20 rounded" />
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card card-shine flex h-full flex-col overflow-hidden">
-              <div className="flex-1 p-3 pb-2 sm:p-4 sm:pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="shimmer h-11 w-11 shrink-0 rounded-full" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="shimmer h-4 w-28 rounded" />
-                    <div className="shimmer h-3 w-32 rounded" />
-                  </div>
-                  <div className="shimmer mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" />
-                </div>
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-10 rounded" />
-                    <div className="shimmer h-3 w-24 rounded" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-20 rounded" />
-                    <div className="shimmer h-3 w-20 rounded" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-12 rounded" />
-                    <div className="shimmer h-5 w-16 rounded-full" />
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--border)" }}>
-                <div className="flex items-center gap-2">
-                  <div className="shimmer h-7 w-12 rounded-full" />
-                  <div className="shimmer h-3 w-32 rounded" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                </div>
-              </div>
-            </div>
-          ))}
-      </div>
-      </motion.div>
-    );
+    await refetchEmployees();
   }
 
   return (
     <motion.div
       className="flex flex-col gap-0"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      variants={contentReveal}
+      initial="hidden"
+      animate="visible"
     >
       {/* Header: title left, sort right */}
       <motion.div
@@ -317,7 +228,7 @@ export default function EmployeesPage() {
       >
         <div>
           <h1 className="text-title">Employees</h1>
-          <p className="text-subhead hidden sm:block">{employees.length} team member{employees.length !== 1 ? "s" : ""}</p>
+          <p className="text-subhead hidden sm:block">{empList.length} team member{empList.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["recent", "name"] as SortMode[]).map((s) => (
@@ -448,7 +359,12 @@ export default function EmployeesPage() {
       </div>
 
       {/* Employee Card Grid */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <motion.div
+        className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        variants={staggerContainerFast}
+        initial="hidden"
+        animate="visible"
+      >
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full card p-12 text-center">
@@ -462,12 +378,12 @@ export default function EmployeesPage() {
               return (
                 <motion.div
                   key={emp._id}
+                  variants={cardVariants}
+                  custom={i}
+                  whileHover={cardHover}
                   layout
                   className="h-full"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
                 >
                   <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                     {isSuperAdmin && (
@@ -619,7 +535,7 @@ export default function EmployeesPage() {
             })
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

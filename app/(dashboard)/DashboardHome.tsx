@@ -9,7 +9,6 @@ import {
   motion,
 } from "framer-motion";
 import {
-  buttonHover,
   cardHover,
   cardVariants,
   slideFromLeft,
@@ -1613,54 +1612,82 @@ export default function DashboardHome({ user }: { user: User }) {
     );
   }, []);
 
-  /* ── Helper: parse personal attendance ── */
-  const parsePersonalAttendance = useCallback(async () => {
+  /* ── Helper: fetch today's attendance detail (lightweight, for presence updates) ── */
+  const fetchTodayDetail = useCallback(async () => {
     try {
       const todayStr = new Date().toISOString().slice(0, 10);
-      const [dailyRes, monthlyRes] = await Promise.all([
-        fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null),
-        fetch("/api/attendance?type=monthly").then((r) => r.ok ? r.json() : null),
-      ]);
-      setPersonalAttendance({
-        todayMinutes: dailyRes?.totalWorkingMinutes ?? 0,
-        todaySessions: dailyRes?.activitySessions?.length ?? 0,
-        officeMinutes: dailyRes?.officeMinutes ?? 0,
-        remoteMinutes: dailyRes?.remoteMinutes ?? 0,
-        isOnTime: dailyRes?.isOnTime ?? true,
-        lateBy: dailyRes?.lateBy ?? 0,
-        firstEntry: dailyRes?.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
-        monthlyAvgHours: monthlyRes?.averageDailyHours ?? 0,
-        monthlyOnTimePct: monthlyRes?.onTimePercentage ?? 0,
-        avgInTime: monthlyRes?.averageOfficeInTime ?? "",
-        avgOutTime: monthlyRes?.averageOfficeOutTime ?? "",
-      });
-    } catch { /* personal data is optional */ }
+      const dailyRes = await fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null);
+      if (dailyRes) {
+        setPersonalAttendance((prev) => {
+          const base = prev ?? { todayMinutes: 0, todaySessions: 0, officeMinutes: 0, remoteMinutes: 0, isOnTime: true, lateBy: 0, firstEntry: null, monthlyAvgHours: 0, monthlyOnTimePct: 0, avgInTime: "", avgOutTime: "" };
+          return {
+            ...base,
+            todayMinutes: dailyRes.totalWorkingMinutes ?? 0,
+            todaySessions: dailyRes.activitySessions?.length ?? 0,
+            officeMinutes: dailyRes.officeMinutes ?? 0,
+            remoteMinutes: dailyRes.remoteMinutes ?? 0,
+            isOnTime: dailyRes.isOnTime ?? true,
+            lateBy: dailyRes.lateBy ?? 0,
+            firstEntry: dailyRes.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+          };
+        });
+      }
+    } catch { /* optional */ }
   }, []);
 
-  /* ── FAST POLL: presence + personal attendance (every 10s) ── */
+  /* ── FAST POLL: presence + today's detail ── */
   const fetchLive = useCallback(async () => {
     try {
       if (isAdminRole) {
         const presRes = await fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []);
         parsePresence(presRes);
       }
-      if (!isSuperAdmin) await parsePersonalAttendance();
+      if (!isSuperAdmin) await fetchTodayDetail();
     } catch { /* silent */ }
-  }, [isAdminRole, isSuperAdmin, parsePresence, parsePersonalAttendance]);
+  }, [isAdminRole, isSuperAdmin, parsePresence, fetchTodayDetail]);
 
-  /* ── Helper: fetch weekly records + monthly stats + user profile (non-superadmin) ── */
-  const fetchPersonalExtras = useCallback(async () => {
+  /* ── Helper: fetch all personal data (monthly + weekly + profile) in one pass ── */
+  const fetchPersonalData = useCallback(async () => {
     if (isSuperAdmin) return;
     try {
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
+      const todayStr = now.toISOString().slice(0, 10);
 
-      const [weeklyRes, monthlyRes, profileRes] = await Promise.all([
+      const [dailyDetailRes, weeklyRes, monthlyRes, profileRes] = await Promise.all([
+        fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null),
         fetch(`/api/attendance?type=daily&year=${year}&month=${month}`).then((r) => r.ok ? r.json() : []),
         fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`).then((r) => r.ok ? r.json() : null),
         fetch("/api/profile").then((r) => r.ok ? r.json() : null),
       ]);
+
+      if (dailyDetailRes) {
+        setPersonalAttendance({
+          todayMinutes: dailyDetailRes.totalWorkingMinutes ?? 0,
+          todaySessions: dailyDetailRes.activitySessions?.length ?? 0,
+          officeMinutes: dailyDetailRes.officeMinutes ?? 0,
+          remoteMinutes: dailyDetailRes.remoteMinutes ?? 0,
+          isOnTime: dailyDetailRes.isOnTime ?? true,
+          lateBy: dailyDetailRes.lateBy ?? 0,
+          firstEntry: dailyDetailRes.firstOfficeEntry ? new Date(dailyDetailRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+          monthlyAvgHours: monthlyRes?.averageDailyHours ?? 0,
+          monthlyOnTimePct: monthlyRes?.onTimePercentage ?? 0,
+          avgInTime: monthlyRes?.averageOfficeInTime ?? "",
+          avgOutTime: monthlyRes?.averageOfficeOutTime ?? "",
+        });
+      } else if (monthlyRes) {
+        setPersonalAttendance((prev) => {
+          const base = prev ?? { todayMinutes: 0, todaySessions: 0, officeMinutes: 0, remoteMinutes: 0, isOnTime: true, lateBy: 0, firstEntry: null, monthlyAvgHours: 0, monthlyOnTimePct: 0, avgInTime: "", avgOutTime: "" };
+          return {
+            ...base,
+            monthlyAvgHours: monthlyRes.averageDailyHours ?? 0,
+            monthlyOnTimePct: monthlyRes.onTimePercentage ?? 0,
+            avgInTime: monthlyRes.averageOfficeInTime ?? "",
+            avgOutTime: monthlyRes.averageOfficeOutTime ?? "",
+          };
+        });
+      }
 
       if (Array.isArray(weeklyRes)) {
         const last7 = (weeklyRes as Array<{ date: string; totalWorkingMinutes?: number; officeMinutes?: number; remoteMinutes?: number; isPresent?: boolean; isOnTime?: boolean; lateBy?: number }>)
@@ -1711,7 +1738,7 @@ export default function DashboardHome({ user }: { user: User }) {
     } catch { /* optional data */ }
   }, [isSuperAdmin, user]);
 
-  /* ── SLOW POLL: full data set (every 60s) ── */
+  /* ── SLOW POLL: full data set ── */
   const fetchFull = useCallback(async () => {
     try {
       const fetches: Promise<unknown>[] = [
@@ -1733,12 +1760,9 @@ export default function DashboardHome({ user }: { user: User }) {
       if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
       if (Array.isArray(teamsRes)) setTeams(teamsRes as ApiTeam[]);
 
-      if (!isSuperAdmin) {
-        await parsePersonalAttendance();
-        await fetchPersonalExtras();
-      }
+      if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [isSuperAdmin, isAdminRole, parsePresence, parsePersonalAttendance, fetchPersonalExtras]);
+  }, [isSuperAdmin, isAdminRole, parsePresence, fetchPersonalData]);
 
   /* ── Initial load ── */
   useEffect(() => {

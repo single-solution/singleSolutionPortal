@@ -10,7 +10,7 @@ Automatic employee presence and attendance tracking system. Detects when employe
 - **Database**: MongoDB Atlas (Mongoose ODM)
 - **Auth**: NextAuth.js v5 (Credentials provider, JWT strategy)
 - **Email**: Nodemailer (SMTP — welcome, password reset, attendance alerts)
-- **Real-time**: SSE event stream (`/api/events`) for push-based dashboard updates — data fetched only when server signals a change. Heartbeat polling (30s) for attendance tracking. Browser Notifications API
+- **Real-time**: SSE event stream (`/api/events`) for push-based dashboard updates — data fetched only when server signals a change. `useQuery` client-side cache with EventBus-aware invalidation (stale-while-revalidate). Heartbeat polling (30s) for attendance tracking. Browser Notifications API
 - **Geolocation**: Haversine formula, configurable office geofence (50m default)
 - **PWA**: Progressive Web App (installable, offline-first service worker)
 - **Deployment**: Vercel (serverless, no persistent backend required)
@@ -184,11 +184,12 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Floating dock navigation**: `.dock-glass` with dark-mode-optimized borders and shadows, Framer Motion `layoutId` sliding active indicator (LayoutGroup scoped to dock only — lightweight on 7 items)
 - **Performance-first route transitions**: `AnimatePresence mode="wait"` with opacity + scale(0.985→1) + translateY (all GPU-compositable, no filter:blur). Prevents dual-page rendering during route changes
 - **SSE event bus**: `EventBus` MongoDB model (single document tracking per-channel timestamps), `notifyChange()` utility (called from `logActivity` + attendance routes), `/api/events` SSE endpoint (4s server poll, pushes only diffs), `useEventStream` React hook (auto-connects, pauses on tab hide, auto-reconnects). Replaces all dashboard and notification polling — data fetched only when server confirms a change
+- **`useQuery` client cache**: module-level `Map<string, CacheEntry>` with shared SSE singleton. On mount: returns cached data instantly (no loading flash), revalidates in background if stale. On SSE `change` event: marks channel stale, triggers refetch. `loading` only true on first-ever fetch — perfect for skeleton display. Navigation between cached pages is instant. Sparse dropdown endpoint (`/api/employees/dropdown`) for lightweight employee lists in forms
 - **Dashboard GPU reduction**: `AnimatedNumber` only runs rAF on initial mount, subsequent updates are instant. `backdrop-filter` removed from all 3 dashboard role headers. Infinite Framer Motion `boxShadow` loops on N employee avatars replaced with CSS `pulse-ring-*` classes. `animate-ping` replaced with CSS `.live-dot` class
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
-- **Shimmer skeleton loading**: pixel-perfect skeletons on all pages that structurally match actual card layouts — same grids, card shapes, avatar circles, badge pills, action button positions, and table column widths (no spinners anywhere, including ProcessingOverlay)
-- **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; stagger entrances for card grids and table rows; card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in
+- **Route-level `loading.tsx`**: every CRUD route has a dedicated `loading.tsx` file with pixel-perfect shimmer skeletons matching actual card layouts (avatar circles, badge pills, action button positions, grid columns). Next.js shows these instantly on navigation before the page component mounts. Loaded content fades in via `contentReveal` variant (opacity + translateY transition) for a smooth skeleton-to-content crossfade — no hard swap
+- **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; `staggerContainerFast` + `cardVariants` + `cardHover` standardized across all 5 CRUD card grids (employees, departments, teams, tasks, campaigns) — GPU-only `transform` + `opacity` with staggered delays (0.06s per card); card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in
 - **GPU-optimized animations**: badge dots breathe via CSS `transform: scale` (3s, no repaints); status ring pulse uses border + `transform: scale` on `::after` pseudo-element (no `box-shadow` animation); `pulse-glow` uses transform-only scale (no shadow recalc); aurora background drifts via `transform: translate` on oversized `::before` pseudo (30s, `will-change: transform`); notification badge pulses via CSS keyframes; card entrance stagger uses `content-fade-in` with 5-step delay classes (0.08s increments). No infinite `box-shadow` animations anywhere. No `filter: blur()` in any animation
 - **Form labels**: standardized `text-xs font-medium text-[var(--fg-secondary)] mb-1`
 - **Input icons**: all icon-prefixed inputs use `left-3.5` icon + `paddingLeft: 40px`
@@ -326,30 +327,42 @@ app/
   reset-password/        # Reset password with strength meter
   (dashboard)/           # Route group — all authenticated pages (no /dashboard/ in URL)
     page.tsx             # Dashboard entry (reads session, renders DashboardHome)
-    DashboardHome.tsx    # Real-time dashboard (10s/60s dual-cadence polling) with KPI, presence, trend, campaigns, tasks
+    DashboardHome.tsx    # Real-time dashboard (SSE event-driven) with KPI, presence, trend, campaigns, tasks
     DashboardShell.tsx   # Header, dock nav, theme, notifications, PWA install prompt
     SessionTracker.tsx   # Heartbeat attendance: active/readonly/booting modes
     employees/
-      page.tsx           # Employee list with filters, bulk actions, rich cards
+      page.tsx           # Employee list with filters, bulk actions, rich cards (useQuery cached)
+      loading.tsx        # Route-level shimmer skeleton (pixel-perfect card grid)
       EmployeeForm.tsx   # Shared full-page create/edit form
       new/page.tsx       # Create employee route
       [id]/edit/page.tsx # Edit employee route
-    departments/page.tsx # Department management (search, inline add/edit, team count)
-    teams/page.tsx       # Team management (search, dept filter, create/edit modal)
-    campaigns/page.tsx   # Campaign/project tracking (status lifecycle, entity tagging)
-    tasks/page.tsx       # Task board (search, centered glass modal)
+    departments/
+      page.tsx           # Department management (useQuery cached, server-side team/employee counts)
+      loading.tsx        # Route-level shimmer skeleton
+    teams/
+      page.tsx           # Team management (useQuery cached, dept filter, create/edit modal)
+      loading.tsx        # Route-level shimmer skeleton
+    campaigns/
+      page.tsx           # Campaign/project tracking (useQuery cached, status lifecycle, entity tagging)
+      loading.tsx        # Route-level shimmer skeleton
+    tasks/
+      page.tsx           # Task board (useQuery cached, centered glass modal)
+      loading.tsx        # Route-level shimmer skeleton
     components/
       ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
       DataTable.tsx      # Sortable, searchable, paginated table
       ProcessingOverlay.tsx # Animated dot shimmer overlay
     attendance/page.tsx  # Interactive calendar + detail panel + session timeline
-    settings/page.tsx    # Profile (with metadata pills), security, system, email testing
+    settings/
+      page.tsx           # Profile (with metadata pills), security, system (deduplicated settings fetch), email testing
+      loading.tsx        # Route-level shimmer skeleton
   api/
     auth/[...nextauth]/  # NextAuth route handler
     auth/forgot-password/# Token generation + email
     auth/reset-password/ # Token validation + password update
     employees/           # CRUD with role scoping + activity logging
-    departments/         # CRUD with manager population + activity logging
+    employees/dropdown/  # Sparse employee list (id, name, role, dept, teams) for form dropdowns
+    departments/         # CRUD with manager population + server-side team/employee counts + activity logging
     teams/               # CRUD with dept scoping + member count aggregation
     campaigns/           # CRUD with entity tagging (employees, departments, teams) + status lifecycle
     tasks/               # CRUD with team scoping + activity logging
@@ -372,6 +385,7 @@ lib/
   activityLogger.ts     # Fire-and-forget logActivity() utility + notifyChange() integration
   eventBus.ts           # notifyChange() — bumps EventBus channel timestamps
   useEventStream.ts     # React hook: SSE connection to /api/events, dispatches per-channel handlers
+  useQuery.ts           # Lightweight client cache: stale-while-revalidate with shared SSE singleton for EventBus invalidation
   auth.ts               # NextAuth config (credentials, JWT, callbacks)
   auth.config.ts        # Middleware auth config with route guards
   permissions.ts        # DB-verified session, role hierarchy, team/dept scoping helpers

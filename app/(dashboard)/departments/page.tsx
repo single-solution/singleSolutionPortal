@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useSession } from "next-auth/react";
@@ -39,9 +41,12 @@ type SortMode = "most" | "name";
 export default function DepartmentsPage() {
   const { data: session } = useSession();
   const isSuperAdmin = session?.user?.role === "superadmin";
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [managers, setManagers] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: departments, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "departments");
+  const { data: managersRaw } = useQuery<Employee[]>("/api/employees/dropdown", "employees");
+
+  const deptList = departments ?? [];
+  const managers = useMemo(() => (managersRaw ?? []).filter((e) => e.userRole === "manager"), [managersRaw]);
+
   const [saving, setSaving] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("most");
   const [search, setSearch] = useState("");
@@ -65,33 +70,10 @@ export default function DepartmentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    const [deptRes, empRes, teamsRes] = await Promise.all([
-      fetch("/api/departments").then((r) => r.json()),
-      fetch("/api/employees").then((r) => r.json()),
-      fetch("/api/teams").then((r) => (r.ok ? r.json() : [])),
-    ]);
-    const rawDepts: Department[] = Array.isArray(deptRes) ? deptRes : [];
-    const rawTeams: Array<{ department?: { _id: string } | string }> = Array.isArray(teamsRes) ? teamsRes : [];
-
-    const teamCountMap = new Map<string, number>();
-    for (const t of rawTeams) {
-      const dId = typeof t.department === "object" && t.department ? t.department._id : String(t.department ?? "");
-      teamCountMap.set(dId, (teamCountMap.get(dId) ?? 0) + 1);
-    }
-
-    setDepartments(rawDepts.map((d) => ({ ...d, teamCount: teamCountMap.get(d._id) ?? 0 })));
-    const emps: Employee[] = Array.isArray(empRes) ? empRes : [];
-    setManagers(emps.filter((e) => e.userRole === "manager"));
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const totalEmployees = useMemo(() => departments.reduce((s, d) => s + (d.employeeCount || 0), 0), [departments]);
+  const totalEmployees = useMemo(() => deptList.reduce((s, d) => s + (d.employeeCount || 0), 0), [deptList]);
 
   const sorted = useMemo(() => {
-    let list = [...departments];
+    let list = [...deptList];
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((d) => d.title.toLowerCase().includes(q) || (d.manager ? `${d.manager.about.firstName} ${d.manager.about.lastName}`.toLowerCase().includes(q) : false));
@@ -99,7 +81,7 @@ export default function DepartmentsPage() {
     if (sortMode === "name") list.sort((a, b) => a.title.localeCompare(b.title));
     else list.sort((a, b) => b.employeeCount - a.employeeCount);
     return list;
-  }, [departments, sortMode, search]);
+  }, [deptList, sortMode, search]);
 
   async function handleQuickAdd() {
     if (!newTitle.trim()) return;
@@ -113,7 +95,7 @@ export default function DepartmentsPage() {
       setNewTitle("");
       setNewParentId("");
       setAddingOpen(false);
-      await load();
+      await refetchDepts();
     } catch { /* ignore */ }
     setAddingSaving(false);
   }
@@ -140,7 +122,7 @@ export default function DepartmentsPage() {
         body: JSON.stringify({ title: editTitle.trim(), description: editDescription, managerId: editManagerId, parentId: editParentId }),
       });
       setEditingId(null);
-      await load();
+      await refetchDepts();
     } catch { /* ignore */ }
     setSaving(false);
   }
@@ -151,7 +133,7 @@ export default function DepartmentsPage() {
     try {
       await fetch(`/api/departments/${deleteTarget._id}`, { method: "DELETE" });
       setDeleteTarget(null);
-      await load();
+      await refetchDepts();
     } catch { /* ignore */ }
     setDeleting(false);
   }
@@ -162,78 +144,15 @@ export default function DepartmentsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !dept.isActive }),
     });
-    await load();
-  }
-
-  if (loading) {
-    return (
-      <motion.div
-        className="flex flex-col gap-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="space-y-2">
-            <div className="shimmer h-8 w-44 rounded" />
-            <div className="shimmer h-4 w-56 max-w-[90vw] rounded" />
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            <div className="shimmer h-7 w-28 rounded-md" />
-            <div className="shimmer h-7 w-16 rounded-md" />
-          </div>
-        </div>
-        <div className="card-static mb-4 flex items-center gap-3 p-4">
-          <div className="relative h-10 flex-1">
-            <div className="shimmer h-10 w-full rounded-lg" />
-          </div>
-          <div className="shimmer h-9 w-40 shrink-0 rounded-lg" />
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card card-shine flex h-full flex-col overflow-hidden">
-              <div className="flex-1 p-3 sm:p-4">
-                <div className="flex items-start gap-3">
-                  <div className="shimmer h-10 w-10 shrink-0 rounded-xl" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="shimmer h-4 w-32 rounded" />
-                    <div className="shimmer h-3 w-24 rounded" />
-                    <div className="shimmer h-3 w-36 rounded" />
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <div className="mb-1.5 flex items-baseline justify-between">
-                    <div className="shimmer h-3 w-40 rounded" />
-                    <div className="shimmer h-3 w-8 rounded" />
-                  </div>
-                  <div className="shimmer h-1.5 w-full rounded-full" />
-                </div>
-                <div className="mt-2.5 space-y-1.5">
-                  <div className="shimmer h-3 w-full rounded" />
-                  <div className="shimmer h-3 w-11/12 max-w-full rounded" />
-                </div>
-                <div className="shimmer mt-2 h-3 w-28 rounded" />
-              </div>
-              <div className="flex items-center justify-between border-t px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--border)" }}>
-                <div className="shimmer h-7 w-12 rounded-full" />
-                <div className="flex items-center gap-1">
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    );
+    await refetchDepts();
   }
 
   return (
     <motion.div
       className="flex flex-col gap-0"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      variants={contentReveal}
+      initial="hidden"
+      animate="visible"
     >
       {/* Header */}
       <motion.div
@@ -244,7 +163,7 @@ export default function DepartmentsPage() {
       >
         <div>
           <h1 className="text-title">Departments</h1>
-          <p className="text-subhead hidden sm:block">{departments.length} department{departments.length !== 1 ? "s" : ""} · {totalEmployees} team member{totalEmployees !== 1 ? "s" : ""}</p>
+          <p className="text-subhead hidden sm:block">{deptList.length} department{deptList.length !== 1 ? "s" : ""} · {totalEmployees} team member{totalEmployees !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["most", "name"] as SortMode[]).map((s) => (
@@ -324,7 +243,7 @@ export default function DepartmentsPage() {
                 className="input w-auto min-w-[160px]"
               >
                 <option value="">No parent department</option>
-                {departments.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
+                {deptList.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
               </select>
               <motion.button
                 type="button"
@@ -351,7 +270,12 @@ export default function DepartmentsPage() {
       </AnimatePresence>
 
       {/* Department Card Grid */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <motion.div
+        className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        variants={staggerContainerFast}
+        initial="hidden"
+        animate="visible"
+      >
         <AnimatePresence mode="popLayout">
           {sorted.length === 0 ? (
             <motion.div
@@ -371,12 +295,12 @@ export default function DepartmentsPage() {
             return (
               <motion.div
                 key={dept._id}
+                variants={cardVariants}
+                custom={i}
+                whileHover={cardHover}
                 layout
                 className="h-full"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
               >
                 <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                   <div className="flex-1 p-3 sm:p-4">
@@ -449,7 +373,7 @@ export default function DepartmentsPage() {
                             className="input text-sm w-full"
                           >
                             <option value="">No parent department</option>
-                            {departments.filter((d) => d._id !== dept._id).map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
+                            {deptList.filter((d) => d._id !== dept._id).map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
                           </select>
                           <div className="flex gap-2">
                             <motion.button
@@ -525,7 +449,7 @@ export default function DepartmentsPage() {
             );
           })}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

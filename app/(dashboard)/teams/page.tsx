@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
@@ -51,10 +53,23 @@ export default function TeamsPage() {
   const role = session?.user?.role;
   const isSuperAdmin = role === "superadmin";
   const canManageTeams = isSuperAdmin || role === "manager";
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [departments, setDepartments] = useState<DeptOption[]>([]);
-  const [users, setUsers] = useState<UserOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: teams, refetch: refetchTeams } = useQuery<Team[]>("/api/teams", "teams");
+  const { data: departments } = useQuery<DeptOption[]>("/api/departments", "departments");
+  const { data: usersRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
+
+  const teamList = teams ?? [];
+  const deptList = departments ?? [];
+  const users = useMemo<UserOption[]>(
+    () =>
+      (usersRaw ?? []).map((u) => ({
+        _id: u._id as string,
+        about: u.about as { firstName: string; lastName: string },
+        email: u.email as string,
+        userRole: u.userRole as string,
+      })),
+    [usersRaw],
+  );
+
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("most");
   const [deptFilter, setDeptFilter] = useState<DeptFilter>("all");
@@ -72,33 +87,10 @@ export default function TeamsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    const [teamsRes, deptsRes, usersRes] = await Promise.all([
-      fetch("/api/teams").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/departments").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/employees").then((r) => (r.ok ? r.json() : [])),
-    ]);
-    setTeams(Array.isArray(teamsRes) ? teamsRes : []);
-    setDepartments(Array.isArray(deptsRes) ? deptsRes : []);
-    setUsers(
-      (Array.isArray(usersRes) ? usersRes : []).map((u: Record<string, unknown>) => ({
-        _id: u._id as string,
-        about: u.about as { firstName: string; lastName: string },
-        email: u.email as string,
-        userRole: u.userRole as string,
-      })),
-    );
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const totalMembers = useMemo(() => teams.reduce((s, t) => s + t.memberCount, 0), [teams]);
+  const totalMembers = useMemo(() => teamList.reduce((s, t) => s + t.memberCount, 0), [teamList]);
 
   const filtered = useMemo(() => {
-    let list = teams;
+    let list = teamList;
     if (deptFilter !== "all") list = list.filter((t) => t.department?._id === deptFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -112,12 +104,12 @@ export default function TeamsPage() {
       list = [...list].sort((a, b) => b.memberCount - a.memberCount);
     }
     return list;
-  }, [teams, deptFilter, search, sortMode]);
+  }, [teamList, deptFilter, search, sortMode]);
 
   function openCreateModal() {
     setEditingTeam(null);
     setFormName("");
-    setFormDept(departments[0]?._id ?? "");
+    setFormDept(deptList[0]?._id ?? "");
     setFormLead("");
     setFormDescription("");
     setModalOpen(true);
@@ -156,7 +148,7 @@ export default function TeamsPage() {
         });
       }
       setModalOpen(false);
-      await load();
+      await refetchTeams();
     } catch {
       /* ignore */
     }
@@ -169,7 +161,7 @@ export default function TeamsPage() {
     try {
       await fetch(`/api/teams/${deleteTarget._id}`, { method: "DELETE" });
       setDeleteTarget(null);
-      await load();
+      await refetchTeams();
     } catch {
       /* ignore */
     }
@@ -182,7 +174,7 @@ export default function TeamsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !team.isActive }),
     });
-    await load();
+    await refetchTeams();
   }
 
   const leadCandidates = useMemo(() => {
@@ -196,82 +188,8 @@ export default function TeamsPage() {
     );
   }, [users, formDept]);
 
-  if (loading) {
-    return (
-      <motion.div className="flex flex-col gap-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="space-y-2">
-            <div className="shimmer h-8 w-32 rounded" />
-            <div className="shimmer h-4 w-48 max-w-[90vw] rounded" />
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            <div className="shimmer h-7 w-28 rounded-md" />
-            <div className="shimmer h-7 w-16 rounded-md" />
-          </div>
-        </div>
-        <div className="card-static mb-4 flex items-center gap-3 p-4">
-          <div className="relative h-10 flex-1">
-            <div className="shimmer h-10 w-full rounded-lg" />
-          </div>
-          <div className="shimmer h-9 w-32 shrink-0 rounded-lg" />
-        </div>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            <div className="shimmer h-7 w-20 rounded-md" />
-            <div className="shimmer h-7 w-24 rounded-md" />
-            <div className="shimmer h-7 w-20 rounded-md" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card card-shine flex h-full flex-col overflow-hidden">
-              <div className="flex-1 p-3 sm:p-4">
-                <div className="flex items-start gap-3">
-                  <div className="shimmer h-10 w-10 shrink-0 rounded-xl" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="shimmer h-4 w-32 rounded" />
-                    <div className="shimmer h-3 w-28 rounded" />
-                  </div>
-                </div>
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-10 rounded" />
-                    <div className="shimmer h-3 w-24 rounded" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-12 rounded" />
-                    <div className="shimmer h-3 w-36 rounded" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="shimmer h-3 w-16 rounded" />
-                    <div className="shimmer h-5 w-8 rounded-full" />
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--border)" }}>
-                <div className="flex items-center gap-2">
-                  <div className="shimmer h-7 w-12 rounded-full" />
-                  <div className="shimmer h-3 w-28 rounded" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                  <div className="shimmer h-7 w-7 rounded-lg" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    );
-  }
-
   return (
-    <motion.div
-      className="flex flex-col gap-0"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
       {/* Header */}
       <motion.div
         className="flex items-center justify-between gap-3 mb-6"
@@ -282,7 +200,7 @@ export default function TeamsPage() {
         <div>
           <h1 className="text-title">Teams</h1>
           <p className="text-subhead hidden sm:block">
-            {teams.length} team{teams.length !== 1 ? "s" : ""} · {totalMembers} member{totalMembers !== 1 ? "s" : ""}
+            {teamList.length} team{teamList.length !== 1 ? "s" : ""} · {totalMembers} member{totalMembers !== 1 ? "s" : ""}
           </p>
         </div>
         <div
@@ -368,7 +286,7 @@ export default function TeamsPage() {
           >
             All Depts
           </motion.button>
-          {departments.map((d) => (
+          {deptList.map((d) => (
             <motion.button
               key={d._id}
               type="button"
@@ -400,7 +318,7 @@ export default function TeamsPage() {
       </div>
 
       {/* Team Card Grid */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div
@@ -419,12 +337,12 @@ export default function TeamsPage() {
               return (
                 <motion.div
                   key={team._id}
+                  variants={cardVariants}
+                  custom={i}
+                  whileHover={cardHover}
                   layout
                   className="h-full"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
                 >
                   <div className="card card-shine group relative overflow-hidden flex h-full flex-col">
                     <div className="flex-1 p-3 sm:p-4">
@@ -527,7 +445,7 @@ export default function TeamsPage() {
             })
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Create/Edit Modal */}
       <Portal>
@@ -569,7 +487,7 @@ export default function TeamsPage() {
                   </label>
                   <select value={formDept} onChange={(e) => setFormDept(e.target.value)} className="input w-full">
                     <option value="">Select department</option>
-                    {departments.map((d) => (
+                    {deptList.map((d) => (
                       <option key={d._id} value={d._id}>
                         {d.title}
                       </option>

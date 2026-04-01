@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
+import Team from "@/lib/models/Team";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import { getVerifiedSession, canManageDepartments } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
@@ -11,22 +12,29 @@ export async function GET() {
 
   await connectDB();
 
-  const departments = await Department.find({ isActive: true })
-    .populate("manager", "about.firstName about.lastName email")
-    .populate("parentDepartment", "title slug")
-    .sort({ createdAt: -1 })
-    .lean();
-
-  const counts = await User.aggregate([
-    { $match: { isActive: true, department: { $ne: null }, userRole: { $ne: "superadmin" } } },
-    { $group: { _id: "$department", count: { $sum: 1 } } },
+  const [departments, empCounts, teamCounts] = await Promise.all([
+    Department.find({ isActive: true })
+      .populate("manager", "about.firstName about.lastName email")
+      .populate("parentDepartment", "title slug")
+      .sort({ createdAt: -1 })
+      .lean(),
+    User.aggregate([
+      { $match: { isActive: true, department: { $ne: null }, userRole: { $ne: "superadmin" } } },
+      { $group: { _id: "$department", count: { $sum: 1 } } },
+    ]),
+    Team.aggregate([
+      { $match: { isActive: true, department: { $ne: null } } },
+      { $group: { _id: "$department", count: { $sum: 1 } } },
+    ]),
   ]);
 
-  const countMap = new Map(counts.map((c) => [c._id.toString(), c.count]));
+  const empMap = new Map(empCounts.map((c) => [c._id.toString(), c.count]));
+  const teamMap = new Map(teamCounts.map((c) => [c._id.toString(), c.count]));
 
   const result = departments.map((d) => ({
     ...d,
-    employeeCount: countMap.get(d._id.toString()) ?? 0,
+    employeeCount: empMap.get(d._id.toString()) ?? 0,
+    teamCount: teamMap.get(d._id.toString()) ?? 0,
   }));
 
   return ok(result);
