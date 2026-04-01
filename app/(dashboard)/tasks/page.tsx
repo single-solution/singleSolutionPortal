@@ -240,7 +240,7 @@ export default function TasksPage() {
       </div>
 
       {/* Task Card Grid */}
-      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div
@@ -269,7 +269,7 @@ export default function TasksPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
                   <div className="card group relative overflow-hidden flex h-full flex-col">
-                    <div className="p-3 sm:p-4 flex-1">
+                    <div className="p-3 flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
                           {PRIORITY_LABELS[task.priority] ?? task.priority}

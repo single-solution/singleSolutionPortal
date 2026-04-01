@@ -360,7 +360,7 @@ export default function EmployeesPage() {
 
       {/* Employee Card Grid */}
       <motion.div
-        className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         variants={staggerContainerFast}
         initial="hidden"
         animate="visible"
@@ -395,7 +395,7 @@ export default function EmployeesPage() {
                     />
                     )}
 
-                    <div className="flex-1 p-3 sm:p-4 pb-2 sm:pb-3">
+                    <div className="flex-1 p-3 pb-2">
                       <div className="flex items-start gap-3">
                         {emp.about.profileImage ? (
                           <img src={emp.about.profileImage} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />

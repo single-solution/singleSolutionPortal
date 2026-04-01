@@ -349,7 +349,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Cards */}
-      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="col-span-full card p-12 text-center">
@@ -372,7 +372,7 @@ export default function CampaignsPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
                   <div className="card group relative overflow-hidden flex h-full flex-col">
-                    <div className="flex-1 p-3 sm:p-4">
+                    <div className="flex-1 p-3">
                       {/* Header row */}
                       <div className="flex items-start gap-3">
                         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}>

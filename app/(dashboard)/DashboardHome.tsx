@@ -432,7 +432,7 @@ function SuperAdminOverview({
     <div className="flex flex-col gap-4">
       {/* ── Header: Greeting + Actions + Clock — glass blended ── */}
       <motion.header
-        className="card-xl relative overflow-hidden p-4 sm:p-5"
+        className="card-xl relative overflow-hidden p-3"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -466,9 +466,9 @@ function SuperAdminOverview({
       </motion.header>
 
       {/* ── KPI Stat Cards ── */}
-      <motion.div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
         {statItems.map((stat, i) => (
-          <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
+          <motion.div key={stat.title} className="card group relative overflow-hidden p-3" custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i % blobGradients.length] }} />
             <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>
               {stat.icon}
@@ -483,7 +483,7 @@ function SuperAdminOverview({
       </motion.div>
 
       {/* ── Live Presence Board ── */}
-      <motion.section className="card relative overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
+      <motion.section className="card relative overflow-hidden p-3" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex items-center gap-2">
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full live-dot" style={{ background: "var(--teal)" }} />
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Live Presence</h2>
@@ -502,9 +502,9 @@ function SuperAdminOverview({
       </motion.section>
 
       {/* ── Attendance Overview + Department Summary ── */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
         {/* Attendance Overview — compact single-row */}
-        <motion.section className="card p-3 sm:p-4" variants={slideUpItem} initial="hidden" animate="visible">
+        <motion.section className="card p-3" variants={slideUpItem} initial="hidden" animate="visible">
           <h2 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Attendance Overview</h2>
           <div className="flex items-center gap-4">
             {/* Left: stats legend */}
@@ -534,7 +534,7 @@ function SuperAdminOverview({
 
         {/* Department Summary — superadmin only */}
         {user.role === "superadmin" && (
-        <motion.section className="card p-3 sm:p-4" variants={slideUpItem} initial="hidden" animate="visible">
+        <motion.section className="card p-3" variants={slideUpItem} initial="hidden" animate="visible">
           <h2 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Department Summary</h2>
           {departments.length > 0 ? (
             <div className="flex flex-col gap-3">
@@ -567,7 +567,7 @@ function SuperAdminOverview({
       </div>
 
       {/* ── Checklist ── */}
-      <motion.section className="card p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
+      <motion.section className="card p-3" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
           {pendingTasks.length > 0 && (
@@ -626,9 +626,9 @@ function SelfAssessmentSection({ pa }: { pa: PersonalAttendance }) {
   const CIRCUMFERENCE = 2 * Math.PI * 42;
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
       {/* Today Card */}
-      <motion.div className="card relative overflow-hidden p-4 sm:p-5 md:col-span-5" variants={fadeInItem} initial="hidden" animate="visible">
+      <motion.div className="card relative overflow-hidden p-3 md:col-span-5" variants={fadeInItem} initial="hidden" animate="visible">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-headline" style={{ color: "var(--fg)" }}>Today</h3>
           <motion.span
@@ -852,7 +852,7 @@ function ManagerOverview({
     <div className="flex flex-col gap-4">
       {/* Header: Greeting + Own Stats — glass blended */}
       <motion.header
-        className="card-xl relative overflow-hidden p-4 sm:p-5"
+        className="card-xl relative overflow-hidden p-3"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -897,7 +897,7 @@ function ManagerOverview({
       {/* 3 KPI Team Stat Cards */}
       <motion.div className="grid grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
         {statItems.map((stat, i) => (
-          <motion.div key={stat.title} className="card group relative overflow-hidden p-3 sm:p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
+          <motion.div key={stat.title} className="card group relative overflow-hidden p-3" custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i % blobGradients.length] }} />
             <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-white mb-1.5" style={{ background: statIconGradients[i] }}>
               {stat.icon}
@@ -913,7 +913,7 @@ function ManagerOverview({
       {/* ── Team Breakdown (manager sees all teams, team lead sees own) ── */}
       {teamBreakdown.length > 0 && (
         <motion.section className="card relative overflow-hidden" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="flex items-center justify-between border-b p-4 sm:p-5" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center justify-between border-b p-3 sm:p-4" style={{ borderColor: "var(--border)" }}>
             <div className="flex items-center gap-2">
               <svg className="h-5 w-5" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               <h2 className="text-headline" style={{ color: "var(--fg)" }}>{isManager ? "Teams in Department" : "My Teams"}</h2>
@@ -925,7 +925,7 @@ function ManagerOverview({
               </motion.button>
             )}
           </div>
-          <div className="p-4 sm:p-5">
+          <div className="p-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {teamBreakdown.map((tb, i) => {
                 const isSelected = selectedTeamId === tb.team._id;
@@ -1018,7 +1018,7 @@ function ManagerOverview({
 
       {/* Live Presence with filter toggles + team filter + fixed height scroll */}
       <motion.section className="card relative overflow-hidden" variants={slideUpItem} initial="hidden" animate="visible">
-        <div className="flex flex-col gap-3 border-b p-4 sm:p-5" style={{ borderColor: "var(--border)" }}>
+        <div className="flex flex-col gap-3 border-b p-3 sm:p-4" style={{ borderColor: "var(--border)" }}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full live-dot" style={{ background: "var(--teal)" }} />
@@ -1045,7 +1045,7 @@ function ManagerOverview({
             </LayoutGroup>
           </div>
         </div>
-        <div className="max-h-[420px] overflow-y-auto p-4 sm:p-5">
+        <div className="max-h-[420px] overflow-y-auto p-3">
           {presenceLoading ? (
             <PresenceGridShimmer />
           ) : filteredPresence.length > 0 ? (
@@ -1061,8 +1061,8 @@ function ManagerOverview({
       </motion.section>
 
       {/* Late Arrivals + Attendance Trend */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        <motion.section className="card p-3" variants={fadeInItem} initial="hidden" animate="visible">
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Late Arrivals</h3>
@@ -1092,7 +1092,7 @@ function ManagerOverview({
           )}
         </motion.section>
 
-        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+        <motion.section className="card p-3" variants={fadeInItem} initial="hidden" animate="visible">
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Team Attendance</h3>
@@ -1125,8 +1125,8 @@ function ManagerOverview({
       </div>
 
       {/* Task Breakdown + Office vs Remote */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        <motion.section className="card p-3" variants={fadeInItem} initial="hidden" animate="visible">
           <h3 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Task Status</h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
@@ -1165,7 +1165,7 @@ function ManagerOverview({
           )}
         </motion.section>
 
-        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+        <motion.section className="card p-3" variants={fadeInItem} initial="hidden" animate="visible">
           <h3 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Office vs Remote</h3>
           <div className="flex items-center gap-4">
             <div className="relative flex shrink-0 items-center justify-center">
@@ -1218,8 +1218,8 @@ function ManagerOverview({
       </div>
 
       {/* Top Workers + Active Campaigns */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        <motion.section className="card p-3" variants={fadeInItem} initial="hidden" animate="visible">
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Top Workers</h3>
@@ -1255,7 +1255,7 @@ function ManagerOverview({
           )}
         </motion.section>
 
-        <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+        <motion.section className="card p-3" variants={fadeInItem} initial="hidden" animate="visible">
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
@@ -1298,8 +1298,8 @@ function ManagerOverview({
       </div>
 
       {/* Attendance Overview + Checklist (same row) */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <motion.section className="card p-3 sm:p-4" variants={slideUpItem} initial="hidden" animate="visible">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+      <motion.section className="card p-3" variants={slideUpItem} initial="hidden" animate="visible">
         <h2 className="text-headline mb-3" style={{ color: "var(--fg)" }}>Attendance Overview</h2>
         <div className="flex items-center gap-4">
           <div className="min-w-0 flex-1 space-y-2.5">
@@ -1325,7 +1325,7 @@ function ManagerOverview({
         </div>
       </motion.section>
 
-      <motion.section className="card p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
+      <motion.section className="card p-3" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
           {pendingTasks.length > 0 && (
@@ -1410,7 +1410,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
     <motion.div className="flex flex-col gap-4" variants={staggerContainer} initial="hidden" animate="visible">
       {/* Header */}
       <motion.div
-        className="card-xl relative overflow-hidden p-4 sm:p-5"
+        className="card-xl relative overflow-hidden p-3"
         variants={slideUpItem}
       >
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }} aria-hidden />
@@ -1426,7 +1426,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
       </motion.div>
 
       {/* ── Profile Card + Today's Activity (2-col) ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="card p-5 sm:p-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
             <div className="flex flex-col items-center gap-3 sm:items-start">
@@ -1488,7 +1488,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           { title: "In Progress", value: inProgressTasks.length, caption: "Working on", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
           { title: "Completed", value: completedTasks.length, caption: "Done", icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
         ].map((stat, i) => (
-          <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible">
+          <motion.div key={stat.title} className="card group relative overflow-hidden p-3" custom={i} variants={cardVariants} initial="hidden" animate="visible">
             <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: blobGradients[i] }} />
             <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white mb-2" style={{ background: statIconGradients[i] }}>{stat.icon}</div>
             <p className="text-subhead">{stat.title}</p>
@@ -1563,7 +1563,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
       {pa && <SelfAssessmentSection pa={pa} />}
 
       {/* ── Checklist ── */}
-      <motion.section className="card p-4 sm:p-5" variants={fadeInItem} initial="hidden" animate="visible">
+      <motion.section className="card p-3" variants={fadeInItem} initial="hidden" animate="visible">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h2>
           {pendingTasks.length > 0 && (

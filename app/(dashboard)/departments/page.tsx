@@ -271,7 +271,7 @@ export default function DepartmentsPage() {
 
       {/* Department Card Grid */}
       <motion.div
-        className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         variants={staggerContainerFast}
         initial="hidden"
         animate="visible"
@@ -303,7 +303,7 @@ export default function DepartmentsPage() {
                 exit={{ opacity: 0, scale: 0.95 }}
               >
                 <div className="card group relative overflow-hidden flex h-full flex-col">
-                  <div className="flex-1 p-3 sm:p-4">
+                  <div className="flex-1 p-3">
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${grad}`}>
                         {dept.title.charAt(0).toUpperCase()}

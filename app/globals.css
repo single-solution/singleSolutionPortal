@@ -37,10 +37,10 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  --radius-sm: 8px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 16px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
   --radius-full: 9999px;
   --dock-bg: rgba(255,255,255,0.88);
   --hover-bg: #F3F4F6;
@@ -131,7 +131,7 @@ body {
 
 @media (min-width: 640px) {
   .text-title {
-    font-size: 28px;
+    font-size: 24px;
     letter-spacing: -0.025em;
   }
 }
@@ -253,8 +253,8 @@ body {
 
 @media (min-width: 640px) {
   .input {
-    padding: 12px 16px;
-    font-size: 15px;
+    padding: 10px 14px;
+    font-size: 14px;
   }
 }
 
@@ -300,9 +300,9 @@ select.input {
 
 @media (min-width: 640px) {
   .btn {
-    font-size: 14px;
-    padding: 10px 20px;
-    min-height: 40px;
+    font-size: 13px;
+    padding: 8px 16px;
+    min-height: 36px;
   }
 }
 
@@ -429,7 +429,7 @@ select.input {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .page-icon {
@@ -449,8 +449,8 @@ select.input {
 }
 
 @media (min-width: 640px) {
-  .page-icon { width: 44px; height: 44px; }
-  .page-icon svg { width: 22px; height: 22px; }
+  .page-icon { width: 40px; height: 40px; }
+  .page-icon svg { width: 20px; height: 20px; }
 }
 
 /* ============================================ */

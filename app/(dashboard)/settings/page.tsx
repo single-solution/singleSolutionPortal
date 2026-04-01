@@ -549,7 +549,7 @@ function SystemSettingsDetailSection({ sys }: { sys: ReturnType<typeof useSystem
   return (
     <FadeUp delay={0.25}>
       <section className="card-static p-5">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
           <div>
             <h3 className="text-headline mb-1" style={{ color: "var(--fg)" }}>Office Location</h3>
             <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>

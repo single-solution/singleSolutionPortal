@@ -309,7 +309,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
       {/* ── Header ── */}
       <header className="frosted sticky top-0 z-30">
-        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-3 px-4 sm:h-14 sm:px-6">
+        <div className="flex h-12 items-center justify-between gap-3 px-4 sm:h-14 sm:px-6 lg:px-10 xl:px-16">
           <Link
             href="/"
             className="flex items-center gap-2 shrink-0"
@@ -515,7 +515,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       </header>
 
       {/* ── Main content with page transition ── */}
-      <main className="mx-auto max-w-7xl px-4 py-4 pb-40 sm:px-6 sm:py-5 sm:pb-40">
+      <main className="px-4 py-4 pb-40 sm:px-6 sm:py-5 sm:pb-40 lg:px-10 xl:px-16">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={pathname}

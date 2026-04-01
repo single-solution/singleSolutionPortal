@@ -25,10 +25,10 @@ export default function TasksLoading() {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="card flex h-full flex-col overflow-hidden">
-            <div className="flex-1 p-3 sm:p-4">
+            <div className="flex-1 p-3">
               <div className="mb-2 flex items-center justify-between">
                 <div className="shimmer h-5 w-16 rounded-full" />
                 <div className="shimmer h-5 w-24 rounded-full" />
