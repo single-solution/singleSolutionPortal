@@ -66,7 +66,7 @@ function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null
         accuracy: pos.coords.accuracy,
       }),
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     );
   });
 }
