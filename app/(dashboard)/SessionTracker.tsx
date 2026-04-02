@@ -12,6 +12,8 @@ interface SessionData {
   startTime: string | null;
   todayMinutes: number;
   isStale: boolean;
+  locationFlagged: boolean;
+  flagReason: string | null;
 }
 
 const HEARTBEAT_MS = 30_000;
@@ -54,11 +56,15 @@ function detectMobile(): boolean {
   );
 }
 
-function getGeo(): Promise<{ lat: number; lng: number } | null> {
+function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null> {
   if (!("geolocation" in navigator)) return Promise.resolve(null);
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => resolve({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      }),
       () => resolve(null),
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     );
@@ -76,6 +82,8 @@ export default function SessionTracker() {
     startTime: null,
     todayMinutes: 0,
     isStale: false,
+    locationFlagged: false,
+    flagReason: null,
   });
   const [mode, setMode] = useState<DeviceMode>("booting");
   const [elapsed, setElapsed] = useState(0);
@@ -102,6 +110,8 @@ export default function SessionTracker() {
     inOffice: boolean;
     todayMinutes: number;
     isStale: boolean;
+    locationFlagged: boolean;
+    flagReason: string | null;
   }> => {
     try {
       const res = await fetch("/api/attendance/session");
@@ -114,16 +124,18 @@ export default function SessionTracker() {
           startTime: a.sessionTime?.start,
           todayMinutes: data.todayMinutes ?? 0,
           isStale: data.isStale ?? false,
+          locationFlagged: data.locationFlagged ?? false,
+          flagReason: data.flagReason ?? null,
         };
         setSession(state);
         checkedInRef.current = true;
         return state;
       }
-      setSession((s) => ({ ...s, active: false, startTime: null, todayMinutes: data.todayMinutes ?? 0, isStale: false }));
+      setSession((s) => ({ ...s, active: false, startTime: null, todayMinutes: data.todayMinutes ?? 0, isStale: false, locationFlagged: false, flagReason: null }));
       checkedInRef.current = false;
-      return { active: false, startTime: null, inOffice: false, todayMinutes: data.todayMinutes ?? 0, isStale: false };
+      return { active: false, startTime: null, inOffice: false, todayMinutes: data.todayMinutes ?? 0, isStale: false, locationFlagged: false, flagReason: null };
     } catch {
-      return { active: false, startTime: null, inOffice: false, todayMinutes: 0, isStale: false };
+      return { active: false, startTime: null, inOffice: false, todayMinutes: 0, isStale: false, locationFlagged: false, flagReason: null };
     }
   }, []);
 
@@ -131,7 +143,7 @@ export default function SessionTracker() {
   const doCheckIn = useCallback(
     async (retries = 0): Promise<boolean> => {
       const geo = await getGeo();
-      if (geo) { lastCoordsRef.current = geo; setLiveCoords(geo); }
+      if (geo) { lastCoordsRef.current = { lat: geo.lat, lng: geo.lng }; setLiveCoords({ lat: geo.lat, lng: geo.lng }); }
       try {
         const res = await fetch("/api/attendance/session", {
           method: "POST",
@@ -140,6 +152,7 @@ export default function SessionTracker() {
             action: "checkin",
             latitude: geo?.lat,
             longitude: geo?.lng,
+            accuracy: geo?.accuracy,
             platform: navigator.platform,
             userAgent: navigator.userAgent,
             deviceId: getDeviceId(),
@@ -154,6 +167,8 @@ export default function SessionTracker() {
             startTime: data.session?.startTime ?? new Date().toISOString(),
             todayMinutes: data.todayMinutes ?? 0,
             isStale: false,
+            locationFlagged: data.locationFlagged ?? false,
+            flagReason: data.flagReason ?? null,
           });
           checkedInRef.current = true;
           return true;
@@ -181,7 +196,7 @@ export default function SessionTracker() {
     const beat = async () => {
       if (modeRef.current !== "active") return;
       const geo = await getGeo();
-      if (geo) { lastCoordsRef.current = geo; setLiveCoords(geo); }
+      if (geo) { lastCoordsRef.current = { lat: geo.lat, lng: geo.lng }; setLiveCoords({ lat: geo.lat, lng: geo.lng }); }
       try {
         const res = await fetch("/api/attendance/session", {
           method: "PATCH",
@@ -189,6 +204,7 @@ export default function SessionTracker() {
           body: JSON.stringify({
             latitude: geo?.lat ?? lastCoordsRef.current?.lat,
             longitude: geo?.lng ?? lastCoordsRef.current?.lng,
+            accuracy: geo?.accuracy,
           }),
         });
         const data = await res.json();
@@ -204,6 +220,14 @@ export default function SessionTracker() {
         }
         if (data.transitioned) {
           setSession((s) => ({ ...s, inOffice: data.inOffice }));
+        }
+        // Handle location flag from server
+        if (data.locationFlagged != null) {
+          setSession((s) => ({
+            ...s,
+            locationFlagged: data.locationFlagged,
+            flagReason: data.flagReasons?.join("; ") ?? s.flagReason,
+          }));
         }
       } catch {
         /* network fail — skip this beat, retry next */
@@ -307,6 +331,7 @@ export default function SessionTracker() {
               body: JSON.stringify({
                 latitude: coords?.lat,
                 longitude: coords?.lng,
+                accuracy: undefined,
               }),
             });
           } catch {
@@ -357,11 +382,12 @@ export default function SessionTracker() {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [fetchSession, doCheckIn, updateMode, startHeartbeat, startSyncPolling]);
 
-  // ─── Elapsed timer (pauses when idle) ────────────────────────
+  // ─── Elapsed timer (pauses when idle OR location flagged) ───
   const pausedAtRef = useRef<number>(0);
+  const paused = idle || session.locationFlagged;
   useEffect(() => {
     if (session.active && session.startTime) {
-      if (idle) {
+      if (paused) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         pausedAtRef.current = elapsed;
         return;
@@ -375,7 +401,46 @@ export default function SessionTracker() {
       };
     }
     setElapsed(0);
-  }, [session.active, session.startTime, idle]);
+  }, [session.active, session.startTime, paused]);
+
+  // ─── Re-check location (after flag) ───────────────────────
+  const [recheckLoading, setRecheckLoading] = useState(false);
+  const doRecheck = useCallback(async () => {
+    setRecheckLoading(true);
+    const geo = await getGeo();
+    if (geo) { lastCoordsRef.current = { lat: geo.lat, lng: geo.lng }; setLiveCoords({ lat: geo.lat, lng: geo.lng }); }
+    try {
+      const res = await fetch("/api/attendance/session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: geo?.lat ?? lastCoordsRef.current?.lat,
+          longitude: geo?.lng ?? lastCoordsRef.current?.lng,
+          accuracy: geo?.accuracy,
+        }),
+      });
+      const data = await res.json();
+      if (data.locationFlagged != null) {
+        setSession((s) => ({
+          ...s,
+          locationFlagged: data.locationFlagged,
+          flagReason: data.flagReasons?.join("; ") ?? s.flagReason,
+        }));
+      }
+      if (!data.locationFlagged) {
+        startHeartbeat();
+      }
+    } catch { /* ignore */ }
+    setRecheckLoading(false);
+  }, [startHeartbeat]);
+
+  // ─── Stop heartbeat when location flagged ──────────────────
+  useEffect(() => {
+    if (session.locationFlagged && heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+  }, [session.locationFlagged]);
 
   // ─── Idle detection (active mode, visibility-aware + nudges) ──
   const nudgeCountRef = useRef(0);
@@ -453,26 +518,35 @@ export default function SessionTracker() {
   const isActive = session.active && !session.isStale;
   const isReadonly = mode === "readonly";
 
-  const pillStyle: React.CSSProperties = isActive
-    ? session.inOffice
-      ? {
-          background: "linear-gradient(135deg, #00c6a7 0%, #00d68f 50%, #34d399 100%)",
-          boxShadow: "0 0 20px rgba(0,198,167,0.4), 0 0 60px rgba(0,214,143,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
-        }
-      : {
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #a855f7 100%)",
-          boxShadow: "0 0 20px rgba(118,75,162,0.4), 0 0 60px rgba(168,85,247,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
-        }
-    : {
-        background: "linear-gradient(135deg, #64748b 0%, #475569 100%)",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
-      };
+  const flagged = isActive && session.locationFlagged;
 
-  const statusLabel = isActive
-    ? session.inOffice
-      ? "In Office"
-      : "Remote"
-    : "Offline";
+  const pillStyle: React.CSSProperties = flagged
+    ? {
+        background: "linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)",
+        boxShadow: "0 0 20px rgba(239,68,68,0.5), 0 0 60px rgba(220,38,38,0.2), inset 0 1px 0 rgba(255,255,255,0.2)",
+      }
+    : isActive
+      ? session.inOffice
+        ? {
+            background: "linear-gradient(135deg, #00c6a7 0%, #00d68f 50%, #34d399 100%)",
+            boxShadow: "0 0 20px rgba(0,198,167,0.4), 0 0 60px rgba(0,214,143,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
+          }
+        : {
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #a855f7 100%)",
+            boxShadow: "0 0 20px rgba(118,75,162,0.4), 0 0 60px rgba(168,85,247,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
+          }
+      : {
+          background: "linear-gradient(135deg, #64748b 0%, #475569 100%)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+        };
+
+  const statusLabel = flagged
+    ? "Flagged"
+    : isActive
+      ? session.inOffice
+        ? "In Office"
+        : "Remote"
+      : "Offline";
 
   const currentMinutes = isActive ? Math.floor(elapsed / 60000) : 0;
   const todayTotal = session.todayMinutes + currentMinutes;
@@ -562,30 +636,103 @@ export default function SessionTracker() {
         )}
       </AnimatePresence>
 
+      {/* Location fraud warning overlay */}
+      <AnimatePresence>
+        {flagged && !isReadonly && (
+          <motion.div
+            key="fraud-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[9998] flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.55)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-3xl p-8 text-center"
+              style={{
+                background: "var(--bg-elevated, rgba(30,30,40,0.92))",
+                border: "1px solid rgba(239,68,68,0.4)",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 40px rgba(239,68,68,0.15)",
+              }}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                className="flex h-16 w-16 items-center justify-center rounded-full text-3xl"
+                style={{ background: "rgba(239,68,68,0.15)" }}
+              >
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </motion.div>
+              <h3 className="text-lg font-bold" style={{ color: "#ef4444" }}>
+                Location appears to be spoofed
+              </h3>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--fg-secondary, #aaa)" }}>
+                {session.flagReason || "Suspicious location data detected"}
+              </p>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--fg-secondary, #888)" }}>
+                Your timer has been paused. Please disable any mock location tools and click &quot;Re-check&quot; below.
+              </p>
+              <motion.div
+                animate={{ scale: [1, 1.03, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="mt-1 rounded-full px-6 py-2 text-sm font-bold text-white"
+                style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}
+              >
+                {formatElapsed(pausedAtRef.current || elapsed)} paused
+              </motion.div>
+              <button
+                onClick={doRecheck}
+                disabled={recheckLoading}
+                className="mt-2 rounded-full px-6 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, var(--primary, #007aff), var(--cyan, #00c6a7))" }}
+              >
+                {recheckLoading ? "Checking..." : "Re-check Location"}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Timer pill */}
     <AnimatePresence>
       <motion.div
           initial={{ y: 20, opacity: 0, scale: 0.9 }}
-          animate={{ y: 0, opacity: idle && isActive ? 0.5 : 1, scale: 1 }}
+          animate={{ y: 0, opacity: paused && isActive ? 0.5 : 1, scale: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 300, damping: 25 }}
           className="mx-auto flex w-fit items-center gap-3 rounded-full px-4 py-2 text-white "
           style={pillStyle}
         >
-          {isActive && !idle && (
+          {isActive && !paused && !flagged && (
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
               </span>
             )}
 
-            {idle && isActive && !isReadonly && (
+            {flagged && (
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-300 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+              </span>
+            )}
+
+            {idle && !flagged && isActive && !isReadonly && (
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
-          </span>
-        )}
+              </span>
+            )}
 
             <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">
-              {idle && isActive && !isReadonly ? "Paused" : statusLabel}
+              {flagged ? "Flagged" : (paused && isActive && !isReadonly) ? "Paused" : statusLabel}
             </span>
 
         {isReadonly && isActive && (
@@ -601,8 +748,8 @@ export default function SessionTracker() {
             <span className="h-3.5 w-px bg-white/40 rounded-full" />
 
             <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
-              {isActive ? (idle ? formatElapsed(pausedAtRef.current || elapsed) : formatElapsed(elapsed)) : "--:--:--"}
-        </span>
+              {isActive ? (paused ? formatElapsed(pausedAtRef.current || elapsed) : formatElapsed(elapsed)) : "--:--:--"}
+            </span>
 
             <span className="h-3.5 w-px bg-white/40 rounded-full" />
 

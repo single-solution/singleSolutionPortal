@@ -5,7 +5,7 @@ import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import User from "@/lib/models/User";
 import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
-import { isInOffice } from "@/lib/geo";
+import { isInOffice, validateLocation } from "@/lib/geo";
 import { notifyChange } from "@/lib/eventBus";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
@@ -80,7 +80,13 @@ export async function GET(req: NextRequest) {
   const daily = await DailyAttendance.findOne({ user: targetUserId, date: today }).lean();
   if (daily) todayMinutes = daily.totalWorkingMinutes ?? 0;
 
-  return ok({ activeSession, todayMinutes, isStale });
+  return ok({
+    activeSession,
+    todayMinutes,
+    isStale,
+    locationFlagged: activeSession?.location?.locationFlagged ?? false,
+    flagReason: activeSession?.location?.flagReason ?? null,
+  });
 }
 
 // ─── POST: check-in / check-out ───────────────────────────────────
@@ -124,13 +130,13 @@ export async function PATCH(req: Request) {
 
   await connectDB();
 
-  let body: { latitude?: number; longitude?: number };
+  let body: { latitude?: number; longitude?: number; accuracy?: number };
   try {
     body = await req.json();
   } catch {
     body = {};
   }
-  const { latitude, longitude } = body;
+  const { latitude, longitude, accuracy } = body;
 
   const now = new Date();
 
@@ -150,6 +156,40 @@ export async function PATCH(req: Request) {
   active.lastActivity = now;
 
   if (latitude != null && longitude != null) {
+    const prevLat = active.location?.latitude;
+    const prevLng = active.location?.longitude;
+    const prevTime = active.lastActivity ? new Date(active.lastActivity) : undefined;
+
+    // Track consecutive identical coordinates
+    let consecutive = active.location?.consecutiveIdentical ?? 0;
+    if (
+      prevLat != null && prevLng != null &&
+      latitude === prevLat && longitude === prevLng
+    ) {
+      consecutive += 1;
+    } else {
+      consecutive = 0;
+    }
+
+    const validation = validateLocation(
+      latitude, longitude, accuracy,
+      prevLat, prevLng, prevTime, now,
+      consecutive,
+    );
+
+    active.location.accuracy = accuracy;
+    active.location.consecutiveIdentical = consecutive;
+
+    if (validation.flagged) {
+      active.location.locationFlagged = true;
+      active.location.flagReason = validation.reasons.join("; ");
+      active.location.flaggedAt = now;
+    } else if (active.location.locationFlagged) {
+      active.location.locationFlagged = false;
+      active.location.flagReason = undefined;
+      active.location.flaggedAt = undefined;
+    }
+
     const wasInOffice = active.location?.inOffice ?? false;
     const nowInOffice = await isInOffice(latitude, longitude);
 
@@ -175,11 +215,17 @@ export async function PATCH(req: Request) {
       updated: true,
       inOffice: nowInOffice,
       transitioned: wasInOffice !== nowInOffice,
+      locationFlagged: active.location.locationFlagged ?? false,
+      flagReasons: validation.flagged ? validation.reasons : [],
     });
   }
 
   await active.save();
-  return ok({ updated: true, inOffice: active.location?.inOffice ?? false });
+  return ok({
+    updated: true,
+    inOffice: active.location?.inOffice ?? false,
+    locationFlagged: active.location?.locationFlagged ?? false,
+  });
 }
 
 // ─── Close a session and recompute daily/monthly ──────────────────
@@ -262,6 +308,7 @@ async function handleCheckIn(
   body: {
     latitude?: number;
     longitude?: number;
+    accuracy?: number;
     platform?: string;
     userAgent?: string;
     deviceId?: string;
@@ -290,6 +337,21 @@ async function handleCheckIn(
 
   const inOffice = await isInOffice(body.latitude, body.longitude);
 
+  // Validate initial location for spoofing
+  let initialFlagged = false;
+  let initialFlagReason: string | undefined;
+  if (body.latitude != null && body.longitude != null) {
+    const v = validateLocation(
+      body.latitude, body.longitude, body.accuracy,
+      undefined, undefined, undefined, now,
+      0,
+    );
+    if (v.flagged) {
+      initialFlagged = true;
+      initialFlagReason = v.reasons.join("; ");
+    }
+  }
+
   const todayOfficeSessionExists = await ActivitySession.exists({
     user: userId,
     sessionDate: today,
@@ -307,6 +369,11 @@ async function handleCheckIn(
       inOffice,
       latitude: body.latitude,
       longitude: body.longitude,
+      accuracy: body.accuracy,
+      locationFlagged: initialFlagged,
+      flagReason: initialFlagReason,
+      flaggedAt: initialFlagged ? now : undefined,
+      consecutiveIdentical: 0,
     },
     sessionTime: { start: now },
     lastActivity: now,
@@ -379,6 +446,8 @@ async function handleCheckIn(
       startTime: now,
     },
     todayMinutes,
+    locationFlagged: initialFlagged,
+    flagReason: initialFlagReason ?? null,
   });
 }
 

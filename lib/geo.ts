@@ -47,6 +47,67 @@ export async function getOfficeConfig(): Promise<{ lat: number; lng: number; rad
   return cachedConfig;
 }
 
+/* ── Fake-location detection ─────────────────────────────────────── */
+
+export interface LocationValidation {
+  flagged: boolean;
+  reasons: string[];
+}
+
+export function validateLocation(
+  lat: number,
+  lng: number,
+  accuracy: number | undefined,
+  prevLat: number | undefined,
+  prevLng: number | undefined,
+  prevTime: Date | undefined,
+  now: Date,
+  consecutiveIdentical: number,
+): LocationValidation {
+  const reasons: string[] = [];
+
+  // Layer 1 — Accuracy anomaly
+  // Real browser GPS is typically 5-65 m; mock tools report 0, 1, or omit it
+  if (accuracy == null || accuracy === 0 || accuracy < 3) {
+    reasons.push("GPS accuracy is suspiciously low");
+  }
+
+  // Layer 2 — Teleportation (impossible speed between heartbeats)
+  if (prevLat != null && prevLng != null && prevTime) {
+    const distMeters = haversineMeters(prevLat, prevLng, lat, lng);
+    const elapsedSec = Math.max(1, (now.getTime() - prevTime.getTime()) / 1000);
+    const speedMs = distMeters / elapsedSec; // meters per second
+    if (speedMs > 55) {
+      // > ~200 km/h
+      reasons.push("Impossible location jump detected");
+    }
+  }
+
+  // Layer 3 — Zero variance (identical coords across 3+ heartbeats)
+  if (consecutiveIdentical >= 3) {
+    reasons.push("Location has not changed across multiple readings");
+  }
+
+  // Layer 4 — Round / low-precision coordinates
+  const latDecimals = significantDecimals(lat);
+  const lngDecimals = significantDecimals(lng);
+  if (latDecimals < 4 || lngDecimals < 4) {
+    reasons.push("Coordinates appear manually entered (low precision)");
+  }
+
+  return { flagged: reasons.length > 0, reasons };
+}
+
+function significantDecimals(n: number): number {
+  const s = n.toString();
+  const dot = s.indexOf(".");
+  if (dot === -1) return 0;
+  const frac = s.slice(dot + 1);
+  // Count digits before trailing zeros
+  const trimmed = frac.replace(/0+$/, "");
+  return trimmed.length;
+}
+
 export async function isInOffice(latitude?: number, longitude?: number): Promise<boolean> {
   if (latitude == null || longitude == null) return false;
   const config = await getOfficeConfig();

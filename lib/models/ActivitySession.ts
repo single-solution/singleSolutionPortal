@@ -20,6 +20,11 @@ export interface IActivitySession extends Document {
     inOffice: boolean;
     latitude?: number;
     longitude?: number;
+    accuracy?: number;
+    locationFlagged?: boolean;
+    flagReason?: string;
+    flaggedAt?: Date;
+    consecutiveIdentical?: number;
   };
   sessionTime: {
     start: Date;
@@ -57,6 +62,11 @@ const activitySessionSchema = new Schema<IActivitySession>(
       inOffice: { type: Boolean, default: false },
       latitude: Number,
       longitude: Number,
+      accuracy: Number,
+      locationFlagged: { type: Boolean, default: false },
+      flagReason: String,
+      flaggedAt: Date,
+      consecutiveIdentical: { type: Number, default: 0 },
     },
     sessionTime: {
       start: { type: Date, required: true },

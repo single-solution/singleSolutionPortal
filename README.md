@@ -66,11 +66,20 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Best-effort: if geo is denied, the session still works — just can't determine in-office vs remote
 
 **Timer pill (bottom of screen):**
-- Color-coded gradient: green = in-office, blue = remote, gray = offline
+- Color-coded gradient: green = in-office, blue = remote, red = location flagged, gray = offline
 - Shows: live ticking elapsed time | cumulative today total (completed sessions + active)
 - Readonly mode: "another device" label or "📱 synced" for mobile
 - Stale session: shows "inactive" instead of a running timer
 - Idle/Away: visibility-aware detection — tab hidden (user in another app) keeps timer running; tab visible + 1hr no interaction triggers 3 nudge toasts (5min apart), then pauses timer with full-screen "Stepped Away" overlay
+
+**Fake location detection (4-layer anti-spoofing):**
+- **Layer 1 — Accuracy anomaly**: Real GPS reports 5–65 m accuracy; mock GPS apps report 0, 1, or omit it. Flags when browser-reported accuracy is < 3 m or missing
+- **Layer 2 — Teleportation**: Compares haversine distance between consecutive heartbeats against elapsed time. Flags if implied speed exceeds 200 km/h
+- **Layer 3 — Zero variance**: Real GPS always drifts slightly. Flags when coordinates are byte-identical across 3+ consecutive heartbeats
+- **Layer 4 — Round coordinates**: Flags coordinates with fewer than 4 significant decimal digits (common with manual mock entries like `31.0000, 74.0000`)
+- When flagged: timer pauses, heartbeat stops, red warning pill + full-screen overlay with reason text. Employee can click "Re-check Location" to trigger an immediate fresh geo reading — if clean, timer resumes automatically
+- Flag state persisted on `ActivitySession.location` (flagReason, flaggedAt, consecutiveIdentical) and returned in both GET and PATCH responses — visible to managers/admins on the dashboard presence cards
+- Does not ban or lock out — pauses and warns, letting employees self-correct. SuperAdmin exempt
 
 **Daily & monthly rollup:**
 - `DailyAttendance`: totalWorkingMinutes, officeMinutes, remoteMinutes, isPresent, isOnTime, lateBy, firstOfficeEntry, lastOfficeExit
@@ -377,7 +386,7 @@ lib/
   auth.config.ts        # Middleware auth config with route guards
   permissions.ts        # DB-verified session, role hierarchy, team/dept scoping helpers
   db.ts                 # MongoDB connection singleton
-  geo.ts                # Haversine + office geofence (reads SystemSettings)
+  geo.ts                # Haversine + office geofence (reads SystemSettings) + validateLocation() 4-layer anti-spoofing
   helpers.ts            # Response helpers (ok, badRequest, forbidden, etc.)
   mail.ts               # Nodemailer + HTML email templates
   rateLimit.ts          # In-memory rate limiter
@@ -389,7 +398,7 @@ lib/
     Department.ts       # Department with manager ref + optional parentDepartment ref (hierarchical)
     Team.ts             # Team (name, slug, department, lead, description)
     Campaign.ts         # Campaign (name, status lifecycle, tagged employees/departments/teams, dates, budget)
-    ActivitySession.ts  # Session with office segments + heartbeat lastActivity
+    ActivitySession.ts  # Session with office segments + heartbeat lastActivity + location fraud detection fields (accuracy, locationFlagged, flagReason, flaggedAt, consecutiveIdentical)
     ActivityTask.ts     # Task with priority, deadline, status
     DailyAttendance.ts  # Daily rollup (sessions, minutes, on-time)
     MonthlyAttendanceStats.ts # Monthly aggregated stats
