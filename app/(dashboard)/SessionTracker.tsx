@@ -193,11 +193,22 @@ export default function SessionTracker() {
   );
 
   // ─── Heartbeat (active mode) ─────────────────────────────────
+  const lastBeatTimeRef = useRef(Date.now());
+
   const startHeartbeat = useCallback(() => {
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    lastBeatTimeRef.current = Date.now();
 
     const beat = async () => {
       if (modeRef.current !== "active") return;
+
+      // Detect sleep/suspend: if wall-clock gap is much larger than
+      // the heartbeat interval, the device was likely asleep.
+      const now = Date.now();
+      const sinceLast = now - lastBeatTimeRef.current;
+      lastBeatTimeRef.current = now;
+      const wasSleeping = sinceLast > HEARTBEAT_MS * 2;
+
       const geo = await getGeo();
       if (geo) { lastCoordsRef.current = { lat: geo.lat, lng: geo.lng }; setLiveCoords({ lat: geo.lat, lng: geo.lng }); }
       try {
@@ -212,16 +223,17 @@ export default function SessionTracker() {
         });
         const data = await res.json();
         if (data.sessionClosed) {
+          // Server auto-closed the stale session. Re-check-in for a fresh one.
           const ok = await doCheckIn();
           if (ok) {
             updateMode("active");
           } else {
+            if (heartbeatRef.current) clearInterval(heartbeatRef.current);
             updateMode("readonly");
             startSyncPolling();
           }
           return;
         }
-        // Always sync location status + flag from server on every heartbeat
         setSession((s) => ({
           ...s,
           ...(data.inOffice != null ? { inOffice: data.inOffice } : {}),
@@ -230,13 +242,22 @@ export default function SessionTracker() {
             flagReason: data.flagReasons?.join("; ") ?? s.flagReason,
           } : {}),
         }));
+
+        // After waking from sleep the session might still be valid
+        // (gap < 3 min) but the timer display may have drifted. Re-sync.
+        if (wasSleeping) {
+          const freshData = await fetchSession();
+          if (freshData.active && freshData.startTime) {
+            setSession((s) => ({ ...s, startTime: freshData.startTime, todayMinutes: freshData.todayMinutes ?? s.todayMinutes }));
+          }
+        }
       } catch {
         /* network fail — skip this beat, retry next */
       }
     };
 
     heartbeatRef.current = setInterval(beat, HEARTBEAT_MS);
-  }, [doCheckIn, updateMode]);
+  }, [doCheckIn, updateMode, fetchSession]);
 
   // ─── Sync polling (readonly mode) ─────────────────────────────
   const startSyncPolling = useCallback(() => {

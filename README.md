@@ -70,6 +70,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Shows: live ticking elapsed time | cumulative today total (completed sessions + active)
 - Readonly mode: "another device" label or "📱 synced" for mobile
 - Stale session: shows "inactive" instead of a running timer
+- **Sleep/suspend recovery**: When the laptop lid is closed (device sleeps), heartbeats stop. On wake, the first heartbeat detects the stale gap (> 3 min since last activity), the server auto-closes the old session at the last heartbeat timestamp, and the client creates a fresh session. The timer resets to count from the new check-in — no inflated hours from sleep time. The client also tracks wall-clock time between heartbeats to detect sleep gaps even when `visibilitychange` doesn't fire (common in installed PWAs)
 - Idle/Away: visibility-aware detection — tab hidden (user in another app) keeps timer running; tab visible + 1hr no interaction triggers 3 nudge toasts (5min apart), then pauses timer with full-screen "Stepped Away" overlay
 
 **Fake location detection (4-layer anti-spoofing):**
@@ -91,7 +92,8 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 | Scenario | What happens |
 |----------|-------------|
 | Normal workday (open 9am, close 6pm) | Check-in → 9h heartbeat → sendBeacon checkout → 540 min |
-| Lunch break (close lid, sendBeacon fails) | Session #1 frozen at 12:00. Reopen at 1pm → auto-close #1 (3h) → new #2 → close at 6pm (5h) → total 8h |
+| Lunch break (close lid, sendBeacon fails) | Session #1 frozen at 12:00. Reopen at 1pm → heartbeat detects stale → server auto-closes #1 at 12:00 (3h) → new #2 starts → close at 6pm (5h) → total 8h |
+| Leave office, open at home | Session #1 frozen at 6pm. Open at home → heartbeat stale → server auto-closes #1 at 6pm → new #2 starts from home (remote), timer resets |
 | Laptop crash | Heartbeat stops → session stale after 3 min → next device takes over |
 | Open on MacBook + phone | MacBook = active (heartbeat). Phone = readonly (polls). MacBook closed → phone shows last synced data |
 | Two desktops | Desktop A = active. Desktop B = readonly. A dies → B auto-takes-over after 3 min |

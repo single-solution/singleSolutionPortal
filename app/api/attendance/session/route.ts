@@ -153,6 +153,17 @@ export async function PATCH(req: Request) {
     return ok({ updated: false, sessionClosed: true, dayChanged: true });
   }
 
+  // Detect sleep/suspend gap: if lastActivity was > STALE_THRESHOLD ago,
+  // the device was asleep. Close the old session at its last heartbeat
+  // and signal the client to re-check-in with a fresh session.
+  const lastActivityMs = active.lastActivity ? new Date(active.lastActivity).getTime() : 0;
+  if (lastActivityMs > 0 && (now.getTime() - lastActivityMs) > STALE_THRESHOLD_MS) {
+    const closeTime = new Date(lastActivityMs);
+    await closeSession(active, closeTime);
+    notifyChange("presence");
+    return ok({ updated: false, sessionClosed: true, sleepDetected: true });
+  }
+
   active.lastActivity = now;
 
   if (latitude != null && longitude != null) {
