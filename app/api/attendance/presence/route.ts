@@ -58,6 +58,9 @@ export async function GET() {
     date: today,
   }).lean();
 
+  const STALE_MS = 3 * 60 * 1000;
+  const nowMs = Date.now();
+
   const activeMap = new Map(activeSessions.map((s) => [s.user.toString(), s]));
   const dailyMap = new Map(dailyRecords.map((r) => [r.user.toString(), r]));
 
@@ -68,14 +71,26 @@ export async function GET() {
 
     let status: string = "absent";
     let todayMinutes = 0;
+    let isLive = false;
 
     if (active) {
-      const elapsed = Math.floor((Date.now() - active.sessionTime.start.getTime()) / 60000);
-      todayMinutes = (daily?.totalWorkingMinutes ?? 0) + elapsed;
-      status = active.location.inOffice ? "office" : "remote";
+      const lastActivityMs = active.lastActivity ? new Date(active.lastActivity).getTime() : 0;
+      const stale = (nowMs - lastActivityMs) > STALE_MS;
 
-      if (daily && !daily.isOnTime) status = "late";
-      if (todayMinutes > 9 * 60) status = "overtime";
+      if (!stale) {
+        const elapsed = Math.floor((nowMs - active.sessionTime.start.getTime()) / 60000);
+        todayMinutes = (daily?.totalWorkingMinutes ?? 0) + elapsed;
+        status = active.location.inOffice ? "office" : "remote";
+        if (daily && !daily.isOnTime) status = "late";
+        if (todayMinutes > 9 * 60) status = "overtime";
+        isLive = true;
+      } else {
+        todayMinutes = daily?.totalWorkingMinutes ?? 0;
+        if (daily?.isPresent) {
+          status = daily.isOnTime ? "office" : "late";
+          if (todayMinutes > 9 * 60) status = "overtime";
+        }
+      }
     } else if (daily?.isPresent) {
       todayMinutes = daily.totalWorkingMinutes;
       status = daily.isOnTime ? "office" : "late";
@@ -107,6 +122,8 @@ export async function GET() {
       shiftStart: e.workShift?.shift?.start ?? "10:00",
       shiftEnd: e.workShift?.shift?.end ?? "19:00",
       shiftBreakTime: e.workShift?.breakTime ?? 60,
+      isLive,
+      locationFlagged: active?.location?.locationFlagged ?? false,
       isActive: true,
       teamIds: Array.isArray(emp.teams) ? emp.teams.map((t: unknown) => String(t)) : [],
     };

@@ -250,12 +250,15 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 - **Live indicator**: Pulsing green "LIVE" badge on all dashboard headers to show real-time status
 
 **SuperAdmin / Manager / Team Lead (unified AdminDashboard):**
-- **Self card**: logged-in user profile (avatar, name, role, department, email) with personal attendance stats (first entry, today hours, office/remote split, session count, shift %) — for SuperAdmin shows presence status counts instead of personal attendance. Inline task summary (pending / active / done). Date, time, and LIVE badge
-- **Team breakdown** (Manager / Team Lead only): clickable rows showing team name, lead, present/absent/late counts. Clicking filters the presence cards below
-- **Rich employee presence cards** in responsive grid (1 col mobile, 2 tablet, 3 desktop): each card shows name + status badge, designation, department, email, reports-to supervisor, arrival time, leave time, today hours, office/remote/late/break/overtime pills with durations, animated shift progress bar, pending tasks count, in-progress tasks count, and active campaign tags. Status updated live from heartbeat via SSE. Logged-in user excluded from the grid
+- **Welcome row** (no card wrapper): time-of-day greeting, inline quick stats (pending tasks count, active campaigns count, live employees count, avg hours/day). Date + time + LIVE badge on the right
+- **Today Overview + Timeline** (Manager / Team Lead, side-by-side on desktop): Left card shows avatar, department, present/absent + on-time/late pill, check-in time, today hours, sessions, office/remote/late/overtime pills, animated shift progress bar, and monthly stats (avg/day, on-time %, avg in/out). Right card shows today's activity timeline (check-in, sessions, current status) + task summary with priority dots and "View all" link
+- **SuperAdmin status strip**: compact pill row showing counts for each presence status (Office, Remote, Late, Overtime, Absent) and total
+- **Team breakdown**: clickable rows showing team name, lead, **live count**, present/absent/late counts. Clicking filters the presence cards below
+- **Team Status (Live Presence)**: header shows live count + total shown. Cards sorted live-first, then by today minutes descending. Each card has a **live indicator dot** (green pulsing = live heartbeat, gray = inactive/stale, red = GPS flagged). Cards fade to 70% opacity when the employee is not live. GPS-flagged employees show a red warning badge. All other card details unchanged (name, status, designation, department, email, reports-to, arrival/leave times, today hours, office/remote/late/break/overtime pills, shift progress bar, pending tasks, active campaigns)
+- **Stale session detection**: Presence API now checks `lastActivity` against a 3-minute threshold. If an employee's heartbeat hasn't been received for 3+ minutes (laptop lid closed, battery died, etc.), they show as **inactive** — not "live." This mirrors WhatsApp-style live indicators
 - **Presence filter tabs**: All / Office / Remote / Late / Absent — animated toggle with team filter support
-- **Active Campaigns**: compact list with status pills, department/team tags — only shown when campaigns exist
-- No separate attendance, department, or pending task cards — all data consolidated into the self card and employee presence cards
+- **Active Campaigns**: compact half-width card (not full-width) with smaller rows. Department/team tags inline
+- No separate attendance, department, or pending task cards — all data consolidated into overview cards and employee presence cards
 
 **Developer / Business Developer:**
 - Compact greeting + LIVE badge + role + pending tasks
