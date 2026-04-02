@@ -42,7 +42,7 @@
   --radius-lg: 10px;
   --radius-xl: 12px;
   --radius-full: 9999px;
-  --dock-bg: rgba(255,255,255,0.88);
+  --dock-bg: rgba(254,242,242,0.80);
   --hover-bg: #F3F4F6;
   --green: #16A34A;
 
@@ -51,11 +51,11 @@
   --shadow-md: 0 4px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
   --shadow-lg: 0 8px 16px rgba(0,0,0,0.06), 0 16px 40px rgba(0,0,0,0.08);
 
-  /* kept only for dock-glass */
-  --glass-bg: rgba(255,255,255,0.65);
-  --glass-bg-heavy: rgba(255,255,255,0.78);
-  --glass-border: rgba(255,255,255,0.60);
-  --glass-border-inner: rgba(255,255,255,0.80);
+  --glass-bg: rgba(254,242,242,0.65);
+  --glass-bg-heavy: rgba(254,242,242,0.78);
+  --glass-border: rgba(220,38,38,0.08);
+  --glass-border-inner: rgba(220,38,38,0.05);
+  --frosted-bg: rgba(255,250,250,0.82);
 }
 
 [data-theme="dark"] {
@@ -87,14 +87,15 @@
   --shadow-md: 0 4px 6px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.20);
   --shadow-lg: 0 8px 16px rgba(0,0,0,0.30), 0 16px 40px rgba(0,0,0,0.25);
 
-  --dock-bg: rgba(26,26,29,0.88);
+  --dock-bg: rgba(42,18,21,0.80);
   --hover-bg: #252528;
   --green: #22C55E;
 
-  --glass-bg: rgba(44,44,46,0.65);
-  --glass-bg-heavy: rgba(44,44,46,0.78);
-  --glass-border: rgba(255,255,255,0.10);
-  --glass-border-inner: rgba(255,255,255,0.16);
+  --glass-bg: rgba(42,18,21,0.65);
+  --glass-bg-heavy: rgba(42,18,21,0.78);
+  --glass-border: rgba(239,68,68,0.12);
+  --glass-border-inner: rgba(239,68,68,0.08);
+  --frosted-bg: rgba(22,18,19,0.82);
 }
 
 @theme inline {
@@ -203,15 +204,17 @@ body {
 /* HEADER BAR                                   */
 /* ============================================ */
 .frosted {
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  background: var(--frosted-bg);
+  backdrop-filter: saturate(140%) blur(16px);
+  -webkit-backdrop-filter: saturate(140%) blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), inset 0 -0.5px 0 var(--glass-border-inner);
 }
 
 [data-theme="dark"] .frosted {
-  background: var(--bg-elevated);
-  border-bottom-color: var(--border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.20);
+  background: var(--frosted-bg);
+  border-bottom-color: var(--glass-border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 -0.5px 0 var(--glass-border-inner);
 }
 
 /* ============================================ */
