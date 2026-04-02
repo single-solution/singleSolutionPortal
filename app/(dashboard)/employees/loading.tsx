@@ -2,23 +2,23 @@ export default function EmployeesLoading() {
   return (
     <div className="flex flex-col gap-0 animate-reveal">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="space-y-2">
-          <div className="shimmer h-7 w-36 rounded" />
-          <div className="shimmer h-3 w-40 max-w-[90vw] rounded" />
+        <div>
+          <h1 className="text-title">Employees</h1>
+          <div className="shimmer mt-1 h-3 w-40 max-w-[90vw] rounded" />
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          <div className="shimmer h-6 w-12 rounded-md" />
-          <div className="shimmer h-6 w-12 rounded-md" />
+          <span className="rounded-md px-2.5 py-1 text-xs font-semibold" style={{ background: "var(--bg-elevated)", color: "var(--fg)" }}>Latest</span>
+          <span className="rounded-md px-2.5 py-1 text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>A – Z</span>
         </div>
       </div>
       <div className="card-static mb-3 flex items-center gap-3 p-3">
-        <div className="shimmer h-9 flex-1 rounded-lg" />
-        <div className="shimmer h-8 w-32 shrink-0 rounded-lg" />
+        <input className="input flex-1" placeholder="Search employees..." disabled readOnly />
+        <span className="btn btn-primary shrink-0">Add Employee</span>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="shimmer h-6 w-14 rounded-md" />
+          {["All", "Managers", "Leads", "BD", "Developers"].map((label) => (
+            <span key={label} className="rounded-md px-2.5 py-1 text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>{label}</span>
           ))}
         </div>
       </div>
