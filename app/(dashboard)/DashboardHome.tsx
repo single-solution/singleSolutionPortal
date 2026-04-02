@@ -962,6 +962,44 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
     : null;
   const reportsToId = userProfile?.reportsTo?._id ?? null;
 
+  /* ── Manager / lead live status ── */
+  interface ManagerStatus {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    userRole: string;
+    department: string;
+    status: PresenceStatus;
+    todayMinutes: number;
+    officeMinutes: number;
+    remoteMinutes: number;
+    firstEntry: string | null;
+    lastExit: string | null;
+    shiftStart: string;
+    shiftEnd: string;
+    isLive: boolean;
+  }
+  const [mgrStatus, setMgrStatus] = useState<ManagerStatus | null>(null);
+  const [mgrLoading, setMgrLoading] = useState(true);
+
+  const fetchMgrStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/attendance/presence/manager");
+      if (!res.ok) return;
+      const data = await res.json();
+      setMgrStatus(data);
+    } catch { /* silent */ }
+    setMgrLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!reportsToId) { setMgrLoading(false); return; }
+    fetchMgrStatus();
+    const id = window.setInterval(fetchMgrStatus, 30_000);
+    return () => window.clearInterval(id);
+  }, [reportsToId, fetchMgrStatus]);
+
   const [pingSending, setPingSending] = useState(false);
   const [pingSuccess, setPingSuccess] = useState<string | null>(null);
 
@@ -998,20 +1036,84 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           </motion.div>
         </header>
 
-        {/* Reports-to card — shows who you report to with ping */}
+        {/* Reports-to card — shows manager/lead live status */}
         {reportsToName && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card-static flex items-center gap-3 rounded-xl px-4 py-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card-static rounded-xl p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
+                  {mgrStatus?.isLive && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2" style={{ borderColor: "var(--bg-elevated)", background: "#10b981" }}>
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: "#10b981" }} />
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Reports to</p>
+                  <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{reportsToName}</p>
+                  {mgrStatus && <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{ROLE_DESIGNATION[mgrStatus.userRole] ?? mgrStatus.userRole} · {mgrStatus.department}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {mgrLoading ? (
+                  <Bone w="w-16" h="h-5" />
+                ) : mgrStatus ? (
+                  <span className={`badge ${STATUS_BADGE_CLASS[mgrStatus.status]}`}>
+                    {mgrStatus.isLive && (
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full mr-1" style={{ background: "currentColor" }}>
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: "currentColor" }} />
+                      </span>
+                    )}
+                    {STATUS_LABELS[mgrStatus.status]}
+                  </span>
+                ) : null}
+                <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handlePingManager} disabled={pingSending} className="btn btn-sm flex items-center gap-1.5" style={{ background: "var(--primary)", color: "#fff", opacity: pingSending ? 0.5 : 1 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                  Ping
+                </motion.button>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Reports to</p>
-              <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{reportsToName}</p>
-            </div>
-            <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handlePingManager} disabled={pingSending} className="btn btn-sm flex items-center gap-1.5" style={{ background: "var(--primary)", color: "#fff", opacity: pingSending ? 0.5 : 1 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-              Ping
-            </motion.button>
+
+            {/* Status details row */}
+            {mgrLoading ? (
+              <div className="flex gap-4">
+                <Bone w="w-20" h="h-4" /><Bone w="w-24" h="h-4" /><Bone w="w-16" h="h-4" />
+              </div>
+            ) : mgrStatus && mgrStatus.status !== "absent" ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption" style={{ color: "var(--fg-secondary)" }}>
+                {mgrStatus.firstEntry && (
+                  <span className="flex items-center gap-1">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                    Arrived {new Date(mgrStatus.firstEntry).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                  {formatMinutes(mgrStatus.todayMinutes)} worked
+                </span>
+                <span className="flex items-center gap-1">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                  {mgrStatus.officeMinutes > 0 && mgrStatus.remoteMinutes > 0
+                    ? `${formatMinutes(mgrStatus.officeMinutes)} office · ${formatMinutes(mgrStatus.remoteMinutes)} remote`
+                    : mgrStatus.officeMinutes > 0 ? "In Office" : "Remote"}
+                </span>
+                {mgrStatus.isLive && mgrStatus.shiftEnd && (
+                  <span className="flex items-center gap-1">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg>
+                    Shift until {mgrStatus.shiftEnd}
+                  </span>
+                )}
+                {!mgrStatus.isLive && mgrStatus.lastExit && (
+                  <span className="flex items-center gap-1">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+                    Left {new Date(mgrStatus.lastExit).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                )}
+              </div>
+            ) : mgrStatus?.status === "absent" ? (
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Not checked in today</p>
+            ) : null}
           </motion.div>
         )}
 

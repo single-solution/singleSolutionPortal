@@ -254,7 +254,8 @@ Real-time peer-to-peer pinging within your reporting chain. Everyone can ping pe
 - Real-time delivery via SSE `ping` channel on EventBus
 - Ping icon in header with unread badge and dropdown inbox
 - Each employee card on the dashboard shows who they report to and a quick-ping button
-- Non-admin roles see a "Reports to" card with a one-tap ping button on their dashboard
+- Non-admin roles see a rich "Reports to" card with manager's live status, arrival time, location (office/remote), hours worked, shift end, and a one-tap ping button
+- `GET /api/attendance/presence/manager` — dedicated lightweight endpoint returning the logged-in user's manager/lead live presence (status, isLive, arrival, exit, office/remote split, shift times). Auto-refreshes every 30 seconds
 
 ### Dashboard (Real-Time)
 
