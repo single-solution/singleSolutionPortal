@@ -414,6 +414,9 @@ export default function SettingsPage() {
         </FadeUp>
       </div>
 
+      {/* Preferences */}
+      <PreferencesSection />
+
       {/* SuperAdmin row: Test Email + System Settings side by side */}
       {isSuperAdmin && <SuperAdminSettings
         testEmail={testEmail} setTestEmail={setTestEmail}
@@ -421,6 +424,60 @@ export default function SettingsPage() {
         sendingTestEmail={sendingTestEmail} handleTestEmail={handleTestEmail}
       />}
     </div>
+  );
+}
+
+function PreferencesSection() {
+  const { data: session, update } = useSession();
+  const [showCoords, setShowCoords] = useState(session?.user?.showCoordinates ?? false);
+  const [saving, setSaving] = useState(false);
+
+  async function toggle() {
+    const next = !showCoords;
+    setShowCoords(next);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showCoordinates: next }),
+      });
+      if (res.ok) await update();
+      else setShowCoords(!next);
+    } catch {
+      setShowCoords(!next);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <FadeUp delay={0.18}>
+      <div className="card-xl p-6 sm:p-8">
+        <h2 className="text-headline mb-4">Preferences</h2>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium" style={{ color: "var(--fg)" }}>Show coordinates in time pill</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Display your current lat/lng next to the session timer.</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showCoords}
+            disabled={saving}
+            onClick={toggle}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus-visible:outline-none disabled:opacity-50"
+            style={{ background: showCoords ? "var(--primary)" : "var(--border-strong, #d1d5db)" }}
+          >
+            <motion.span
+              className="inline-block h-4.5 w-4.5 rounded-full bg-white shadow-sm"
+              animate={{ x: showCoords ? 22 : 3 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              style={{ width: 18, height: 18 }}
+            />
+          </button>
+        </div>
+      </div>
+    </FadeUp>
   );
 }
 

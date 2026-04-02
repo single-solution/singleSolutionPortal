@@ -73,6 +73,10 @@ export async function PUT(req: Request) {
     }
   }
 
+  if (typeof body.showCoordinates === "boolean") {
+    update["preferences.showCoordinates"] = body.showCoordinates;
+  }
+
   if (body.profileImage !== undefined) {
     if (body.profileImage && typeof body.profileImage === "string") {
       if (!body.profileImage.startsWith("data:image/")) {

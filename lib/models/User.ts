@@ -56,6 +56,9 @@ export interface IUser extends Document {
   resetTokenExpiry?: Date;
   lastEmailChange?: Date;
   lastSeenLogId?: string;
+  preferences?: {
+    showCoordinates?: boolean;
+  };
   crossDepartmentAccess: boolean;
   teamStatsVisible: boolean;
   isActive: boolean;
@@ -133,6 +136,9 @@ const userSchema = new Schema<IUser>(
     resetTokenExpiry: Date,
     lastEmailChange: { type: Date, default: null },
     lastSeenLogId: { type: String, default: null },
+    preferences: {
+      showCoordinates: { type: Boolean, default: false },
+    },
     crossDepartmentAccess: { type: Boolean, default: false },
     teamStatsVisible: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },

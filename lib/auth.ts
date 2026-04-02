@@ -15,6 +15,7 @@ declare module "next-auth" {
     lastName: string;
     username: string;
     profileImage?: string;
+    showCoordinates?: boolean;
   }
   interface Session {
     user: {
@@ -25,6 +26,7 @@ declare module "next-auth" {
       lastName: string;
       username: string;
       profileImage?: string;
+      showCoordinates?: boolean;
     };
   }
 }
@@ -84,13 +86,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           lastName: user.about.lastName ?? "",
           username: user.username,
           profileImage: user.about.profileImage || undefined,
+          showCoordinates: user.preferences?.showCoordinates ?? false,
         };
       },
     }),
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id!;
         token.role = user.role;
@@ -98,6 +101,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.lastName = user.lastName;
         token.username = user.username;
         token.profileImage = user.profileImage;
+        token.showCoordinates = user.showCoordinates ?? false;
+      }
+      if (trigger === "update") {
+        const { connectDB: cdb } = await import("@/lib/db");
+        const UserModel = (await import("@/lib/models/User")).default;
+        await cdb();
+        const fresh = await UserModel.findById(token.id).select("preferences").lean();
+        if (fresh) token.showCoordinates = fresh.preferences?.showCoordinates ?? false;
       }
       return token;
     },
@@ -108,6 +119,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.lastName = token.lastName as string;
       session.user.username = token.username as string;
       session.user.profileImage = token.profileImage as string | undefined;
+      session.user.showCoordinates = token.showCoordinates as boolean | undefined;
       return session;
     },
   },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type DeviceMode = "active" | "readonly" | "booting";
@@ -65,6 +66,10 @@ function getGeo(): Promise<{ lat: number; lng: number } | null> {
 }
 
 export default function SessionTracker() {
+  const { data: authSession } = useSession();
+  const showCoords = authSession?.user?.showCoordinates ?? false;
+  const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const [session, setSession] = useState<SessionData>({
     active: false,
     inOffice: false,
@@ -126,7 +131,7 @@ export default function SessionTracker() {
   const doCheckIn = useCallback(
     async (retries = 0): Promise<boolean> => {
       const geo = await getGeo();
-      if (geo) lastCoordsRef.current = geo;
+      if (geo) { lastCoordsRef.current = geo; setLiveCoords(geo); }
       try {
         const res = await fetch("/api/attendance/session", {
           method: "POST",
@@ -176,7 +181,7 @@ export default function SessionTracker() {
     const beat = async () => {
       if (modeRef.current !== "active") return;
       const geo = await getGeo();
-      if (geo) lastCoordsRef.current = geo;
+      if (geo) { lastCoordsRef.current = geo; setLiveCoords(geo); }
       try {
         const res = await fetch("/api/attendance/session", {
           method: "PATCH",
@@ -604,6 +609,15 @@ export default function SessionTracker() {
           <span className="text-[11px] font-bold tabular-nums whitespace-nowrap drop-shadow-sm">
           {formatTodayHours(todayTotal)}
         </span>
+
+          {showCoords && liveCoords && isActive && (
+            <>
+              <span className="h-3.5 w-px bg-white/40 rounded-full" />
+              <span className="text-[9px] font-semibold tabular-nums whitespace-nowrap opacity-80 tracking-wide drop-shadow-sm">
+                {liveCoords.lat.toFixed(4)}, {liveCoords.lng.toFixed(4)}
+              </span>
+            </>
+          )}
       </motion.div>
     </AnimatePresence>
     </>
