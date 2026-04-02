@@ -67,31 +67,37 @@ export function validateLocation(
   const reasons: string[] = [];
 
   // Layer 1 — Accuracy anomaly
-  // Real browser GPS is typically 5-65 m; mock tools report 0, 1, or omit it
-  if (accuracy == null || accuracy === 0 || accuracy < 3) {
-    reasons.push("GPS accuracy is suspiciously low");
+  // Fake GPS extensions typically report accuracy as exactly 0 or omit it.
+  // Real GPS (even high-end dual-frequency) always reports > 0.
+  if (accuracy != null && accuracy === 0) {
+    reasons.push("GPS accuracy is zero (mock GPS signature)");
   }
 
   // Layer 2 — Teleportation (impossible speed between heartbeats)
   if (prevLat != null && prevLng != null && prevTime) {
     const distMeters = haversineMeters(prevLat, prevLng, lat, lng);
     const elapsedSec = Math.max(1, (now.getTime() - prevTime.getTime()) / 1000);
-    const speedMs = distMeters / elapsedSec; // meters per second
+    const speedMs = distMeters / elapsedSec;
     if (speedMs > 55) {
-      // > ~200 km/h
       reasons.push("Impossible location jump detected");
     }
   }
 
-  // Layer 3 — Zero variance (identical coords across 3+ heartbeats)
-  if (consecutiveIdentical >= 3) {
+  // Layer 3 — Zero variance (identical coords across many heartbeats)
+  // Browser GPS caching (maximumAge: 30s) makes 3-5 identical readings normal
+  // when stationary. Only flag at 8+ which is ~4 minutes of zero drift — real
+  // GPS always has micro-drift even when sitting still.
+  if (consecutiveIdentical >= 8) {
     reasons.push("Location has not changed across multiple readings");
   }
 
   // Layer 4 — Round / low-precision coordinates
+  // Real GPS provides 6-8 raw decimal places. Manually entered or crude mocks
+  // have 1-2 decimals (e.g. 31.47). JavaScript toString() already strips
+  // trailing zeros, so we use a lenient threshold of < 3 significant decimals.
   const latDecimals = significantDecimals(lat);
   const lngDecimals = significantDecimals(lng);
-  if (latDecimals < 4 || lngDecimals < 4) {
+  if (latDecimals < 3 || lngDecimals < 3) {
     reasons.push("Coordinates appear manually entered (low precision)");
   }
 
