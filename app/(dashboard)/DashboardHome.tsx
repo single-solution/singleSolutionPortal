@@ -343,22 +343,22 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
           ) : (
             <p className="text-subhead">You have <span className="font-bold" style={{ color: "var(--amber)" }}>{pendingTasks}</span> tasks pending · <span className="font-bold" style={{ color: "var(--teal)" }}>{activeCampaigns}</span> active campaigns</p>
           )}
-        </div>
-      </motion.div>
+            </div>
+          </motion.div>
       <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="card group relative overflow-hidden p-4 sm:min-w-[220px] shrink-0">
         <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
         <p className="text-caption mb-1">Local time</p>
-        <AnimatePresence mode="wait">
-          <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
+              <AnimatePresence mode="wait">
+                <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
             <span className="text-title block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
-            <span className="text-caption">{formatClockDate(now)}</span>
-          </motion.div>
-        </AnimatePresence>
+                  <span className="text-caption">{formatClockDate(now)}</span>
+                </motion.div>
+              </AnimatePresence>
         <div className="mt-2 flex flex-wrap gap-1.5 text-[9px]">
           {pendingTasks > 0 && <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: "#f59e0b12", color: "#f59e0b" }}>{pendingTasks} new tasks</span>}
           {activeCampaigns > 0 && <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: "rgba(48,209,88,0.1)", color: "var(--teal)" }}>{activeCampaigns} campaigns</span>}
-        </div>
-      </motion.div>
+            </div>
+          </motion.div>
     </header>
   );
 }
@@ -384,7 +384,7 @@ function SelfOverviewCard({ pa, userProfile, user }: {
   const officePct = pa.officeMinutes + pa.remoteMinutes > 0 ? Math.round((pa.officeMinutes / (pa.officeMinutes + pa.remoteMinutes)) * 100) : 0;
   const remotePct = 100 - officePct;
 
-  return (
+                return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} className="card p-5 sm:p-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
         <div className="flex flex-col items-center gap-3 sm:items-start">
@@ -394,13 +394,13 @@ function SelfOverviewCard({ pa, userProfile, user }: {
             <div className="flex h-20 w-20 items-center justify-center rounded-full text-xl font-semibold text-white shadow-lg sm:h-24 sm:w-24 sm:text-2xl" style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}>{initials(profileName, profileLast)}</div>
           )}
           <span className="badge" style={{ background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}30` }}>{statusLabel}</span>
-        </div>
+                  </div>
         <div className="min-w-0 flex-1 space-y-4">
           <div>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>{profileName} {profileLast}</h2>
             <p className="text-subhead">{userProfile?.department ?? ROLE_DESIGNATION[user.role]}</p>
             <p className="text-caption mt-0.5">{user.email}</p>
-          </div>
+              </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="card-static rounded-xl p-3">
               <p className="text-caption">First entry</p>
@@ -409,22 +409,22 @@ function SelfOverviewCard({ pa, userProfile, user }: {
             <div className="card-static rounded-xl p-3">
               <p className="text-caption">Hours logged</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
-            </div>
+          </div>
             <div className="card-static col-span-2 rounded-xl p-3 sm:col-span-1">
               <p className="text-caption">Office / Remote</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(pa.officeMinutes)} / {formatMinutes(pa.remoteMinutes)}</p>
               <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-secondary)" }}>{officePct}% office · {remotePct}% remote</p>
-            </div>
-          </div>
+                    </div>
+                    </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Shift progress</span>
               <span className="text-caption tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes} / {shiftTarget} min ({shiftPct}%)</span>
-            </div>
+                  </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
               <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
             </div>
-          </div>
+      </div>
         </div>
       </div>
     </motion.div>
@@ -476,7 +476,7 @@ function TodayTimelineCard({ pa, tasks }: { pa: PersonalAttendance | null; tasks
           <span><span className="font-bold tabular-nums" style={{ color: "var(--amber)" }}>{pendingTasks.length}</span> pending</span>
           <span><span className="font-bold tabular-nums" style={{ color: "var(--primary)" }}>{inProgressTasks.length}</span> active</span>
           <span><span className="font-bold tabular-nums" style={{ color: "var(--teal)" }}>{completedTasks.length}</span> done</span>
-        </div>
+                </div>
         {pendingTasks.length > 0 && (
           <div className="space-y-1.5">
             {pendingTasks.slice(0, 4).map((task, ti) => (
@@ -491,7 +491,7 @@ function TodayTimelineCard({ pa, tasks }: { pa: PersonalAttendance | null; tasks
             <Link href="/tasks"><span className="text-callout font-semibold" style={{ color: "var(--primary)" }}>View all →</span></Link>
           </div>
         )}
-      </div>
+    </div>
     </motion.div>
   );
 }
@@ -553,7 +553,7 @@ function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx, onP
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               </motion.button>
             )}
-          </div>
+            </div>
           <p className="text-caption truncate">{emp.designation} · {emp.department}</p>
           {emp.reportsTo && (
             <p className="text-caption truncate flex items-center gap-1">
@@ -584,14 +584,14 @@ function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx, onP
               </>
             )}
           </div>
-        </div>
-      </div>
+            </div>
+            </div>
 
       {attendanceLoading ? (
         <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
           <span className="text-caption">Today</span>
           <Bone w="w-10" h="h-3" />
-        </div>
+            </div>
       ) : (
         <>
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
@@ -599,23 +599,23 @@ function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx, onP
               <span>{emp.firstEntry ? formatTimeStr(emp.firstEntry) : "—"}</span>
               <span>→</span>
               <span>{emp.isLive ? (emp.status === "remote" ? "Remote" : "Working") : emp.lastExit ? formatTimeStr(emp.lastExit) : (emp.status === "absent" ? "—" : "No exit")}</span>
-            </div>
-            <span className="text-subhead font-medium tabular-nums" style={{ color: "var(--fg-secondary)" }}>{formatMinutes(emp.todayMinutes)}</span>
           </div>
+            <span className="text-subhead font-medium tabular-nums" style={{ color: "var(--fg-secondary)" }}>{formatMinutes(emp.todayMinutes)}</span>
+        </div>
 
           <div className="flex flex-wrap gap-1 text-[9px]">
             {emp.officeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>Office {formatMinutes(emp.officeMinutes)}</span>}
             {emp.remoteMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>Remote {formatMinutes(emp.remoteMinutes)}</span>}
             {emp.lateBy > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>Late +{formatMinutes(emp.lateBy)}</span>}
             {overtimeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>OT +{formatMinutes(overtimeMinutes)}</span>}
-          </div>
+              </div>
 
           <div className="flex items-center gap-2">
             <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
               <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} style={{ background: overtimeMinutes > 0 ? "#8b5cf6" : "var(--primary)" }} />
             </div>
             <span className="text-caption tabular-nums font-semibold" style={{ color: "var(--fg-secondary)" }}>{shiftPct}%</span>
-          </div>
+              </div>
         </>
       )}
 
@@ -627,9 +627,9 @@ function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx, onP
             <span key={c._id} className="rounded-full px-1.5 py-0.5 font-medium truncate max-w-[100px]" style={{ background: "rgba(48,209,88,0.1)", color: "var(--teal)" }}>{c.name}</span>
           ))}
           {activeCamps.length > 2 && <span className="rounded-full px-1.5 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>+{activeCamps.length - 2}</span>}
-        </div>
+            </div>
       )}
-    </motion.div>
+          </motion.div>
   );
 }
 
@@ -658,8 +658,8 @@ function AdminStatCards({ otherEmps }: { otherEmps: PresenceEmployee[] }) {
               <p className="text-caption mt-1">{stat.caption}</p>
             </div>
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm" style={{ background: stat.gradient }}>{stat.icon}</div>
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
       ))}
     </motion.div>
   );
@@ -782,7 +782,7 @@ function AdminDashboard({
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} />
           <TodayTimelineCard pa={personalAttendance} tasks={tasks} />
-        </div>
+            </div>
       )}
 
       {/* 3. Campaigns (left) + Tasks (right) for admin/superadmin */}
@@ -806,11 +806,11 @@ function AdminDashboard({
                         {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
                         {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
                         <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
               </div>
+              </div>
+          </motion.div>
+        ))}
+            </div>
             </motion.section>
           )}
           {pendingTasks.length > 0 && (
@@ -820,12 +820,12 @@ function AdminDashboard({
                 <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
                   {pendingTasks.length} Pending
                 </motion.div>
-              </div>
+          </div>
               <div className="flex flex-col gap-3">
                 {pendingTasks.slice(0, 6).map((task, ti) => {
                   const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
                   const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
-                  return (
+                return (
                     <motion.div key={task._id} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 + ti * 0.06 }} whileHover={{ x: 5 }} className="flex items-start gap-3 cursor-pointer">
                       <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -836,18 +836,18 @@ function AdminDashboard({
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
                           <span className="text-caption rounded-md px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
-                        </div>
+                            </div>
                         <p className="text-caption line-clamp-1">{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"}{task.assignedTo ? ` · ${task.assignedTo.about?.firstName ?? ""} ${task.assignedTo.about?.lastName ?? ""}` : ""}</p>
-                      </div>
+                          </div>
                     </motion.div>
                   );
                 })}
-              </div>
+                      </div>
               <Link href="/tasks"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
             </motion.section>
           )}
-        </div>
-      )}
+                      </div>
+                    )}
 
       {/* 4. Team breakdown */}
       {teamBreakdown.length > 0 && (
@@ -856,18 +856,18 @@ function AdminDashboard({
             <h3 className="text-headline" style={{ color: "var(--fg)" }}>{isManager ? "Teams" : "My Teams"}</h3>
             {selectedTeamId && (
               <button type="button" onClick={() => setSelectedTeamId(null)} className="text-caption font-semibold" style={{ color: "var(--primary)" }}>Show All</button>
-            )}
-          </div>
+                      )}
+                    </div>
           <div className="divide-y divide-[var(--border)]">
             {teamBreakdown.map((tb) => {
               const isSelected = selectedTeamId === tb.team._id;
               return (
                 <button key={tb.team._id} type="button" onClick={() => setSelectedTeamId(isSelected ? null : tb.team._id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--hover-bg)] transition-colors ${isSelected ? "bg-[var(--primary-light)]" : ""}`}>
-                  <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1">
                     <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{tb.team.name}</p>
                     {tb.team.lead && <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Lead: {tb.team.lead.about.firstName} {tb.team.lead.about.lastName}</p>}
-                  </div>
+                    </div>
                   <div className="flex items-center gap-2.5 shrink-0 text-caption tabular-nums">
                     <span className="font-semibold" style={{ color: "#10b981" }}>{tb.live} live</span>
                     <span style={{ color: "var(--fg-secondary)" }}>{tb.present} in</span>
@@ -877,37 +877,37 @@ function AdminDashboard({
                 </button>
               );
             })}
-          </div>
-        </motion.div>
+                  </div>
+                </motion.div>
       )}
 
       {/* 5. Live Presence — employee cards */}
       <motion.section className="card relative overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>Team Status</h2>
             <span className="text-caption font-semibold" style={{ color: "#10b981" }}>{liveCount} live</span>
             <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
-            {selectedTeamId && (
+              {selectedTeamId && (
               <span className="badge" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{teams.find((t) => t._id === selectedTeamId)?.name ?? "Team"}</span>
-            )}
-          </div>
+              )}
+            </div>
           <LayoutGroup id="admin-presence-filter">
             <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
-              {PRESENCE_FILTER_ORDER.map((f) => {
-                const active = presenceFilter === f;
-                return (
+                {PRESENCE_FILTER_ORDER.map((f) => {
+                  const active = presenceFilter === f;
+                  return (
                   <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-3 py-1.5 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
                     {active && <motion.span layoutId="admin-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                     <span className="relative text-caption font-semibold">{PRESENCE_FILTER_LABELS[f]}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </LayoutGroup>
-        </div>
-        {filteredPresence.length > 0 ? (
+                    </button>
+                  );
+                })}
+              </div>
+            </LayoutGroup>
+          </div>
+          {filteredPresence.length > 0 ? (
           <motion.div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
             <AnimatePresence mode="popLayout">
               {filteredPresence.map((emp, idx) => (
@@ -922,15 +922,15 @@ function AdminDashboard({
                 />
               ))}
             </AnimatePresence>
-          </motion.div>
+            </motion.div>
         ) : presenceLoading ? (
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="shimmer h-44 rounded-xl" />)}
-          </div>
+        </div>
         ) : (
           <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
-        )}
-      </motion.section>
+          )}
+        </motion.section>
 
       {/* Ping toast */}
       <AnimatePresence>
@@ -940,8 +940,8 @@ function AdminDashboard({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               Pinged {pingSuccess}
             </p>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
       </AnimatePresence>
     </div>
   );
@@ -1028,7 +1028,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Single Solution Sync</p>
             <h1 className="text-title"><span style={{ color: "var(--primary)" }}>{getGreeting()}, {profileName}!</span></h1>
             <p className="text-subhead mt-1">You have {pendingTasks.length} tasks pending</p>
-          </motion.div>
+      </motion.div>
           <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col items-start gap-0.5 sm:items-end">
             <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Local time</span>
             <span className="text-headline tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
@@ -1048,12 +1048,12 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: "#10b981" }} />
                     </span>
                   )}
-                </div>
+            </div>
                 <div className="min-w-0">
                   <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Reports to</p>
                   <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{reportsToName}</p>
                   {mgrStatus && <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{ROLE_DESIGNATION[mgrStatus.userRole] ?? mgrStatus.userRole} · {mgrStatus.department}</p>}
-                </div>
+              </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {mgrLoading ? (
@@ -1072,14 +1072,14 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
                   Ping
                 </motion.button>
-              </div>
             </div>
+          </div>
 
             {/* Status details row */}
             {mgrLoading ? (
               <div className="flex gap-4">
                 <Bone w="w-20" h="h-4" /><Bone w="w-24" h="h-4" /><Bone w="w-16" h="h-4" />
-              </div>
+                </div>
             ) : mgrStatus && mgrStatus.status !== "absent" ? (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption" style={{ color: "var(--fg-secondary)" }}>
                 {mgrStatus.firstEntry && (
@@ -1110,7 +1110,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                     Left {new Date(mgrStatus.lastExit).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                   </span>
                 )}
-              </div>
+      </div>
             ) : mgrStatus?.status === "absent" ? (
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Not checked in today</p>
             ) : null}
@@ -1124,52 +1124,52 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         </div>
 
         {/* Weekly overview — horizontal scroll strip */}
-        {weeklyRecords.length > 0 && (
+      {weeklyRecords.length > 0 && (
           <section className="space-y-3">
             <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-section-header">Weekly overview</motion.h3>
             <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
-              {weeklyRecords.map((day, i) => {
-                const d = new Date(day.date + "T12:00:00");
-                const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
+            {weeklyRecords.map((day, i) => {
+              const d = new Date(day.date + "T12:00:00");
+              const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
                 const isToday = day.date === now.toISOString().slice(0, 10);
                 const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "#f59e0b" : "#10b981";
-                return (
+              return (
                   <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                       <span className="text-caption font-semibold" style={{ color: "var(--fg-secondary)" }}>{dayName}</span>
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
-                    </div>
+                  </div>
                     <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                    <span className="text-headline tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(day.totalMinutes)}</span>
-                  </motion.div>
-                );
-              })}
-            </div>
+                  <span className="text-headline tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(day.totalMinutes)}</span>
+                </motion.div>
+              );
+            })}
+          </div>
           </section>
-        )}
+      )}
 
         {/* Monthly summary */}
-        {ms && (
-          <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="card-static p-5 sm:p-6">
-            <h3 className="text-section-header mb-4">Monthly summary</h3>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <div className="card-static rounded-xl p-4">
-                <p className="text-caption">Present / Total</p>
-                <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
-              </div>
-              <div className="card-static rounded-xl p-4">
-                <p className="text-caption">On-time</p>
-                <p className="text-title mt-1 text-[var(--primary)]"><AnimatedNumber value={ms.onTimePercentage} suffix="%" /></p>
-              </div>
-              <div className="card-static rounded-xl p-4">
-                <p className="text-caption">Avg. daily hours</p>
-                <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.averageDailyHours} suffix="h" /></p>
-              </div>
-              <div className="card-static rounded-xl p-4">
-                <p className="text-caption">Total hours</p>
-                <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.totalWorkingHours} suffix="h" /></p>
-              </div>
+      {ms && (
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="card-static p-5 sm:p-6">
+          <h3 className="text-section-header mb-4">Monthly summary</h3>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Present / Total</p>
+              <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
             </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">On-time</p>
+                <p className="text-title mt-1 text-[var(--primary)]"><AnimatedNumber value={ms.onTimePercentage} suffix="%" /></p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Avg. daily hours</p>
+                <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.averageDailyHours} suffix="h" /></p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Total hours</p>
+                <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.totalWorkingHours} suffix="h" /></p>
+            </div>
+          </div>
             <div className="mt-6 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Office vs remote (hours)</span>
@@ -1182,10 +1182,10 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               <div className="flex justify-between text-caption" style={{ color: "var(--fg-tertiary)" }}>
                 <span>Office {monthlyOfficePct.toFixed(0)}%</span>
                 <span>Remote {monthlyRemotePct.toFixed(0)}%</span>
-              </div>
             </div>
-          </motion.section>
-        )}
+            </div>
+        </motion.section>
+      )}
       </div>
 
       {/* Ping success toast */}
@@ -1196,10 +1196,10 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               Pinged {pingSuccess}
             </p>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
       </AnimatePresence>
-    </div>
+        </div>
   );
 }
 
@@ -1287,8 +1287,8 @@ export default function DashboardHome({ user }: { user: User }) {
         const res = await fetch("/api/attendance/presence");
         if (res.ok) {
           const presRes = await res.json();
-          parsePresence(presRes);
-        }
+        parsePresence(presRes);
+      }
       }
       if (!isSuperAdmin) await fetchTodayDetail();
     } catch { /* silent */ }
@@ -1473,7 +1473,7 @@ export default function DashboardHome({ user }: { user: User }) {
   }, [realPresence, employees]);
 
   if (user.role === "superadmin" || user.role === "manager" || user.role === "teamLead") {
-    return (
+      return (
       <AdminDashboard
         user={user}
         presenceEmps={presenceEmps}

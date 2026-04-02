@@ -74,14 +74,19 @@ export function validateLocation(
     reasons.push("GPS accuracy is zero (mock GPS signature)");
   }
 
-  // Layer 2 — Teleportation (impossible speed between heartbeats)
+  // Layer 2 — Teleportation (impossible jump between heartbeats)
   // Only checked within an active session. Sleep/wake creates a new
   // session, so location jumps from office→home don't trigger this.
+  //
+  // Laptop Wi-Fi triangulation can "jump" 1–3 km when visible access
+  // points change (floor change, AP handoff, VPN toggle). We require
+  // BOTH a large distance (> 10 km) AND high speed (> 200 km/h) to
+  // filter out Wi-Fi positioning noise.
   if (prevLat != null && prevLng != null && prevTime) {
     const distMeters = haversineMeters(prevLat, prevLng, lat, lng);
     const elapsedSec = Math.max(1, (now.getTime() - prevTime.getTime()) / 1000);
     const speedMs = distMeters / elapsedSec;
-    if (speedMs > 55) {
+    if (distMeters > 10_000 && speedMs > 55) {
       reasons.push("Impossible location jump detected");
     }
   }

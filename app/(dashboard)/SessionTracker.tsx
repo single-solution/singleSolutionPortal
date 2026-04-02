@@ -343,10 +343,24 @@ export default function SessionTracker() {
   useEffect(() => {
     async function handleVisibility() {
       if (document.hidden) {
-        // Going hidden (lid close, tab switch, minimize).
-        // Do NOT send a heartbeat here — it would push lastActivity forward
-        // and delay the stale detection that lets the dashboard know this
-        // device is asleep. The last real heartbeat's timestamp is enough.
+        // Going hidden (OS user switch, tab switch, minimize):
+        // fire one last heartbeat to push lastActivity forward
+        if (modeRef.current === "active" && checkedInRef.current) {
+          const coords = lastCoordsRef.current;
+          try {
+            await fetch("/api/attendance/session", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: coords?.lat,
+                longitude: coords?.lng,
+                accuracy: undefined,
+              }),
+            });
+          } catch {
+            /* best-effort */
+          }
+        }
       } else {
         // Becoming visible again (switching back to this OS user/tab):
         // immediately re-check session instead of waiting for next interval

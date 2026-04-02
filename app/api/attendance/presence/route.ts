@@ -58,7 +58,7 @@ export async function GET() {
     date: today,
   }).lean();
 
-  const STALE_MS = 90 * 1000; // 90 seconds — 3 missed heartbeats means device is asleep
+  const STALE_MS = 3 * 60 * 1000;
   const nowMs = Date.now();
 
   const activeMap = new Map(activeSessions.map((s) => [s.user.toString(), s]));

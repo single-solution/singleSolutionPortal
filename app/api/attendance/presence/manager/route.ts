@@ -32,7 +32,7 @@ export async function GET() {
 
   const today = startOfDay(new Date());
   const nowMs = Date.now();
-  const STALE_MS = 90 * 1000; // 90 seconds — 3 missed heartbeats means device is asleep
+  const STALE_MS = 3 * 60 * 1000;
 
   const active = await ActivitySession.findOne({
     user: managerId,
