@@ -73,11 +73,12 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Sleep/suspend recovery**: When the laptop lid is closed (device sleeps), heartbeats stop. On wake, the first heartbeat detects the stale gap (> 3 min since last activity), the server auto-closes the old session at the last heartbeat timestamp, and the client creates a fresh session. The timer resets to count from the new check-in — no inflated hours from sleep time. The client also tracks wall-clock time between heartbeats to detect sleep gaps even when `visibilitychange` doesn't fire (common in installed PWAs)
 - Idle/Away: visibility-aware detection — tab hidden (user in another app) keeps timer running; tab visible + 1hr no interaction triggers 3 nudge toasts (5min apart), then pauses timer with full-screen "Stepped Away" overlay
 
-**Fake location detection (4-layer anti-spoofing):**
-- **Layer 1 — Accuracy zero**: Fake GPS extensions report accuracy as exactly `0`. Real GPS always reports accuracy > 0 (typically 5–65 m). Only flags when accuracy is exactly zero — low accuracy (1–3 m) is valid on modern dual-frequency GPS chips
-- **Layer 2 — Teleportation**: Compares haversine distance between consecutive heartbeats against elapsed time. Flags if implied speed exceeds 200 km/h (~55 m/s)
-- **Layer 3 — Zero variance**: Real GPS always has micro-drift even when stationary. Flags when coordinates are byte-identical across 8+ consecutive heartbeats (~4 minutes). Tolerates shorter runs because browser GPS caching (`maximumAge: 30s`) naturally produces repeated coordinates
-- **Layer 4 — Round coordinates**: Flags coordinates with fewer than 3 significant decimal digits (catches crude manual entries like `31.47, 74.26`). Lenient threshold accounts for JavaScript's `Number.toString()` stripping trailing zeros
+**Fake location detection (laptop-optimized anti-spoofing):**
+- Designed for **laptop geolocation** (Wi-Fi triangulation / IP geolocation), not phone GPS. Mobile tracking is disabled
+- **Layer 1 — Accuracy zero**: Fake GPS extensions report accuracy as exactly `0`. Real Wi-Fi triangulation on laptops reports 20–200 m. Only flags when accuracy is exactly zero
+- **Layer 2 — Teleportation**: Compares haversine distance between consecutive heartbeats against elapsed time. Flags if implied speed exceeds 200 km/h (~55 m/s). Only fires within an active session — sleep/wake creates a new session so office→home jumps don't trigger it
+- **Layer 3 — Zero variance**: **Disabled**. Wi-Fi positioning returns the exact same coordinates as long as the same networks are visible. An employee at their desk gets byte-identical coords all day. This layer was designed for phone GPS micro-drift and is incompatible with laptop geolocation
+- **Layer 4 — Round coordinates**: Flags coordinates with fewer than 2 significant decimal digits (catches crude manual entries like `31.5, 74.3`). Lenient threshold accounts for Wi-Fi triangulation precision
 - When flagged: timer pauses, heartbeat stops, red warning pill + full-screen overlay with reason text. Employee can click "Re-check Location" to trigger an immediate fresh geo reading — if clean, timer resumes automatically
 - Flag state persisted on `ActivitySession.location` (flagReason, flaggedAt, consecutiveIdentical) and returned in both GET and PATCH responses — visible to managers/admins on the dashboard presence cards
 - Does not ban or lock out — pauses and warns, letting employees self-correct. SuperAdmin exempt

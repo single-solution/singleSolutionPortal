@@ -67,13 +67,16 @@ export function validateLocation(
   const reasons: string[] = [];
 
   // Layer 1 — Accuracy anomaly
-  // Fake GPS extensions typically report accuracy as exactly 0 or omit it.
-  // Real GPS (even high-end dual-frequency) always reports > 0.
+  // Fake GPS extensions report accuracy as exactly 0.
+  // Real geolocation (Wi-Fi triangulation on laptops, GPS on phones)
+  // always reports > 0. Laptops typically report 20–200 m via Wi-Fi.
   if (accuracy != null && accuracy === 0) {
     reasons.push("GPS accuracy is zero (mock GPS signature)");
   }
 
   // Layer 2 — Teleportation (impossible speed between heartbeats)
+  // Only checked within an active session. Sleep/wake creates a new
+  // session, so location jumps from office→home don't trigger this.
   if (prevLat != null && prevLng != null && prevTime) {
     const distMeters = haversineMeters(prevLat, prevLng, lat, lng);
     const elapsedSec = Math.max(1, (now.getTime() - prevTime.getTime()) / 1000);
@@ -83,21 +86,20 @@ export function validateLocation(
     }
   }
 
-  // Layer 3 — Zero variance (identical coords across many heartbeats)
-  // Browser GPS caching (maximumAge: 30s) makes 3-5 identical readings normal
-  // when stationary. Only flag at 8+ which is ~4 minutes of zero drift — real
-  // GPS always has micro-drift even when sitting still.
-  if (consecutiveIdentical >= 8) {
-    reasons.push("Location has not changed across multiple readings");
-  }
+  // Layer 3 — Zero variance: DISABLED for laptop-based tracking.
+  // Laptops use Wi-Fi triangulation (not satellite GPS), which returns
+  // the exact same coordinates as long as the same Wi-Fi networks are
+  // visible. An employee at their desk will get byte-identical coords
+  // for their entire workday. This layer was designed for phone GPS
+  // micro-drift and is incompatible with laptop geolocation.
+  // (consecutiveIdentical param kept for API compatibility but ignored)
 
   // Layer 4 — Round / low-precision coordinates
-  // Real GPS provides 6-8 raw decimal places. Manually entered or crude mocks
-  // have 1-2 decimals (e.g. 31.47). JavaScript toString() already strips
-  // trailing zeros, so we use a lenient threshold of < 3 significant decimals.
+  // Wi-Fi triangulation on laptops typically gives 4-6 decimal places.
+  // Only flag at < 2 to catch truly crude spoofs like "31.5, 74.3".
   const latDecimals = significantDecimals(lat);
   const lngDecimals = significantDecimals(lng);
-  if (latDecimals < 3 || lngDecimals < 3) {
+  if (latDecimals < 2 || lngDecimals < 2) {
     reasons.push("Coordinates appear manually entered (low precision)");
   }
 
