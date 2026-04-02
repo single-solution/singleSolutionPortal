@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { sidebarContent } from "@/lib/motion";
+import { Portal } from "@/app/(dashboard)/components/Portal";
 
 interface SidebarModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export default function SidebarModal({
   }, [open, onClose]);
 
   return (
+    <Portal>
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[60] flex justify-end">
@@ -98,5 +100,6 @@ export default function SidebarModal({
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Portal } from "./components/Portal";
 
 type DeviceMode = "active" | "readonly" | "booting";
 
@@ -552,7 +553,7 @@ export default function SessionTracker() {
   const currentMinutes = isActive ? Math.floor(elapsed / 60000) : 0;
   const todayTotal = session.todayMinutes + currentMinutes;
 
-  return (
+  const overlays = (
     <>
       {/* Nudge toast (still working, gentle reminder) */}
       <AnimatePresence>
@@ -702,6 +703,12 @@ export default function SessionTracker() {
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+
+  return (
+    <>
+      <Portal>{overlays}</Portal>
 
       {/* Timer pill */}
     <AnimatePresence>
