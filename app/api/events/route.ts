@@ -15,6 +15,7 @@ const ALL_CHANNELS: Channel[] = [
   "campaigns",
   "activity",
   "settings",
+  "ping",
 ];
 
 export async function GET() {

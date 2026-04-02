@@ -103,9 +103,11 @@ export async function GET() {
 
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const e = emp as any;
-    const rt = e.reportsTo?.about
-      ? `${e.reportsTo.about.firstName ?? ""} ${e.reportsTo.about.lastName ?? ""}`.trim() || null
+    const rtObj = e.reportsTo;
+    const rt = rtObj?.about
+      ? `${rtObj.about.firstName ?? ""} ${rtObj.about.lastName ?? ""}`.trim() || null
       : null;
+    const rtId = rtObj?._id ? String(rtObj._id) : null;
 
     return {
       _id: id,
@@ -115,6 +117,7 @@ export async function GET() {
       userRole: emp.userRole,
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
       reportsTo: rt,
+      reportsToId: rtId,
       status,
       todayMinutes,
       officeMinutes: daily?.officeMinutes ?? 0,

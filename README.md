@@ -237,6 +237,25 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - "Install App" prompt (hidden when already in standalone mode)
 - `sendBeacon` for best-effort check-out on tab/browser close
 
+### Hierarchy Ping System
+
+Real-time peer-to-peer pinging within your reporting chain. Everyone can ping people in their hierarchy pool:
+
+- **SuperAdmin** can ping anyone in the organization
+- **Manager** can ping anyone in their department
+- **Team Lead** can ping their team members and their direct manager
+- **Employee** can ping their manager/lead and same-team members
+
+**Architecture:**
+- `Ping` model: `from`, `to`, `message` (280 char), `read`, `createdAt`
+- `POST /api/ping` — send a ping (pool validation enforced server-side)
+- `GET /api/ping` — inbox with unread count
+- `PATCH /api/ping` — mark pings as read (individual or all)
+- Real-time delivery via SSE `ping` channel on EventBus
+- Ping icon in header with unread badge and dropdown inbox
+- Each employee card on the dashboard shows who they report to and a quick-ping button
+- Non-admin roles see a "Reports to" card with a one-tap ping button on their dashboard
+
 ### Dashboard (Real-Time)
 
 The dashboard is **fully real-time** — no manual refresh needed. Data updates are silent (no loading spinners or skeleton flashes during updates).

@@ -96,6 +96,7 @@ interface PresenceEmployee {
   designation: string;
   department: string;
   reportsTo: string | null;
+  reportsToId: string | null;
   status: PresenceStatus;
   todayMinutes: number;
   officeMinutes: number;
@@ -161,6 +162,7 @@ interface UserProfile {
   department?: string;
   designation: string;
   workShift?: { type: string; start: string; end: string; breakTime: number };
+  reportsTo?: { _id: string; about: { firstName: string; lastName: string } } | null;
 }
 
 /* ──────────────────────── CONSTANTS ──────────────────────── */
@@ -502,12 +504,13 @@ function Bone({ w = "w-10", h = "h-3" }: { w?: string; h?: string }) {
 
 /* ──────────────────────── PRESENCE EMPLOYEE CARD ──────────────────────── */
 
-function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx }: {
+function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx, onPing }: {
   emp: PresenceEmployee;
   empTasks: ApiTask[];
   empCampaigns: ApiCampaign[];
   attendanceLoading?: boolean;
   idx?: number;
+  onPing?: (toId: string, toName: string) => void;
 }) {
   const pendingTasks = empTasks.filter((t) => t.status === "pending");
   const inProgressTasks = empTasks.filter((t) => t.status === "inProgress");
@@ -543,9 +546,21 @@ function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx }: {
           {initials(emp.firstName, emp.lastName)}
         </motion.div>
         <div className="min-w-0 flex-1">
-          <p className="text-callout truncate font-semibold" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-callout truncate font-semibold" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p>
+            {onPing && (
+              <motion.button type="button" whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); onPing(emp._id, `${emp.firstName} ${emp.lastName}`); }} title={`Ping ${emp.firstName}`} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors" style={{ color: "var(--primary)" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              </motion.button>
+            )}
+          </div>
           <p className="text-caption truncate">{emp.designation} · {emp.department}</p>
-          {emp.email && <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.email}{emp.reportsTo ? ` · ${emp.reportsTo}` : ""}</p>}
+          {emp.reportsTo && (
+            <p className="text-caption truncate flex items-center gap-1">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
+              <span style={{ color: "var(--fg-tertiary)" }}>Reports to <span className="font-medium" style={{ color: "var(--fg-secondary)" }}>{emp.reportsTo}</span></span>
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {attendanceLoading ? (
               <Bone w="w-16" h="h-4" />
@@ -739,6 +754,22 @@ function AdminDashboard({
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const liveCount = otherEmps.filter((e) => e.isLive).length;
 
+  const [pingSending, setPingSending] = useState<string | null>(null);
+  const [pingSuccess, setPingSuccess] = useState<string | null>(null);
+
+  const handlePing = useCallback(async (toId: string, toName: string) => {
+    if (pingSending) return;
+    setPingSending(toId);
+    try {
+      const res = await fetch("/api/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: toId }) });
+      if (res.ok) {
+        setPingSuccess(toName);
+        setTimeout(() => setPingSuccess(null), 2500);
+      }
+    } catch { /* ignore */ }
+    setPingSending(null);
+  }, [pingSending]);
+
   return (
     <div className="flex flex-col gap-5">
       {/* 1. Welcome header */}
@@ -887,6 +918,7 @@ function AdminDashboard({
                   empCampaigns={campaignsByEmployee.get(emp._id) ?? []}
                   attendanceLoading={presenceLoading}
                   idx={idx}
+                  onPing={handlePing}
                 />
               ))}
             </AnimatePresence>
@@ -899,6 +931,18 @@ function AdminDashboard({
           <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
         )}
       </motion.section>
+
+      {/* Ping toast */}
+      <AnimatePresence>
+        {pingSuccess && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl px-5 py-3 shadow-lg" style={{ background: "var(--primary)", color: "#fff" }}>
+            <p className="text-callout font-semibold flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              Pinged {pingSuccess}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -912,6 +956,27 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(id); }, []);
+
+  const reportsToName = userProfile?.reportsTo?.about
+    ? `${userProfile.reportsTo.about.firstName} ${userProfile.reportsTo.about.lastName}`.trim()
+    : null;
+  const reportsToId = userProfile?.reportsTo?._id ?? null;
+
+  const [pingSending, setPingSending] = useState(false);
+  const [pingSuccess, setPingSuccess] = useState<string | null>(null);
+
+  const handlePingManager = useCallback(async () => {
+    if (!reportsToId || pingSending) return;
+    setPingSending(true);
+    try {
+      const res = await fetch("/api/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: reportsToId }) });
+      if (res.ok) {
+        setPingSuccess(reportsToName ?? "Manager");
+        setTimeout(() => setPingSuccess(null), 2500);
+      }
+    } catch { /* ignore */ }
+    setPingSending(false);
+  }, [reportsToId, reportsToName, pingSending]);
 
   const monthlyOfficePct = ms && (ms.totalOfficeHours + ms.totalRemoteHours > 0) ? (ms.totalOfficeHours / (ms.totalOfficeHours + ms.totalRemoteHours)) * 100 : 0;
   const monthlyRemotePct = 100 - monthlyOfficePct;
@@ -932,6 +997,23 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             <span className="text-caption">{formatClockDate(now)}</span>
           </motion.div>
         </header>
+
+        {/* Reports-to card — shows who you report to with ping */}
+        {reportsToName && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card-static flex items-center gap-3 rounded-xl px-4 py-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Reports to</p>
+              <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{reportsToName}</p>
+            </div>
+            <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handlePingManager} disabled={pingSending} className="btn btn-sm flex items-center gap-1.5" style={{ background: "var(--primary)", color: "#fff", opacity: pingSending ? 0.5 : 1 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              Ping
+            </motion.button>
+          </motion.div>
+        )}
 
         {/* Self overview + Activity timeline */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -1003,6 +1085,18 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           </motion.section>
         )}
       </div>
+
+      {/* Ping success toast */}
+      <AnimatePresence>
+        {pingSuccess && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl px-5 py-3 shadow-lg" style={{ background: "var(--primary)", color: "#fff" }}>
+            <p className="text-callout font-semibold flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              Pinged {pingSuccess}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1041,6 +1135,7 @@ export default function DashboardHome({ user }: { user: User }) {
         designation: ROLE_DESIGNATION[p.userRole] ?? p.userRole,
         department: p.department,
         reportsTo: p.reportsTo ?? null,
+        reportsToId: p.reportsToId ?? null,
         status: p.status as PresenceStatus,
         todayMinutes: p.todayMinutes,
         officeMinutes: p.officeMinutes ?? 0,
@@ -1248,6 +1343,7 @@ export default function DashboardHome({ user }: { user: User }) {
       designation: ROLE_DESIGNATION[e.userRole] ?? e.userRole,
       department: (e.department as { title?: string })?.title ?? "Unassigned",
       reportsTo: null,
+      reportsToId: null,
       status: "absent" as PresenceStatus,
       todayMinutes: 0,
       officeMinutes: 0,

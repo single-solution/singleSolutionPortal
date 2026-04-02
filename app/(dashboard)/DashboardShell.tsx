@@ -137,6 +137,24 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const themeRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  /* ── Ping inbox state ── */
+  const [pingsOpen, setPingsOpen] = useState(false);
+  const [pings, setPings] = useState<{ _id: string; from: { about: { firstName: string; lastName: string }; userRole?: string }; message: string; read: boolean; createdAt: string }[]>([]);
+  const [pingUnread, setPingUnread] = useState(0);
+  const pingRef = useRef<HTMLDivElement>(null);
+
+  const fetchPings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ping");
+      if (!res.ok) return;
+      const data = await res.json();
+      setPings(data.pings ?? []);
+      setPingUnread(data.unreadCount ?? 0);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { fetchPings(); }, [fetchPings]);
+
   const fetchLogs = useCallback(async () => {
     try {
       const [logsRes, seenRes] = await Promise.all([
@@ -165,7 +183,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
   useEventStream(
-    useMemo(() => ({ activity: fetchLogs }), [fetchLogs]),
+    useMemo(() => ({ activity: fetchLogs, ping: fetchPings }), [fetchLogs, fetchPings]),
   );
 
   useEffect(() => {
@@ -217,6 +235,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       const t = e.target as Node;
       if (themeRef.current && !themeRef.current.contains(t)) setThemeOpen(false);
       if (notifRef.current && !notifRef.current.contains(t)) setNotificationsOpen(false);
+      if (pingRef.current && !pingRef.current.contains(t)) setPingsOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -324,7 +343,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             <div className="relative" ref={themeRef}>
               <button
                 type="button"
-                onClick={() => { setThemeOpen((o) => !o); setNotificationsOpen(false); }}
+                onClick={() => { setThemeOpen((o) => !o); setNotificationsOpen(false); setPingsOpen(false); }}
                 className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
                 aria-label="Theme"
               >
@@ -361,6 +380,79 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
               </AnimatePresence>
             </div>
 
+            {/* Ping inbox */}
+            <div className="relative" ref={pingRef}>
+              <button
+                type="button"
+                onClick={() => { setPingsOpen((o) => !o); setNotificationsOpen(false); setThemeOpen(false); }}
+                className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
+                aria-label="Pings"
+              >
+                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+                {pingUnread > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white notif-badge-pulse" style={{ background: "var(--primary)" }}>
+                    {pingUnread > 9 ? "9+" : pingUnread}
+                  </span>
+                )}
+              </button>
+              <AnimatePresence>
+                {pingsOpen && (
+                  <motion.div
+                    className="card-static absolute right-0 top-full z-40 mt-2 w-[min(calc(100vw-2rem),22rem)] overflow-hidden"
+                    style={{ background: "var(--bg-elevated)" }}
+                    variants={notifPanelVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                  >
+                    <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
+                      <span className="text-headline text-sm">Pings</span>
+                      {pingUnread > 0 && (
+                        <button
+                          type="button"
+                          className="text-footnote font-medium"
+                          style={{ color: "var(--primary)" }}
+                          onClick={async () => {
+                            await fetch("/api/ping", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) }).catch(() => {});
+                            setPingUnread(0);
+                            setPings((prev) => prev.map((p) => ({ ...p, read: true })));
+                          }}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-[min(60vh,380px)] overflow-y-auto divide-y divide-[var(--border)]">
+                      {pings.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No pings yet</div>
+                      ) : pings.map((ping) => {
+                        const senderName = ping.from?.about ? `${ping.from.about.firstName} ${ping.from.about.lastName}`.trim() : "Unknown";
+                        return (
+                          <div key={ping._id} className="px-3 py-2.5 transition-colors" style={{ opacity: ping.read ? 0.5 : 1, background: "transparent" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--hover-bg)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+                            <div className="flex items-start gap-2.5">
+                              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium leading-snug" style={{ color: "var(--fg)" }}>
+                                  <span className="font-semibold">{senderName}</span> pinged you
+                                </p>
+                                {ping.message && <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "var(--fg-secondary)" }}>{ping.message}</p>}
+                                <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(ping.createdAt)}</p>
+                              </div>
+                              {!ping.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Notification bell */}
               <div className="relative" ref={notifRef}>
                 <button
@@ -369,6 +461,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                   const wasOpen = notificationsOpen;
                   setNotificationsOpen((o) => !o);
                   setThemeOpen(false);
+                  setPingsOpen(false);
                   if (!wasOpen && logs.length > 0) {
                     setUnseenCount(0);
                     fetch("/api/user/last-seen", {

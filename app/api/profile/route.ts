@@ -17,6 +17,7 @@ export async function GET() {
   const user = await User.findById(actor.id)
     .select("-password")
     .populate("department", "title slug")
+    .populate("reportsTo", "about.firstName about.lastName")
     .lean();
 
   if (!user) return notFound("User not found");

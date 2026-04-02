@@ -8,7 +8,8 @@ export type Channel =
   | "teams"
   | "campaigns"
   | "activity"
-  | "settings";
+  | "settings"
+  | "ping";
 
 export interface IEventBus {
   _id: string;
@@ -20,6 +21,7 @@ export interface IEventBus {
   campaigns: Date;
   activity: Date;
   settings: Date;
+  ping: Date;
 }
 
 const eventBusSchema = new Schema<IEventBus>(
@@ -33,6 +35,7 @@ const eventBusSchema = new Schema<IEventBus>(
     campaigns: { type: Date, default: () => new Date() },
     activity: { type: Date, default: () => new Date() },
     settings: { type: Date, default: () => new Date() },
+    ping: { type: Date, default: () => new Date() },
   },
   { timestamps: false, versionKey: false },
 );
