@@ -1284,8 +1284,11 @@ export default function DashboardHome({ user }: { user: User }) {
   const fetchLive = useCallback(async () => {
     try {
       if (isAdminRole) {
-        const presRes = await fetch("/api/attendance/presence").then((r) => r.ok ? r.json() : []);
-        parsePresence(presRes);
+        const res = await fetch("/api/attendance/presence");
+        if (res.ok) {
+          const presRes = await res.json();
+          parsePresence(presRes);
+        }
       }
       if (!isSuperAdmin) await fetchTodayDetail();
     } catch { /* silent */ }
@@ -1411,11 +1414,16 @@ export default function DashboardHome({ user }: { user: User }) {
 
   /* ── Initial load ── */
   useEffect(() => {
-    Promise.all([fetchFull(), fetchLive()]).finally(() => {
+    Promise.all([fetchFull(), fetchLive()]).then(() => {
+      if (isAdminRole && !realPresence) {
+        setTimeout(fetchLive, 1500);
+      }
+    }).finally(() => {
       setLoading(false);
       initialDone.current = true;
     });
-  }, [fetchFull, fetchLive]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── Event-driven updates via SSE (replaces polling) ── */
   useEventStream(
