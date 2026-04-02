@@ -66,13 +66,14 @@ function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null
         accuracy: pos.coords.accuracy,
       }),
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
     );
   });
 }
 
 export default function SessionTracker() {
   const { data: authSession } = useSession();
+  const isSuperAdmin = authSession?.user?.role === "superadmin";
   const showCoords = authSession?.user?.showCoordinates ?? false;
   const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -161,10 +162,11 @@ export default function SessionTracker() {
         });
         const data = await res.json();
         if (res.ok) {
+          if (!data.session) return false;
           setSession({
             active: true,
-            inOffice: data.session?.inOffice ?? false,
-            startTime: data.session?.startTime ?? new Date().toISOString(),
+            inOffice: data.session.inOffice ?? false,
+            startTime: data.session.startTime ?? new Date().toISOString(),
             todayMinutes: data.todayMinutes ?? 0,
             isStale: false,
             locationFlagged: data.locationFlagged ?? false,
@@ -218,17 +220,15 @@ export default function SessionTracker() {
           }
           return;
         }
-        if (data.transitioned) {
-          setSession((s) => ({ ...s, inOffice: data.inOffice }));
-        }
-        // Handle location flag from server
-        if (data.locationFlagged != null) {
-          setSession((s) => ({
-            ...s,
+        // Always sync location status + flag from server on every heartbeat
+        setSession((s) => ({
+          ...s,
+          ...(data.inOffice != null ? { inOffice: data.inOffice } : {}),
+          ...(data.locationFlagged != null ? {
             locationFlagged: data.locationFlagged,
             flagReason: data.flagReasons?.join("; ") ?? s.flagReason,
-          }));
-        }
+          } : {}),
+        }));
       } catch {
         /* network fail — skip this beat, retry next */
       }
@@ -264,6 +264,7 @@ export default function SessionTracker() {
 
   // ─── Init on mount ────────────────────────────────────────────
   useEffect(() => {
+    if (isSuperAdmin) return;
     isMobileRef.current = detectMobile();
 
     async function init() {
@@ -513,7 +514,7 @@ export default function SessionTracker() {
   }, [mode, idle, startHeartbeat, clearNudges, scheduleNudge]);
 
   // ─── Render ───────────────────────────────────────────────────
-  if (mode === "booting") return null;
+  if (isSuperAdmin || mode === "booting") return null;
 
   const isActive = session.active && !session.isStale;
   const isReadonly = mode === "readonly";
