@@ -185,7 +185,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Performance-first route transitions**: `AnimatePresence mode="wait"` with opacity + scale(0.985→1) + translateY (all GPU-compositable, no filter:blur). Prevents dual-page rendering during route changes
 - **SSE event bus**: `EventBus` MongoDB model (single document tracking per-channel timestamps), `notifyChange()` utility (called from `logActivity` + attendance routes), `/api/events` SSE endpoint (4s server poll, pushes only diffs), `useEventStream` React hook (auto-connects, pauses on tab hide, auto-reconnects). Replaces all dashboard and notification polling — data fetched only when server confirms a change
 - **`useQuery` client cache**: module-level `Map<string, CacheEntry>` with shared SSE singleton. On mount: returns cached data instantly (no loading flash), revalidates in background if stale. On SSE `change` event: marks channel stale, triggers refetch. `loading` only true on first-ever fetch — perfect for skeleton display. Navigation between cached pages is instant. Sparse dropdown endpoint (`/api/employees/dropdown`) for lightweight employee lists in forms
-- **Dashboard GPU reduction**: `AnimatedNumber` only runs rAF on initial mount, subsequent updates are instant. `backdrop-filter` removed from all 3 dashboard role headers. Infinite Framer Motion `boxShadow` loops on N employee avatars replaced with CSS `pulse-ring-*` classes. `animate-ping` replaced with CSS `.live-dot` class
+- **Dashboard GPU reduction**: All dashboard views use table-based presence lists and compact KPI strips (no gradient stat cards, no donut charts, no avatar gradient circles). `AnimatedNumber` only runs rAF on initial mount. `backdrop-filter` removed from dashboard headers. CSS `pulse-ring-*` and `.live-dot` classes replace JS animations
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
 - **Route-level `loading.tsx`**: every CRUD route has a dedicated `loading.tsx` file with pixel-perfect shimmer skeletons matching actual card layouts (avatar circles, badge pills, action button positions, grid columns). Next.js shows these instantly on navigation before the page component mounts. Loaded content fades in via `contentReveal` variant (opacity + translateY transition) for a smooth skeleton-to-content crossfade — no hard swap
@@ -241,34 +241,30 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 - **Live indicator**: Pulsing green "LIVE" badge on all dashboard headers to show real-time status
 
 **SuperAdmin:**
-- Greeting header with live clock card (local time + date) + LIVE badge
-- KPI cards: total employees, in office, late today, absent today
-- Live Presence board: employee cards with animated status rings, department line, today's minutes
-- Attendance Overview donut chart + Department Summary progress bars
-- Checklist with assignee names, deadlines, and priority icons
+- Compact greeting header with pending task count, date, time, and LIVE badge — no oversized cards
+- **KPI strip**: single horizontal row showing Total, Office, Remote, Late, Overtime, Absent counts — replaces 4 separate stat cards
+- **Live Presence table**: dense sortable table (Name, Department, Status pill, Hours, Late-by) replacing large employee cards — scrollable with all employees visible at once
+- **3-column bottom row**: Attendance breakdown (text rows, no donut chart), Department summary (name + employee count), Pending tasks (up to 6, priority dots, assignee, deadline) — all in one compact grid
 
 **Manager / Team Lead:**
-- Compact header: greeting + LIVE badge + personal stats glass pills (today hours, on-time/late, sessions, avg/day)
-- KPI cards: Department/My Team count, Present Today, On-Time Rate (3 columns)
-- **Team Breakdown**: clickable team cards showing team name, lead avatar/name, present/absent/late counts, attendance progress bar, member status dots. Manager sees all department teams + "Unassigned" group; Team Lead sees only their teams. Clicking a team filters the Live Presence grid below.
-- Live Presence board with filter toggles (All / Office / Remote / Late / Absent) + optional team filter + fixed-height scrollable grid. Shows active team filter badge when a team is selected.
-- **Late Arrivals** list: employees who arrived late today, sorted by severity, with `lateBy` duration
-- **Team Attendance Trend** bar chart: last 5 working days present count (new `/api/attendance/trend` endpoint)
-- **Task Status** breakdown: total / pending / in-progress / completed counts with animated stacked progress bar
-- **Office vs Remote** donut chart: live split of in-office vs remote employees with percentage and absent count
-- **Top Workers Today**: leaderboard of employees by hours logged, with animated progress bars and medal icons
-- **Active Campaigns**: running campaigns tagged to the manager's scope, with department/team tag pills
-- Attendance Overview donut + Checklist side-by-side (2-column grid)
+- Compact header with personal stats inline (today hours, on-time/late, sessions, check-in time)
+- **KPI strip**: single row — Department/Team size, Present, Late, Absent, On-Time %
+- **Team breakdown table**: clickable rows showing team name, lead, present/absent/late counts — replaces gradient avatar cards. Clicking filters the presence table below.
+- **Live Presence table** with filter toggles (All / Office / Remote / Late / Absent) + optional team filter — dense table format matching SuperAdmin
+- **Late Arrivals**: compact name + late-by rows
+- **Attendance Trend**: last 5 working days bar chart
+- **Task Status strip**: single row (Total, Pending, In Progress, Completed) — replaces 4 separate stat cards
+- **Office vs Remote**: inline text with counts and percentages (no donut chart)
+- **Top Workers**: ranked list (number, name, hours) — no avatars or progress bars
+- **Active Campaigns**: compact list with status pills and department/team tags
+- **Checklist**: pending tasks with priority dots
 
 **Developer / Business Developer:**
-- Greeting + LIVE badge + role label + pending task count
-- **Profile Card**: avatar with animated status ring pulse (green=on-time, amber=late, red=absent), full name, designation, department, quick stats grid (first entry, hours logged, office/remote split with percentage), shift progress bar (current minutes vs shift target with percentage)
-- **Today's Activity Timeline**: vertical timeline with colored dots — check-in time, session count breakdown (office/remote), active-now indicator with cumulative minutes
-- **Task stat cards**: Total, Pending, In Progress, Completed (4-column grid with gradient icons and animated counters)
-- **Weekly Overview**: horizontal scrollable day cards (last 7 days) — day name, date, total hours, color-coded status dot (present/late/absent), today highlighted with ring
-- **Monthly Summary**: 4-stat grid (present/total days, on-time%, avg daily hours, total hours) + animated office-vs-remote split bar with percentage labels
-- **Self-assessment section** (same as manager: Today donut + monthly stats)
-- **Checklist**: pending tasks with priority icons, assignee, deadline, link to tasks page
+- Compact greeting + LIVE badge + role + pending tasks
+- **Personal status strip**: small avatar, name, department, status pill, check-in time, hours logged, office/remote split, shift % — all in one row, replacing the large profile card
+- **Task strip**: single row (Total, Pending, Active, Done) — replaces 4 separate stat cards
+- **2-column grid**: Left = Today's Activity timeline + My Tasks checklist; Right = Weekly overview (vertical list with progress bars) + Monthly summary (2×3 inline stats grid)
+- No self-assessment donut charts or horizontal scroll cards
 
 **Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments", "Teams" visible to SuperAdmin only.
 
