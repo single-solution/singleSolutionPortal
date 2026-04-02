@@ -240,24 +240,13 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 - **Auto-reconnect**: SSE auto-closes after 55s (Vercel serverless limit); `EventSource` natively reconnects within 1s
 - **Live indicator**: Pulsing green "LIVE" badge on all dashboard headers to show real-time status
 
-**SuperAdmin:**
-- Compact greeting header with pending task count, date, time, and LIVE badge — no oversized cards
-- **KPI strip**: single horizontal row showing Total, Office, Remote, Late, Overtime, Absent counts — replaces 4 separate stat cards
-- **Live Presence table**: dense sortable table (Name, Department, Status pill, Hours, Late-by) replacing large employee cards — scrollable with all employees visible at once
-- **3-column bottom row**: Attendance breakdown (text rows, no donut chart), Department summary (name + employee count), Pending tasks (up to 6, priority dots, assignee, deadline) — all in one compact grid
-
-**Manager / Team Lead:**
-- Compact header with personal stats inline (today hours, on-time/late, sessions, check-in time)
-- **KPI strip**: single row — Department/Team size, Present, Late, Absent, On-Time %
-- **Team breakdown table**: clickable rows showing team name, lead, present/absent/late counts — replaces gradient avatar cards. Clicking filters the presence table below.
-- **Live Presence table** with filter toggles (All / Office / Remote / Late / Absent) + optional team filter — dense table format matching SuperAdmin
-- **Late Arrivals**: compact name + late-by rows
-- **Attendance Trend**: last 5 working days bar chart
-- **Task Status strip**: single row (Total, Pending, In Progress, Completed) — replaces 4 separate stat cards
-- **Office vs Remote**: inline text with counts and percentages (no donut chart)
-- **Top Workers**: ranked list (number, name, hours) — no avatars or progress bars
-- **Active Campaigns**: compact list with status pills and department/team tags
-- **Checklist**: pending tasks with priority dots
+**SuperAdmin / Manager / Team Lead (unified AdminDashboard):**
+- **Self card**: logged-in user profile (avatar, name, role, department, email) with personal attendance stats (first entry, today hours, office/remote split, session count, shift %) — for SuperAdmin shows presence status counts instead of personal attendance. Inline task summary (pending / active / done). Date, time, and LIVE badge
+- **Team breakdown** (Manager / Team Lead only): clickable rows showing team name, lead, present/absent/late counts. Clicking filters the presence cards below
+- **Rich employee presence cards** in responsive grid (1 col mobile, 2 tablet, 3 desktop): each card shows name + status badge, designation, department, email, reports-to supervisor, arrival time, leave time, today hours, office/remote/late/break/overtime pills with durations, animated shift progress bar, pending tasks count, in-progress tasks count, and active campaign tags. Status updated live from heartbeat via SSE. Logged-in user excluded from the grid
+- **Presence filter tabs**: All / Office / Remote / Late / Absent — animated toggle with team filter support
+- **Active Campaigns**: compact list with status pills, department/team tags — only shown when campaigns exist
+- No separate attendance, department, or pending task cards — all data consolidated into the self card and employee presence cards
 
 **Developer / Business Developer:**
 - Compact greeting + LIVE badge + role + pending tasks

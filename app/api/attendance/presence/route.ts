@@ -44,8 +44,9 @@ export async function GET() {
   }
 
   const employees = await User.find(empFilter)
-    .select("about userRole department teams")
+    .select("about email userRole department teams workShift reportsTo")
     .populate("department", "title")
+    .populate("reportsTo", "about.firstName about.lastName")
     .lean();
 
   const activeSessions = await ActivitySession.find({
@@ -81,15 +82,31 @@ export async function GET() {
       if (todayMinutes > 9 * 60) status = "overtime";
     }
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const e = emp as any;
+    const rt = e.reportsTo?.about
+      ? `${e.reportsTo.about.firstName ?? ""} ${e.reportsTo.about.lastName ?? ""}`.trim() || null
+      : null;
+
     return {
       _id: id,
       firstName: emp.about.firstName,
       lastName: emp.about.lastName,
+      email: e.email ?? "",
       userRole: emp.userRole,
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
+      reportsTo: rt,
       status,
       todayMinutes,
+      officeMinutes: daily?.officeMinutes ?? 0,
+      remoteMinutes: daily?.remoteMinutes ?? 0,
       lateBy: daily?.lateBy ?? 0,
+      breakMinutes: daily?.breakMinutes ?? 0,
+      firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
+      lastExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null,
+      shiftStart: e.workShift?.shift?.start ?? "10:00",
+      shiftEnd: e.workShift?.shift?.end ?? "19:00",
+      shiftBreakTime: e.workShift?.breakTime ?? 60,
       isActive: true,
       teamIds: Array.isArray(emp.teams) ? emp.teams.map((t: unknown) => String(t)) : [],
     };
