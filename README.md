@@ -247,25 +247,28 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 - **Push channels**: `presence` (check-in/out/location transition), `employees`, `tasks`, `departments`, `teams`, `campaigns`, `activity` (notification log), `settings` — each channel triggers only its specific data fetch
 - **Tab-aware**: SSE connection closes when tab is hidden, reconnects when visible — zero background CPU/network drain
 - **Auto-reconnect**: SSE auto-closes after 55s (Vercel serverless limit); `EventSource` natively reconnects within 1s
-- **Live indicator**: Pulsing green "LIVE" badge on all dashboard headers to show real-time status
+- **Design language**: Matches preview page — card borders (`card`, `card-static`), blob gradient corners on stat cards, `badge-office`/`badge-remote`/`badge-late`/`badge-overtime`/`badge-absent` status pills, gradient avatar rings, animated numbers, `text-title`/`text-headline`/`text-caption` typography classes, animated segmented pill filters with `LayoutGroup`
 
-**SuperAdmin / Manager / Team Lead (unified AdminDashboard):**
-- **Welcome row** (no card wrapper): time-of-day greeting, inline quick stats (pending tasks count, active campaigns count, live employees count, avg hours/day). Date + time + LIVE badge on the right
-- **Today Overview + Timeline** (Manager / Team Lead, side-by-side on desktop): Left card shows avatar, department, present/absent + on-time/late pill, check-in time, today hours, sessions, office/remote/late/overtime pills, animated shift progress bar, and monthly stats (avg/day, on-time %, avg in/out). Right card shows today's activity timeline (check-in, sessions, current status) + task summary with priority dots and "View all" link
-- **SuperAdmin status strip**: compact pill row showing counts for each presence status (Office, Remote, Late, Overtime, Absent) and total
-- **Team breakdown**: clickable rows showing team name, lead, **live count**, present/absent/late counts. Clicking filters the presence cards below
-- **Team Status (Live Presence)**: header shows live count + total shown. Cards sorted live-first, then by today minutes descending. Each card has a **live indicator dot** (green pulsing = live heartbeat, gray = inactive/stale, red = GPS flagged). Cards fade to 70% opacity when the employee is not live. GPS-flagged employees show a red warning badge. All other card details unchanged (name, status, designation, department, email, reports-to, arrival/leave times, today hours, office/remote/late/break/overtime pills, shift progress bar, pending tasks, active campaigns)
-- **Stale session detection**: Presence API now checks `lastActivity` against a 3-minute threshold. If an employee's heartbeat hasn't been received for 3+ minutes (laptop lid closed, battery died, etc.), they show as **inactive** — not "live." This mirrors WhatsApp-style live indicators
-- **Presence filter tabs**: All / Office / Remote / Late / Absent — animated toggle with team filter support
-- **Active Campaigns**: compact half-width card (not full-width) with smaller rows. Department/team tags inline
-- No separate attendance, department, or pending task cards — all data consolidated into overview cards and employee presence cards
+**SuperAdmin (AdminDashboard):**
+- **Welcome header**: time-of-day greeting with "Single Solution Sync" label, inline status badge pills (Office, Remote, Late, Absent counts + live count). Time card on the right with blob gradient, live clock, new-tasks/campaigns chips
+- **Stat cards**: 4-column grid (Total Employees, In Office, Late Today, Absent Today) with animated numbers, gradient icon squares, and decorative blob corners — matches SuperAdminPreview design
+- **Campaigns + Checklist**: campaigns vertical card on the left (lg:col-span-5), pending tasks checklist on the right (lg:col-span-7) with priority icons, labels, and assignee names
+- **Team breakdown**: clickable rows showing team name, lead, live/present/absent/late counts. Clicking filters the presence cards below
+- **Team Status (Live Presence)**: pulsing green dot header, segmented pill filter (All/Office/Remote/Late/Absent), animated employee cards with gradient avatars, breathing ring animations for live employees, `badge-*` status pills, live/flagged badges, arrival→status row, work duration pills, shift progress bars, pending tasks/campaign tags
+- **Stale session detection**: Presence API checks `lastActivity` against a 3-minute threshold. Stale employees show as inactive
+- No LivePulse on welcome bar — timer pill at bottom handles live indication for all roles
 
-**Developer / Business Developer:**
-- Compact greeting + LIVE badge + role + pending tasks
-- **Personal status strip**: small avatar, name, department, status pill, check-in time, hours logged, office/remote split, shift % — all in one row, replacing the large profile card
-- **Task strip**: single row (Total, Pending, Active, Done) — replaces 4 separate stat cards
-- **2-column grid**: Left = Today's Activity timeline + My Tasks checklist; Right = Weekly overview (vertical list with progress bars) + Monthly summary (2×3 inline stats grid)
-- No self-assessment donut charts or horizontal scroll cards
+**Manager / Team Lead (AdminDashboard):**
+- **Welcome header**: same design as SuperAdmin but with pending tasks + active campaigns count instead of status badge pills
+- **Self Overview card** (DeveloperPreview-style): large avatar, name/department/email, status badge, 3 stat mini-cards (first entry, hours logged, office/remote split with percentages), animated shift progress bar
+- **Today Timeline card**: vertical activity timeline (check-in, sessions, active now) + task summary with pulsing pending count badge, priority dots, "View All" link
+- Same campaigns, checklist, team breakdown, and team status sections as SuperAdmin
+
+**Developer / Business Developer (OtherRoleOverview):**
+- **Welcome header**: greeting with "Single Solution Sync" label, local time display (no LivePulse)
+- **Self Overview + Timeline** (side-by-side on desktop): DeveloperPreview-style profile hero card with avatar, status badge, mini stat cards, shift progress bar. Timeline card with activity events and task summary
+- **Weekly overview**: horizontal-scroll strip of day cards (like DeveloperPreview) — each card shows weekday, date, status dot, and total hours. Today highlighted with primary border + glow
+- **Monthly summary**: nested stat cards (Present/Total, On-time, Avg daily hours, Total hours) with animated numbers, office vs remote stacked progress bar with percentages
 
 **Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments", "Teams" visible to SuperAdmin only.
 

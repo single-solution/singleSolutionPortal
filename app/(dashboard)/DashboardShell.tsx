@@ -515,7 +515,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       </header>
 
       {/* ── Main content with page transition ── */}
-      <main className="mx-auto max-w-[1600px] px-4 py-4 pb-40 sm:px-6 sm:py-5 sm:pb-40 lg:px-10">
+      <main className="mx-auto max-w-[1600px] px-5 py-4 pb-40 sm:px-8 sm:py-5 sm:pb-40 lg:px-14">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={pathname}
