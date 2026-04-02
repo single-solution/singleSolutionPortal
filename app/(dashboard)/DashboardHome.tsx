@@ -438,12 +438,19 @@ function TodayTimelineCard({ pa, tasks }: { pa: PersonalAttendance | null; tasks
   );
 }
 
+/* ──────────────────────── INLINE SHIMMER ──────────────────────── */
+
+function Bone({ w = "w-10", h = "h-3" }: { w?: string; h?: string }) {
+  return <span className={`shimmer inline-block rounded ${w} ${h}`} />;
+}
+
 /* ──────────────────────── PRESENCE EMPLOYEE CARD ──────────────────────── */
 
-function PresenceCard({ emp, empTasks, empCampaigns }: {
+function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading }: {
   emp: PresenceEmployee;
   empTasks: ApiTask[];
   empCampaigns: ApiCampaign[];
+  attendanceLoading?: boolean;
 }) {
   const pendingTasks = empTasks.filter((t) => t.status === "pending");
   const inProgressTasks = empTasks.filter((t) => t.status === "inProgress");
@@ -460,32 +467,38 @@ function PresenceCard({ emp, empTasks, empCampaigns }: {
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: emp.isLive ? 1 : 0.7, scale: 1 }}
+      animate={{ opacity: !attendanceLoading && !emp.isLive ? 0.7 : 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97 }}
       className="card p-3 flex flex-col gap-2"
     >
       <div className="flex items-start gap-2.5">
-        <div className="relative w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: `${STATUS_COLORS[emp.status]}15`, color: STATUS_COLORS[emp.status] }}>
+        <div className="relative w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: attendanceLoading ? "var(--bg-grouped)" : `${STATUS_COLORS[emp.status]}15`, color: attendanceLoading ? "var(--fg-secondary)" : STATUS_COLORS[emp.status] }}>
           {initials(emp.firstName, emp.lastName)}
-          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2" style={{ borderColor: "var(--bg)", background: liveColor }} title={liveLabel} />
+          {!attendanceLoading && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2" style={{ borderColor: "var(--bg)", background: liveColor }} title={liveLabel} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[12px] font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</span>
-            <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold shrink-0" style={{ background: `${STATUS_COLORS[emp.status]}15`, color: STATUS_COLORS[emp.status] }}>{STATUS_LABELS[emp.status]}</span>
-            {emp.isLive && (
-              <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold" style={{ background: `${liveColor}15`, color: liveColor }}>
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: liveColor }}>
-                  {!emp.locationFlagged && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: liveColor }} />}
-                </span>
-                {liveLabel}
-              </span>
-            )}
-            {emp.locationFlagged && (
-              <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold" style={{ background: "#ef444415", color: "#ef4444" }}>
-                <svg className="inline -mt-px mr-0.5" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                GPS Flagged
-              </span>
+            {attendanceLoading ? (
+              <Bone w="w-12" h="h-4" />
+            ) : (
+              <>
+                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold shrink-0" style={{ background: `${STATUS_COLORS[emp.status]}15`, color: STATUS_COLORS[emp.status] }}>{STATUS_LABELS[emp.status]}</span>
+                {emp.isLive && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold" style={{ background: `${liveColor}15`, color: liveColor }}>
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: liveColor }}>
+                      {!emp.locationFlagged && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: liveColor }} />}
+                    </span>
+                    {liveLabel}
+                  </span>
+                )}
+                {emp.locationFlagged && (
+                  <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold" style={{ background: "#ef444415", color: "#ef4444" }}>
+                    <svg className="inline -mt-px mr-0.5" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    GPS Flagged
+                  </span>
+                )}
+              </>
             )}
           </div>
           <p className="text-[10px] truncate" style={{ color: "var(--fg-secondary)" }}>{emp.designation} · {emp.department}</p>
@@ -495,43 +508,57 @@ function PresenceCard({ emp, empTasks, empCampaigns }: {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-1 text-[10px]">
-        <div className="flex flex-col">
-          <span style={{ color: "var(--fg-tertiary)" }}>Arrival</span>
-          <span className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{emp.firstEntry ? formatTimeStr(emp.firstEntry) : "—"}</span>
+      {attendanceLoading ? (
+        <div className="grid grid-cols-3 gap-1 text-[10px]">
+          <div className="flex flex-col gap-1"><span style={{ color: "var(--fg-tertiary)" }}>Arrival</span><Bone w="w-12" /></div>
+          <div className="flex flex-col gap-1"><span style={{ color: "var(--fg-tertiary)" }}>Status</span><Bone w="w-14" /></div>
+          <div className="flex flex-col gap-1"><span style={{ color: "var(--fg-tertiary)" }}>Today</span><Bone w="w-8" /></div>
         </div>
-        <div className="flex flex-col">
-          <span style={{ color: "var(--fg-tertiary)" }}>Leave</span>
-          <span className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{emp.lastExit ? formatTimeStr(emp.lastExit) : "—"}</span>
-        </div>
-        <div className="flex flex-col">
-          <span style={{ color: "var(--fg-tertiary)" }}>Today</span>
-          <span className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(emp.todayMinutes)}</span>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-1 text-[10px]">
+            <div className="flex flex-col">
+              <span style={{ color: "var(--fg-tertiary)" }}>Arrival</span>
+              <span className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{emp.firstEntry ? formatTimeStr(emp.firstEntry) : "—"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span style={{ color: "var(--fg-tertiary)" }}>{emp.isLive ? "Status" : "Left"}</span>
+              <span className="font-semibold tabular-nums" style={{ color: emp.isLive ? "#10b981" : "var(--fg)" }}>
+                {emp.isLive
+                  ? (emp.status === "remote" ? "Working remotely" : "Working")
+                  : emp.lastExit ? formatTimeStr(emp.lastExit) : (emp.status === "absent" ? "—" : "No exit")}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span style={{ color: "var(--fg-tertiary)" }}>Today</span>
+              <span className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(emp.todayMinutes)}</span>
+            </div>
+          </div>
 
-      <div className="flex flex-wrap gap-1 text-[9px]">
-        {emp.officeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>Office {formatMinutes(emp.officeMinutes)}</span>}
-        {emp.remoteMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>Remote {formatMinutes(emp.remoteMinutes)}</span>}
-        {emp.lateBy > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>Late +{formatMinutes(emp.lateBy)}</span>}
-        {emp.breakMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Break {formatMinutes(emp.breakMinutes)}</span>}
-        {overtimeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>OT +{formatMinutes(overtimeMinutes)}</span>}
-      </div>
+          <div className="flex flex-wrap gap-1 text-[9px]">
+            {emp.officeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>Office {formatMinutes(emp.officeMinutes)}</span>}
+            {emp.remoteMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>Remote {formatMinutes(emp.remoteMinutes)}</span>}
+            {emp.lateBy > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>Late +{formatMinutes(emp.lateBy)}</span>}
+            {emp.breakMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Break {formatMinutes(emp.breakMinutes)}</span>}
+            {overtimeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>OT +{formatMinutes(overtimeMinutes)}</span>}
+          </div>
 
-      <div className="flex items-center gap-2">
-        <div className="h-1 flex-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
-          <motion.div
-            className="h-full rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${shiftPct}%` }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            style={{ background: overtimeMinutes > 0 ? "#8b5cf6" : "var(--primary)" }}
-          />
-        </div>
-        <span className="text-[9px] tabular-nums font-semibold w-7 text-right" style={{ color: "var(--fg-secondary)" }}>{shiftPct}%</span>
-      </div>
+          <div className="flex items-center gap-2">
+            <div className="h-1 flex-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+              <motion.div
+                className="h-full rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${shiftPct}%` }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                style={{ background: overtimeMinutes > 0 ? "#8b5cf6" : "var(--primary)" }}
+              />
+            </div>
+            <span className="text-[9px] tabular-nums font-semibold w-7 text-right" style={{ color: "var(--fg-secondary)" }}>{shiftPct}%</span>
+          </div>
+        </>
+      )}
 
-      {(pendingTasks.length > 0 || inProgressTasks.length > 0 || activeCamps.length > 0) && (
+      {!attendanceLoading && (pendingTasks.length > 0 || inProgressTasks.length > 0 || activeCamps.length > 0) && (
         <div className="border-t pt-2 flex flex-wrap gap-1 text-[9px]" style={{ borderColor: "var(--border)" }}>
           {pendingTasks.length > 0 && <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: "#f59e0b12", color: "#f59e0b" }}>{pendingTasks.length} pending</span>}
           {inProgressTasks.length > 0 && <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{inProgressTasks.length} active</span>}
@@ -725,11 +752,7 @@ function AdminDashboard({
           </div>
         </div>
         <div className="p-3">
-          {presenceLoading ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="shimmer h-44 rounded-xl" />)}
-            </div>
-          ) : filteredPresence.length > 0 ? (
+          {filteredPresence.length > 0 ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               <AnimatePresence mode="popLayout">
                 {filteredPresence.map((emp) => (
@@ -738,9 +761,14 @@ function AdminDashboard({
                     emp={emp}
                     empTasks={tasksByEmployee.get(emp._id) ?? []}
                     empCampaigns={campaignsByEmployee.get(emp._id) ?? []}
+                    attendanceLoading={presenceLoading}
                   />
                 ))}
               </AnimatePresence>
+            </div>
+          ) : presenceLoading ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="shimmer h-44 rounded-xl" />)}
             </div>
           ) : (
             <p className="py-8 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>

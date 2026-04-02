@@ -87,13 +87,17 @@ export async function GET() {
       } else {
         todayMinutes = daily?.totalWorkingMinutes ?? 0;
         if (daily?.isPresent) {
-          status = daily.isOnTime ? "office" : "late";
+          const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
+          status = wasRemote ? "remote" : "office";
+          if (!daily.isOnTime) status = "late";
           if (todayMinutes > 9 * 60) status = "overtime";
         }
       }
     } else if (daily?.isPresent) {
       todayMinutes = daily.totalWorkingMinutes;
-      status = daily.isOnTime ? "office" : "late";
+      const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
+      status = wasRemote ? "remote" : "office";
+      if (!daily.isOnTime) status = "late";
       if (todayMinutes > 9 * 60) status = "overtime";
     }
 
