@@ -553,32 +553,40 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={ENTITY_ICONS[log.entity] || ENTITY_ICONS.employee} />
                               </svg>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium leading-snug" style={{ color: "var(--fg)" }}>
-                                  {href ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => { setNotificationsOpen(false); router.push(href); }}
-                                      className="hover:underline transition-colors text-left"
-                                      style={{ color: "var(--fg)" }}
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--primary)"; }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--fg)"; }}
-                                    >
-                                      <span className="font-semibold">{log.userName || log.userEmail.split("@")[0]}</span>{" "}
-                                      {log.action}
-                                    </button>
-                                  ) : (
+                                {(() => {
+                                  const isSelf = log.userEmail === user.email;
+                                  const displayName = isSelf ? "You" : (log.userName || log.userEmail.split("@")[0]);
+                                  return (
                                     <>
-                                      <span className="font-semibold">{log.userName || log.userEmail.split("@")[0]}</span>{" "}
-                                      {log.action}
+                                      <p className="text-xs font-medium leading-snug" style={{ color: "var(--fg)" }}>
+                                        {href ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => { setNotificationsOpen(false); router.push(href); }}
+                                            className="hover:underline transition-colors text-left"
+                                            style={{ color: "var(--fg)" }}
+                                            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--primary)"; }}
+                                            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--fg)"; }}
+                                          >
+                                            <span className="font-semibold">{displayName}</span>{" "}
+                                            {log.action}
+                                          </button>
+                                        ) : (
+                                          <>
+                                            <span className="font-semibold">{displayName}</span>{" "}
+                                            {log.action}
+                                          </>
+                                        )}
+                                      </p>
+                                      {log.details && (
+                                        <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                      )}
+                                      <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                                        {isSelf ? "you" : log.userEmail.split("@")[0]} · {timeAgo(log.createdAt)}
+                                      </p>
                                     </>
-                                  )}
-                                </p>
-                                {log.details && (
-                                  <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
-                                )}
-                                <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
-                                  {log.userEmail.split("@")[0]} · {timeAgo(log.createdAt)}
-                                </p>
+                                  );
+                                })()}
                       </div>
                             </div>
                           </div>

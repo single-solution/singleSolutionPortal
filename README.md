@@ -238,6 +238,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Unseen badge** — red pulsing badge with count (capped at 9+)
 - **Entity SVG icons** — each entity type has a distinct icon and color
 - **Clickable links** — each log entry navigates to the relevant page
+- **Self-referencing "You"** — if the logged-in user performed the action, the notification shows "You" instead of their name/email (e.g. "You created a task" instead of "admin created a task"). The subtitle also shows "you" instead of the username
 - **Seen/unseen dimming** — read entries fade to 50% opacity
 - **"Mark all read" button** — persists to server for cross-device consistency
 
