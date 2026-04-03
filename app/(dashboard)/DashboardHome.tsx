@@ -778,6 +778,7 @@ function AdminDashboard({
                       officeMinutes: emp.officeMinutes,
                       remoteMinutes: emp.remoteMinutes,
                       lateBy: emp.lateBy,
+                      breakMinutes: emp.breakMinutes,
                       shiftStart: emp.shiftStart,
                       shiftEnd: emp.shiftEnd,
                       shiftBreakTime: emp.shiftBreakTime,

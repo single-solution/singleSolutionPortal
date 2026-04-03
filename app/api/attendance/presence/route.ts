@@ -133,7 +133,8 @@ export async function GET() {
       lateBy: daily?.lateBy ?? 0,
       breakMinutes: daily?.breakMinutes ?? 0,
       firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
-      lastExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : staleLastActivity,
+      lastExit: staleLastActivity
+        ?? (daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null),
       shiftStart: e.workShift?.shift?.start ?? "10:00",
       shiftEnd: e.workShift?.shift?.end ?? "19:00",
       shiftBreakTime: e.workShift?.breakTime ?? 60,

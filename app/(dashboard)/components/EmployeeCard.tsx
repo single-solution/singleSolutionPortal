@@ -24,6 +24,7 @@ export interface EmployeeCardEmp {
   officeMinutes?: number;
   remoteMinutes?: number;
   lateBy?: number;
+  breakMinutes?: number;
   shiftStart?: string;
   shiftEnd?: string;
   shiftBreakTime?: number;
@@ -372,38 +373,39 @@ export function EmployeeCard({
           </div>
         )}
 
-        <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
+        {/* Check-in · Total Time · Check-out */}
+        <div className="mt-auto grid grid-cols-3 gap-1 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
           <div>
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
-              First arrival
-            </p>
-            <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
-              {firstArrival}
-            </p>
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Check-in</p>
+            <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{firstArrival}</p>
           </div>
-          <div className="text-right">
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
-              Total time
-            </p>
+          <div className="text-center">
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Total</p>
             <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
               {attendanceLoading ? "—" : formatMinutesShort(todayM)}
             </p>
           </div>
+          <div className="text-right">
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Check-out</p>
+            <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
+              {attendanceLoading ? "—" : emp.isLive ? "—" : emp.lastExit ? formatTimeStr(emp.lastExit) : "—"}
+            </p>
+          </div>
         </div>
 
+        {/* Office · Remote · Break pills */}
         {!attendanceLoading && (
           <>
             <div className="flex flex-wrap gap-1 text-[9px]">
-              {(emp.officeMinutes ?? 0) > 0 && (
-                <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>
-                  Office {formatMinutesShort(emp.officeMinutes ?? 0)}
-                </span>
-              )}
-              {(emp.remoteMinutes ?? 0) > 0 && (
-                <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>
-                  Remote {formatMinutesShort(emp.remoteMinutes ?? 0)}
-                </span>
-              )}
+              <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>
+                Office {formatMinutesShort(emp.officeMinutes ?? 0)}
+              </span>
+              <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>
+                Remote {formatMinutesShort(emp.remoteMinutes ?? 0)}
+              </span>
+              <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>
+                Break {formatMinutesShort(emp.breakMinutes ?? 0)}
+              </span>
               {(emp.lateBy ?? 0) > 0 && (
                 <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>
                   Late +{formatMinutesShort(emp.lateBy ?? 0)}
@@ -446,38 +448,41 @@ export function EmployeeCard({
           </>
         )}
 
-        {!attendanceLoading &&
-          ((emp.pendingTasks ?? 0) > 0 || (emp.inProgressTasks ?? 0) > 0 || (emp.campaigns?.length ?? 0) > 0) && (
-            <div className="flex flex-wrap gap-1 border-t pt-2 text-[9px]" style={{ borderColor: "var(--border)" }}>
-              {(emp.pendingTasks ?? 0) > 0 && (
-                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "#f59e0b15", color: "#f59e0b", borderColor: "#f59e0b30" }}>
-                  {emp.pendingTasks} pending
-                </span>
-              )}
-              {(emp.inProgressTasks ?? 0) > 0 && (
-                <span
-                  className="rounded-full border px-1.5 py-0.5 font-semibold"
-                  style={{ background: "var(--primary-light)", color: "var(--primary)", borderColor: "rgba(0,122,255,0.2)" }}
-                >
-                  {emp.inProgressTasks} active
-                </span>
-              )}
-              {emp.campaigns?.slice(0, 2).map((name) => (
-                <span
-                  key={name}
-                  className="max-w-[100px] truncate rounded-full px-1.5 py-0.5 font-medium"
-                  style={{ background: "rgba(48,209,88,0.1)", color: "var(--teal)" }}
-                >
-                  {name}
-                </span>
-              ))}
-              {(emp.campaigns?.length ?? 0) > 2 && (
-                <span className="rounded-full px-1.5 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
-                  +{(emp.campaigns?.length ?? 0) - 2}
-                </span>
-              )}
-            </div>
-          )}
+        {/* Tasks & Campaigns — always visible */}
+        {!attendanceLoading && (
+          <div className="flex flex-wrap gap-1 border-t pt-2 text-[9px]" style={{ borderColor: "var(--border)" }}>
+            <span
+              className="rounded-full border px-1.5 py-0.5 font-semibold"
+              style={{
+                background: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b15" : "var(--bg-grouped)",
+                color: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b" : "var(--fg-tertiary)",
+                borderColor: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b30" : "var(--border)",
+              }}
+            >
+              {emp.pendingTasks ?? 0} pending
+            </span>
+            <span
+              className="rounded-full border px-1.5 py-0.5 font-semibold"
+              style={{
+                background: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary-light)" : "var(--bg-grouped)",
+                color: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary)" : "var(--fg-tertiary)",
+                borderColor: (emp.inProgressTasks ?? 0) > 0 ? "rgba(0,122,255,0.2)" : "var(--border)",
+              }}
+            >
+              {emp.inProgressTasks ?? 0} active
+            </span>
+            <span
+              className="rounded-full border px-1.5 py-0.5 font-semibold"
+              style={{
+                background: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.1)" : "var(--bg-grouped)",
+                color: (emp.campaigns?.length ?? 0) > 0 ? "var(--teal)" : "var(--fg-tertiary)",
+                borderColor: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.2)" : "var(--border)",
+              }}
+            >
+              {emp.campaigns?.length ?? 0} campaign{(emp.campaigns?.length ?? 0) !== 1 ? "s" : ""}
+            </span>
+          </div>
+        )}
 
         {(showActions || footerSlot) && (
           <div className="flex items-center justify-between gap-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
