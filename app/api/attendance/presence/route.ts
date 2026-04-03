@@ -87,7 +87,6 @@ export async function GET() {
         const elapsed = Math.floor((nowMs - active.sessionTime.start.getTime()) / 60000);
         todayMinutes = (daily?.totalWorkingMinutes ?? 0) + elapsed;
         status = active.location.inOffice ? "office" : "remote";
-        if (daily && !daily.isOnTime) status = "late";
         if (todayMinutes > 9 * 60) status = "overtime";
         isLive = true;
       } else {
@@ -96,7 +95,6 @@ export async function GET() {
         if (daily?.isPresent) {
           const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
           status = wasRemote ? "remote" : "office";
-          if (!daily.isOnTime) status = "late";
           if (todayMinutes > 9 * 60) status = "overtime";
         }
       }
@@ -104,7 +102,6 @@ export async function GET() {
       todayMinutes = daily.totalWorkingMinutes;
       const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
       status = wasRemote ? "remote" : "office";
-      if (!daily.isOnTime) status = "late";
       if (todayMinutes > 9 * 60) status = "overtime";
     }
 

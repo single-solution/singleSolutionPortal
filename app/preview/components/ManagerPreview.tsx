@@ -59,7 +59,7 @@ function matchesStatusFilter(emp: Employee, f: StatusFilter): boolean {
   if (f === "all") return true;
   if (f === "office") return emp.status === "office" || emp.status === "overtime";
   if (f === "remote") return emp.status === "remote";
-  if (f === "late") return emp.status === "late";
+  if (f === "late") return emp.today.lateBy > 0;
   if (f === "absent") return emp.status === "absent";
   return true;
 }
@@ -108,7 +108,7 @@ function OverviewContent() {
   const presentToday = teamCounts.total - teamCounts.absent;
   const onTimePct = useMemo(() => getOnTimePct(team), [team]);
   const filteredTeam = useMemo(() => team.filter((e) => matchesStatusFilter(e, filter)), [team, filter]);
-  const lateThisWeek = useMemo(() => team.filter((e) => e.today.lateBy > 0 || e.status === "late").sort((a, b) => b.today.lateBy - a.today.lateBy), [team]);
+  const lateThisWeek = useMemo(() => team.filter((e) => e.today.lateBy > 0).sort((a, b) => b.today.lateBy - a.today.lateBy), [team]);
   const engDept = useMemo(() => departments.find((d) => d.name === DEPT_NAME), []);
   const maxBar = useMemo(() => Math.max(...LAST_FIVE_DAYS_PRESENT.map((d) => d.count), 1), []);
 

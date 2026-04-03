@@ -310,7 +310,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
   // "In Office" = currently live AND located in office (not just today's status)
   const liveOfficeCount = presenceEmps.filter((e) => e.isLive && (e.status === "office" || e.status === "overtime")).length;
   const liveRemoteCount = presenceEmps.filter((e) => e.isLive && e.status === "remote").length;
-  const lateCount = presenceEmps.filter((e) => e.status === "late").length;
+  const lateCount = presenceEmps.filter((e) => (e.lateBy ?? 0) > 0).length;
   const absentCount = presenceEmps.filter((e) => e.status === "absent").length;
 
   const [now, setNow] = useState(() => new Date());
