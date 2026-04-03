@@ -61,7 +61,10 @@ export async function GET() {
       if (todayMinutes > 9 * 60) status = "overtime";
       isLive = true;
     } else {
-      todayMinutes = daily?.totalWorkingMinutes ?? 0;
+      const staleElapsed = active.lastActivity && active.sessionTime?.start
+        ? Math.floor((new Date(active.lastActivity).getTime() - new Date(active.sessionTime.start).getTime()) / 60000)
+        : 0;
+      todayMinutes = (daily?.totalWorkingMinutes ?? 0) + staleElapsed;
       if (daily?.isPresent) {
         const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
         status = wasRemote ? "remote" : "office";
