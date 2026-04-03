@@ -78,6 +78,17 @@ export async function GET() {
     if (todayMinutes > 9 * 60) status = "overtime";
   }
 
+  const lastSession = await ActivitySession.findOne(
+    { user: managerId, sessionDate: today, "sessionTime.end": { $exists: true, $ne: null } },
+    { "sessionTime.end": 1 },
+    { sort: { "sessionTime.end": -1 } },
+  ).lean();
+
+  const lastExit =
+    (daily?.lastSessionEnd ? new Date(daily.lastSessionEnd as unknown as string).toISOString() : null)
+    ?? (lastSession?.sessionTime?.end ? new Date(lastSession.sessionTime.end).toISOString() : null)
+    ?? (daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null);
+
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const m = manager as any;
 
@@ -93,7 +104,7 @@ export async function GET() {
     officeMinutes: daily?.officeMinutes ?? 0,
     remoteMinutes: daily?.remoteMinutes ?? 0,
     firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
-    lastExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null,
+    lastExit,
     shiftStart: m.workShift?.shift?.start ?? "10:00",
     shiftEnd: m.workShift?.shift?.end ?? "19:00",
     isLive,

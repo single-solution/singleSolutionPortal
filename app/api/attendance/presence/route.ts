@@ -66,6 +66,12 @@ export async function GET() {
   const STALE_MS = 3 * 60 * 1000;
   const nowMs = Date.now();
 
+  const lastSessionEndAgg = await ActivitySession.aggregate([
+    { $match: { sessionDate: today, "sessionTime.end": { $exists: true, $ne: null } } },
+    { $group: { _id: "$user", lastEnd: { $max: "$sessionTime.end" } } },
+  ]);
+  const lastEndMap = new Map(lastSessionEndAgg.map((r) => [r._id.toString(), r.lastEnd as Date]));
+
   const activeMap = new Map(activeSessions.map((s) => [s.user.toString(), s]));
   const dailyMap = new Map(dailyRecords.map((r) => [r.user.toString(), r]));
 
@@ -135,6 +141,7 @@ export async function GET() {
       firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
       lastExit: staleLastActivity
         ?? (daily?.lastSessionEnd ? new Date(daily.lastSessionEnd as unknown as string).toISOString() : null)
+        ?? (lastEndMap.get(id) ? new Date(lastEndMap.get(id)!).toISOString() : null)
         ?? (daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null),
       shiftStart: e.workShift?.shift?.start ?? "10:00",
       shiftEnd: e.workShift?.shift?.end ?? "19:00",
