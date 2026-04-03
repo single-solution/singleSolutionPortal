@@ -45,15 +45,6 @@ interface ApiEmployee {
   };
 }
 
-interface ApiTeam {
-  _id: string;
-  name: string;
-  department?: { _id: string; title: string };
-  lead?: { _id: string; about: { firstName: string; lastName: string }; email: string; userRole: string };
-  memberCount: number;
-  description?: string;
-}
-
 interface ApiTask {
   _id: string;
   title: string;
@@ -61,7 +52,9 @@ interface ApiTask {
   priority: string;
   status: string;
   deadline?: string;
-  assignedTo?: { _id?: string; about?: { firstName: string; lastName: string }; email?: string };
+  createdAt?: string;
+  assignedTo?: { _id?: string; about?: { firstName: string; lastName: string }; email?: string; department?: { title?: string } | string };
+  createdBy?: { _id?: string; about?: { firstName: string; lastName: string }; email?: string };
 }
 
 interface ApiDepartment {
@@ -90,6 +83,7 @@ type PresenceStatus = "office" | "remote" | "late" | "overtime" | "absent";
 
 interface PresenceEmployee {
   _id: string;
+  username: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -562,7 +556,6 @@ function AdminDashboard({
   tasks,
   personalAttendance,
   campaigns,
-  teams,
   userProfile,
   dataLoading,
   onRefreshLive,
@@ -574,14 +567,12 @@ function AdminDashboard({
   tasks: ApiTask[];
   personalAttendance: PersonalAttendance | null;
   campaigns: ApiCampaign[];
-  teams: ApiTeam[];
   userProfile: UserProfile | null;
   dataLoading: boolean;
   onRefreshLive: () => void;
   onRefreshFull: () => void;
 }) {
   const isSuperAdmin = user.role === "superadmin";
-  const isManager = user.role === "manager";
 
   const otherEmps = useMemo(() => presenceEmps.filter((e) => e._id !== user.id), [presenceEmps, user.id]);
 
@@ -608,29 +599,15 @@ function AdminDashboard({
     return map;
   }, [campaigns]);
 
-  const teamBreakdown = useMemo(() => {
-    if (teams.length === 0) return [];
-    return teams.map((team) => {
-      const members = otherEmps.filter((e) => e.teamIds?.includes(team._id));
-      const present = members.filter((m) => m.status !== "absent").length;
-      const live = members.filter((m) => m.isLive).length;
-      const late = members.filter((m) => m.status === "late").length;
-      return { team, members, present, live, absent: members.length - present, late, total: members.length };
-    });
-  }, [teams, otherEmps]);
-
   const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>("all");
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const filteredPresence = useMemo(() => {
-    let list = otherEmps;
-    if (selectedTeamId) list = list.filter((e) => e.teamIds?.includes(selectedTeamId));
-    return list
+    return otherEmps
       .filter((e) => matchPresenceFilter(e.status, presenceFilter))
       .sort((a, b) => {
         if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
         return b.todayMinutes - a.todayMinutes;
       });
-  }, [otherEmps, presenceFilter, selectedTeamId]);
+  }, [otherEmps, presenceFilter]);
 
   const activeCampaigns = useMemo(() => campaigns.filter((c) => c.status === "active"), [campaigns]);
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
@@ -666,125 +643,104 @@ function AdminDashboard({
       )}
 
       {/* 3. Campaigns (left) + Tasks (right) for admin/superadmin */}
-      {(dataLoading || activeCampaigns.length > 0 || pendingTasks.length > 0) && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {(dataLoading || activeCampaigns.length > 0) && (
-            <motion.section className="card p-4 sm:p-5 lg:col-span-5" variants={slideUpItem} initial="hidden" animate="visible">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center min-w-0">
-                  <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
-                  <RefreshBtn onRefresh={onRefreshFull} />
-                </div>
-                <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
-              </div>
-              <div className="flex flex-col gap-2">
-                {dataLoading && activeCampaigns.length === 0 ? (
-                  [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
-                ) : activeCampaigns.slice(0, 8).map((camp, ci) => (
-                  <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
-                      <div className="flex gap-1.5 mt-0.5">
-                        {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
-                        {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
-                        <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
-              </div>
-              </div>
-          </motion.div>
-        ))}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <motion.section className="card p-4 sm:p-5 lg:col-span-5" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center min-w-0">
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
+              <RefreshBtn onRefresh={onRefreshFull} />
             </div>
-            </motion.section>
-          )}
-          {(dataLoading || pendingTasks.length > 0) && (
-            <motion.section className="card p-4 sm:p-5 lg:col-span-7" variants={slideUpItem} initial="hidden" animate="visible">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center min-w-0">
-                  <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
-                  <RefreshBtn onRefresh={onRefreshFull} />
-                </div>
-                <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
-                  {pendingTasks.length} Pending
-                </motion.div>
+            <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
           </div>
-              <div className="flex flex-col gap-3">
-                {dataLoading && pendingTasks.length === 0 ? (
-                  [1, 2, 3, 4].map((i) => <div key={i} className="flex items-start gap-3"><div className="shimmer mt-0.5 h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
-                ) : pendingTasks.slice(0, 6).map((task, ti) => {
-                  const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
-                  const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
-                return (
-                    <motion.div key={task._id} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 + ti * 0.06 }} whileHover={{ x: 5 }} className="flex items-start gap-3 cursor-pointer">
-                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
-                        </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
-                          <span className="text-caption rounded-md px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
-                            </div>
-                        <p className="text-caption line-clamp-1">{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"}{task.assignedTo ? ` · ${task.assignedTo.about?.firstName ?? ""} ${task.assignedTo.about?.lastName ?? ""}` : ""}</p>
-                          </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-              <Link href="/tasks"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
-            </motion.section>
-          )}
-        </div>
-      )}
-
-      {/* 4. Team breakdown */}
-      {(dataLoading || teamBreakdown.length > 0) && (
-        <motion.div className="card-static overflow-hidden" variants={fadeInItem} initial="hidden" animate="visible">
-          <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
-            <h3 className="text-headline" style={{ color: "var(--fg)" }}>{isManager ? "Teams" : "My Teams"}</h3>
-            {selectedTeamId && (
-              <button type="button" onClick={() => setSelectedTeamId(null)} className="text-caption font-semibold" style={{ color: "var(--primary)" }}>Show All</button>
-                      )}
-                    </div>
-          <div className="divide-y divide-[var(--border)]">
-            {dataLoading && teamBreakdown.length === 0 ? (
-              [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 px-4 py-3"><div className="flex-1 space-y-1.5"><Bone w="w-28" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div><div className="flex gap-2"><Bone w="w-12" h="h-3" /><Bone w="w-10" h="h-3" /></div></div>)
-            ) : teamBreakdown.map((tb) => {
-              const isSelected = selectedTeamId === tb.team._id;
-              return (
-                <button key={tb.team._id} type="button" onClick={() => setSelectedTeamId(isSelected ? null : tb.team._id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--hover-bg)] transition-colors ${isSelected ? "bg-[var(--primary-light)]" : ""}`}>
-                    <div className="min-w-0 flex-1">
-                    <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{tb.team.name}</p>
-                    {tb.team.lead && <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Lead: {tb.team.lead.about.firstName} {tb.team.lead.about.lastName}</p>}
-                    </div>
-                  <div className="flex items-center gap-2.5 shrink-0 text-caption tabular-nums">
-                    <span className="font-semibold" style={{ color: "#10b981" }}>{tb.live} live</span>
-                    <span style={{ color: "var(--fg-secondary)" }}>{tb.present} in</span>
-                    <span style={{ color: "#f43f5e" }}>{tb.absent} out</span>
-                    {tb.late > 0 && <span style={{ color: "#f59e0b" }}>{tb.late} late</span>}
+          <div className="flex flex-col gap-2">
+            {dataLoading ? (
+              [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
+            ) : activeCampaigns.length === 0 ? (
+              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
+            ) : activeCampaigns.slice(0, 8).map((camp, ci) => (
+              <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
+                  <div className="flex gap-1.5 mt-0.5">
+                    {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
+                    {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
+                    <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
                   </div>
-                </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+        <motion.section className="card p-4 sm:p-5 lg:col-span-7" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center min-w-0">
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
+              <RefreshBtn onRefresh={onRefreshFull} />
+            </div>
+            {!dataLoading && (
+              <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
+                {pendingTasks.length} Pending
+              </motion.div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            {dataLoading ? (
+              [1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
+            ) : pendingTasks.length === 0 ? (
+              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>All caught up!</p>
+            ) : pendingTasks.slice(0, 6).map((task, ti) => {
+              const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
+              const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
+              const assigneeName = task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName}`.trim() : "";
+              const creatorName = task.createdBy?.about ? `${task.createdBy.about.firstName} ${task.createdBy.about.lastName}`.trim() : "";
+              const statusLabel = task.status === "inProgress" ? "In Progress" : task.status === "pending" ? "Pending" : task.status;
+              const statusColor = task.status === "inProgress" ? "var(--primary)" : task.status === "pending" ? "var(--amber)" : "var(--teal)";
+              return (
+                <motion.div key={task._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 + ti * 0.04 }} whileHover={{ x: 4 }} className="flex items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
+                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
+                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>{statusLabel}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-caption">
+                      {assigneeName && <span style={{ color: "var(--fg-secondary)" }}>→ {assigneeName}</span>}
+                      {creatorName && <span style={{ color: "var(--fg-tertiary)" }}>by {creatorName}</span>}
+                      {task.deadline && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>Due {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+                      {task.createdAt && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+                    </div>
+                  </div>
+                </motion.div>
               );
             })}
           </div>
-        </motion.div>
-      )}
+          <Link href="/tasks"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
+        </motion.section>
+      </div>
 
-      {/* 5. Live Presence — employee cards */}
+      {/* 4. Live Presence — employee cards */}
       <motion.section className="card relative overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>Team Status</h2>
             <RefreshBtn onRefresh={onRefreshLive} />
-            <span className="text-caption font-semibold" style={{ color: "#10b981" }}>{liveCount} live</span>
-            <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
-              {selectedTeamId && (
-              <span className="badge" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{teams.find((t) => t._id === selectedTeamId)?.name ?? "Team"}</span>
-              )}
+            {presenceLoading ? (
+              <Bone w="w-20" h="h-3.5" />
+            ) : (
+              <>
+                <span className="text-caption font-semibold" style={{ color: "#10b981" }}>{liveCount} live</span>
+                <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
+              </>
+            )}
             </div>
           <LayoutGroup id="admin-presence-filter">
             <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
@@ -800,7 +756,30 @@ function AdminDashboard({
               </div>
             </LayoutGroup>
           </div>
-          {filteredPresence.length > 0 ? (
+          {presenceLoading && filteredPresence.length === 0 ? (
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="card flex flex-col overflow-hidden">
+                <div className="flex-1 p-2.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3.5" /></div>
+                    <Bone w="w-14" h="h-4" />
+                  </div>
+                  <Bone w="w-28" h="h-2.5" />
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between"><Bone w="w-12" h="h-2.5" /><Bone w="w-16" h="h-2.5" /></div>
+                    <Bone w="w-full" h="h-1.5" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
+                  <Bone w="w-10" h="h-4" />
+                  <Bone w="w-16" h="h-2.5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredPresence.length > 0 ? (
           <motion.div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
             <AnimatePresence mode="popLayout">
               {filteredPresence.map((emp, idx) => {
@@ -817,6 +796,7 @@ function AdminDashboard({
                     onPing={handlePing}
                     emp={{
                       _id: emp._id,
+                      username: emp.username,
                       firstName: emp.firstName,
                       lastName: emp.lastName,
                       email: emp.email,
@@ -844,10 +824,6 @@ function AdminDashboard({
               })}
             </AnimatePresence>
             </motion.div>
-        ) : presenceLoading ? (
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="shimmer h-44 rounded-xl" />)}
-        </div>
         ) : (
           <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
           )}
@@ -1140,7 +1116,6 @@ export default function DashboardHome({ user }: { user: User }) {
   const [personalAttendance, setPersonalAttendance] = useState<PersonalAttendance | null>(null);
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [attendanceTrend, setAttendanceTrend] = useState<TrendDay[]>([]);
-  const [teams, setTeams] = useState<ApiTeam[]>([]);
   const [weeklyRecords, setWeeklyRecords] = useState<WeeklyDay[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<FullMonthlyStats | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -1156,6 +1131,7 @@ export default function DashboardHome({ user }: { user: User }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (raw as any[]).map((p) => ({
         _id: p._id,
+        username: p.username ?? "",
         firstName: p.firstName,
         lastName: p.lastName,
         email: p.email ?? "",
@@ -1321,16 +1297,14 @@ export default function DashboardHome({ user }: { user: User }) {
       if (isAdminRole) {
         fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
         fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
-        fetches.push(fetch("/api/teams").then((r) => r.ok ? r.json() : []));
       }
-      const [empRes, taskRes, deptRes, campaignRes, trendRes, teamsRes] = await Promise.all(fetches);
+      const [empRes, taskRes, deptRes, campaignRes, trendRes] = await Promise.all(fetches);
 
       setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
       setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
       setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
       if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
       if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
-      if (Array.isArray(teamsRes)) setTeams(teamsRes as ApiTeam[]);
 
       if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
@@ -1354,6 +1328,7 @@ export default function DashboardHome({ user }: { user: User }) {
     if (realPresence) return realPresence;
     return employees.map((e) => ({
       _id: e._id,
+      username: e.username ?? "",
       firstName: e.about?.firstName ?? "",
       lastName: e.about?.lastName ?? "",
       email: e.email ?? "",
@@ -1388,7 +1363,6 @@ export default function DashboardHome({ user }: { user: User }) {
         tasks={tasks}
         personalAttendance={personalAttendance}
         campaigns={campaigns}
-        teams={teams}
         userProfile={userProfile}
         dataLoading={loading}
         onRefreshLive={fetchLive}

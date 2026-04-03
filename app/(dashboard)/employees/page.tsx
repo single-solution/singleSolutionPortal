@@ -407,10 +407,11 @@ export default function EmployeesPage() {
                     onSelect={() => toggleSelect(emp._id)}
                     showRoleDepartmentTeams
                     showActions={canManage || isSuperAdmin}
-                    onEdit={canManage ? () => router.push(`/employees/${emp._id}/edit`) : undefined}
+                    onEdit={canManage ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
                     onDelete={isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
                     emp={{
                       _id: emp._id,
+                      username: emp.username,
                       firstName: emp.about.firstName,
                       lastName: emp.about.lastName,
                       email: emp.email,

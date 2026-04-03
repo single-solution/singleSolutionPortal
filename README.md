@@ -119,10 +119,12 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages their team)
 - **Unified EmployeeCard** component (`components/EmployeeCard.tsx`) used on BOTH the dashboard presence grid AND the employee list page — consistent card design everywhere
 - **Card design**: top-right pulsing status pill (green "In Office" / blue "Remote" when live, gray "Last seen" with time, or amber "Absent"), avatar with gradient ring, first arrival time, total hours, shift progress bar with two-segment overtime visualization (regular hours in primary color, overtime in purple), task/campaign pills
-- **Clickable employee cards** → navigate to `/employees/[id]` detail page showing the employee's own dashboard view (profile, today's stats, shift progress, session timeline, weekly overview)
+- **Clickable employee cards** → navigate to `/employees/[username]` detail page (clean URLs using username instead of ObjectID). Detail page mirrors the self-overview dashboard style: animated profile header with status badge, today's KPI cards, shift progress bar, activity timeline with live pulsing dots, task cards with priority/status pills, weekly overview strip with hover effects, and full monthly summary with office-vs-remote progress bar
 - **Multi-department manager assignment**: when creating/editing a manager or team lead, toggle-chip selector for "Managed Departments" — sets that user as the manager on each selected department. Managers can manage all employees, teams, and attendance across all their managed departments
-- Full-width create/edit forms (`/employees/new`, `/employees/[id]/edit`) with 2-column grid layout: Personal Info + Role & Department side-by-side on desktop, full-width Shift Configuration card with internal grid below
-- **Reports To (Team Lead assignment)**: dropdown selector showing team leads and managers filtered by the selected department. If no supervisor is explicitly chosen, the employee is **automatically assigned to the department manager** as a fallback (resolved server-side on create)
+- Full-width create/edit forms (`/employees/new`, `/employees/[username]/edit`) with 2-column grid layout: Personal Info + Role & Assignment side-by-side on desktop, full-width Shift Configuration card with internal grid below
+- **Department assignment**: toggle-chip selector (same style as teams/managed departments) — replaces the old dropdown, consistent UI across all multi-select fields
+- **Reports To**: dropdown selector showing team leads and managers. If no supervisor is explicitly chosen, the employee is **automatically assigned to the department manager** as a fallback (resolved server-side on create)
+- **Equal-height employee cards**: `flex-1` + `mt-auto` layout ensures all cards in a grid row stretch to the same height with attendance data pinned to the bottom — consistent on both the dashboard presence grid and the employees list page
 - ConfirmDialog for all destructive actions (deactivate single + bulk)
 - Profile image upload (base64, max 2MB) with initials fallback avatar
 - Shift configuration per employee (shift type, start/end hours, working days, break time, grace period)
@@ -287,7 +289,7 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 **SuperAdmin (AdminDashboard):**
 - **Welcome header**: time-of-day greeting with "Single Solution Sync" label, inline status badge pills showing **live** counts only (In Office = currently live + in office, Remote = currently live + remote, Late, Absent). Compact time card on the right with blob gradient and live clock (no task/campaign chips — full cards below already show this)
 - **No stat cards row**: removed the duplicate Total/InOffice/Late/Absent card row — the welcome pills already convey this at a glance
-- **Campaigns + Checklist**: campaigns vertical card on the left (lg:col-span-5), pending tasks checklist on the right (lg:col-span-7) with priority icons, labels, and assignee names. Both sections always show their card shell with skeleton rows while data loads
+- **Campaigns + Checklist**: campaigns vertical card on the left (lg:col-span-5), pending tasks checklist on the right (lg:col-span-7). Checklist uses card-background rows (matching campaigns style) with priority icon, priority badge, status pill (Pending/In Progress), assigned-to name, created-by name, deadline, and created date. Both sections always show their card shell with skeleton rows while data loads
 - **Team breakdown**: clickable rows showing team name, lead, live/present/absent/late counts. Clicking filters the presence cards below. Shows skeleton rows during initial load
 - **Team Status (Live Presence)**: pulsing green dot header, segmented pill filter (All/Office/Remote/Late/Absent), animated employee cards with gradient avatars, breathing ring animations for live employees, `badge-*` status pills, live/flagged badges, arrival→status row, work duration pills, shift progress bars, pending tasks/campaign tags
 - **Stale session detection**: Presence API checks `lastActivity` against a 3-minute threshold. Stale employees show as inactive
@@ -378,7 +380,9 @@ app/
       loading.tsx        # Route-level shimmer skeleton (pixel-perfect card grid)
       EmployeeForm.tsx   # Shared full-page create/edit form
       new/page.tsx       # Create employee route
-      [id]/edit/page.tsx # Edit employee route
+      [slug]/page.tsx    # Employee detail page (accepts username or ID via resolveUserId)
+      [slug]/EmployeeDetailClient.tsx # Rich client component for employee detail (animated, dashboard-style)
+      [slug]/edit/page.tsx # Edit employee route (resolves username to ID)
     departments/
       page.tsx           # Department management (useQuery cached, server-side team/employee counts)
       loading.tsx        # Route-level shimmer skeleton
@@ -407,6 +411,7 @@ app/
     employees/           # CRUD with role scoping + activity logging
     employees/[id]/      # GET/PUT/DELETE single employee (role-scoped canViewEmployee/canEditEmployee)
     employees/[id]/resend-invite/ # POST resend welcome email with new setup-password link
+    employees/resolve/   # GET resolve username to employee ID (for [slug] routes)
     employees/dropdown/  # Sparse employee list (id, name, role, dept, teams) for form dropdowns
     departments/         # CRUD with manager population + server-side team/employee counts + activity logging
     departments/[id]/    # PUT/DELETE single department (SuperAdmin only)

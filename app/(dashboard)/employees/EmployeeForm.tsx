@@ -347,39 +347,54 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.15, ease }}
         >
-          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--fg)" }}>Role & Department</h2>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--fg)" }}>Role & Assignment</h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Designation</label>
-                <select className="input" value={form.userRole} onChange={(e) => setForm({ ...form, userRole: e.target.value })}>
-                  {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Department</label>
-                <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
-                  <option value="">No Department</option>
-                  {departments.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
-                </select>
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Designation</label>
+              <select className="input" value={form.userRole} onChange={(e) => setForm({ ...form, userRole: e.target.value })}>
+                {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Reports To</label>
               <select className="input" value={form.reportsTo} onChange={(e) => setForm({ ...form, reportsTo: e.target.value })}>
-                <option value="">{form.department ? "Auto (Department Manager)" : "None"}</option>
-                {filteredSupervisors.map((s) => (
+                <option value="">None</option>
+                {supervisors.map((s) => (
                   <option key={s._id} value={s._id}>
                     {s.fullName} ({s.userRole === "teamLead" ? "Team Lead" : "Manager"})
                   </option>
                 ))}
               </select>
-              {!form.reportsTo && deptManagerName && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[11px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                  Will default to <span style={{ color: "var(--fg-secondary)" }}>{deptManagerName}</span>
-                </motion.p>
-              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Department</label>
+              <div className="flex flex-wrap gap-2">
+                {departments.length === 0 ? (
+                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No departments available</p>
+                ) : departments.map((d) => {
+                  const active = form.department === d._id;
+                  return (
+                    <motion.button
+                      key={d._id}
+                      type="button"
+                      onClick={() => setForm({ ...form, department: active ? "" : d._id })}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        active
+                          ? "bg-[var(--primary)] text-white shadow-sm"
+                          : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                      }`}
+                      style={!active ? { background: "var(--bg-grouped)" } : undefined}
+                    >
+                      {d.title}
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
 
             <AnimatePresence>

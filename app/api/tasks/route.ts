@@ -45,6 +45,7 @@ export async function GET() {
 
   const tasks = await ActivityTask.find(filter)
     .populate("assignedTo", "about.firstName about.lastName email userRole department teams")
+    .populate("createdBy", "about.firstName about.lastName email userRole")
     .sort({ createdAt: -1 })
     .lean();
 

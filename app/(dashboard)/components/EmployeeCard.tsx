@@ -6,6 +6,7 @@ import { cardVariants, cardHover } from "@/lib/motion";
 
 export interface EmployeeCardEmp {
   _id: string;
+  username?: string;
   firstName: string;
   lastName: string;
   email?: string;
@@ -238,12 +239,12 @@ export function EmployeeCard({
   const inner = (
     <>
       <Link
-        href={`/employees/${emp._id}`}
+        href={`/employees/${emp.username ?? emp._id}`}
         className={`absolute inset-0 z-0 ${embedded ? "" : "rounded-[var(--radius)]"}`}
         aria-label={`View ${emp.firstName} ${emp.lastName}`}
       />
 
-      <div className={`relative z-10 flex flex-col gap-2.5 ${embedded ? "p-2.5" : "p-3"} pointer-events-none`}>
+      <div className={`relative z-10 flex flex-1 flex-col gap-2.5 ${embedded ? "p-2.5" : "p-3"} pointer-events-none`}>
         {selectable && (
           <input
             type="checkbox"
@@ -369,7 +370,7 @@ export function EmployeeCard({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
+        <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
           <div>
             <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
               First arrival
@@ -499,7 +500,7 @@ export function EmployeeCard({
 
   const shellClass = embedded
     ? `group relative flex min-h-0 flex-1 flex-col overflow-hidden ${className ?? ""}`
-    : `card-static group relative flex flex-col overflow-hidden rounded-[var(--radius)] ${className ?? ""}`;
+    : `card-static group relative flex h-full flex-col overflow-hidden rounded-[var(--radius)] ${className ?? ""}`;
 
   const shell = <div className={shellClass}>{inner}</div>;
 
