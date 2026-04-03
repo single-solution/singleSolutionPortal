@@ -57,6 +57,17 @@ function detectMobile(): boolean {
   );
 }
 
+function sendBrowserNotification(title: string, body: string) {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, { body, icon: "/favicon.ico", tag: "session-alert" });
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then((perm) => {
+      if (perm === "granted") new Notification(title, { body, icon: "/favicon.ico", tag: "session-alert" });
+    });
+  }
+}
+
 function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null> {
   if (!("geolocation" in navigator)) return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -223,7 +234,9 @@ export default function SessionTracker() {
         });
         const data = await res.json();
         if (data.sessionClosed) {
-          // Server auto-closed the stale session. Re-check-in for a fresh one.
+          if (data.sleepDetected) {
+            sendBrowserNotification("Session Restarted", "Your previous session was closed due to inactivity. A new session has started.");
+          }
           const ok = await doCheckIn();
           if (ok) {
             updateMode("active");
@@ -233,6 +246,10 @@ export default function SessionTracker() {
             startSyncPolling();
           }
           return;
+        }
+        if (data.locationFlagged) {
+          const reason = data.flagReasons?.join("; ") ?? "Location issue detected";
+          sendBrowserNotification("Timer Paused", reason + ". Open the app and click Re-check.");
         }
         setSession((s) => ({
           ...s,
@@ -283,6 +300,13 @@ export default function SessionTracker() {
 
     syncRef.current = setInterval(poll, HEARTBEAT_MS);
   }, [fetchSession, doCheckIn, updateMode, startHeartbeat]);
+
+  // ─── Request notification permission early ────────────────────
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // ─── Init on mount ────────────────────────────────────────────
   useEffect(() => {

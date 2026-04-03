@@ -76,10 +76,11 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 **Fake location detection (laptop-optimized anti-spoofing):**
 - Designed for **laptop geolocation** (Wi-Fi triangulation / IP geolocation), not phone GPS. Mobile tracking is disabled
 - **Layer 1 — Accuracy zero**: Fake GPS extensions report accuracy as exactly `0`. Real Wi-Fi triangulation on laptops reports 20–200 m. Only flags when accuracy is exactly zero
-- **Layer 2 — Teleportation**: Compares haversine distance between consecutive heartbeats. Flags only when BOTH conditions are met: distance > 10 km AND implied speed > 200 km/h (~55 m/s). The 10 km minimum filters out Wi-Fi triangulation noise (jumps of 1–3 km when access points change, VPN toggles, floor changes). Only fires within an active session — sleep/wake creates a new session so office→home jumps don't trigger it
+- **Layer 2 — Teleportation**: Compares haversine distance between consecutive heartbeats against elapsed time. Flags if implied speed exceeds 200 km/h (~55 m/s). Only fires within an active session — sleep/wake creates a new session so office→home jumps don't trigger it
 - **Layer 3 — Zero variance**: **Disabled**. Wi-Fi positioning returns the exact same coordinates as long as the same networks are visible. An employee at their desk gets byte-identical coords all day. This layer was designed for phone GPS micro-drift and is incompatible with laptop geolocation
 - **Layer 4 — Round coordinates**: Flags coordinates with fewer than 2 significant decimal digits (catches crude manual entries like `31.5, 74.3`). Lenient threshold accounts for Wi-Fi triangulation precision
-- When flagged: timer pauses, heartbeat stops, red warning pill + full-screen overlay with reason text. Employee can click "Re-check Location" to trigger an immediate fresh geo reading — if clean, timer resumes automatically
+- When flagged: timer pauses, heartbeat stops, red warning pill + full-screen overlay with reason text. Employee can click "Re-check Location" to trigger an immediate fresh geo reading — if clean, timer resumes automatically. A **browser notification** (system-level toast) is also sent so the employee sees the alert even when the app is in the background or minimized
+- Session restart notifications: when the server auto-closes a stale session (e.g. after laptop sleep), the employee receives a browser notification informing them their session was restarted
 - Flag state persisted on `ActivitySession.location` (flagReason, flaggedAt, consecutiveIdentical) and returned in both GET and PATCH responses — visible to managers/admins on the dashboard presence cards
 - Does not ban or lock out — pauses and warns, letting employees self-correct. SuperAdmin exempt
 
