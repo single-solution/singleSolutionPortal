@@ -609,22 +609,22 @@ function AdminDashboard({
       )}
 
       {/* 3. Campaigns (left) + Tasks (right) for admin/superadmin */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <motion.section className="card p-4 sm:p-5 lg:col-span-5" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="mb-3 flex items-center justify-between">
+      <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[1fr_1fr]">
+        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-5 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-3 flex shrink-0 items-center justify-between">
             <div className="flex items-center min-w-0">
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
               <RefreshBtn onRefresh={onRefreshFull} />
             </div>
             <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {dataLoading ? (
               [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
             ) : activeCampaigns.length === 0 ? (
               <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
-            ) : activeCampaigns.slice(0, 8).map((camp, ci) => (
-              <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
+            ) : activeCampaigns.map((camp, ci) => (
+              <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
                 </span>
@@ -640,8 +640,8 @@ function AdminDashboard({
             ))}
           </div>
         </motion.section>
-        <motion.section className="card p-4 sm:p-5 lg:col-span-7" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="mb-3 flex items-center justify-between">
+        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-3 flex shrink-0 items-center justify-between">
             <div className="flex items-center min-w-0">
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
               <RefreshBtn onRefresh={onRefreshFull} />
@@ -652,12 +652,12 @@ function AdminDashboard({
               </motion.div>
             )}
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {dataLoading ? (
               [1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
             ) : pendingTasks.length === 0 ? (
               <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>All caught up!</p>
-            ) : pendingTasks.slice(0, 6).map((task, ti) => {
+            ) : pendingTasks.map((task, ti) => {
               const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
               const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
               const assigneeName = task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName}`.trim() : "";
@@ -665,7 +665,7 @@ function AdminDashboard({
               const statusLabel = task.status === "inProgress" ? "In Progress" : task.status === "pending" ? "Pending" : task.status;
               const statusColor = task.status === "inProgress" ? "var(--primary)" : task.status === "pending" ? "var(--amber)" : "var(--teal)";
               return (
-                <motion.div key={task._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 + ti * 0.04 }} whileHover={{ x: 4 }} className="flex items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
+                <motion.div key={task._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 + ti * 0.04 }} whileHover={{ x: 4 }} className="flex shrink-0 items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
                   <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
@@ -688,12 +688,11 @@ function AdminDashboard({
               );
             })}
           </div>
-          <Link href="/tasks"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
+          <Link href="/tasks" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
         </motion.section>
-      </div>
 
       {/* 4. Live Presence — employee cards */}
-      <motion.section className="card relative flex-1 overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
+      <motion.section className="card relative flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-12 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
@@ -722,6 +721,7 @@ function AdminDashboard({
               </div>
             </LayoutGroup>
           </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
           {presenceLoading && filteredPresence.length === 0 ? (
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -798,7 +798,9 @@ function AdminDashboard({
         ) : (
           <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
           )}
+          </div>
         </motion.section>
+      </div>
 
       {/* Ping toast */}
       <AnimatePresence>
