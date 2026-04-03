@@ -694,7 +694,7 @@ function AdminDashboard({
         </motion.section>
 
       {/* 4. Live Presence — employee cards */}
-      <motion.section className="card relative flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-12 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+      <motion.section className="card relative flex flex-col overflow-visible p-4 sm:p-5 lg:col-span-12 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
@@ -742,7 +742,7 @@ function AdminDashboard({
             ))}
           </div>
         ) : filteredPresence.length > 0 ? (
-          <motion.div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+          <motion.div className="grid pt-4 grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
             <AnimatePresence mode="popLayout">
               {filteredPresence.map((emp, idx) => {
                 const empTasks = tasksByEmployee.get(emp._id) ?? [];

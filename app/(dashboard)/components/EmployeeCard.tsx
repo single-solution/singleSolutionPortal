@@ -289,7 +289,7 @@ export function EmployeeCard({
         aria-label={`View ${emp.firstName} ${emp.lastName}`}
       />
 
-      <div className="pointer-events-none absolute right-0 z-20 max-w-[55%] text-right" style={{ top: -10 }}>
+      <div className="pointer-events-none absolute right-0 z-50 max-w-[55%] text-right" style={{ top: -13 }}>
         <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
       </div>
 

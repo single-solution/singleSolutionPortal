@@ -365,7 +365,7 @@ export default function EmployeesPage() {
 
       {/* Employee Card Grid */}
       <motion.div
-        className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        className="grid gap-2 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         variants={staggerContainerFast}
         initial="hidden"
         animate="visible"
@@ -424,7 +424,7 @@ export default function EmployeesPage() {
                   className="h-full"
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <div className="card group relative flex h-full flex-col overflow-hidden">
+                  <div className="card group relative flex h-full flex-col overflow-visible">
                   <EmployeeCard
                     embedded
                     idx={i}
