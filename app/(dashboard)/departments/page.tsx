@@ -270,12 +270,23 @@ export default function DepartmentsPage() {
       >
         <AnimatePresence mode="popLayout">
           {deptsLoading && !departments ? (
-            [1, 2, 3, 4, 5, 6].map((i) => (
+            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
-                <div className="card flex h-full flex-col p-3 space-y-3">
-                  <div className="flex items-center justify-between"><span className="shimmer block h-4 w-28 rounded" /><span className="shimmer block h-5 w-10 rounded-full" /></div>
-                  <span className="shimmer block h-2.5 w-20 rounded" />
-                  <span className="shimmer block h-2 w-full rounded-full" />
+                <div className="card flex h-full flex-col overflow-hidden">
+                  <div className="flex-1 p-2.5">
+                    <div className="shimmer h-3.5 w-24 rounded" />
+                    <div className="shimmer mt-0.5 h-2.5 w-20 rounded" />
+                    <div className="mt-1.5"><div className="shimmer h-2.5 w-32 rounded" /></div>
+                    <div className="shimmer mt-1 h-2.5 w-full rounded" />
+                    <div className="shimmer mt-1 h-2.5 w-20 rounded" />
+                  </div>
+                  <div className="flex items-center justify-between border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
+                    <div className="shimmer h-5 w-10 rounded-full" />
+                    <div className="flex items-center gap-1">
+                      <div className="shimmer h-6 w-6 rounded-lg" />
+                      <div className="shimmer h-6 w-6 rounded-lg" />
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ))

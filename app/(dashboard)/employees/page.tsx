@@ -371,12 +371,37 @@ export default function EmployeesPage() {
       >
         <AnimatePresence mode="popLayout">
           {employeesLoading && !employees ? (
-            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
               <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
-                <div className="card flex h-full flex-col p-4 space-y-3">
-                  <div className="flex items-center gap-3"><div className="shimmer h-10 w-10 rounded-full" /><div className="flex-1 space-y-1.5"><span className="shimmer block h-3.5 w-24 rounded" /><span className="shimmer block h-2.5 w-16 rounded" /></div></div>
-                  <span className="shimmer block h-2.5 w-32 rounded" />
-                  <span className="shimmer block h-2.5 w-20 rounded" />
+                <div className="card flex h-full flex-col overflow-hidden">
+                  <div className="flex-1 p-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
+                      <div className="min-w-0 flex-1"><div className="shimmer h-3.5 w-20 rounded" /></div>
+                      <div className="shimmer h-4 w-14 shrink-0 rounded-full" />
+                    </div>
+                    <div className="shimmer mt-1 h-2.5 w-28 rounded" />
+                    <div className="mt-1.5 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <div className="shimmer h-2.5 w-8 rounded" />
+                        <div className="shimmer h-2.5 w-20 rounded" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="shimmer h-2.5 w-16 rounded" />
+                        <div className="shimmer h-2.5 w-16 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
+                    <div className="flex items-center gap-2">
+                      <div className="shimmer h-5 w-10 rounded-full" />
+                      <div className="shimmer h-2.5 w-20 rounded" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="shimmer h-6 w-6 rounded-lg" />
+                      <div className="shimmer h-6 w-6 rounded-lg" />
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ))

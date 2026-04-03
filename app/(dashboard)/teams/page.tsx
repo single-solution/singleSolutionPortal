@@ -307,12 +307,29 @@ export default function TeamsPage() {
       <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {teamsLoading && !teams ? (
-            [1, 2, 3, 4, 5, 6].map((i) => (
+            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
-                <div className="card flex h-full flex-col p-3 space-y-3">
-                  <span className="shimmer block h-4 w-24 rounded" />
-                  <span className="shimmer block h-2.5 w-32 rounded" />
-                  <div className="flex gap-2"><span className="shimmer block h-5 w-14 rounded-full" /><span className="shimmer block h-5 w-10 rounded-full" /></div>
+                <div className="card flex h-full flex-col overflow-hidden">
+                  <div className="flex-1 p-2.5">
+                    <div className="shimmer h-3.5 w-24 rounded" />
+                    <div className="shimmer mt-0.5 h-2.5 w-20 rounded" />
+                    <div className="mt-1.5 space-y-0.5">
+                      <div className="shimmer h-2.5 w-32 rounded" />
+                      <div className="shimmer h-2.5 w-20 rounded" />
+                    </div>
+                    <div className="mt-1 flex -space-x-1.5">
+                      {[1, 2, 3].map((j) => (
+                        <div key={j} className="shimmer h-5 w-5 rounded-full" style={{ border: "1.5px solid var(--bg-elevated)" }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
+                    <div className="shimmer h-5 w-10 rounded-full" />
+                    <div className="flex items-center gap-1">
+                      <div className="shimmer h-6 w-6 rounded-lg" />
+                      <div className="shimmer h-6 w-6 rounded-lg" />
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ))
