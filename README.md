@@ -299,7 +299,8 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
   - **Warning** (≤ 2 flags in 30 days): Timer continues running, employee sees a yellow "Location Warning" toast, event is logged and manager/SuperAdmin are notified via the activity log bell
   - **Violation** (> 2 flags in 30 days): Timer pauses with a full red overlay requiring re-check, manager/SuperAdmin notified with elevated severity
   - `/api/location-flags` GET endpoint lets managers see flags for their team, team leads for their reports, and SuperAdmins see everything. PATCH endpoint allows acknowledging flag events
-  - Activity log entries use `entity: "security"` with a shield icon in the notification bell, targeted to the employee's `reportsTo` manager and all active SuperAdmins
+  - Activity log entries use `entity: "security"` with a shield icon in the notification bell, targeted to the employee's `reportsTo` manager and all active SuperAdmins. Security entries in the bell render richly: severity badge (Warning/Violation), each detection reason, clickable Google Maps coordinates link (lat/lng with accuracy), and flag count in window
+  - Employee cards on the dashboard show a red "Location Flagged" detail box when the employee is currently flagged, including the flag reason and clickable coordinates linking to Google Maps
 - No LivePulse on welcome bar — timer pill at bottom handles live indication for all roles
 
 **Manager / Team Lead (AdminDashboard):**

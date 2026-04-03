@@ -104,6 +104,8 @@ interface PresenceEmployee {
   shiftBreakTime: number;
   isLive: boolean;
   locationFlagged: boolean;
+  flagReason?: string | null;
+  flagCoords?: { lat: number; lng: number } | null;
   isActive: boolean;
   teamIds?: string[];
 }
@@ -768,6 +770,8 @@ function AdminDashboard({
                       isLive: emp.isLive,
                       status: emp.status,
                       locationFlagged: emp.locationFlagged,
+                      flagReason: emp.flagReason,
+                      flagCoords: emp.flagCoords,
                       firstEntry: emp.firstEntry ?? undefined,
                       lastExit: emp.lastExit ?? undefined,
                       todayMinutes: emp.todayMinutes,
@@ -1114,6 +1118,8 @@ export default function DashboardHome({ user }: { user: User }) {
         shiftBreakTime: p.shiftBreakTime ?? 60,
         isLive: p.isLive ?? false,
         locationFlagged: p.locationFlagged ?? false,
+        flagReason: p.flagReason ?? null,
+        flagCoords: p.flagCoords ?? null,
         isActive: p.isActive,
         teamIds: p.teamIds ?? [],
       })),

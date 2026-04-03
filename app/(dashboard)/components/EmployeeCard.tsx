@@ -16,6 +16,8 @@ export interface EmployeeCardEmp {
   isLive?: boolean;
   status?: string;
   locationFlagged?: boolean;
+  flagReason?: string | null;
+  flagCoords?: { lat: number; lng: number } | null;
   firstEntry?: string;
   lastExit?: string;
   todayMinutes?: number;
@@ -408,6 +410,37 @@ export function EmployeeCard({
                 </span>
               )}
             </div>
+
+            {emp.locationFlagged && (
+              <div className="rounded-lg border p-2 text-[9px] space-y-1" style={{ borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }}>
+                <div className="flex items-center gap-1">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <span className="font-bold" style={{ color: "#ef4444" }}>Location Flagged</span>
+                </div>
+                {emp.flagReason && (
+                  <p className="leading-snug" style={{ color: "#ef4444" }}>{emp.flagReason}</p>
+                )}
+                {emp.flagCoords && (
+                  <a
+                    href={`https://www.google.com/maps?q=${emp.flagCoords.lat},${emp.flagCoords.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pointer-events-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors"
+                    style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {emp.flagCoords.lat.toFixed(5)}, {emp.flagCoords.lng.toFixed(5)}
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+                    </svg>
+                  </a>
+                )}
+              </div>
+            )}
 
             <ShiftProgressBar todayMinutes={todayM} shiftStart={shiftStart} shiftEnd={shiftEnd} shiftBreakTime={shiftBreak} />
           </>

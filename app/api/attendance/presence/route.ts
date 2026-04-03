@@ -139,6 +139,10 @@ export async function GET() {
       shiftBreakTime: e.workShift?.breakTime ?? 60,
       isLive,
       locationFlagged: active?.location?.locationFlagged ?? false,
+      flagReason: active?.location?.flagReason ?? null,
+      flagCoords: active?.location?.latitude != null && active?.location?.longitude != null
+        ? { lat: active.location.latitude, lng: active.location.longitude }
+        : null,
       isActive: true,
       teamIds: Array.isArray(emp.teams) ? emp.teams.map((t: unknown) => String(t)) : [],
     };

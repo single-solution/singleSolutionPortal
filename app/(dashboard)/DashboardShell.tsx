@@ -561,6 +561,11 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                         const seenIdx = lastSeenRef.current ? logs.findIndex((l) => l._id === lastSeenRef.current) : -1;
                         const isSeen = seenIdx !== -1 && i >= seenIdx;
                         const href = getEntityHref(log.entity, log.entityId) || getEntityPageHref(log.entity);
+                        const isSecurity = log.entity === "security";
+                        let secMeta: { severity?: string; totalCount?: number; latitude?: number; longitude?: number; accuracy?: number | null; reasons?: string[]; windowDays?: number } | null = null;
+                        if (isSecurity && log.details) {
+                          try { secMeta = JSON.parse(log.details); } catch { /* not JSON — legacy entry */ }
+                        }
                         return (
                           <div
                             key={log._id}
@@ -570,13 +575,73 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                           >
                             <div className="flex items-start gap-2.5">
-                              <svg className={`w-4 h-4 mt-0.5 shrink-0 ${ENTITY_COLORS[log.entity] || "text-[var(--fg-tertiary)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={ENTITY_ICONS[log.entity] || ENTITY_ICONS.employee} />
-                              </svg>
+                              <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${isSecurity ? "" : ""}`} style={isSecurity ? { background: secMeta?.severity === "violation" ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)" } : undefined}>
+                                <svg className={`w-4 h-4 shrink-0 ${ENTITY_COLORS[log.entity] || "text-[var(--fg-tertiary)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d={ENTITY_ICONS[log.entity] || ENTITY_ICONS.employee} />
+                                </svg>
+                              </div>
                               <div className="flex-1 min-w-0">
                                 {(() => {
                                   const isSelf = log.userEmail === user.email;
                                   const displayName = isSelf ? "You" : (log.userName || log.userEmail.split("@")[0]);
+
+                                  if (isSecurity && secMeta) {
+                                    const isViolation = secMeta.severity === "violation";
+                                    const mapsUrl = secMeta.latitude != null && secMeta.longitude != null
+                                      ? `https://www.google.com/maps?q=${secMeta.latitude},${secMeta.longitude}`
+                                      : null;
+                                    return (
+                                      <>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <p className="text-xs font-semibold leading-snug" style={{ color: "var(--fg)" }}>
+                                            {displayName}
+                                          </p>
+                                          <span
+                                            className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase"
+                                            style={{
+                                              background: isViolation ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
+                                              color: isViolation ? "#ef4444" : "#d97706",
+                                            }}
+                                          >
+                                            {isViolation ? "Violation" : "Warning"}
+                                          </span>
+                                          <span className="text-[9px] font-semibold tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                                            #{secMeta.totalCount ?? "?"} in {secMeta.windowDays ?? 30}d
+                                          </span>
+                                        </div>
+                                        {secMeta.reasons && secMeta.reasons.length > 0 && (
+                                          <div className="mt-1 space-y-0.5">
+                                            {secMeta.reasons.map((r, ri) => (
+                                              <p key={ri} className="text-[10px] leading-snug" style={{ color: isViolation ? "#ef4444" : "#d97706" }}>
+                                                {r}
+                                              </p>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {mapsUrl && (
+                                          <a
+                                            href={mapsUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+                                            style={{ background: "var(--primary-light)", color: "var(--primary)" }}
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                                              <circle cx="12" cy="10" r="3" />
+                                            </svg>
+                                            {secMeta.latitude?.toFixed(5)}, {secMeta.longitude?.toFixed(5)}
+                                            {secMeta.accuracy != null && <span className="opacity-60">(±{Math.round(secMeta.accuracy)}m)</span>}
+                                          </a>
+                                        )}
+                                        <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                                          {isSelf ? "you" : log.userEmail.split("@")[0]} · {timeAgo(log.createdAt)}
+                                        </p>
+                                      </>
+                                    );
+                                  }
+
                                   return (
                                     <>
                                       <p className="text-xs font-medium leading-snug" style={{ color: "var(--fg)" }}>

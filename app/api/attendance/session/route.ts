@@ -213,7 +213,7 @@ export async function PATCH(req: Request) {
         severity,
       });
 
-      notifyFlagAsync(actor.id, flagEvent._id.toString(), validation.reasons, severity, priorCount + 1);
+      notifyFlagAsync(actor.id, flagEvent._id.toString(), validation.reasons, severity, priorCount + 1, latitude, longitude, accuracy);
     } else if (active.location.locationFlagged) {
       active.location.locationFlagged = false;
       active.location.flagReason = undefined;
@@ -270,6 +270,9 @@ function notifyFlagAsync(
   reasons: string[],
   severity: "warning" | "violation",
   totalCount: number,
+  latitude: number,
+  longitude: number,
+  accuracy?: number,
 ) {
   (async () => {
     try {
@@ -277,9 +280,8 @@ function notifyFlagAsync(
       if (!employee) return;
 
       const empName = `${employee.about?.firstName ?? ""} ${employee.about?.lastName ?? ""}`.trim() || employee.email;
-      const reasonStr = reasons.join("; ");
       const prefix = severity === "violation" ? "VIOLATION" : "Warning";
-      const action = `location flagged — ${prefix} (#${totalCount}): ${reasonStr}`;
+      const action = `location flagged — ${prefix} (#${totalCount})`;
 
       const targetIds: string[] = [];
 
@@ -295,13 +297,23 @@ function notifyFlagAsync(
 
       if (targetIds.length === 0) return;
 
+      const detailsJson = JSON.stringify({
+        severity,
+        totalCount,
+        latitude,
+        longitude,
+        accuracy: accuracy ?? null,
+        reasons,
+        windowDays: FLAG_TOLERANCE_WINDOW_DAYS,
+      });
+
       await logActivity({
         userEmail: employee.email ?? "",
         userName: empName,
         action,
         entity: "security",
         entityId: flagEventId,
-        details: `Severity: ${severity} · Count in last ${FLAG_TOLERANCE_WINDOW_DAYS} days: ${totalCount}`,
+        details: detailsJson,
         targetUserIds: targetIds,
         visibility: "targeted",
       });
