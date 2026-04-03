@@ -62,6 +62,8 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const isLeadOrManager = form.userRole === "manager" || form.userRole === "teamLead";
+
   const derivedUsername = useMemo(() => {
     if (!form.email) return "";
     return form.email.split("@")[0]?.toLowerCase().replace(/[^a-z0-9._-]/g, "") ?? "";
@@ -368,71 +370,49 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Department</label>
-              <div className="flex flex-wrap gap-2">
-                {departments.length === 0 ? (
-                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No departments available</p>
-                ) : departments.map((d) => {
-                  const active = form.department === d._id;
-                  return (
-                    <motion.button
-                      key={d._id}
-                      type="button"
-                      onClick={() => setForm({ ...form, department: active ? "" : d._id })}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.92 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        active
-                          ? "bg-[var(--primary)] text-white shadow-sm"
-                          : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                      }`}
-                      style={!active ? { background: "var(--bg-grouped)" } : undefined}
-                    >
-                      {d.title}
-                    </motion.button>
-                  );
-                })}
+            {departments.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">
+                  {isLeadOrManager ? "Departments" : "Department"}
+                </label>
+                {isLeadOrManager && (
+                  <p className="text-[11px] mb-2" style={{ color: "var(--fg-tertiary)" }}>
+                    Departments this {form.userRole === "manager" ? "manager" : "lead"} can view and manage
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {departments.map((d) => {
+                    const active = isLeadOrManager
+                      ? form.managedDepartments.includes(d._id)
+                      : form.department === d._id;
+                    return (
+                      <motion.button
+                        key={d._id}
+                        type="button"
+                        onClick={() => {
+                          if (isLeadOrManager) {
+                            toggleManagedDept(d._id);
+                          } else {
+                            setForm((f) => ({ ...f, department: f.department === d._id ? "" : d._id }));
+                          }
+                        }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.92 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          active
+                            ? "bg-[var(--primary)] text-white shadow-sm"
+                            : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                        }`}
+                        style={!active ? { background: "var(--bg-grouped)" } : undefined}
+                      >
+                        {d.title}
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-
-            <AnimatePresence>
-              {(form.userRole === "manager" || form.userRole === "teamLead") && departments.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease }}
-                >
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Managed Departments</label>
-                  <p className="text-[11px] mb-2" style={{ color: "var(--fg-tertiary)" }}>Departments this {form.userRole === "manager" ? "manager" : "lead"} can view and manage</p>
-                  <div className="flex flex-wrap gap-2">
-                    {departments.map((d) => {
-                      const active = form.managedDepartments.includes(d._id);
-                      return (
-                        <motion.button
-                          key={d._id}
-                          type="button"
-                          onClick={() => toggleManagedDept(d._id)}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.92 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            active
-                              ? "bg-[var(--primary)] text-white shadow-sm"
-                              : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                          }`}
-                          style={!active ? { background: "var(--bg-grouped)" } : undefined}
-                        >
-                          {d.title}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            )}
 
             <AnimatePresence>
               {filteredTeams.length > 0 && (
