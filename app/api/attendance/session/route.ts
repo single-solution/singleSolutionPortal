@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
+import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
@@ -8,12 +9,15 @@ import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice, validateLocation } from "@/lib/geo";
 import { emitSocket } from "@/lib/socket";
+import { logActivity } from "@/lib/activityLogger";
 import { startOfDay, isSameDay } from "@/lib/dayBoundary";
 import { resolveTimezone, dateParts, dateInTz } from "@/lib/tz";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 
 const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
+const FLAG_TOLERANCE_WINDOW_DAYS = 30;
+const FLAG_TOLERANCE_THRESHOLD = 2;
 
 async function loadTz(): Promise<string> {
   const s = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
@@ -186,9 +190,30 @@ export async function PATCH(req: Request) {
     active.location.consecutiveIdentical = consecutive;
 
     if (validation.flagged) {
-      active.location.locationFlagged = true;
-      active.location.flagReason = validation.reasons.join("; ");
-      active.location.flaggedAt = now;
+      const windowStart = new Date(now.getTime() - FLAG_TOLERANCE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+      const priorCount = await LocationFlagEvent.countDocuments({
+        user: actor.id,
+        createdAt: { $gte: windowStart },
+      });
+      const severity: "warning" | "violation" = priorCount >= FLAG_TOLERANCE_THRESHOLD ? "violation" : "warning";
+
+      if (severity === "violation") {
+        active.location.locationFlagged = true;
+        active.location.flagReason = validation.reasons.join("; ");
+        active.location.flaggedAt = now;
+      }
+
+      const flagEvent = await LocationFlagEvent.create({
+        user: actor.id,
+        session: active._id,
+        latitude,
+        longitude,
+        accuracy,
+        reasons: validation.reasons,
+        severity,
+      });
+
+      notifyFlagAsync(actor.id, flagEvent._id.toString(), validation.reasons, severity, priorCount + 1);
     } else if (active.location.locationFlagged) {
       active.location.locationFlagged = false;
       active.location.flagReason = undefined;
@@ -214,6 +239,10 @@ export async function PATCH(req: Request) {
       active.officeSegments.push({ entryTime: now, durationMinutes: 0 });
     }
 
+    const flagSeverity = validation.flagged
+      ? (active.location.locationFlagged ? "violation" : "warning")
+      : null;
+
     await active.save();
     if (wasInOffice !== nowInOffice) emitSocket("presence", { type: "update" }, { room: "presence" });
     return ok({
@@ -221,6 +250,7 @@ export async function PATCH(req: Request) {
       inOffice: nowInOffice,
       transitioned: wasInOffice !== nowInOffice,
       locationFlagged: active.location.locationFlagged ?? false,
+      flagSeverity,
       flagReasons: validation.flagged ? validation.reasons : [],
     });
   }
@@ -231,6 +261,56 @@ export async function PATCH(req: Request) {
     inOffice: active.location?.inOffice ?? false,
     locationFlagged: active.location?.locationFlagged ?? false,
   });
+}
+
+// ─── Async flag notification (fire-and-forget) ────────────────────
+function notifyFlagAsync(
+  userId: string,
+  flagEventId: string,
+  reasons: string[],
+  severity: "warning" | "violation",
+  totalCount: number,
+) {
+  (async () => {
+    try {
+      const employee = await User.findById(userId).select("about email reportsTo").lean();
+      if (!employee) return;
+
+      const empName = `${employee.about?.firstName ?? ""} ${employee.about?.lastName ?? ""}`.trim() || employee.email;
+      const reasonStr = reasons.join("; ");
+      const prefix = severity === "violation" ? "VIOLATION" : "Warning";
+      const action = `location flagged — ${prefix} (#${totalCount}): ${reasonStr}`;
+
+      const targetIds: string[] = [];
+
+      if (employee.reportsTo) {
+        targetIds.push(employee.reportsTo.toString());
+      }
+
+      const superAdmins = await User.find({ userRole: "superadmin", isActive: true }).select("_id").lean();
+      for (const sa of superAdmins) {
+        const saId = sa._id.toString();
+        if (!targetIds.includes(saId)) targetIds.push(saId);
+      }
+
+      if (targetIds.length === 0) return;
+
+      await logActivity({
+        userEmail: employee.email ?? "",
+        userName: empName,
+        action,
+        entity: "security",
+        entityId: flagEventId,
+        details: `Severity: ${severity} · Count in last ${FLAG_TOLERANCE_WINDOW_DAYS} days: ${totalCount}`,
+        targetUserIds: targetIds,
+        visibility: "targeted",
+      });
+
+      emitSocket("presence", { type: "flag", userId, severity }, { room: "presence" });
+    } catch {
+      /* fire-and-forget */
+    }
+  })();
 }
 
 // ─── Close a session and recompute daily/monthly ──────────────────

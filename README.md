@@ -295,6 +295,11 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 - **Team Status (Live Presence)**: pulsing green dot header, segmented pill filter (All/Office/Remote/Late/Absent), animated employee cards with gradient avatars, breathing ring animations for live employees, `badge-*` status pills, live/flagged badges, arrival→status row, work duration pills, shift progress bars, pending tasks/campaign tags
 - **Stale session detection**: Presence API checks `lastActivity` against a 3-minute threshold. Stale employees show as inactive with "Last seen [time]" using the session's `lastActivity` timestamp (falls back gracefully when `DailyAttendance.lastOfficeExit` hasn't been computed yet)
 - **Location-first status**: Presence API status field is always location-based (`office`, `remote`, `overtime`, `absent`) — never overridden to `late`. Lateness is communicated via the `lateBy` field and shown as a separate badge on employee cards. This ensures the EmployeeCard `pulseVariant` always correctly reflects the employee's physical location (fixing a bug where late+remote employees showed as "In Office")
+- **Location flag tolerance & escalation**: Fake location detection (GPS accuracy zero, teleportation, low-precision coordinates) now uses a two-tier severity system tracked via `LocationFlagEvent` model:
+  - **Warning** (≤ 2 flags in 30 days): Timer continues running, employee sees a yellow "Location Warning" toast, event is logged and manager/SuperAdmin are notified via the activity log bell
+  - **Violation** (> 2 flags in 30 days): Timer pauses with a full red overlay requiring re-check, manager/SuperAdmin notified with elevated severity
+  - `/api/location-flags` GET endpoint lets managers see flags for their team, team leads for their reports, and SuperAdmins see everything. PATCH endpoint allows acknowledging flag events
+  - Activity log entries use `entity: "security"` with a shield icon in the notification bell, targeted to the employee's `reportsTo` manager and all active SuperAdmins
 - No LivePulse on welcome bar — timer pill at bottom handles live indication for all roles
 
 **Manager / Team Lead (AdminDashboard):**

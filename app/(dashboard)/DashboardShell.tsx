@@ -59,6 +59,7 @@ const ENTITY_ICONS: Record<string, string> = {
   attendance: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
   settings: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
   auth: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+  security: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
 };
 
 const ENTITY_COLORS: Record<string, string> = {
@@ -70,6 +71,7 @@ const ENTITY_COLORS: Record<string, string> = {
   attendance: "text-purple-500",
   settings: "text-gray-500",
   auth: "text-rose-500",
+  security: "text-red-500",
 };
 
 function getEntityHref(entity: string, entityId?: string): string | null {
@@ -81,6 +83,7 @@ function getEntityHref(entity: string, entityId?: string): string | null {
     case "task": return "/tasks";
     case "attendance": return "/attendance";
     case "settings": return "/settings";
+    case "security": return "/employees";
     default: return null;
   }
 }

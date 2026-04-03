@@ -14,6 +14,7 @@ interface SessionData {
   todayMinutes: number;
   isStale: boolean;
   locationFlagged: boolean;
+  flagSeverity: "warning" | "violation" | null;
   flagReason: string | null;
 }
 
@@ -96,6 +97,7 @@ export default function SessionTracker() {
     todayMinutes: 0,
     isStale: false,
     locationFlagged: false,
+    flagSeverity: null,
     flagReason: null,
   });
   const [mode, setMode] = useState<DeviceMode>("booting");
@@ -124,6 +126,7 @@ export default function SessionTracker() {
     todayMinutes: number;
     isStale: boolean;
     locationFlagged: boolean;
+    flagSeverity: "warning" | "violation" | null;
     flagReason: string | null;
   }> => {
     try {
@@ -138,17 +141,18 @@ export default function SessionTracker() {
           todayMinutes: data.todayMinutes ?? 0,
           isStale: data.isStale ?? false,
           locationFlagged: data.locationFlagged ?? false,
+          flagSeverity: a.location?.locationFlagged ? "violation" : null,
           flagReason: data.flagReason ?? null,
         };
         setSession(state);
         checkedInRef.current = true;
         return state;
       }
-      setSession((s) => ({ ...s, active: false, startTime: null, todayMinutes: data.todayMinutes ?? 0, isStale: false, locationFlagged: false, flagReason: null }));
+      setSession((s) => ({ ...s, active: false, startTime: null, todayMinutes: data.todayMinutes ?? 0, isStale: false, locationFlagged: false, flagSeverity: null, flagReason: null }));
       checkedInRef.current = false;
-      return { active: false, startTime: null, inOffice: false, todayMinutes: data.todayMinutes ?? 0, isStale: false, locationFlagged: false, flagReason: null };
+      return { active: false, startTime: null, inOffice: false, todayMinutes: data.todayMinutes ?? 0, isStale: false, locationFlagged: false, flagSeverity: null, flagReason: null };
     } catch {
-      return { active: false, startTime: null, inOffice: false, todayMinutes: 0, isStale: false, locationFlagged: false, flagReason: null };
+      return { active: false, startTime: null, inOffice: false, todayMinutes: 0, isStale: false, locationFlagged: false, flagSeverity: null, flagReason: null };
     }
   }, []);
 
@@ -182,6 +186,7 @@ export default function SessionTracker() {
             todayMinutes: data.todayMinutes ?? 0,
             isStale: false,
             locationFlagged: data.locationFlagged ?? false,
+            flagSeverity: data.locationFlagged ? "violation" : null,
             flagReason: data.flagReason ?? null,
           });
           checkedInRef.current = true;
@@ -247,15 +252,20 @@ export default function SessionTracker() {
           }
           return;
         }
-        if (data.locationFlagged) {
+        const severity = data.flagSeverity as "warning" | "violation" | null;
+        if (severity === "violation") {
           const reason = data.flagReasons?.join("; ") ?? "Location issue detected";
           sendBrowserNotification("Timer Paused", reason + ". Open the app and click Re-check.");
+        } else if (severity === "warning") {
+          const reason = data.flagReasons?.join("; ") ?? "Location issue detected";
+          sendBrowserNotification("Location Warning", reason + ". This has been logged.");
         }
         setSession((s) => ({
           ...s,
           ...(data.inOffice != null ? { inOffice: data.inOffice } : {}),
           ...(data.locationFlagged != null ? {
             locationFlagged: data.locationFlagged,
+            flagSeverity: severity,
             flagReason: data.flagReasons?.join("; ") ?? s.flagReason,
           } : {}),
         }));
@@ -431,7 +441,8 @@ export default function SessionTracker() {
 
   // ─── Elapsed timer (pauses when idle OR location flagged) ───
   const pausedAtRef = useRef<number>(0);
-  const paused = idle || session.locationFlagged;
+  const isViolation = session.locationFlagged && session.flagSeverity === "violation";
+  const paused = idle || isViolation;
   useEffect(() => {
     if (session.active && session.startTime) {
       if (paused) {
@@ -481,13 +492,13 @@ export default function SessionTracker() {
     setRecheckLoading(false);
   }, [startHeartbeat]);
 
-  // ─── Stop heartbeat when location flagged ──────────────────
+  // ─── Stop heartbeat only on violation-level flags ──────────
   useEffect(() => {
-    if (session.locationFlagged && heartbeatRef.current) {
+    if (isViolation && heartbeatRef.current) {
       clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
     }
-  }, [session.locationFlagged]);
+  }, [isViolation]);
 
   // ─── Idle detection (active mode, visibility-aware + nudges) ──
   const nudgeCountRef = useRef(0);
@@ -565,13 +576,19 @@ export default function SessionTracker() {
   const isActive = session.active && !session.isStale;
   const isReadonly = mode === "readonly";
 
-  const flagged = isActive && session.locationFlagged;
+  const flagged = isActive && isViolation;
+  const warned = isActive && session.flagSeverity === "warning" && !isViolation;
 
   const pillStyle: React.CSSProperties = flagged
     ? {
         background: "linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)",
         boxShadow: "0 0 20px rgba(239,68,68,0.5), 0 0 60px rgba(220,38,38,0.2), inset 0 1px 0 rgba(255,255,255,0.2)",
       }
+    : warned
+      ? {
+          background: "linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)",
+          boxShadow: "0 0 20px rgba(245,158,11,0.4), 0 0 60px rgba(217,119,6,0.15), inset 0 1px 0 rgba(255,255,255,0.2)",
+        }
     : isActive
       ? session.inOffice
         ? {
@@ -589,11 +606,13 @@ export default function SessionTracker() {
 
   const statusLabel = flagged
     ? "Flagged"
-    : isActive
-      ? session.inOffice
-        ? "In Office"
-        : "Remote"
-      : "Offline";
+    : warned
+      ? "Warning"
+      : isActive
+        ? session.inOffice
+          ? "In Office"
+          : "Remote"
+        : "Offline";
 
   const currentMinutes = isActive ? Math.floor(elapsed / 60000) : 0;
   const todayTotal = session.todayMinutes + currentMinutes;
@@ -745,6 +764,40 @@ export default function SessionTracker() {
                 {recheckLoading ? "Checking..." : "Re-check Location"}
               </button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Location warning toast (non-blocking — timer continues) */}
+      <AnimatePresence>
+        {warned && !isReadonly && (
+          <motion.div
+            key="warning-toast"
+            initial={{ y: -60, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -60, opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="fixed left-1/2 top-4 z-[9999] -translate-x-1/2"
+          >
+            <div
+              className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl"
+              style={{
+                background: "linear-gradient(135deg, rgba(245,158,11,0.92), rgba(217,119,6,0.88))",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <div>
+                <p className="text-sm font-bold text-white">Location Warning</p>
+                <p className="text-xs text-white/80 max-w-[240px]">
+                  {session.flagReason || "Suspicious location detected"} — logged for review
+                </p>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

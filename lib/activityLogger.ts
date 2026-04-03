@@ -7,7 +7,7 @@ interface LogInput {
   userName: string;
   userRole?: string;
   action: string;
-  entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth";
+  entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth" | "security";
   entityId?: string;
   details?: string;
   targetUserIds?: string[];
