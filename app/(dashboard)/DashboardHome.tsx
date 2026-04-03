@@ -359,7 +359,27 @@ function SelfOverviewCard({ pa, userProfile, user }: {
   userProfile: UserProfile | null;
   user: User;
 }) {
-  if (!pa) return null;
+  if (!pa) {
+    return (
+      <div className="card p-5 sm:p-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+          <div className="flex flex-col items-center gap-3 sm:items-start">
+            <div className="shimmer h-20 w-20 rounded-full sm:h-24 sm:w-24" />
+            <Bone w="w-16" h="h-5" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-4">
+            <div><Bone w="w-40" h="h-5" /><Bone w="w-28" h="h-3" /></div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {[1, 2, 3].map((i) => <div key={i} className="card-static rounded-xl p-3"><Bone w="w-16" h="h-3" /><Bone w="w-12" h="h-4" /></div>)}
+            </div>
+            <div className="space-y-2">
+              <Bone w="w-full" h="h-2.5" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const todayHours = pa.todayMinutes / 60;
   const shiftTarget = userProfile?.workShift
     ? getShiftMinutes(userProfile.workShift.start, userProfile.workShift.end, userProfile.workShift.breakTime)
@@ -645,6 +665,7 @@ function AdminDashboard({
   campaigns,
   teams,
   userProfile,
+  dataLoading,
 }: {
   user: User;
   presenceEmps: PresenceEmployee[];
@@ -654,6 +675,7 @@ function AdminDashboard({
   campaigns: ApiCampaign[];
   teams: ApiTeam[];
   userProfile: UserProfile | null;
+  dataLoading: boolean;
 }) {
   const isSuperAdmin = user.role === "superadmin";
   const isManager = user.role === "manager";
@@ -741,16 +763,18 @@ function AdminDashboard({
       )}
 
       {/* 3. Campaigns (left) + Tasks (right) for admin/superadmin */}
-      {(activeCampaigns.length > 0 || pendingTasks.length > 0) && (
+      {(dataLoading || activeCampaigns.length > 0 || pendingTasks.length > 0) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {activeCampaigns.length > 0 && (
+          {(dataLoading || activeCampaigns.length > 0) && (
             <motion.section className="card p-4 sm:p-5 lg:col-span-5" variants={slideUpItem} initial="hidden" animate="visible">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
                 <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
               </div>
               <div className="flex flex-col gap-2">
-                {activeCampaigns.slice(0, 8).map((camp, ci) => (
+                {dataLoading && activeCampaigns.length === 0 ? (
+                  [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
+                ) : activeCampaigns.slice(0, 8).map((camp, ci) => (
                   <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
@@ -768,7 +792,7 @@ function AdminDashboard({
             </div>
             </motion.section>
           )}
-          {pendingTasks.length > 0 && (
+          {(dataLoading || pendingTasks.length > 0) && (
             <motion.section className="card p-4 sm:p-5 lg:col-span-7" variants={slideUpItem} initial="hidden" animate="visible">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
@@ -777,7 +801,9 @@ function AdminDashboard({
                 </motion.div>
           </div>
               <div className="flex flex-col gap-3">
-                {pendingTasks.slice(0, 6).map((task, ti) => {
+                {dataLoading && pendingTasks.length === 0 ? (
+                  [1, 2, 3, 4].map((i) => <div key={i} className="flex items-start gap-3"><div className="shimmer mt-0.5 h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
+                ) : pendingTasks.slice(0, 6).map((task, ti) => {
                   const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
                   const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
                 return (
@@ -797,15 +823,15 @@ function AdminDashboard({
                     </motion.div>
                   );
                 })}
-                      </div>
+              </div>
               <Link href="/tasks"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
             </motion.section>
           )}
-                      </div>
-                    )}
+        </div>
+      )}
 
       {/* 4. Team breakdown */}
-      {teamBreakdown.length > 0 && (
+      {(dataLoading || teamBreakdown.length > 0) && (
         <motion.div className="card-static overflow-hidden" variants={fadeInItem} initial="hidden" animate="visible">
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
             <h3 className="text-headline" style={{ color: "var(--fg)" }}>{isManager ? "Teams" : "My Teams"}</h3>
@@ -814,7 +840,9 @@ function AdminDashboard({
                       )}
                     </div>
           <div className="divide-y divide-[var(--border)]">
-            {teamBreakdown.map((tb) => {
+            {dataLoading && teamBreakdown.length === 0 ? (
+              [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 px-4 py-3"><div className="flex-1 space-y-1.5"><Bone w="w-28" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div><div className="flex gap-2"><Bone w="w-12" h="h-3" /><Bone w="w-10" h="h-3" /></div></div>)
+            ) : teamBreakdown.map((tb) => {
               const isSelected = selectedTeamId === tb.team._id;
               return (
                 <button key={tb.team._id} type="button" onClick={() => setSelectedTeamId(isSelected ? null : tb.team._id)}
@@ -832,8 +860,8 @@ function AdminDashboard({
                 </button>
               );
             })}
-                  </div>
-                </motion.div>
+          </div>
+        </motion.div>
       )}
 
       {/* 5. Live Presence — employee cards */}
@@ -1079,11 +1107,12 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         </div>
 
         {/* Weekly overview — horizontal scroll strip */}
-      {weeklyRecords.length > 0 && (
-          <section className="space-y-3">
-            <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-section-header">Weekly overview</motion.h3>
-            <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
-            {weeklyRecords.map((day, i) => {
+        <section className="space-y-3">
+          <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-section-header">Weekly overview</motion.h3>
+          <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
+            {weeklyRecords.length === 0 ? (
+              [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)
+            ) : weeklyRecords.map((day, i) => {
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
                 const isToday = day.date === now.toISOString().slice(0, 10);
@@ -1100,47 +1129,52 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               );
             })}
           </div>
-          </section>
-      )}
+        </section>
 
         {/* Monthly summary */}
-      {ms && (
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="card-static p-5 sm:p-6">
           <h3 className="text-section-header mb-4">Monthly summary</h3>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="card-static rounded-xl p-4">
-              <p className="text-caption">Present / Total</p>
-              <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
-            </div>
-            <div className="card-static rounded-xl p-4">
-              <p className="text-caption">On-time</p>
-                <p className="text-title mt-1 text-[var(--primary)]"><AnimatedNumber value={ms.onTimePercentage} suffix="%" /></p>
-            </div>
-            <div className="card-static rounded-xl p-4">
-              <p className="text-caption">Avg. daily hours</p>
-                <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.averageDailyHours} suffix="h" /></p>
-            </div>
-            <div className="card-static rounded-xl p-4">
-              <p className="text-caption">Total hours</p>
-                <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.totalWorkingHours} suffix="h" /></p>
-            </div>
-          </div>
-            <div className="mt-6 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Office vs remote (hours)</span>
-                <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ms.totalOfficeHours.toFixed(0)}h · {ms.totalRemoteHours.toFixed(0)}h</span>
+          {ms ? (
+            <>
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <div className="card-static rounded-xl p-4">
+                  <p className="text-caption">Present / Total</p>
+                  <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
+                </div>
+                <div className="card-static rounded-xl p-4">
+                  <p className="text-caption">On-time</p>
+                  <p className="text-title mt-1 text-[var(--primary)]"><AnimatedNumber value={ms.onTimePercentage} suffix="%" /></p>
+                </div>
+                <div className="card-static rounded-xl p-4">
+                  <p className="text-caption">Avg. daily hours</p>
+                  <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.averageDailyHours} suffix="h" /></p>
+                </div>
+                <div className="card-static rounded-xl p-4">
+                  <p className="text-caption">Total hours</p>
+                  <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.totalWorkingHours} suffix="h" /></p>
+                </div>
               </div>
-              <div className="flex h-3 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${monthlyOfficePct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
-                <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${monthlyRemotePct}%` }} transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} />
+              <div className="mt-6 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Office vs remote (hours)</span>
+                  <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ms.totalOfficeHours.toFixed(0)}h · {ms.totalRemoteHours.toFixed(0)}h</span>
+                </div>
+                <div className="flex h-3 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                  <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${monthlyOfficePct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
+                  <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${monthlyRemotePct}%` }} transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} />
+                </div>
+                <div className="flex justify-between text-caption" style={{ color: "var(--fg-tertiary)" }}>
+                  <span>Office {monthlyOfficePct.toFixed(0)}%</span>
+                  <span>Remote {monthlyRemotePct.toFixed(0)}%</span>
+                </div>
               </div>
-              <div className="flex justify-between text-caption" style={{ color: "var(--fg-tertiary)" }}>
-                <span>Office {monthlyOfficePct.toFixed(0)}%</span>
-                <span>Remote {monthlyRemotePct.toFixed(0)}%</span>
+            </>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => <div key={i} className="card-static rounded-xl p-4 space-y-2"><Bone w="w-20" h="h-3" /><Bone w="w-14" h="h-6" /></div>)}
             </div>
-            </div>
+          )}
         </motion.section>
-      )}
       </div>
 
       {/* Ping success toast */}
@@ -1438,6 +1472,7 @@ export default function DashboardHome({ user }: { user: User }) {
         campaigns={campaigns}
         teams={teams}
         userProfile={userProfile}
+        dataLoading={loading}
       />
     );
   }

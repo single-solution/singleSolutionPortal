@@ -570,7 +570,18 @@ function useSystemSettings() {
 function SystemSettingsSection({ sys }: { sys: ReturnType<typeof useSystemSettings> }) {
   const { settings, setSettings, sysLoading, sysSaving, sysMsg, handleSave } = sys;
 
-  if (sysLoading) return null;
+  if (sysLoading) {
+    return (
+      <div className="card-xl p-6 sm:p-8">
+        <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>System</h2>
+        <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Company name and timezone.</p>
+        <div className="space-y-4">
+          <span className="shimmer block h-9 w-full rounded-lg" />
+          <span className="shimmer block h-9 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card-xl p-6 sm:p-8">
@@ -601,7 +612,15 @@ function SystemSettingsSection({ sys }: { sys: ReturnType<typeof useSystemSettin
 function SystemSettingsDetailSection({ sys }: { sys: ReturnType<typeof useSystemSettings> }) {
   const { settings, setSettings, sysLoading, sysSaving, sysMsg, handleSave } = sys;
 
-  if (sysLoading) return null;
+  if (sysLoading) {
+    return (
+      <section className="card-static p-5">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3].map((i) => <div key={i} className="space-y-2 p-3"><span className="shimmer block h-3 w-20 rounded" /><span className="shimmer block h-9 w-full rounded-lg" /></div>)}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <FadeUp delay={0.25}>

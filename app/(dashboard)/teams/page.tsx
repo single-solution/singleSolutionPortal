@@ -42,7 +42,7 @@ export default function TeamsPage() {
   const role = session?.user?.role;
   const isSuperAdmin = role === "superadmin";
   const canManageTeams = isSuperAdmin || role === "manager";
-  const { data: teams, refetch: refetchTeams } = useQuery<Team[]>("/api/teams", "teams");
+  const { data: teams, loading: teamsLoading, refetch: refetchTeams } = useQuery<Team[]>("/api/teams", "teams");
   const { data: departments } = useQuery<DeptOption[]>("/api/departments", "departments");
   const { data: usersRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
 
@@ -306,7 +306,17 @@ export default function TeamsPage() {
       {/* Team Card Grid */}
       <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
+          {teamsLoading && !teams ? (
+            [1, 2, 3, 4, 5, 6].map((i) => (
+              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
+                <div className="card flex h-full flex-col p-3 space-y-3">
+                  <span className="shimmer block h-4 w-24 rounded" />
+                  <span className="shimmer block h-2.5 w-32 rounded" />
+                  <div className="flex gap-2"><span className="shimmer block h-5 w-14 rounded-full" /><span className="shimmer block h-5 w-10 rounded-full" /></div>
+                </div>
+              </motion.div>
+            ))
+          ) : filtered.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 8 }}

@@ -292,47 +292,43 @@ export default function AttendancePage() {
       </motion.div>
 
       {/* Monthly analytics from MonthlyAttendanceStats */}
-      <AnimatePresence>
-        {monthlyStats && (
-      <motion.div
-            className="card-static p-4"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
+      <div className="card-static p-4">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
+        {monthlyStats ? (
+          <motion.div
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+            }}
           >
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
-            <motion.div
-              className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: { opacity: 0 },
-                visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
-              }}
-            >
-              {[
-                { label: "Avg Daily", value: `${monthlyStats.averageDailyHours.toFixed(1)}h`, color: "var(--primary)" },
-                { label: "Avg Arrival", value: monthlyStats.averageOfficeInTime ?? "—", color: "var(--green)" },
-                { label: "Avg Departure", value: monthlyStats.averageOfficeOutTime ?? "—", color: "var(--amber)" },
-                { label: "On-Time %", value: `${Math.round(monthlyStats.onTimePercentage)}%`, color: monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" },
-                { label: "Attendance %", value: `${Math.round(monthlyStats.attendancePercentage)}%`, color: monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)" },
-                { label: "Office / Remote", value: `${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`, color: "var(--teal)" },
-              ].map((chip) => (
-                <motion.div
-                  key={chip.label}
-                  variants={{
-                    hidden: { opacity: 0, y: 8 },
-                    visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
-                  }}
-                >
-                  <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
-                </motion.div>
-              ))}
-            </motion.div>
+            {[
+              { label: "Avg Daily", value: `${monthlyStats.averageDailyHours.toFixed(1)}h`, color: "var(--primary)" },
+              { label: "Avg Arrival", value: monthlyStats.averageOfficeInTime ?? "—", color: "var(--green)" },
+              { label: "Avg Departure", value: monthlyStats.averageOfficeOutTime ?? "—", color: "var(--amber)" },
+              { label: "On-Time %", value: `${Math.round(monthlyStats.onTimePercentage)}%`, color: monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" },
+              { label: "Attendance %", value: `${Math.round(monthlyStats.attendancePercentage)}%`, color: monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)" },
+              { label: "Office / Remote", value: `${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`, color: "var(--teal)" },
+            ].map((chip) => (
+              <motion.div
+                key={chip.label}
+                variants={{
+                  hidden: { opacity: 0, y: 8 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+                }}
+              >
+                <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
+              </motion.div>
+            ))}
           </motion.div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="card-static rounded-xl p-3 space-y-1.5"><span className="shimmer block h-2.5 w-14 rounded" /><span className="shimmer block h-4 w-10 rounded" /></div>)}
+          </div>
         )}
-      </AnimatePresence>
+      </div>
 
       {/* Calendar + Detail */}
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">

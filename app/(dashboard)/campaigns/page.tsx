@@ -73,7 +73,7 @@ export default function CampaignsPage() {
   const { data: session } = useSession();
   const role = session?.user?.role;
   const canDelete = role === "superadmin" || role === "manager";
-  const { data: campaigns, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
+  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");
   const { data: teamsRaw } = useQuery<Array<Record<string, unknown>>>("/api/teams", "teams");
@@ -338,7 +338,18 @@ export default function CampaignsPage() {
       {/* Cards */}
       <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
+          {campaignsLoading && !campaigns ? (
+            [1, 2, 3, 4, 5, 6].map((i) => (
+              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
+                <div className="card flex h-full flex-col p-3 space-y-3">
+                  <div className="flex items-center justify-between"><span className="shimmer block h-5 w-14 rounded-full" /><span className="shimmer block h-4 w-4 rounded" /></div>
+                  <span className="shimmer block h-3.5 w-28 rounded" />
+                  <span className="shimmer block h-2.5 w-full rounded" />
+                  <span className="shimmer block h-2.5 w-16 rounded" />
+                </div>
+              </motion.div>
+            ))
+          ) : filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="col-span-full card p-12 text-center">
               <p style={{ color: "var(--fg-secondary)" }}>No campaigns found. Create one above.</p>
             </motion.div>

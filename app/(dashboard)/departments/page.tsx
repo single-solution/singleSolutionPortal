@@ -32,7 +32,7 @@ type SortMode = "most" | "name";
 export default function DepartmentsPage() {
   const { data: session } = useSession();
   const isSuperAdmin = session?.user?.role === "superadmin";
-  const { data: departments, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "departments");
+  const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "departments");
   const { data: managersRaw } = useQuery<Employee[]>("/api/employees/dropdown", "employees");
 
   const deptList = departments ?? [];
@@ -267,7 +267,17 @@ export default function DepartmentsPage() {
         animate="visible"
       >
         <AnimatePresence mode="popLayout">
-          {sorted.length === 0 ? (
+          {deptsLoading && !departments ? (
+            [1, 2, 3, 4, 5, 6].map((i) => (
+              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
+                <div className="card flex h-full flex-col p-3 space-y-3">
+                  <div className="flex items-center justify-between"><span className="shimmer block h-4 w-28 rounded" /><span className="shimmer block h-5 w-10 rounded-full" /></div>
+                  <span className="shimmer block h-2.5 w-20 rounded" />
+                  <span className="shimmer block h-2 w-full rounded-full" />
+                </div>
+              </motion.div>
+            ))
+          ) : sorted.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 8 }}

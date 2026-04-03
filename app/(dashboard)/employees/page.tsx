@@ -82,7 +82,7 @@ export default function EmployeesPage() {
   const isSuperAdmin = role === "superadmin";
   const isManager = role === "manager";
   const canManage = isSuperAdmin || isManager;
-  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "employees");
+  const { data: employees, loading: employeesLoading, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "employees");
   const { data: presenceData } = useQuery<Array<{ _id: string; status: string }>>("/api/attendance/presence", "presence");
 
   const presenceMap = useMemo(() => {
@@ -354,7 +354,17 @@ export default function EmployeesPage() {
         animate="visible"
       >
         <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
+          {employeesLoading && !employees ? (
+            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
+                <div className="card flex h-full flex-col p-4 space-y-3">
+                  <div className="flex items-center gap-3"><div className="shimmer h-10 w-10 rounded-full" /><div className="flex-1 space-y-1.5"><span className="shimmer block h-3.5 w-24 rounded" /><span className="shimmer block h-2.5 w-16 rounded" /></div></div>
+                  <span className="shimmer block h-2.5 w-32 rounded" />
+                  <span className="shimmer block h-2.5 w-20 rounded" />
+                </div>
+              </motion.div>
+            ))
+          ) : filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full card p-12 text-center">
               <p style={{ color: "var(--fg-secondary)" }}>No employees found.</p>
             </motion.div>

@@ -68,7 +68,7 @@ export default function TasksPage() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: tasks, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "tasks");
+  const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "tasks");
   const { data: employeesRaw } = useQuery<Employee[]>(isAdmin ? "/api/employees/dropdown" : null, "employees");
 
   const taskList = tasks ?? [];
@@ -231,7 +231,18 @@ export default function TasksPage() {
       {/* Task Card Grid */}
       <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
+          {tasksLoading && !tasks ? (
+            [1, 2, 3, 4, 5, 6].map((i) => (
+              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
+                <div className="card flex h-full flex-col p-3 space-y-3">
+                  <span className="shimmer block h-3.5 w-28 rounded" />
+                  <span className="shimmer block h-2.5 w-full rounded" />
+                  <div className="flex gap-2"><span className="shimmer block h-5 w-14 rounded-full" /><span className="shimmer block h-5 w-14 rounded-full" /></div>
+                  <span className="shimmer block h-2.5 w-20 rounded" />
+                </div>
+              </motion.div>
+            ))
+          ) : filtered.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 12 }}
