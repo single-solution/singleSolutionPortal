@@ -208,6 +208,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
 - **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
 - **Route-level `loading.tsx`**: every CRUD route has a dedicated `loading.tsx` file. Static content (page titles, subtitles, sort tabs, filter labels, search bars, action buttons) renders as real text immediately — only database-fetched data (card grids, counts, dynamic values) uses shimmer placeholders. Next.js shows these instantly on navigation before the page component mounts. Loaded content fades in via `contentReveal` variant (opacity + translateY transition) for a smooth skeleton-to-content crossfade — no hard swap
+- **Inline skeleton loading**: Beyond route-level skeletons, every data-dependent card, section, and list within pages uses inline shimmer skeletons while its specific data loads. `useQuery` exposes `loading` state and all CRUD list pages (employees, tasks, departments, teams, campaigns) show a skeleton card grid when `loading && !data`. Dashboard sections (campaigns, tasks, teams, weekly, monthly, timeline, self-overview) always render their card shell immediately with skeleton content. Notification bell and ping inbox show skeleton entries before their respective API calls complete. This prevents "No data found" messages from flashing during initial load
 - **Framer Motion**: spring constants `stiffness: 400, damping: 17` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; `staggerContainerFast` + `cardVariants` + `cardHover` standardized across all 5 CRUD card grids (employees, departments, teams, tasks, campaigns) — GPU-only `transform` + `opacity` with staggered delays (0.06s per card); card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in
 - **GPU-optimized animations**: badge dots breathe via CSS `transform: scale` (3s, no repaints); status ring pulse uses border + `transform: scale` on `::after` pseudo-element (no `box-shadow` animation); `pulse-glow` uses transform-only scale (no shadow recalc); aurora background drifts via `transform: translate` on oversized `::before` pseudo (30s, `will-change: transform`); notification badge pulses via CSS keyframes; card entrance stagger uses `content-fade-in` with 5-step delay classes (0.08s increments). No infinite `box-shadow` animations anywhere. No `filter: blur()` in any animation
 - **Form labels**: standardized `text-xs font-medium text-[var(--fg-secondary)] mb-1`
@@ -272,6 +273,7 @@ Real-time peer-to-peer pinging within your reporting chain. Everyone can ping pe
 The dashboard is **fully real-time** — no manual refresh needed. Data updates are silent (no loading spinners or skeleton flashes during updates).
 
 - **Per-section loading**: No global skeleton gate — header and static sections render immediately while data-dependent sections (presence grid, attendance stats) show inline shimmers only for their own loading state. Presence data (`fetchLive`) loads in parallel with core data (`fetchFull`) on initial mount
+- **Card-shell skeleton pattern**: Every card and section always renders its structural frame (borders, headings, layout) immediately. Data-dependent content inside cards uses shimmer placeholders (`shimmer` CSS class) until the API responds — no card appears/disappears during loading. Applied to: SelfOverviewCard (avatar + stat boxes), TodayTimelineCard (timeline events + task list), campaigns/tasks/teams sections (card with skeleton rows), weekly overview (day card strip), monthly summary (stat cards), all 5 CRUD list pages (skeleton card grids instead of "No X found" flash), settings system sections (skeleton inputs), attendance monthly insights (skeleton analytic chips), notification bell (skeleton log entries), ping inbox (skeleton ping entries), welcome header (skeleton task/campaign count text)
 - **Live attendance detail**: `/api/attendance?type=detail` now includes elapsed minutes from the currently active session (not just closed sessions), so "hours logged" and status badges reflect real-time presence
 - **SSE event stream**: Single persistent connection to `/api/events` replaces all polling. Server monitors an `EventBus` document (one lightweight DB read every 4s) and pushes change events only when data actually mutates. Client fetches only the affected data channel — zero wasted requests
 - **Push channels**: `presence` (check-in/out/location transition), `employees`, `tasks`, `departments`, `teams`, `campaigns`, `activity` (notification log), `settings` — each channel triggers only its specific data fetch
@@ -282,16 +284,16 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 **SuperAdmin (AdminDashboard):**
 - **Welcome header**: time-of-day greeting with "Single Solution Sync" label, inline status badge pills showing **live** counts only (In Office = currently live + in office, Remote = currently live + remote, Late, Absent). Compact time card on the right with blob gradient and live clock (no task/campaign chips — full cards below already show this)
 - **No stat cards row**: removed the duplicate Total/InOffice/Late/Absent card row — the welcome pills already convey this at a glance
-- **Campaigns + Checklist**: campaigns vertical card on the left (lg:col-span-5), pending tasks checklist on the right (lg:col-span-7) with priority icons, labels, and assignee names
-- **Team breakdown**: clickable rows showing team name, lead, live/present/absent/late counts. Clicking filters the presence cards below
+- **Campaigns + Checklist**: campaigns vertical card on the left (lg:col-span-5), pending tasks checklist on the right (lg:col-span-7) with priority icons, labels, and assignee names. Both sections always show their card shell with skeleton rows while data loads
+- **Team breakdown**: clickable rows showing team name, lead, live/present/absent/late counts. Clicking filters the presence cards below. Shows skeleton rows during initial load
 - **Team Status (Live Presence)**: pulsing green dot header, segmented pill filter (All/Office/Remote/Late/Absent), animated employee cards with gradient avatars, breathing ring animations for live employees, `badge-*` status pills, live/flagged badges, arrival→status row, work duration pills, shift progress bars, pending tasks/campaign tags
 - **Stale session detection**: Presence API checks `lastActivity` against a 3-minute threshold. Stale employees show as inactive
 - No LivePulse on welcome bar — timer pill at bottom handles live indication for all roles
 
 **Manager / Team Lead (AdminDashboard):**
 - **Welcome header**: same design as SuperAdmin but with pending tasks + active campaigns count instead of status badge pills
-- **Self Overview card** (DeveloperPreview-style): large avatar, name/department/email, status badge, 3 stat mini-cards (first entry, hours logged, office/remote split with percentages), animated shift progress bar
-- **Today Timeline card**: vertical activity timeline (check-in, sessions, active now) + task summary with pulsing pending count badge, priority dots, "View All" link
+- **Self Overview card** (DeveloperPreview-style): large avatar, name/department/email, status badge, 3 stat mini-cards (first entry, hours logged, office/remote split with percentages), animated shift progress bar. Shows skeleton avatar + stat boxes while attendance data loads
+- **Today Timeline card**: vertical activity timeline (check-in, sessions, active now) + task summary with pulsing pending count badge, priority dots, "View All" link. Shows skeleton timeline dots + task list while loading
 - Same campaigns, checklist, team breakdown, and team status sections as SuperAdmin
 
 **Developer / Business Developer (OtherRoleOverview):**
@@ -383,6 +385,7 @@ app/
     components/
       ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
       DataTable.tsx      # Sortable, searchable, paginated table
+      Portal.tsx         # React Portal wrapper for modals (renders to document.body)
       ProcessingOverlay.tsx # Animated dot shimmer overlay
     attendance/page.tsx  # Interactive calendar + detail panel + session timeline
     settings/
@@ -401,7 +404,9 @@ app/
     attendance/
       session/           # Check-in, check-out, heartbeat PATCH, session GET
       presence/          # Real-time employee status for dashboard (includes lateBy)
+      presence/manager/  # Logged-in user's manager/lead live presence (30s polling)
       trend/             # Last 5 working days present count for team attendance chart
+    ping/                # POST send ping, GET inbox with unread count, PATCH mark read
     activity-logs/       # GET latest 20 activity log entries
     events/              # SSE endpoint — streams change events per channel (replaces all polling)
     user/last-seen/      # GET + PUT lastSeenLogId for notification read sync
@@ -422,6 +427,7 @@ lib/
   auth.config.ts        # Middleware auth config with route guards
   permissions.ts        # DB-verified session, role hierarchy, team/dept scoping helpers
   db.ts                 # MongoDB connection singleton
+  dayBoundary.ts        # 6 AM attendance day boundary — startOfDay() and isSameDay() used across all attendance APIs
   geo.ts                # Haversine + office geofence (reads SystemSettings) + validateLocation() 4-layer anti-spoofing
   helpers.ts            # Response helpers (ok, badRequest, forbidden, etc.)
   mail.ts               # Nodemailer + HTML email templates
@@ -434,6 +440,7 @@ lib/
     Department.ts       # Department with manager ref + optional parentDepartment ref (hierarchical)
     Team.ts             # Team (name, slug, department, lead, description)
     Campaign.ts         # Campaign (name, status lifecycle, tagged employees/departments/teams, dates, budget)
+    Ping.ts             # Peer-to-peer ping messages (from, to, message, read, createdAt)
     ActivitySession.ts  # Session with office segments + heartbeat lastActivity + location fraud detection fields (accuracy, locationFlagged, flagReason, flaggedAt, consecutiveIdentical)
     ActivityTask.ts     # Task with priority, deadline, status
     DailyAttendance.ts  # Daily rollup (sessions, minutes, on-time)

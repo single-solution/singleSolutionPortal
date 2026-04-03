@@ -130,6 +130,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const [themeOpen, setThemeOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logsLoaded, setLogsLoaded] = useState(false);
   const [unseenCount, setUnseenCount] = useState(0);
   const lastSeenRef = useRef<string | null>(null);
   const [installDismissed, setInstallDismissed] = useState(false);
@@ -141,6 +142,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const [pingsOpen, setPingsOpen] = useState(false);
   const [pings, setPings] = useState<{ _id: string; from: { about: { firstName: string; lastName: string }; userRole?: string }; message: string; read: boolean; createdAt: string }[]>([]);
   const [pingUnread, setPingUnread] = useState(0);
+  const [pingsLoaded, setPingsLoaded] = useState(false);
   const pingRef = useRef<HTMLDivElement>(null);
 
   const fetchPings = useCallback(async () => {
@@ -151,6 +153,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       setPings(data.pings ?? []);
       setPingUnread(data.unreadCount ?? 0);
     } catch { /* silent */ }
+    setPingsLoaded(true);
   }, []);
 
   useEffect(() => { fetchPings(); }, [fetchPings]);
@@ -178,6 +181,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
         setUnseenCount(0);
       }
     } catch { /* silent */ }
+    setLogsLoaded(true);
   }, []);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
@@ -425,7 +429,11 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                       )}
                     </div>
                     <div className="max-h-[min(60vh,380px)] overflow-y-auto divide-y divide-[var(--border)]">
-                      {pings.length === 0 ? (
+                      {!pingsLoaded ? (
+                        <div className="divide-y divide-[var(--border)]">
+                          {[1, 2, 3].map((i) => <div key={i} className="flex items-start gap-2.5 px-3 py-2.5"><span className="shimmer mt-0.5 h-7 w-7 shrink-0 rounded-full" /><div className="flex-1 space-y-1.5"><span className="shimmer block h-3 w-28 rounded" /><span className="shimmer block h-2.5 w-16 rounded" /></div></div>)}
+                        </div>
+                      ) : pings.length === 0 ? (
                         <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No pings yet</div>
                       ) : pings.map((ping) => {
                         const senderName = ping.from?.about ? `${ping.from.about.firstName} ${ping.from.about.lastName}`.trim() : "Unknown";
@@ -522,7 +530,11 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                       )}
                     </div>
                     <div className="max-h-[min(60vh,380px)] overflow-y-auto divide-y divide-[var(--border)]">
-                      {logs.length === 0 ? (
+                      {!logsLoaded ? (
+                        <div className="divide-y divide-[var(--border)]">
+                          {[1, 2, 3, 4].map((i) => <div key={i} className="flex items-start gap-2.5 px-3 py-2.5"><span className="shimmer mt-0.5 h-4 w-4 shrink-0 rounded" /><div className="flex-1 space-y-1.5"><span className="shimmer block h-3 w-36 rounded" /><span className="shimmer block h-2.5 w-20 rounded" /></div></div>)}
+                        </div>
+                      ) : logs.length === 0 ? (
                         <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No activity yet</div>
                       ) : logs.map((log, i) => {
                         const seenIdx = lastSeenRef.current ? logs.findIndex((l) => l._id === lastSeenRef.current) : -1;

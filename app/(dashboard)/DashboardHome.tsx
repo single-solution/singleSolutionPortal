@@ -295,13 +295,14 @@ const blobGradients = [
 
 /* ──────────────────────── WELCOME HEADER ──────────────────────── */
 
-function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSuperAdmin }: {
+function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSuperAdmin, dataLoading }: {
   user: User;
   presenceEmps: PresenceEmployee[];
   tasks: ApiTask[];
   campaigns: ApiCampaign[];
   userProfile: UserProfile | null;
   isSuperAdmin: boolean;
+  dataLoading?: boolean;
 }) {
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = tasks.filter((t) => t.status === "pending").length;
@@ -333,6 +334,8 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
               {lateCount > 0 && <span className="badge badge-late">{lateCount} Late</span>}
               <span className="badge badge-absent">{absentCount} Absent</span>
             </>
+          ) : dataLoading ? (
+            <span className="shimmer inline-block h-3.5 w-48 rounded" />
           ) : (
             <p className="text-subhead">You have <span className="font-bold" style={{ color: "var(--amber)" }}>{pendingTasks}</span> tasks pending · <span className="font-bold" style={{ color: "var(--teal)" }}>{activeCampaigns}</span> active campaigns</p>
           )}
@@ -442,37 +445,50 @@ function SelfOverviewCard({ pa, userProfile, user }: {
 
 /* ──────────────────────── TODAY ACTIVITY TIMELINE ──────────────────────── */
 
-function TodayTimelineCard({ pa, tasks }: { pa: PersonalAttendance | null; tasks: ApiTask[] }) {
+function TodayTimelineCard({ pa, tasks, dataLoading }: { pa: PersonalAttendance | null; tasks: ApiTask[]; dataLoading?: boolean }) {
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const inProgressTasks = useMemo(() => tasks.filter((t) => t.status === "inProgress"), [tasks]);
   const completedTasks = useMemo(() => tasks.filter((t) => t.status === "completed"), [tasks]);
   const isLive = pa && (pa.todaySessions > 0 || pa.todayMinutes > 0);
   const statusColor = isLive ? "#10b981" : "var(--fg-tertiary)";
+  const isLoading = !pa && dataLoading;
 
   const events = useMemo(() => {
     const evs: { key: string; dot: string; time: string; label: string }[] = [];
     if (pa?.firstEntry) evs.push({ key: "login", dot: statusColor, time: pa.firstEntry, label: `Checked in at ${pa.firstEntry}` });
     if (pa && pa.todaySessions > 1) evs.push({ key: "sessions", dot: "var(--amber)", time: `${pa.todaySessions} sessions`, label: `${pa.todaySessions} sessions today (${formatMinutes(pa.officeMinutes)} office, ${formatMinutes(pa.remoteMinutes)} remote)` });
     if (pa && pa.todayMinutes > 0) evs.push({ key: "active", dot: "var(--teal)", time: "Now", label: `Active now · ${formatMinutes(pa.todayMinutes)} logged` });
-    if (evs.length === 0) evs.push({ key: "empty", dot: "var(--fg-tertiary)", time: "—", label: "No activity yet today" });
+    if (!isLoading && evs.length === 0) evs.push({ key: "empty", dot: "var(--fg-tertiary)", time: "—", label: "No activity yet today" });
     return evs;
-  }, [pa, statusColor]);
+  }, [pa, statusColor, isLoading]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }} className="card-static flex flex-col p-5 sm:p-6">
       <h3 className="text-section-header mb-4">Today&apos;s Activity</h3>
-      <ul className="relative flex flex-col gap-0 pl-4">
-        <span className="absolute bottom-1 left-[7px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
-        {events.map((ev, i) => (
-          <motion.li key={ev.key} initial={{ x: -8, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.15 + i * 0.07 }} className="relative flex gap-3 pb-5 last:pb-0">
-            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ev.dot, boxShadow: "0 0 0 2px var(--bg)" }} />
-            <div className="min-w-0 flex-1">
-              <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
-              <p className="text-callout mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
-            </div>
-          </motion.li>
-        ))}
-      </ul>
+      {isLoading ? (
+        <ul className="relative flex flex-col gap-0 pl-4">
+          <span className="absolute bottom-1 left-[7px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="relative flex gap-3 pb-5 last:pb-0">
+              <span className="shimmer mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-1"><Bone w="w-12" h="h-2.5" /><Bone w="w-32" h="h-3" /></div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="relative flex flex-col gap-0 pl-4">
+          <span className="absolute bottom-1 left-[7px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
+          {events.map((ev, i) => (
+            <motion.li key={ev.key} initial={{ x: -8, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.15 + i * 0.07 }} className="relative flex gap-3 pb-5 last:pb-0">
+              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ev.dot, boxShadow: "0 0 0 2px var(--bg)" }} />
+              <div className="min-w-0 flex-1">
+                <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
+                <p className="text-callout mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
+              </div>
+            </motion.li>
+          ))}
+        </ul>
+      )}
 
       <div className="border-t pt-3 mt-auto" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between mb-2">
@@ -481,26 +497,34 @@ function TodayTimelineCard({ pa, tasks }: { pa: PersonalAttendance | null; tasks
             <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>{pendingTasks.length} Pending</motion.span>
           )}
         </div>
-        <div className="flex items-center gap-3 text-caption mb-2">
-          <span><span className="font-bold tabular-nums" style={{ color: "var(--amber)" }}>{pendingTasks.length}</span> pending</span>
-          <span><span className="font-bold tabular-nums" style={{ color: "var(--primary)" }}>{inProgressTasks.length}</span> active</span>
-          <span><span className="font-bold tabular-nums" style={{ color: "var(--teal)" }}>{completedTasks.length}</span> done</span>
-                </div>
-        {pendingTasks.length > 0 && (
+        {isLoading ? (
           <div className="space-y-1.5">
-            {pendingTasks.slice(0, 4).map((task, ti) => (
-              <motion.div key={task._id} initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 + ti * 0.06 }} className="flex items-start gap-2 text-[11px]">
-                <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)" }} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium" style={{ color: "var(--fg)" }}>{task.title}</p>
-                  <p className="text-caption">{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}</p>
-                </div>
-              </motion.div>
-            ))}
-            <Link href="/tasks"><span className="text-callout font-semibold" style={{ color: "var(--primary)" }}>View all →</span></Link>
+            {[1, 2, 3].map((i) => <div key={i} className="flex gap-2"><Bone w="w-2" h="h-2" /><div className="flex-1 space-y-1"><Bone w="w-28" h="h-2.5" /><Bone w="w-20" h="h-2" /></div></div>)}
           </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 text-caption mb-2">
+              <span><span className="font-bold tabular-nums" style={{ color: "var(--amber)" }}>{pendingTasks.length}</span> pending</span>
+              <span><span className="font-bold tabular-nums" style={{ color: "var(--primary)" }}>{inProgressTasks.length}</span> active</span>
+              <span><span className="font-bold tabular-nums" style={{ color: "var(--teal)" }}>{completedTasks.length}</span> done</span>
+            </div>
+            {pendingTasks.length > 0 && (
+              <div className="space-y-1.5">
+                {pendingTasks.slice(0, 4).map((task, ti) => (
+                  <motion.div key={task._id} initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 + ti * 0.06 }} className="flex items-start gap-2 text-[11px]">
+                    <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)" }} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium" style={{ color: "var(--fg)" }}>{task.title}</p>
+                      <p className="text-caption">{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}</p>
+                    </div>
+                  </motion.div>
+                ))}
+                <Link href="/tasks"><span className="text-callout font-semibold" style={{ color: "var(--primary)" }}>View all →</span></Link>
+              </div>
+            )}
+          </>
         )}
-    </div>
+      </div>
     </motion.div>
   );
 }
@@ -752,13 +776,13 @@ function AdminDashboard({
   return (
     <div className="flex flex-col gap-5">
       {/* 1. Welcome header */}
-      <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} />
+      <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} dataLoading={dataLoading} />
 
       {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} />
-          <TodayTimelineCard pa={personalAttendance} tasks={tasks} />
+          <TodayTimelineCard pa={personalAttendance} tasks={tasks} dataLoading={dataLoading} />
         </div>
       )}
 
@@ -932,7 +956,7 @@ function AdminDashboard({
 
 /* ──────────────────────── OTHER ROLES OVERVIEW ──────────────────────── */
 
-function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, monthlyStats: ms, userProfile }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null; weeklyRecords: WeeklyDay[]; monthlyStats: FullMonthlyStats | null; userProfile: UserProfile | null }) {
+function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, monthlyStats: ms, userProfile, dataLoading }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null; weeklyRecords: WeeklyDay[]; monthlyStats: FullMonthlyStats | null; userProfile: UserProfile | null; dataLoading: boolean }) {
   const pa = personalAttendance;
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
@@ -1010,7 +1034,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="space-y-1">
             <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Single Solution Sync</p>
             <h1 className="text-title"><span style={{ color: "var(--primary)" }}>{getGreeting()}, {profileName}!</span></h1>
-            <p className="text-subhead mt-1">You have {pendingTasks.length} tasks pending</p>
+            {dataLoading ? <span className="shimmer inline-block h-3.5 w-40 rounded mt-1" /> : <p className="text-subhead mt-1">You have {pendingTasks.length} tasks pending</p>}
       </motion.div>
           <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col items-start gap-0.5 sm:items-end">
             <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Local time</span>
@@ -1103,7 +1127,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         {/* Self overview + Activity timeline */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} />
-          <TodayTimelineCard pa={pa} tasks={tasks} />
+          <TodayTimelineCard pa={pa} tasks={tasks} dataLoading={dataLoading} />
         </div>
 
         {/* Weekly overview — horizontal scroll strip */}
@@ -1477,5 +1501,5 @@ export default function DashboardHome({ user }: { user: User }) {
     );
   }
 
-  return <OtherRoleOverview user={user} tasks={tasks} personalAttendance={personalAttendance} weeklyRecords={weeklyRecords} monthlyStats={monthlyStats} userProfile={userProfile} />;
+  return <OtherRoleOverview user={user} tasks={tasks} personalAttendance={personalAttendance} weeklyRecords={weeklyRecords} monthlyStats={monthlyStats} userProfile={userProfile} dataLoading={loading} />;
 }
