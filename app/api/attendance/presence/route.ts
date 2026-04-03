@@ -38,12 +38,17 @@ export async function GET() {
       empFilter.department = actor.department;
     }
   } else if (isTeamLead(actor)) {
+    const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
     const memberIds = await getTeamMemberIds(actor.leadOfTeams);
     if (memberIds.length > 0) {
-      empFilter._id = { $in: memberIds };
-    } else {
-      return ok([]);
+      orClauses.push({ _id: { $in: memberIds } });
     }
+    if (actor.managedDepartments.length > 0) {
+      orClauses.push({ department: { $in: actor.managedDepartments } });
+    } else if (actor.department) {
+      orClauses.push({ department: actor.department });
+    }
+    empFilter.$or = orClauses;
   } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
     empFilter.department = actor.department;
   }

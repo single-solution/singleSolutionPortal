@@ -445,10 +445,7 @@ function SelfOverviewCard({ pa, userProfile, user }: {
 
 /* ──────────────────────── TODAY ACTIVITY TIMELINE ──────────────────────── */
 
-function TodayTimelineCard({ pa, tasks, dataLoading }: { pa: PersonalAttendance | null; tasks: ApiTask[]; dataLoading?: boolean }) {
-  const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
-  const inProgressTasks = useMemo(() => tasks.filter((t) => t.status === "inProgress"), [tasks]);
-  const completedTasks = useMemo(() => tasks.filter((t) => t.status === "completed"), [tasks]);
+function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null; dataLoading?: boolean }) {
   const isLive = pa && (pa.todaySessions > 0 || pa.todayMinutes > 0);
   const statusColor = isLive ? "#10b981" : "var(--fg-tertiary)";
   const isLoading = !pa && dataLoading;
@@ -490,41 +487,6 @@ function TodayTimelineCard({ pa, tasks, dataLoading }: { pa: PersonalAttendance 
         </ul>
       )}
 
-      <div className="border-t pt-3 mt-auto" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-callout font-semibold" style={{ color: "var(--fg)" }}>My Tasks</h4>
-          {pendingTasks.length > 0 && (
-            <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>{pendingTasks.length} Pending</motion.span>
-          )}
-        </div>
-        {isLoading ? (
-          <div className="space-y-1.5">
-            {[1, 2, 3].map((i) => <div key={i} className="flex gap-2"><Bone w="w-2" h="h-2" /><div className="flex-1 space-y-1"><Bone w="w-28" h="h-2.5" /><Bone w="w-20" h="h-2" /></div></div>)}
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-3 text-caption mb-2">
-              <span><span className="font-bold tabular-nums" style={{ color: "var(--amber)" }}>{pendingTasks.length}</span> pending</span>
-              <span><span className="font-bold tabular-nums" style={{ color: "var(--primary)" }}>{inProgressTasks.length}</span> active</span>
-              <span><span className="font-bold tabular-nums" style={{ color: "var(--teal)" }}>{completedTasks.length}</span> done</span>
-            </div>
-            {pendingTasks.length > 0 && (
-              <div className="space-y-1.5">
-                {pendingTasks.slice(0, 4).map((task, ti) => (
-                  <motion.div key={task._id} initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 + ti * 0.06 }} className="flex items-start gap-2 text-[11px]">
-                    <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)" }} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium" style={{ color: "var(--fg)" }}>{task.title}</p>
-                      <p className="text-caption">{task.deadline ? new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No deadline"} · {PRIORITY_LABELS[task.priority] ?? task.priority}</p>
-                    </div>
-                  </motion.div>
-                ))}
-                <Link href="/tasks"><span className="text-callout font-semibold" style={{ color: "var(--primary)" }}>View all →</span></Link>
-              </div>
-            )}
-          </>
-        )}
-      </div>
     </motion.div>
   );
 }
@@ -638,7 +600,7 @@ function AdminDashboard({
       {!isSuperAdmin && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} />
-          <TodayTimelineCard pa={personalAttendance} tasks={tasks} dataLoading={dataLoading} />
+          <TodayTimelineCard pa={personalAttendance} dataLoading={dataLoading} />
         </div>
       )}
 
@@ -1015,7 +977,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         {/* Self overview + Activity timeline */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} />
-          <TodayTimelineCard pa={pa} tasks={tasks} dataLoading={dataLoading} />
+          <TodayTimelineCard pa={pa} dataLoading={dataLoading} />
         </div>
 
         {/* Weekly overview — horizontal scroll strip */}

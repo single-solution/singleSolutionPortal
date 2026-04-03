@@ -35,12 +35,20 @@ export async function GET() {
       filter._id = actor.id;
     }
   } else if (isTeamLead(actor)) {
+    const orClauses: Record<string, unknown>[] = [
+      { _id: actor.id },
+      { reportsTo: actor.id },
+    ];
     const memberIds = await getTeamMemberIds(actor.leadOfTeams);
     if (memberIds.length > 0) {
-      filter._id = { $in: memberIds };
-    } else {
-      filter._id = actor.id;
+      orClauses.push({ _id: { $in: memberIds } });
     }
+    if (actor.managedDepartments.length > 0) {
+      orClauses.push({ department: { $in: actor.managedDepartments } });
+    } else if (actor.department) {
+      orClauses.push({ department: actor.department });
+    }
+    filter.$or = orClauses;
   } else if (isEmployee(actor)) {
     filter._id = actor.id;
   }

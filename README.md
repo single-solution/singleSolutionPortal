@@ -27,7 +27,7 @@ superadmin (100) → manager (50) → teamLead (30) → businessDeveloper / deve
 |------|--------|
 | **SuperAdmin** | Full CRUD on employees, departments, teams, tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role ("god mode") |
 | **Manager** | **Multi-department scoped**: can manage employees, departments, teams, and tasks across all departments they're assigned as manager. Nav includes Employees, Departments, Teams pages (scoped to managed departments). Can create teams in any managed department. Attendance presence for all managed departments |
-| **Team Lead** | Team-scoped view of employees, tasks, and attendance for teams they lead. Nav includes Employees, Departments, Teams pages (scoped to their teams and team departments). Can create/manage tasks for team members. Sits under a manager |
+| **Team Lead** | **Multi-department scoped** (same as manager): can manage employees, tasks, and attendance across all departments they're assigned to. Also sees employees who directly report to them (`reportsTo`) and members of teams they lead. Nav includes Employees, Departments, Teams pages. Sits under a manager |
 | **Business Developer** | Job pipeline tracking (17 BD fields), personal attendance |
 | **Developer** | Personal attendance, task status updates, profile management |
 
@@ -298,12 +298,12 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 **Manager / Team Lead (AdminDashboard):**
 - **Welcome header**: same design as SuperAdmin but with pending tasks + active campaigns count instead of status badge pills
 - **Self Overview card** (DeveloperPreview-style): large avatar, name/department/email, status badge, 3 stat mini-cards (first entry, hours logged, office/remote split with percentages), animated shift progress bar. Shows skeleton avatar + stat boxes while attendance data loads
-- **Today Timeline card**: vertical activity timeline (check-in, sessions, active now) + task summary with pulsing pending count badge, priority dots, "View All" link. Shows skeleton timeline dots + task list while loading
+- **Today Timeline card**: vertical activity timeline (check-in, sessions, active now). Shows skeleton timeline dots while loading
 - Same campaigns, checklist, team breakdown, and team status sections as SuperAdmin
 
 **Developer / Business Developer (OtherRoleOverview):**
 - **Welcome header**: greeting with "Single Solution Sync" label, local time display (no LivePulse)
-- **Self Overview + Timeline** (side-by-side on desktop): DeveloperPreview-style profile hero card with avatar, status badge, mini stat cards, shift progress bar. Timeline card with activity events and task summary
+- **Self Overview + Timeline** (side-by-side on desktop): DeveloperPreview-style profile hero card with avatar, status badge, mini stat cards, shift progress bar. Timeline card with activity events
 - **Weekly overview**: horizontal-scroll strip of day cards (like DeveloperPreview) — each card shows weekday, date, status dot, and total hours. Today highlighted with primary border + glow
 - **Monthly summary**: nested stat cards (Present/Total, On-time, Avg daily hours, Total hours) with animated numbers, office vs remote stacked progress bar with percentages
 

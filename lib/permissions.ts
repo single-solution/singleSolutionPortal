@@ -44,7 +44,7 @@ export async function getVerifiedSession(): Promise<VerifiedUser | null> {
   }
 
   let managedDepartments: string[] = [];
-  if (dbUser.userRole === "manager") {
+  if (dbUser.userRole === "manager" || dbUser.userRole === "teamLead") {
     const managed = await Department.find({ manager: dbUser._id, isActive: true }).select("_id").lean();
     managedDepartments = managed.map((d) => d._id.toString());
   }
