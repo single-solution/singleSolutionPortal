@@ -1437,7 +1437,7 @@ export default function DashboardHome({ user }: { user: User }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Event-driven updates via SSE (replaces polling) ── */
+  /* ── Event-driven updates via lightweight polling ── */
   useEventStream(
     useMemo(
       () => ({

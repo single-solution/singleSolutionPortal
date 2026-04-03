@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Channel } from "@/lib/models/EventBus";
+import { subscribeChannel, isChannelStale, clearChannelStale } from "@/lib/eventPoll";
 
 interface CacheEntry<T> {
   data: T;
@@ -10,85 +11,6 @@ interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
-const staleChannels = new Set<Channel>();
-
-let sharedES: EventSource | null = null;
-let subscriberCount = 0;
-const channelListeners = new Map<Channel, Set<() => void>>();
-
-function connectSharedSSE() {
-  if (sharedES) return;
-  if (typeof window === "undefined") return;
-
-  const es = new EventSource("/api/events");
-  sharedES = es;
-
-  es.addEventListener("change", (e) => {
-    try {
-      const { channels } = JSON.parse(e.data) as { channels: Channel[] };
-      for (const ch of channels) {
-        staleChannels.add(ch);
-        channelListeners.get(ch)?.forEach((fn) => fn());
-      }
-    } catch {
-      /* malformed */
-    }
-  });
-
-  es.addEventListener("reconnect", () => {
-    es.close();
-    sharedES = null;
-    setTimeout(connectSharedSSE, 1000);
-  });
-
-  es.onerror = () => {
-    es.close();
-    sharedES = null;
-    setTimeout(() => {
-      if (!document.hidden && subscriberCount > 0) connectSharedSSE();
-    }, 3000);
-  };
-}
-
-function disconnectSharedSSE() {
-  if (sharedES) {
-    sharedES.close();
-    sharedES = null;
-  }
-}
-
-function handleVisibility() {
-  if (document.hidden) {
-    disconnectSharedSSE();
-  } else if (subscriberCount > 0) {
-    connectSharedSSE();
-  }
-}
-
-let visibilityBound = false;
-function ensureVisibilityListener() {
-  if (visibilityBound || typeof window === "undefined") return;
-  document.addEventListener("visibilitychange", handleVisibility);
-  visibilityBound = true;
-}
-
-function subscribeChannel(channel: Channel, handler: () => void) {
-  if (!channelListeners.has(channel))
-    channelListeners.set(channel, new Set());
-  channelListeners.get(channel)!.add(handler);
-  subscriberCount++;
-  ensureVisibilityListener();
-  connectSharedSSE();
-
-  return () => {
-    channelListeners.get(channel)?.delete(handler);
-    subscriberCount--;
-    if (subscriberCount <= 0) {
-      subscriberCount = 0;
-      disconnectSharedSSE();
-    }
-  };
-}
 
 export interface UseQueryResult<T> {
   data: T | null;
@@ -138,7 +60,7 @@ export function useQuery<T>(
           timestamp: Date.now(),
           channel,
         });
-        staleChannels.delete(channel);
+        clearChannelStale(channel);
         if (mountedRef.current && urlRef.current === currentUrl) {
           setData(json);
           setError(null);
@@ -162,7 +84,7 @@ export function useQuery<T>(
     if (cache.has(url)) {
       setData((cache.get(url) as CacheEntry<T>).data);
       setLoading(false);
-      if (staleChannels.has(channel)) fetchData();
+      if (isChannelStale(channel)) fetchData();
     } else {
       fetchData(true);
     }
