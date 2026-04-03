@@ -374,31 +374,31 @@ export function EmployeeCard({
           </div>
         )}
 
-        {/* Check-in · Total Time · Check-out */}
+        {/* Clock In · Hours · Clock Out */}
         <div className="mt-auto grid grid-cols-3 gap-1 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
           <div>
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Check-in</p>
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
             <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{firstArrival}</p>
           </div>
           <div className="text-center">
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Total</p>
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
             <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
               {attendanceLoading ? "—" : formatMinutesShort(todayM)}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Check-out</p>
+            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
             <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
               {attendanceLoading ? "—" : emp.isLive ? "—" : emp.lastExit ? formatTimeStr(emp.lastExit) : "—"}
             </p>
           </div>
         </div>
 
-        {/* Office In · Office Time · Office Out */}
+        {/* Arrived · Office · Left */}
         {!attendanceLoading && (emp.officeMinutes ?? 0) > 0 && (
           <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
             <div>
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Arrived</p>
               <p className="font-semibold tabular-nums">{firstArrival}</p>
             </div>
             <div className="text-center">
@@ -406,7 +406,7 @@ export function EmployeeCard({
               <p className="font-semibold tabular-nums">{formatMinutesShort(emp.officeMinutes ?? 0)}</p>
             </div>
             <div className="text-right">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Left</p>
               <p className="font-semibold tabular-nums">
                 {emp.isLive && emp.status === "office" ? "—" : emp.lastOfficeExit ? formatTimeStr(emp.lastOfficeExit) : "—"}
               </p>
