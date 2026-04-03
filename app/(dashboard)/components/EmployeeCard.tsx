@@ -289,7 +289,7 @@ export function EmployeeCard({
         aria-label={`View ${emp.firstName} ${emp.lastName}`}
       />
 
-      <div className="pointer-events-none absolute right-0 z-20 max-w-[55%] text-right" style={{ top: -5 }}>
+      <div className="pointer-events-none absolute right-0 z-20 max-w-[55%] text-right" style={{ top: -10 }}>
         <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
       </div>
 
@@ -582,8 +582,8 @@ export function EmployeeCard({
   );
 
   const shellClass = embedded
-    ? `group relative flex min-h-0 flex-1 flex-col overflow-hidden ${className ?? ""}`
-    : `card-static group relative flex h-full flex-col overflow-hidden rounded-[var(--radius)] ${className ?? ""}`;
+    ? `group relative flex min-h-0 flex-1 flex-col overflow-visible ${className ?? ""}`
+    : `card-static group relative flex h-full flex-col overflow-visible rounded-[var(--radius)] ${className ?? ""}`;
 
   const shell = <div className={shellClass}>{inner}</div>;
 
