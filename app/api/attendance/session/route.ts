@@ -7,22 +7,11 @@ import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice, validateLocation } from "@/lib/geo";
 import { notifyChange } from "@/lib/eventBus";
+import { startOfDay, isSameDay } from "@/lib/dayBoundary";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 
 const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
-
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
 
 // ─── GET: session state ────────────────────────────────────────────
 export async function GET(req: NextRequest) {

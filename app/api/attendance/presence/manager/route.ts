@@ -4,10 +4,7 @@ import DailyAttendance from "@/lib/models/DailyAttendance";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import { getVerifiedSession } from "@/lib/permissions";
-
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
+import { startOfDay } from "@/lib/dayBoundary";
 
 /**
  * GET /api/attendance/presence/manager

@@ -4,6 +4,7 @@ import ActivitySession from "@/lib/models/ActivitySession";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
+import { startOfDay } from "@/lib/dayBoundary";
 import {
   getVerifiedSession,
   canViewAttendance,
@@ -86,8 +87,8 @@ export async function GET(req: NextRequest) {
     if (!dateStr) return ok(null);
 
     const target = new Date(dateStr);
-    const start = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-    const end = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 23, 59, 59, 999);
+    const start = startOfDay(target);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
 
     const daily = await DailyAttendance.findOne({
       user: userId,

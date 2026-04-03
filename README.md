@@ -84,6 +84,12 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Flag state persisted on `ActivitySession.location` (flagReason, flaggedAt, consecutiveIdentical) and returned in both GET and PATCH responses — visible to managers/admins on the dashboard presence cards
 - Does not ban or lock out — pauses and warns, letting employees self-correct. SuperAdmin exempt
 
+**Day boundary (6 AM, not midnight):**
+- The attendance day starts at **6 AM**, not midnight. Work done between midnight and 6 AM counts toward the **previous day**
+- Prevents employees who stay late past midnight from appearing as "early arrivals" the next day. Their post-midnight work is logged to the correct day, and the next morning's actual arrival time becomes the real "first entry"
+- Shared `lib/dayBoundary.ts` exports `startOfDay()` and `isSameDay()` — used consistently across all attendance APIs (session, presence, presence/manager, trend, detail)
+- Example: employee works office until 1 AM on April 2nd → that session belongs to April 1st (logical day). Employee arrives next day at 11 AM → first entry for April 2nd is 11 AM (correctly marked late if shift starts at 10 AM)
+
 **Daily & monthly rollup:**
 - `DailyAttendance`: totalWorkingMinutes, officeMinutes, remoteMinutes, isPresent, isOnTime, lateBy, firstOfficeEntry, lastOfficeExit
 - `MonthlyAttendanceStats`: presentDays, absentDays, onTimeArrivals, lateArrivals, averageDailyHours, totalWorkingHours, attendancePercentage

@@ -11,10 +11,7 @@ import {
   isEmployee,
   getTeamMemberIds,
 } from "@/lib/permissions";
-
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
+import { startOfDay } from "@/lib/dayBoundary";
 
 export async function GET() {
   const actor = await getVerifiedSession();
