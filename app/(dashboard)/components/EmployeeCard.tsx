@@ -26,6 +26,7 @@ export interface EmployeeCardEmp {
   remoteMinutes?: number;
   lateBy?: number;
   breakMinutes?: number;
+  sessionCount?: number;
   shiftStart?: string;
   shiftEnd?: string;
   shiftBreakTime?: number;
@@ -166,36 +167,76 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
   );
 }
 
-function ShiftProgressBar({ todayMinutes, shiftStart, shiftEnd, shiftBreakTime }: { todayMinutes: number; shiftStart: string; shiftEnd: string; shiftBreakTime: number }) {
+function ActivityStrip({ emp, todayMinutes, shiftStart, shiftEnd, shiftBreakTime }: { emp: EmployeeCardEmp; todayMinutes: number; shiftStart: string; shiftEnd: string; shiftBreakTime: number }) {
   const shiftMins = getShiftMinutes(shiftStart, shiftEnd, shiftBreakTime);
-  const ratio = todayMinutes / shiftMins;
-  const pctRaw = Math.round(ratio * 100);
-  const cappedWidthPct = Math.min(ratio * 100, 120);
-  const hasOt = todayMinutes > shiftMins;
-  const primaryWidthPctOfInner = hasOt ? (100 / cappedWidthPct) * 100 : 100;
+  const pctRaw = Math.round((todayMinutes / shiftMins) * 100);
+
+  const officeMins = emp.officeMinutes ?? 0;
+  const remoteMins = emp.remoteMinutes ?? 0;
+  const breakMins = emp.breakMinutes ?? 0;
+  const total = officeMins + remoteMins + breakMins || 1;
+  const cappedFillPct = Math.min((todayMinutes / shiftMins) * 100, 120);
+
+  const officePct = (officeMins / total) * cappedFillPct;
+  const remotePct = (remoteMins / total) * cappedFillPct;
+  const breakPct = (breakMins / total) * cappedFillPct;
+
+  const sessions = emp.sessionCount ?? 0;
+
+  let idleMins = 0;
+  if (!emp.isLive && emp.firstEntry && emp.lastExit) {
+    const span = (new Date(emp.lastExit).getTime() - new Date(emp.firstEntry).getTime()) / 60000;
+    idleMins = Math.max(0, Math.round(span - todayMinutes));
+  }
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-        <motion.div
-          className="flex h-full min-w-0"
-          initial={{ width: 0 }}
-          animate={{ width: `${cappedWidthPct}%` }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {hasOt ? (
-            <>
-              <div className="h-full shrink-0 rounded-l-full" style={{ width: `${primaryWidthPctOfInner}%`, background: "var(--primary)" }} />
-              <div className="h-full min-w-0 flex-1 rounded-r-full" style={{ background: "#8b5cf6" }} />
-            </>
-          ) : (
-            <div className="h-full w-full rounded-full" style={{ background: "var(--primary)" }} />
-          )}
-        </motion.div>
+    <div className="space-y-1.5">
+      {/* Segmented time bar */}
+      <div className="flex items-center gap-2">
+        <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+          <motion.div
+            className="flex h-full min-w-0"
+            initial={{ width: 0 }}
+            animate={{ width: `${cappedFillPct}%` }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {officePct > 0 && <div className="h-full shrink-0" style={{ width: `${(officePct / cappedFillPct) * 100}%`, background: "#10b981" }} />}
+            {remotePct > 0 && <div className="h-full shrink-0" style={{ width: `${(remotePct / cappedFillPct) * 100}%`, background: "#007aff" }} />}
+            {breakPct > 0 && <div className="h-full shrink-0" style={{ width: `${(breakPct / cappedFillPct) * 100}%`, background: "#8b5cf6" }} />}
+          </motion.div>
+        </div>
+        <span className="text-[10px] shrink-0 tabular-nums font-bold" style={{ color: pctRaw >= 100 ? "#10b981" : "var(--fg-secondary)" }}>
+          {pctRaw}%
+        </span>
       </div>
-      <span className="text-caption shrink-0 tabular-nums font-semibold" style={{ color: "var(--fg-secondary)" }}>
-        {pctRaw}%
-      </span>
+
+      {/* Compact detail chips */}
+      <div className="flex flex-wrap items-center gap-1 text-[9px]">
+        <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>
+          {sessions} {sessions === 1 ? "session" : "sessions"}
+        </span>
+        {remoteMins > 0 && (
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>
+            {formatMinutesShort(remoteMins)} remote
+          </span>
+        )}
+        {breakMins > 0 && (
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>
+            {formatMinutesShort(breakMins)} break
+          </span>
+        )}
+        {(emp.lateBy ?? 0) > 0 && (
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>
+            +{formatMinutesShort(emp.lateBy ?? 0)} late
+          </span>
+        )}
+        {idleMins > 5 && (
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+            {formatMinutesShort(idleMins)} idle
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -414,25 +455,10 @@ export function EmployeeCard({
           </div>
         )}
 
-        {/* Office · Remote · Break pills */}
+        {/* Activity strip — segmented bar + detail chips */}
         {!attendanceLoading && (
           <>
-            <div className="flex flex-wrap gap-1 text-[9px]">
-              <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>
-                Office {formatMinutesShort(emp.officeMinutes ?? 0)}
-              </span>
-              <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>
-                Remote {formatMinutesShort(emp.remoteMinutes ?? 0)}
-              </span>
-              <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>
-                Break {formatMinutesShort(emp.breakMinutes ?? 0)}
-              </span>
-              {(emp.lateBy ?? 0) > 0 && (
-                <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>
-                  Late +{formatMinutesShort(emp.lateBy ?? 0)}
-                </span>
-              )}
-            </div>
+            <ActivityStrip emp={emp} todayMinutes={todayM} shiftStart={shiftStart} shiftEnd={shiftEnd} shiftBreakTime={shiftBreak} />
 
             {emp.locationFlagged && (
               <div className="rounded-lg border p-2 text-[9px] space-y-1" style={{ borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }}>
@@ -464,8 +490,6 @@ export function EmployeeCard({
                 )}
               </div>
             )}
-
-            <ShiftProgressBar todayMinutes={todayM} shiftStart={shiftStart} shiftEnd={shiftEnd} shiftBreakTime={shiftBreak} />
           </>
         )}
 

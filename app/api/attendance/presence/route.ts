@@ -138,6 +138,7 @@ export async function GET() {
       remoteMinutes: daily?.remoteMinutes ?? 0,
       lateBy: daily?.lateBy ?? 0,
       breakMinutes: daily?.breakMinutes ?? 0,
+      sessionCount: daily?.activitySessions?.length ?? (active ? 1 : 0),
       firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
       lastOfficeExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null,
       lastExit: staleLastActivity

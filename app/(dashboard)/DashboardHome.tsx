@@ -97,6 +97,7 @@ interface PresenceEmployee {
   remoteMinutes: number;
   lateBy: number;
   breakMinutes: number;
+  sessionCount: number;
   firstEntry: string | null;
   lastOfficeExit: string | null;
   lastExit: string | null;
@@ -595,7 +596,7 @@ function AdminDashboard({
   }, [pingSending]);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-h-[calc(100dvh-15rem)] flex-col gap-5">
       {/* 1. Welcome header */}
       <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} dataLoading={dataLoading} />
 
@@ -692,7 +693,7 @@ function AdminDashboard({
       </div>
 
       {/* 4. Live Presence — employee cards */}
-      <motion.section className="card relative overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
+      <motion.section className="card relative flex-1 overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
@@ -781,6 +782,7 @@ function AdminDashboard({
                       remoteMinutes: emp.remoteMinutes,
                       lateBy: emp.lateBy,
                       breakMinutes: emp.breakMinutes,
+                      sessionCount: emp.sessionCount,
                       shiftStart: emp.shiftStart,
                       shiftEnd: emp.shiftEnd,
                       shiftBreakTime: emp.shiftBreakTime,
@@ -1114,6 +1116,7 @@ export default function DashboardHome({ user }: { user: User }) {
         remoteMinutes: p.remoteMinutes ?? 0,
         lateBy: p.lateBy ?? 0,
         breakMinutes: p.breakMinutes ?? 0,
+        sessionCount: p.sessionCount ?? 0,
         firstEntry: p.firstEntry ?? null,
         lastOfficeExit: p.lastOfficeExit ?? null,
         lastExit: p.lastExit ?? null,
@@ -1314,6 +1317,7 @@ export default function DashboardHome({ user }: { user: User }) {
       remoteMinutes: 0,
       lateBy: 0,
       breakMinutes: 0,
+      sessionCount: 0,
       firstEntry: null,
       lastOfficeExit: null,
       lastExit: null,
