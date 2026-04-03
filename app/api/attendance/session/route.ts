@@ -368,15 +368,17 @@ async function recomputeDaily(userId: string, sessionDate: Date, _now: Date, tz:
   let officeMinutes = 0;
   let firstOfficeEntry: Date | null = null;
   let lastOfficeExit: Date | null = null;
+  let lastSessionEnd: Date | null = null;
 
   for (const s of allSessions) {
     totalWorkingMinutes += s.durationMinutes ?? 0;
     for (const seg of s.officeSegments ?? []) {
       officeMinutes += seg.durationMinutes ?? 0;
     }
+    const sEnd = s.sessionTime.end;
+    if (sEnd && (!lastSessionEnd || sEnd > lastSessionEnd)) lastSessionEnd = sEnd;
     if (s.location?.inOffice) {
       const sStart = s.sessionTime.start;
-      const sEnd = s.sessionTime.end;
       if (!firstOfficeEntry || sStart < firstOfficeEntry) firstOfficeEntry = sStart;
       if (sEnd && (!lastOfficeExit || sEnd > lastOfficeExit)) lastOfficeExit = sEnd;
     }
@@ -392,6 +394,7 @@ async function recomputeDaily(userId: string, sessionDate: Date, _now: Date, tz:
         isPresent: totalWorkingMinutes > 0,
         ...(firstOfficeEntry ? { firstOfficeEntry } : {}),
         ...(lastOfficeExit ? { lastOfficeExit } : {}),
+        ...(lastSessionEnd ? { lastSessionEnd } : {}),
       },
     },
     { upsert: true },

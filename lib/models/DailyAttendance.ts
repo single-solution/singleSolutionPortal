@@ -6,6 +6,7 @@ export interface IDailyAttendance extends Document {
   date: Date;
   firstOfficeEntry?: Date;
   lastOfficeExit?: Date;
+  lastSessionEnd?: Date;
   totalWorkingMinutes: number;
   officeMinutes: number;
   remoteMinutes: number;
@@ -24,6 +25,7 @@ const dailyAttendanceSchema = new Schema<IDailyAttendance>(
     date: { type: Date, required: true },
     firstOfficeEntry: Date,
     lastOfficeExit: Date,
+    lastSessionEnd: Date,
     totalWorkingMinutes: { type: Number, default: 0 },
     officeMinutes: { type: Number, default: 0 },
     remoteMinutes: { type: Number, default: 0 },
