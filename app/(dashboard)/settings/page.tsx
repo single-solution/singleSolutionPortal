@@ -534,12 +534,14 @@ interface SysSettings {
   office: { latitude: number; longitude: number; radiusMeters: number };
   shiftDefaults: { start: string; end: string; breakMinutes: number; graceMinutes: number };
   company: { name: string; timezone: string };
+  liveUpdates: boolean;
 }
 
 const DEFAULTS: SysSettings = {
   office: { latitude: 31.4763416, longitude: 74.2687022, radiusMeters: 300 },
   shiftDefaults: { start: "10:00", end: "19:00", breakMinutes: 60, graceMinutes: 30 },
   company: { name: "Single Solution", timezone: "asia-karachi" },
+  liveUpdates: false,
 };
 
 function useSystemSettings() {
@@ -550,7 +552,7 @@ function useSystemSettings() {
 
   useEffect(() => {
     fetch("/api/settings").then((r) => r.json()).then((d) => {
-      if (d.office) setSettings({ office: d.office, shiftDefaults: d.shiftDefaults, company: d.company });
+      if (d.office) setSettings({ office: d.office, shiftDefaults: d.shiftDefaults, company: d.company, liveUpdates: d.liveUpdates ?? false });
       setSysLoading(false);
     }).catch(() => setSysLoading(false));
   }, []);
@@ -666,6 +668,25 @@ function SystemSettingsDetailSection({ sys }: { sys: ReturnType<typeof useSystem
                 <input className="input" type="number" value={settings.shiftDefaults.graceMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, graceMinutes: parseInt(e.target.value) || 30 } })} />
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Live Updates</h3>
+              <p className="text-caption">Enable real-time push via Socket.IO. Requires self-hosted server.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.liveUpdates}
+              onClick={() => setSettings({ ...settings, liveUpdates: !settings.liveUpdates })}
+              className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+              style={{ backgroundColor: settings.liveUpdates ? "var(--primary)" : "var(--bg-tertiary)" }}
+            >
+              <span className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform" style={{ transform: settings.liveUpdates ? "translateX(1.25rem)" : "translateX(0)" }} />
+            </button>
           </div>
         </div>
 

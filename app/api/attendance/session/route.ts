@@ -7,7 +7,7 @@ import User from "@/lib/models/User";
 import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice, validateLocation } from "@/lib/geo";
-import { notifyChange } from "@/lib/eventBus";
+import { emitSocket } from "@/lib/socket";
 import { startOfDay, isSameDay } from "@/lib/dayBoundary";
 import { resolveTimezone, dateParts, dateInTz } from "@/lib/tz";
 import { NextRequest } from "next/server";
@@ -155,7 +155,7 @@ export async function PATCH(req: Request) {
   if (lastActivityMs > 0 && (now.getTime() - lastActivityMs) > STALE_THRESHOLD_MS) {
     const closeTime = new Date(lastActivityMs);
     await closeSession(active, closeTime, tz);
-    notifyChange("presence");
+    emitSocket("presence", { type: "update" }, { room: "presence" });
     return ok({ updated: false, sessionClosed: true, sleepDetected: true });
   }
 
@@ -215,7 +215,7 @@ export async function PATCH(req: Request) {
     }
 
     await active.save();
-    if (wasInOffice !== nowInOffice) notifyChange("presence");
+    if (wasInOffice !== nowInOffice) emitSocket("presence", { type: "update" }, { room: "presence" });
     return ok({
       updated: true,
       inOffice: nowInOffice,
@@ -446,7 +446,7 @@ async function handleCheckIn(
   const freshDaily = await DailyAttendance.findOne({ user: userId, date: today }).lean();
   if (freshDaily) todayMinutes = freshDaily.totalWorkingMinutes ?? 0;
 
-  notifyChange("presence");
+  emitSocket("presence", { type: "checkin" }, { room: "presence" });
 
   return ok({
     message: "Checked in successfully",
@@ -478,7 +478,7 @@ async function handleCheckOut(userId: string) {
   await closeSession(activeSession, now, tz);
 
   const durationMinutes = activeSession.durationMinutes;
-  notifyChange("presence");
+  emitSocket("presence", { type: "checkout" }, { room: "presence" });
   return ok({ message: "Checked out successfully", duration: durationMinutes });
 }
 

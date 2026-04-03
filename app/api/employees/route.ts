@@ -73,7 +73,14 @@ export async function POST(req: Request) {
     return badRequest("Missing required fields: email, fullName, userRole");
   }
 
-  if (userRole === "superadmin") return badRequest("Cannot create superadmin accounts");
+  if (userRole === "superadmin") {
+    const { confirmPassword } = body;
+    if (!confirmPassword) return badRequest("Password confirmation required to create a superadmin");
+    const actorUser = await User.findById(actor.id).select("+password").lean();
+    if (!actorUser?.password) return badRequest("Could not verify your identity");
+    const valid = await bcrypt.compare(confirmPassword, actorUser.password);
+    if (!valid) return badRequest("Incorrect password");
+  }
 
   const trimmedEmail = email.toLowerCase().trim();
   const username = trimmedEmail.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g, "");

@@ -3,7 +3,7 @@ import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import Ping from "@/lib/models/Ping";
 import User from "@/lib/models/User";
-import EventBus from "@/lib/models/EventBus";
+import { emitSocket } from "@/lib/socket";
 
 /**
  * GET — fetch pings for the logged-in user (inbox)
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
   const ping = await Ping.create({ from: actor.id, to: toId, message });
 
-  await EventBus.updateOne({ _id: "global" }, { $set: { ping: new Date() } }, { upsert: true });
+  emitSocket("ping", { from: actor.id, message }, { userId: toId });
 
   return ok({ _id: ping._id, message: "Ping sent" });
 }

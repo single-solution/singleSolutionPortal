@@ -17,6 +17,7 @@ export interface ISystemSettings extends Document {
     name: string;
     timezone: string;
   };
+  liveUpdates: boolean;
   updatedBy?: mongoose.Types.ObjectId;
   updatedAt: Date;
 }
@@ -39,6 +40,7 @@ const systemSettingsSchema = new Schema<ISystemSettings>(
       name: { type: String, default: "Single Solution" },
       timezone: { type: String, default: "asia-karachi" },
     },
+    liveUpdates: { type: Boolean, default: false },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true },

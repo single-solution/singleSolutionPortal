@@ -76,7 +76,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.phone !== undefined) update["about.phone"] = body.phone;
 
     if (body.userRole) {
-      if (body.userRole === "superadmin") return badRequest("Cannot promote to superadmin");
+      if (body.userRole === "superadmin") {
+        const { confirmPassword } = body;
+        if (!confirmPassword) return badRequest("Password confirmation required to promote to superadmin");
+        const actorUser = await User.findById(actor.id).select("+password").lean();
+        if (!actorUser?.password) return badRequest("Could not verify your identity");
+        const valid = await bcrypt.compare(confirmPassword, actorUser.password);
+        if (!valid) return badRequest("Incorrect password");
+      }
       update.userRole = body.userRole;
     }
     if (body.department !== undefined) update.department = body.department || null;

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useEventStream } from "@/lib/useEventStream";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { dockEntrance, tabIndicatorTransition } from "@/lib/motion";
 import type { UserRole } from "@/lib/models/User";
@@ -110,6 +109,23 @@ function timeAgo(dateStr: string) {
   return `${days}d ago`;
 }
 
+function RefreshBtn({ onRefresh }: { onRefresh: () => void }) {
+  const [spinning, setSpinning] = useState(false);
+  return (
+    <motion.button
+      type="button"
+      onClick={() => { setSpinning(true); onRefresh(); setTimeout(() => setSpinning(false), 800); }}
+      animate={{ rotate: spinning ? 360 : 0 }}
+      transition={{ duration: 0.6 }}
+      className="ml-2 p-1 rounded-full hover:bg-[var(--bg-secondary)] transition-colors"
+      style={{ color: "var(--fg-tertiary)" }}
+      title="Refresh"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+    </motion.button>
+  );
+}
+
 interface DashboardShellProps {
   user: {
     id: string;
@@ -185,10 +201,6 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   }, []);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
-
-  useEventStream(
-    useMemo(() => ({ activity: fetchLogs, ping: fetchPings }), [fetchLogs, fetchPings]),
-  );
 
   useEffect(() => {
     function handleBIP(e: Event) {
@@ -412,7 +424,10 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                     exit="exit"
                   >
                     <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
-                      <span className="text-headline text-sm">Pings</span>
+                      <div className="flex items-center min-w-0">
+                        <span className="text-headline text-sm">Pings</span>
+                        <RefreshBtn onRefresh={fetchPings} />
+                      </div>
                       {pingUnread > 0 && (
                         <button
                           type="button"
@@ -506,7 +521,10 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                       exit="exit"
                     >
                       <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
-                      <span className="text-headline text-sm">Activity Log</span>
+                      <div className="flex items-center min-w-0">
+                        <span className="text-headline text-sm">Activity Log</span>
+                        <RefreshBtn onRefresh={fetchLogs} />
+                      </div>
                       {logs.length > 0 && (
                         <button
                           type="button"

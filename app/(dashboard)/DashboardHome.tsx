@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { useEventStream } from "@/lib/useEventStream";
 import Link from "next/link";
 import {
   AnimatePresence,
@@ -266,6 +265,23 @@ function getShiftMinutes(start: string, end: string, breakTime: number) {
 
 
 /* ──────────────────────── SHARED COMPONENTS ──────────────────────── */
+
+function RefreshBtn({ onRefresh }: { onRefresh: () => void }) {
+  const [spinning, setSpinning] = useState(false);
+  return (
+    <motion.button
+      type="button"
+      onClick={() => { setSpinning(true); onRefresh(); setTimeout(() => setSpinning(false), 800); }}
+      animate={{ rotate: spinning ? 360 : 0 }}
+      transition={{ duration: 0.6 }}
+      className="ml-2 p-1 rounded-full hover:bg-[var(--bg-secondary)] transition-colors"
+      style={{ color: "var(--fg-tertiary)" }}
+      title="Refresh"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+    </motion.button>
+  );
+}
 
 function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
   const [display, setDisplay] = useState(0);
@@ -690,6 +706,8 @@ function AdminDashboard({
   teams,
   userProfile,
   dataLoading,
+  onRefreshLive,
+  onRefreshFull,
 }: {
   user: User;
   presenceEmps: PresenceEmployee[];
@@ -700,6 +718,8 @@ function AdminDashboard({
   teams: ApiTeam[];
   userProfile: UserProfile | null;
   dataLoading: boolean;
+  onRefreshLive: () => void;
+  onRefreshFull: () => void;
 }) {
   const isSuperAdmin = user.role === "superadmin";
   const isManager = user.role === "manager";
@@ -792,7 +812,10 @@ function AdminDashboard({
           {(dataLoading || activeCampaigns.length > 0) && (
             <motion.section className="card p-4 sm:p-5 lg:col-span-5" variants={slideUpItem} initial="hidden" animate="visible">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
+                <div className="flex items-center min-w-0">
+                  <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
+                  <RefreshBtn onRefresh={onRefreshFull} />
+                </div>
                 <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
               </div>
               <div className="flex flex-col gap-2">
@@ -819,7 +842,10 @@ function AdminDashboard({
           {(dataLoading || pendingTasks.length > 0) && (
             <motion.section className="card p-4 sm:p-5 lg:col-span-7" variants={slideUpItem} initial="hidden" animate="visible">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
+                <div className="flex items-center min-w-0">
+                  <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
+                  <RefreshBtn onRefresh={onRefreshFull} />
+                </div>
                 <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
                   {pendingTasks.length} Pending
                 </motion.div>
@@ -894,6 +920,7 @@ function AdminDashboard({
             <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>Team Status</h2>
+            <RefreshBtn onRefresh={onRefreshLive} />
             <span className="text-caption font-semibold" style={{ color: "#10b981" }}>{liveCount} live</span>
             <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
               {selectedTeamId && (
@@ -1003,8 +1030,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
   useEffect(() => {
     if (!reportsToId) { setMgrLoading(false); return; }
     fetchMgrStatus();
-    const id = window.setInterval(fetchMgrStatus, 30_000);
-    return () => window.clearInterval(id);
   }, [reportsToId, fetchMgrStatus]);
 
   const [pingSending, setPingSending] = useState(false);
@@ -1437,23 +1462,6 @@ export default function DashboardHome({ user }: { user: User }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Event-driven updates via lightweight polling ── */
-  useEventStream(
-    useMemo(
-      () => ({
-        presence: () => { if (initialDone.current) fetchLive(); },
-        employees: () => { if (initialDone.current) fetchFull(); },
-        tasks: () => { if (initialDone.current) fetchFull(); },
-        departments: () => { if (initialDone.current) fetchFull(); },
-        teams: () => { if (initialDone.current) fetchFull(); },
-        campaigns: () => { if (initialDone.current) fetchFull(); },
-        settings: () => { if (initialDone.current) fetchFull(); },
-      }),
-      [fetchLive, fetchFull],
-    ),
-    !loading,
-  );
-
   const presenceLoading = realPresence === null && isAdminRole;
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;
@@ -1496,6 +1504,8 @@ export default function DashboardHome({ user }: { user: User }) {
         teams={teams}
         userProfile={userProfile}
         dataLoading={loading}
+        onRefreshLive={fetchLive}
+        onRefreshFull={fetchFull}
       />
     );
   }

@@ -1,13 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Channel } from "@/lib/models/EventBus";
-import { subscribeChannel, isChannelStale, clearChannelStale } from "@/lib/eventPoll";
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
-  channel: Channel;
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
@@ -22,7 +19,7 @@ export interface UseQueryResult<T> {
 
 export function useQuery<T>(
   url: string | null,
-  channel: Channel,
+  _channel?: string,
   options?: { enabled?: boolean },
 ): UseQueryResult<T> {
   const enabled = options?.enabled !== false && url !== null;
@@ -55,12 +52,7 @@ export function useQuery<T>(
         const res = await fetch(currentUrl);
         if (!res.ok) throw new Error(`${res.status}`);
         const json = (await res.json()) as T;
-        cache.set(currentUrl, {
-          data: json,
-          timestamp: Date.now(),
-          channel,
-        });
-        clearChannelStale(channel);
+        cache.set(currentUrl, { data: json, timestamp: Date.now() });
         if (mountedRef.current && urlRef.current === currentUrl) {
           setData(json);
           setError(null);
@@ -75,7 +67,7 @@ export function useQuery<T>(
         }
       }
     },
-    [channel],
+    [],
   );
 
   useEffect(() => {
@@ -84,16 +76,10 @@ export function useQuery<T>(
     if (cache.has(url)) {
       setData((cache.get(url) as CacheEntry<T>).data);
       setLoading(false);
-      if (isChannelStale(channel)) fetchData();
     } else {
       fetchData(true);
     }
-  }, [url, enabled, fetchData, channel]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    return subscribeChannel(channel, () => fetchData());
-  }, [channel, enabled, fetchData]);
+  }, [url, enabled, fetchData]);
 
   const mutate = useCallback(
     (updater?: T | ((prev: T | null) => T | null)) => {
@@ -107,10 +93,10 @@ export function useQuery<T>(
           : updater;
       setData(newData);
       if (url && newData !== null) {
-        cache.set(url, { data: newData, timestamp: Date.now(), channel });
+        cache.set(url, { data: newData, timestamp: Date.now() });
       }
     },
-    [data, url, fetchData, channel],
+    [data, url, fetchData],
   );
 
   const refetch = useCallback(async () => {
