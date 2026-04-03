@@ -274,8 +274,8 @@ The dashboard is **fully real-time** — no manual refresh needed. Data updates 
 - **Design language**: Matches preview page — card borders (`card`, `card-static`), blob gradient corners on stat cards, `badge-office`/`badge-remote`/`badge-late`/`badge-overtime`/`badge-absent` status pills, gradient avatar rings, animated numbers, `text-title`/`text-headline`/`text-caption` typography classes, animated segmented pill filters with `LayoutGroup`
 
 **SuperAdmin (AdminDashboard):**
-- **Welcome header**: time-of-day greeting with "Single Solution Sync" label, inline status badge pills (Office, Remote, Late, Absent counts + live count). Time card on the right with blob gradient, live clock, new-tasks/campaigns chips
-- **Stat cards**: 4-column grid (Total Employees, In Office, Late Today, Absent Today) with animated numbers, gradient icon squares, and decorative blob corners — matches SuperAdminPreview design
+- **Welcome header**: time-of-day greeting with "Single Solution Sync" label, inline status badge pills showing **live** counts only (In Office = currently live + in office, Remote = currently live + remote, Late, Absent). Compact time card on the right with blob gradient and live clock (no task/campaign chips — full cards below already show this)
+- **No stat cards row**: removed the duplicate Total/InOffice/Late/Absent card row — the welcome pills already convey this at a glance
 - **Campaigns + Checklist**: campaigns vertical card on the left (lg:col-span-5), pending tasks checklist on the right (lg:col-span-7) with priority icons, labels, and assignee names
 - **Team breakdown**: clickable rows showing team name, lead, live/present/absent/late counts. Clicking filters the presence cards below
 - **Team Status (Live Presence)**: pulsing green dot header, segmented pill filter (All/Office/Remote/Late/Absent), animated employee cards with gradient avatars, breathing ring animations for live employees, `badge-*` status pills, live/flagged badges, arrival→status row, work duration pills, shift progress bars, pending tasks/campaign tags

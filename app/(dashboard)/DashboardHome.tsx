@@ -292,12 +292,6 @@ const blobGradients = [
   "linear-gradient(135deg, rgba(255,55,95,0.3) 0%, rgba(244,63,94,0.2) 100%)",
 ];
 
-const statIconGradients = [
-  "linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%)",
-  "linear-gradient(135deg, var(--teal) 0%, #30d158 100%)",
-  "linear-gradient(135deg, var(--amber) 0%, #f59e0b 100%)",
-  "linear-gradient(135deg, var(--rose) 0%, #f43f5e 100%)",
-];
 
 /* ──────────────────────── WELCOME HEADER ──────────────────────── */
 
@@ -312,9 +306,9 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = tasks.filter((t) => t.status === "pending").length;
   const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
-  const liveCount = presenceEmps.filter((e) => e.isLive).length;
-  const officeCount = presenceEmps.filter((e) => e.status === "office" || e.status === "overtime").length;
-  const remoteCount = presenceEmps.filter((e) => e.status === "remote").length;
+  // "In Office" = currently live AND located in office (not just today's status)
+  const liveOfficeCount = presenceEmps.filter((e) => e.isLive && (e.status === "office" || e.status === "overtime")).length;
+  const liveRemoteCount = presenceEmps.filter((e) => e.isLive && e.status === "remote").length;
   const lateCount = presenceEmps.filter((e) => e.status === "late").length;
   const absentCount = presenceEmps.filter((e) => e.status === "absent").length;
 
@@ -334,11 +328,10 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
         <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
           {isSuperAdmin ? (
             <>
-              <span className="badge badge-office">{officeCount} Office</span>
-              <span className="badge badge-remote">{remoteCount} Remote</span>
+              <span className="badge badge-office">{liveOfficeCount} In Office</span>
+              <span className="badge badge-remote">{liveRemoteCount} Remote</span>
               {lateCount > 0 && <span className="badge badge-late">{lateCount} Late</span>}
               <span className="badge badge-absent">{absentCount} Absent</span>
-              <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "#10b98115", color: "#10b981" }}>{liveCount} live</span>
             </>
           ) : (
             <p className="text-subhead">You have <span className="font-bold" style={{ color: "var(--amber)" }}>{pendingTasks}</span> tasks pending · <span className="font-bold" style={{ color: "var(--teal)" }}>{activeCampaigns}</span> active campaigns</p>
@@ -354,10 +347,6 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
                   <span className="text-caption">{formatClockDate(now)}</span>
                 </motion.div>
               </AnimatePresence>
-        <div className="mt-2 flex flex-wrap gap-1.5 text-[9px]">
-          {pendingTasks > 0 && <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: "#f59e0b12", color: "#f59e0b" }}>{pendingTasks} new tasks</span>}
-          {activeCampaigns > 0 && <span className="rounded-md px-1.5 py-0.5 font-semibold" style={{ background: "rgba(48,209,88,0.1)", color: "var(--teal)" }}>{activeCampaigns} campaigns</span>}
-            </div>
           </motion.div>
     </header>
   );
@@ -633,38 +622,6 @@ function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx, onP
   );
 }
 
-/* ──────────────────────── ADMIN STAT CARDS (SuperAdmin preview-style) ──────────────────────── */
-
-function AdminStatCards({ otherEmps }: { otherEmps: PresenceEmployee[] }) {
-  const officeCount = otherEmps.filter((e) => e.status === "office" || e.status === "overtime").length;
-  const lateCount = otherEmps.filter((e) => e.status === "late").length;
-  const absentCount = otherEmps.filter((e) => e.status === "absent").length;
-  const statItems = [
-    { title: "Total Employees", value: otherEmps.length, caption: "Active roster", gradient: statIconGradients[0], blob: blobGradients[0], icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg> },
-    { title: "In Office", value: officeCount, caption: "On-site now", gradient: statIconGradients[1], blob: blobGradients[1], icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg> },
-    { title: "Late Today", value: lateCount, caption: "After grace", gradient: statIconGradients[2], blob: blobGradients[2], icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-    { title: "Absent Today", value: absentCount, caption: "No check-in", gradient: statIconGradients[3], blob: blobGradients[3], icon: <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg> },
-  ];
-
-  return (
-    <motion.div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" variants={staggerContainerFast} initial="hidden" animate="visible">
-      {statItems.map((stat, i) => (
-        <motion.div key={stat.title} className="card group relative overflow-hidden p-4" custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover}>
-          <div className="pointer-events-none absolute -right-1 -top-1 h-20 w-20 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-[0.15]" style={{ background: stat.blob }} />
-          <div className="relative flex items-start justify-between gap-3">
-            <div>
-              <p className="text-caption mb-2">{stat.title}</p>
-              <span className="text-title block text-2xl font-semibold tabular-nums sm:text-3xl" style={{ color: "var(--fg)" }}><AnimatedNumber value={stat.value} /></span>
-              <p className="text-caption mt-1">{stat.caption}</p>
-            </div>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm" style={{ background: stat.gradient }}>{stat.icon}</div>
-            </div>
-          </motion.div>
-      ))}
-    </motion.div>
-  );
-}
-
 /* ──────────────────────── ADMIN DASHBOARD (SuperAdmin / Manager / Team Lead) ──────────────────────── */
 
 type PresenceFilter = "all" | "office" | "remote" | "late" | "absent";
@@ -775,14 +732,12 @@ function AdminDashboard({
       {/* 1. Welcome header */}
       <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} />
 
-      {/* 2. SuperAdmin: stat cards; Manager/Lead: Self overview + timeline */}
-      {isSuperAdmin ? (
-        <AdminStatCards otherEmps={otherEmps} />
-      ) : (
+      {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
+      {!isSuperAdmin && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} />
           <TodayTimelineCard pa={personalAttendance} tasks={tasks} />
-            </div>
+        </div>
       )}
 
       {/* 3. Campaigns (left) + Tasks (right) for admin/superadmin */}
