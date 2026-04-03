@@ -6,6 +6,7 @@ import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/
 import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmployeeCard } from "../components/EmployeeCard";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
@@ -53,14 +54,22 @@ const ROLE_FILTER_LABELS: Record<RoleFilter, string> = {
   developer: "Developers",
 };
 
-type PresenceStatus = "office" | "remote" | "late" | "overtime" | "absent";
-const STATUS_COLORS: Record<PresenceStatus, string> = { office: "#10b981", remote: "#007aff", late: "#f59e0b", overtime: "#8b5cf6", absent: "#f43f5e" };
-const STATUS_LABELS: Record<PresenceStatus, string> = { office: "In Office", remote: "Remote", late: "Late", overtime: "Overtime", absent: "Absent" };
-
 type SortMode = "recent" | "name";
 
-function initials(first: string, last: string) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
+interface PresenceRow {
+  _id: string;
+  status: string;
+  isLive?: boolean;
+  firstEntry?: string | null;
+  lastExit?: string | null;
+  todayMinutes?: number;
+  officeMinutes?: number;
+  remoteMinutes?: number;
+  lateBy?: number;
+  shiftStart?: string;
+  shiftEnd?: string;
+  shiftBreakTime?: number;
+  locationFlagged?: boolean;
 }
 
 const DAY_MAP: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
@@ -75,6 +84,13 @@ function formatWorkingDays(days: string[]) {
   return sorted.map((d) => DAY_MAP[d] ?? d).join(", ");
 }
 
+function shiftSummaryLine(emp: Employee) {
+  if (!emp.workShift) return undefined;
+  const type = SHIFT_TYPE_LABELS[emp.workShift.type] ?? emp.workShift.type;
+  const days = emp.workShift.workingDays?.length ? formatWorkingDays(emp.workShift.workingDays) : "";
+  return `${type} ${emp.workShift.shift.start}–${emp.workShift.shift.end}${days ? ` · ${days}` : ""}`;
+}
+
 export default function EmployeesPage() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -83,11 +99,11 @@ export default function EmployeesPage() {
   const isManager = role === "manager";
   const canManage = isSuperAdmin || isManager;
   const { data: employees, loading: employeesLoading, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "employees");
-  const { data: presenceData } = useQuery<Array<{ _id: string; status: string }>>("/api/attendance/presence", "presence");
+  const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "presence");
 
-  const presenceMap = useMemo(() => {
-    const map = new Map<string, PresenceStatus>();
-    if (presenceData) for (const p of presenceData) map.set(p._id, p.status as PresenceStatus);
+  const presenceById = useMemo(() => {
+    const map = new Map<string, PresenceRow>();
+    if (presenceData) for (const p of presenceData) map.set(p._id, p);
     return map;
   }, [presenceData]);
 
@@ -370,97 +386,61 @@ export default function EmployeesPage() {
             </motion.div>
           ) : (
             filtered.map((emp, i) => {
-              const status = presenceMap.get(emp._id) ?? "absent";
+              const p = presenceById.get(emp._id);
               const isSelected = selected.has(emp._id);
               return (
                 <motion.div
                   key={emp._id}
                   variants={cardVariants}
                   custom={i}
-                  whileHover={cardHover}
                   layout
+                  whileHover={cardHover}
                   className="h-full"
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <div className="card group relative overflow-hidden flex h-full flex-col">
-                    {isSuperAdmin && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelect(emp._id)}
-                      className="absolute top-3 left-3 z-10 w-4 h-4 rounded accent-[var(--primary)] opacity-0 group-hover:opacity-100 checked:opacity-100 transition-opacity"
-                    />
-                    )}
-
-                    <div className="flex-1 p-2.5">
-                      <div className="flex items-start gap-3">
-                        {emp.about.profileImage ? (
-                          <img src={emp.about.profileImage} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
-                        ) : (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-grouped)] text-[10px] font-bold text-[var(--fg-secondary)]">
-                          {initials(emp.about.firstName, emp.about.lastName)}
-                        </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                          <p className="font-semibold truncate min-w-0 flex-1" style={{ color: "var(--fg)" }}>{emp.about.firstName} {emp.about.lastName}</p>
-                            <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${STATUS_COLORS[status]} 15%, transparent)`, color: STATUS_COLORS[status] }}>{STATUS_LABELS[status]}</span>
-                            {emp.isVerified === false && (
-                              <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}>Pending</span>
-                            )}
-                          </div>
-                          <p className="text-caption truncate">{emp.email}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-1.5 space-y-0.5 text-[11px]">
-                        <div className="flex items-center justify-between">
-                          <span style={{ color: "var(--fg-tertiary)" }}>Role</span>
-                          <span className="font-medium" style={{ color: "var(--fg)" }}>{DESIGNATION_LABELS[emp.userRole] ?? emp.userRole}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span style={{ color: "var(--fg-tertiary)" }}>Department</span>
-                          <span className="font-medium" style={{ color: "var(--fg)" }}>{emp.department?.title ?? "—"}</span>
-                        </div>
-                        {emp.teams && emp.teams.length > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span style={{ color: "var(--fg-tertiary)" }}>Teams</span>
-                            <div className="flex flex-wrap gap-1 justify-end">
-                              {emp.teams.map((t) => (
-                                <span key={t._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
-                                  {t.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {emp.workShift && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span style={{ color: "var(--fg-tertiary)" }}>Shift</span>
-                            <span className="text-[11px] font-medium text-right" style={{ color: "var(--fg-secondary)" }}>
-                              {SHIFT_TYPE_LABELS[emp.workShift.type] ?? emp.workShift.type}{" "}
-                              {emp.workShift.shift.start}–{emp.workShift.shift.end}
-                              {emp.workShift.workingDays?.length > 0 ? ` · ${formatWorkingDays(emp.workShift.workingDays)}` : ""}
-                            </span>
-                          </div>
-                        )}
-                        {emp.about.phone && (
-                          <div className="flex items-center justify-between">
-                            <span style={{ color: "var(--fg-tertiary)" }}>Phone</span>
-                            <span className="font-medium" style={{ color: "var(--fg)" }}>{emp.about.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
-                      <div className="flex items-center gap-2">
+                  <div className="card group relative flex h-full flex-col overflow-hidden">
+                  <EmployeeCard
+                    embedded
+                    idx={i}
+                    selectable={isSuperAdmin}
+                    selected={isSelected}
+                    onSelect={() => toggleSelect(emp._id)}
+                    showRoleDepartmentTeams
+                    showActions={canManage || isSuperAdmin}
+                    onEdit={canManage ? () => router.push(`/employees/${emp._id}/edit`) : undefined}
+                    onDelete={isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
+                    emp={{
+                      _id: emp._id,
+                      firstName: emp.about.firstName,
+                      lastName: emp.about.lastName,
+                      email: emp.email,
+                      designation: DESIGNATION_LABELS[emp.userRole] ?? emp.userRole,
+                      department: emp.department?.title,
+                      profileImage: emp.about.profileImage,
+                      userRole: emp.userRole,
+                      teams: emp.teams,
+                      isVerified: emp.isVerified,
+                      isLive: p?.isLive,
+                      status: p?.status,
+                      locationFlagged: p?.locationFlagged,
+                      firstEntry: p?.firstEntry ?? undefined,
+                      lastExit: p?.lastExit ?? undefined,
+                      todayMinutes: p?.todayMinutes,
+                      officeMinutes: p?.officeMinutes,
+                      remoteMinutes: p?.remoteMinutes,
+                      lateBy: p?.lateBy,
+                      shiftStart: p?.shiftStart ?? emp.workShift?.shift.start,
+                      shiftEnd: p?.shiftEnd ?? emp.workShift?.shift.end,
+                      shiftBreakTime: p?.shiftBreakTime ?? emp.workShift?.breakTime,
+                      phone: emp.about.phone,
+                      shiftSummary: shiftSummaryLine(emp),
+                    }}
+                    footerSlot={
+                      <div className="flex flex-wrap items-center gap-2">
                         {isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
                         <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                           Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         {isSuperAdmin && emp.isVerified === false && (
                           <>
                             <motion.button
@@ -494,18 +474,9 @@ export default function EmployeesPage() {
                             </motion.button>
                           </>
                         )}
-                        {canManage && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => router.push(`/employees/${emp._id}/edit`)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                        </motion.button>
-                        )}
-                        {isSuperAdmin && (
-                        <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget(emp)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                        </motion.button>
-                        )}
                       </div>
-                    </div>
+                    }
+                  />
                   </div>
                 </motion.div>
               );

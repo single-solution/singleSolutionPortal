@@ -14,6 +14,7 @@ import {
   cardVariants,
   cardHover,
 } from "@/lib/motion";
+import { EmployeeCard } from "./components/EmployeeCard";
 import type { UserRole } from "@/lib/models/User";
 
 /* ──────────────────────── TYPES ──────────────────────── */
@@ -213,17 +214,6 @@ const STATUS_BADGE_CLASS: Record<PresenceStatus, string> = {
   overtime: "badge-overtime",
   absent: "badge-absent",
 };
-
-const AVATAR_GRADIENTS = [
-  "from-blue-500 to-cyan-400",
-  "from-emerald-500 to-teal-400",
-  "from-purple-500 to-pink-400",
-  "from-amber-500 to-orange-400",
-  "from-rose-500 to-red-400",
-  "from-indigo-500 to-violet-400",
-  "from-lime-500 to-green-400",
-  "from-fuchsia-500 to-pink-300",
-];
 
 /* ──────────────────────── HELPERS ──────────────────────── */
 
@@ -551,137 +541,6 @@ function Bone({ w = "w-10", h = "h-3" }: { w?: string; h?: string }) {
   return <span className={`shimmer inline-block rounded ${w} ${h}`} />;
 }
 
-/* ──────────────────────── PRESENCE EMPLOYEE CARD ──────────────────────── */
-
-function PresenceCard({ emp, empTasks, empCampaigns, attendanceLoading, idx, onPing }: {
-  emp: PresenceEmployee;
-  empTasks: ApiTask[];
-  empCampaigns: ApiCampaign[];
-  attendanceLoading?: boolean;
-  idx?: number;
-  onPing?: (toId: string, toName: string) => void;
-}) {
-  const pendingTasks = empTasks.filter((t) => t.status === "pending");
-  const inProgressTasks = empTasks.filter((t) => t.status === "inProgress");
-  const activeCamps = empCampaigns.filter((c) => c.status === "active");
-
-  const shiftMins = getShiftMinutes(emp.shiftStart, emp.shiftEnd, emp.shiftBreakTime);
-  const shiftPct = Math.min(100, Math.round((emp.todayMinutes / shiftMins) * 100));
-  const overtimeMinutes = emp.todayMinutes > shiftMins ? emp.todayMinutes - shiftMins : 0;
-
-  const liveColor = emp.locationFlagged ? "#ef4444" : emp.isLive ? "#10b981" : "#94a3b8";
-
-  const avatarGradIdx = (idx ?? 0) % AVATAR_GRADIENTS.length;
-
-  return (
-    <motion.div
-      layout
-      custom={idx ?? 0}
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      whileHover={cardHover}
-      exit={{ opacity: 0, scale: 0.97 }}
-      className="card-static group flex flex-col gap-3 rounded-[var(--radius)] p-3"
-      style={{ opacity: !attendanceLoading && !emp.isLive ? 0.7 : 1 }}
-    >
-      <div className="flex items-start gap-3">
-        <motion.div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${AVATAR_GRADIENTS[avatarGradIdx]}`}
-          animate={emp.isLive && !attendanceLoading ? { boxShadow: [`0 0 0 2px ${STATUS_COLORS[emp.status]}`, `0 0 0 3px ${STATUS_COLORS[emp.status]}`, `0 0 0 2px ${STATUS_COLORS[emp.status]}`] } : undefined}
-          style={!emp.isLive || attendanceLoading ? { boxShadow: `0 0 0 2px ${liveColor}40` } : undefined}
-          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-        >
-          {initials(emp.firstName, emp.lastName)}
-        </motion.div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="text-callout truncate font-semibold" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</p>
-            {onPing && (
-              <motion.button type="button" whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); onPing(emp._id, `${emp.firstName} ${emp.lastName}`); }} title={`Ping ${emp.firstName}`} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors" style={{ color: "var(--primary)" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-              </motion.button>
-            )}
-            </div>
-          <p className="text-caption truncate">{emp.designation} · {emp.department}</p>
-          {emp.reportsTo && (
-            <p className="text-caption truncate flex items-center gap-1">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
-              <span style={{ color: "var(--fg-tertiary)" }}>Reports to <span className="font-medium" style={{ color: "var(--fg-secondary)" }}>{emp.reportsTo}</span></span>
-            </p>
-          )}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {attendanceLoading ? (
-              <Bone w="w-16" h="h-4" />
-            ) : (
-              <>
-                <span className={`badge ${STATUS_BADGE_CLASS[emp.status]}`}>{STATUS_LABELS[emp.status]}</span>
-                {emp.isLive && !emp.locationFlagged && (
-                  <span className="inline-flex items-center gap-1 badge" style={{ background: "#10b98115", color: "#10b981", border: "1px solid #10b98130" }}>
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: "#10b981" }}>
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "#10b981" }} />
-                    </span>
-                    Live
-                  </span>
-                )}
-                {emp.locationFlagged && (
-                  <span className="badge" style={{ background: "#ef444415", color: "#ef4444", border: "1px solid #ef444430" }}>
-                    <svg className="inline -mt-px mr-0.5" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    GPS Flagged
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-            </div>
-            </div>
-
-      {attendanceLoading ? (
-        <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
-          <span className="text-caption">Today</span>
-          <Bone w="w-10" h="h-3" />
-            </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
-            <div className="flex items-center gap-3 text-caption">
-              <span>{emp.firstEntry ? formatTimeStr(emp.firstEntry) : "—"}</span>
-              <span>→</span>
-              <span>{emp.isLive ? (emp.status === "remote" ? "Remote" : "Working") : emp.lastExit ? formatTimeStr(emp.lastExit) : (emp.status === "absent" ? "—" : "No exit")}</span>
-          </div>
-            <span className="text-subhead font-medium tabular-nums" style={{ color: "var(--fg-secondary)" }}>{formatMinutes(emp.todayMinutes)}</span>
-        </div>
-
-          <div className="flex flex-wrap gap-1 text-[9px]">
-            {emp.officeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>Office {formatMinutes(emp.officeMinutes)}</span>}
-            {emp.remoteMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>Remote {formatMinutes(emp.remoteMinutes)}</span>}
-            {emp.lateBy > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>Late +{formatMinutes(emp.lateBy)}</span>}
-            {overtimeMinutes > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>OT +{formatMinutes(overtimeMinutes)}</span>}
-              </div>
-
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
-              <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} style={{ background: overtimeMinutes > 0 ? "#8b5cf6" : "var(--primary)" }} />
-            </div>
-            <span className="text-caption tabular-nums font-semibold" style={{ color: "var(--fg-secondary)" }}>{shiftPct}%</span>
-              </div>
-        </>
-      )}
-
-      {!attendanceLoading && (pendingTasks.length > 0 || inProgressTasks.length > 0 || activeCamps.length > 0) && (
-        <div className="border-t border-[var(--border)] pt-2 flex flex-wrap gap-1 text-[9px]">
-          {pendingTasks.length > 0 && <span className="rounded-full px-1.5 py-0.5 font-semibold" style={{ background: "#f59e0b15", color: "#f59e0b", border: "1px solid #f59e0b30" }}>{pendingTasks.length} pending</span>}
-          {inProgressTasks.length > 0 && <span className="rounded-full px-1.5 py-0.5 font-semibold" style={{ background: "var(--primary-light)", color: "var(--primary)", border: "1px solid rgba(0,122,255,0.2)" }}>{inProgressTasks.length} active</span>}
-          {activeCamps.slice(0, 2).map((c) => (
-            <span key={c._id} className="rounded-full px-1.5 py-0.5 font-medium truncate max-w-[100px]" style={{ background: "rgba(48,209,88,0.1)", color: "var(--teal)" }}>{c.name}</span>
-          ))}
-          {activeCamps.length > 2 && <span className="rounded-full px-1.5 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>+{activeCamps.length - 2}</span>}
-            </div>
-      )}
-          </motion.div>
-  );
-}
-
 /* ──────────────────────── ADMIN DASHBOARD (SuperAdmin / Manager / Team Lead) ──────────────────────── */
 
 type PresenceFilter = "all" | "office" | "remote" | "late" | "absent";
@@ -944,17 +803,45 @@ function AdminDashboard({
           {filteredPresence.length > 0 ? (
           <motion.div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
             <AnimatePresence mode="popLayout">
-              {filteredPresence.map((emp, idx) => (
-                <PresenceCard
-                  key={emp._id}
-                  emp={emp}
-                  empTasks={tasksByEmployee.get(emp._id) ?? []}
-                  empCampaigns={campaignsByEmployee.get(emp._id) ?? []}
-                  attendanceLoading={presenceLoading}
-                  idx={idx}
-                  onPing={handlePing}
-                />
-              ))}
+              {filteredPresence.map((emp, idx) => {
+                const empTasks = tasksByEmployee.get(emp._id) ?? [];
+                const empCampaigns = campaignsByEmployee.get(emp._id) ?? [];
+                const pendingCount = empTasks.filter((t) => t.status === "pending").length;
+                const inProgressCount = empTasks.filter((t) => t.status === "inProgress").length;
+                const activeCampNames = empCampaigns.filter((c) => c.status === "active").map((c) => c.name);
+                return (
+                  <EmployeeCard
+                    key={emp._id}
+                    idx={idx}
+                    attendanceLoading={presenceLoading}
+                    onPing={handlePing}
+                    emp={{
+                      _id: emp._id,
+                      firstName: emp.firstName,
+                      lastName: emp.lastName,
+                      email: emp.email,
+                      designation: emp.designation,
+                      department: emp.department,
+                      reportsTo: emp.reportsTo ?? undefined,
+                      isLive: emp.isLive,
+                      status: emp.status,
+                      locationFlagged: emp.locationFlagged,
+                      firstEntry: emp.firstEntry ?? undefined,
+                      lastExit: emp.lastExit ?? undefined,
+                      todayMinutes: emp.todayMinutes,
+                      officeMinutes: emp.officeMinutes,
+                      remoteMinutes: emp.remoteMinutes,
+                      lateBy: emp.lateBy,
+                      shiftStart: emp.shiftStart,
+                      shiftEnd: emp.shiftEnd,
+                      shiftBreakTime: emp.shiftBreakTime,
+                      pendingTasks: pendingCount,
+                      inProgressTasks: inProgressCount,
+                      campaigns: activeCampNames,
+                    }}
+                  />
+                );
+              })}
             </AnimatePresence>
             </motion.div>
         ) : presenceLoading ? (

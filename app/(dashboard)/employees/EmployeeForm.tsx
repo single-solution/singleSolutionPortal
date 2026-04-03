@@ -35,6 +35,7 @@ interface FormState {
   department: string;
   reportsTo: string;
   teams: string[];
+  managedDepartments: string[];
   shiftType: string;
   shiftStart: string;
   shiftEnd: string;
@@ -45,6 +46,7 @@ interface FormState {
 const INITIAL: FormState = {
   fullName: "", email: "", password: "",
   userRole: "developer", department: "", reportsTo: "", teams: [],
+  managedDepartments: [],
   shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
   workingDays: ["mon", "tue", "wed", "thu", "fri"],
   breakTime: 60,
@@ -91,6 +93,13 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       if (empRes) {
         const fn = empRes.about?.firstName ?? "";
         const ln = empRes.about?.lastName ?? "";
+        const depts = Array.isArray(deptRes) ? deptRes : [];
+        const managed = depts
+          .filter((d: Department) => {
+            const mId = typeof d.manager === "object" && d.manager ? d.manager._id : d.manager;
+            return mId === employeeId;
+          })
+          .map((d: Department) => d._id);
         setForm({
           fullName: ln ? `${fn} ${ln}` : fn,
           email: empRes.email ?? "",
@@ -99,6 +108,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           department: empRes.department?._id ?? "",
           reportsTo: empRes.reportsTo?._id ?? "",
           teams: (empRes.teams ?? []).map((t: { _id: string }) => t._id),
+          managedDepartments: managed,
           shiftType: empRes.workShift?.type ?? "fullTime",
           shiftStart: empRes.workShift?.shift?.start ?? "10:00",
           shiftEnd: empRes.workShift?.shift?.end ?? "19:00",
@@ -141,6 +151,15 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
     }));
   }
 
+  function toggleManagedDept(deptId: string) {
+    setForm((f) => ({
+      ...f,
+      managedDepartments: f.managedDepartments.includes(deptId)
+        ? f.managedDepartments.filter((id) => id !== deptId)
+        : [...f.managedDepartments, deptId],
+    }));
+  }
+
   function toggleWorkingDay(day: string) {
     setForm((f) => ({
       ...f,
@@ -166,6 +185,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           department: form.department || null,
           reportsTo: form.reportsTo || null,
           teams: form.teams,
+          managedDepartments: (form.userRole === "manager" || form.userRole === "teamLead") ? form.managedDepartments : [],
           workShift,
         };
         if (form.password) body.password = form.password;
@@ -188,6 +208,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
             department: form.department || undefined,
             reportsTo: form.reportsTo || undefined,
             teams: form.teams,
+            managedDepartments: (form.userRole === "manager" || form.userRole === "teamLead") ? form.managedDepartments : [],
             workShift,
           }),
         });
@@ -360,6 +381,43 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                 </motion.p>
               )}
             </div>
+
+            <AnimatePresence>
+              {(form.userRole === "manager" || form.userRole === "teamLead") && departments.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease }}
+                >
+                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Managed Departments</label>
+                  <p className="text-[11px] mb-2" style={{ color: "var(--fg-tertiary)" }}>Departments this {form.userRole === "manager" ? "manager" : "lead"} can view and manage</p>
+                  <div className="flex flex-wrap gap-2">
+                    {departments.map((d) => {
+                      const active = form.managedDepartments.includes(d._id);
+                      return (
+                        <motion.button
+                          key={d._id}
+                          type="button"
+                          onClick={() => toggleManagedDept(d._id)}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.92 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            active
+                              ? "bg-[var(--primary)] text-white shadow-sm"
+                              : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                          }`}
+                          style={!active ? { background: "var(--bg-grouped)" } : undefined}
+                        >
+                          {d.title}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <AnimatePresence>
               {filteredTeams.length > 0 && (

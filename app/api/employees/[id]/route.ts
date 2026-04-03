@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Team from "@/lib/models/Team";
+import Department from "@/lib/models/Department";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
@@ -116,6 +117,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.teams !== undefined) update.teams = body.teams ?? [];
   } else if (isTeamLead(actor) && !isSelf) {
     if (body.workShift) update.workShift = body.workShift;
+  }
+
+  if (isSuperAdmin(actor) && Array.isArray(body.managedDepartments)) {
+    await Department.updateMany({ manager: id }, { $unset: { manager: 1 } });
+    if (body.managedDepartments.length > 0) {
+      await Department.updateMany(
+        { _id: { $in: body.managedDepartments } },
+        { $set: { manager: id } },
+      );
+    }
   }
 
   const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })

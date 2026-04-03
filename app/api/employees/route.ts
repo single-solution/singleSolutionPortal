@@ -121,6 +121,16 @@ export async function POST(req: Request) {
     createdBy: actor.id,
   });
 
+  if (Array.isArray(body.managedDepartments)) {
+    await Department.updateMany({ manager: user._id }, { $unset: { manager: 1 } });
+    if (body.managedDepartments.length > 0) {
+      await Department.updateMany(
+        { _id: { $in: body.managedDepartments } },
+        { $set: { manager: user._id } },
+      );
+    }
+  }
+
   const populated = await User.findById(user._id)
     .select("-password")
     .populate("department", "title slug")

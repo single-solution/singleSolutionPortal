@@ -117,6 +117,10 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 ### Employee Management
 
 - Full CRUD with role-based access (SuperAdmin manages all, Manager manages their team)
+- **Unified EmployeeCard** component (`components/EmployeeCard.tsx`) used on BOTH the dashboard presence grid AND the employee list page — consistent card design everywhere
+- **Card design**: top-right pulsing status pill (green "In Office" / blue "Remote" when live, gray "Last seen" with time, or amber "Absent"), avatar with gradient ring, first arrival time, total hours, shift progress bar with two-segment overtime visualization (regular hours in primary color, overtime in purple), task/campaign pills
+- **Clickable employee cards** → navigate to `/employees/[id]` detail page showing the employee's own dashboard view (profile, today's stats, shift progress, session timeline, weekly overview)
+- **Multi-department manager assignment**: when creating/editing a manager or team lead, toggle-chip selector for "Managed Departments" — sets that user as the manager on each selected department. Managers can manage all employees, teams, and attendance across all their managed departments
 - Full-width create/edit forms (`/employees/new`, `/employees/[id]/edit`) with 2-column grid layout: Personal Info + Role & Department side-by-side on desktop, full-width Shift Configuration card with internal grid below
 - **Reports To (Team Lead assignment)**: dropdown selector showing team leads and managers filtered by the selected department. If no supervisor is explicitly chosen, the employee is **automatically assigned to the department manager** as a fallback (resolved server-side on create)
 - ConfirmDialog for all destructive actions (deactivate single + bulk)
@@ -125,7 +129,6 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Business Developer fields (17 additional fields: jobID, platform, proposalStatus, clientCountry, etc.)
 - Welcome email sent on account creation with temporary password
 - StatusToggle for quick active/inactive toggle from card footer
-- Card details: profile image, "Pending" badge (unverified), shift type + working days (compact: "Mon – Fri"), phone, "Joined" date
 
 ### Department Management
 
