@@ -120,26 +120,30 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
   const v = pulseVariant(emp);
   const showPulse = emp.isLive && !attendanceLoading;
 
-  const styles: Record<PulseVariant, { bg: string; color: string; label: string; sub?: string }> = {
+  const styles: Record<PulseVariant, { bg: string; color: string; border: string; label: string; sub?: string }> = {
     office: {
-      bg: "rgba(16,185,129,0.15)",
+      bg: "rgba(16,185,129,0.18)",
       color: "#10b981",
+      border: "rgba(16,185,129,0.35)",
       label: "In Office",
     },
     remote: {
-      bg: "rgba(0,122,255,0.12)",
+      bg: "rgba(0,122,255,0.16)",
       color: "#007aff",
+      border: "rgba(0,122,255,0.30)",
       label: "Remote",
     },
     lastSeen: {
-      bg: "var(--bg-grouped)",
+      bg: "var(--bg-elevated)",
       color: "var(--fg-secondary)",
+      border: "var(--border)",
       label: "Last seen",
       sub: emp.lastExit ? formatTimeStr(emp.lastExit) : "—",
     },
     absent: {
-      bg: "rgba(245,158,11,0.15)",
+      bg: "rgba(245,158,11,0.18)",
       color: "#d97706",
+      border: "rgba(245,158,11,0.35)",
       label: "Absent",
     },
   };
@@ -148,12 +152,14 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
 
   return (
     <span
-      className="inline-flex max-w-[min(100%,9rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums"
+      className="inline-flex max-w-[min(100%,9rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums backdrop-blur-sm"
       style={{
         background: s.bg,
         color: s.color,
-        borderColor: emp.locationFlagged ? "#ef4444" : `${s.color}35`,
-        boxShadow: emp.locationFlagged ? "0 0 0 1px rgba(239,68,68,0.35)" : undefined,
+        borderColor: emp.locationFlagged ? "#ef4444" : s.border,
+        boxShadow: emp.locationFlagged
+          ? "0 0 0 1px rgba(239,68,68,0.35)"
+          : "0 1px 3px rgba(0,0,0,0.08)",
       }}
     >
       {showPulse && (
