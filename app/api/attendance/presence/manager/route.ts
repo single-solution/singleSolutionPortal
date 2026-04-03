@@ -1,10 +1,12 @@
 import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
+import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import { getVerifiedSession } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
+import { resolveTimezone } from "@/lib/tz";
 
 /**
  * GET /api/attendance/presence/manager
@@ -27,7 +29,9 @@ export async function GET() {
 
   if (!manager) return ok(null);
 
-  const today = startOfDay(new Date());
+  const settings = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
+  const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+  const today = startOfDay(new Date(), tz);
   const nowMs = Date.now();
   const STALE_MS = 3 * 60 * 1000;
 

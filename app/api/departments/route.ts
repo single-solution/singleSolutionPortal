@@ -3,7 +3,13 @@ import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import Team from "@/lib/models/Team";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
-import { getVerifiedSession, canManageDepartments } from "@/lib/permissions";
+import {
+  getVerifiedSession,
+  canManageDepartments,
+  isSuperAdmin,
+  isManager,
+  isTeamLead,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function GET() {
@@ -12,8 +18,41 @@ export async function GET() {
 
   await connectDB();
 
+  let deptFilter: Record<string, unknown> = { isActive: true };
+
+  if (isSuperAdmin(actor)) {
+    // sees all
+  } else if (isManager(actor)) {
+    if (!actor.crossDepartmentAccess) {
+      if (actor.managedDepartments.length > 0) {
+        deptFilter._id = { $in: actor.managedDepartments };
+      } else if (actor.department) {
+        deptFilter._id = actor.department;
+      } else {
+        return ok([]);
+      }
+    }
+  } else if (isTeamLead(actor)) {
+    if (actor.leadOfTeams.length > 0) {
+      const teams = await Team.find({ _id: { $in: actor.leadOfTeams }, isActive: true }).select("department").lean();
+      const deptIds = [...new Set(teams.map((t) => t.department.toString()).filter(Boolean))];
+      if (actor.department && !deptIds.includes(actor.department)) deptIds.push(actor.department);
+      deptFilter._id = { $in: deptIds };
+    } else if (actor.department) {
+      deptFilter._id = actor.department;
+    } else {
+      return ok([]);
+    }
+  } else {
+    if (actor.department) {
+      deptFilter._id = actor.department;
+    } else {
+      return ok([]);
+    }
+  }
+
   const [departments, empCounts, teamCounts] = await Promise.all([
-    Department.find({ isActive: true })
+    Department.find(deptFilter)
       .populate("manager", "about.firstName about.lastName email")
       .populate("parentDepartment", "title slug")
       .sort({ createdAt: -1 })

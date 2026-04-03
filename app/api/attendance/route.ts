@@ -2,9 +2,11 @@ import { connectDB } from "@/lib/db";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import ActivitySession from "@/lib/models/ActivitySession";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
+import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import { startOfDay } from "@/lib/dayBoundary";
+import { resolveTimezone, dateInTz } from "@/lib/tz";
 import {
   getVerifiedSession,
   canViewAttendance,
@@ -23,6 +25,9 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
+  const settings = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
+  const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+
   const url = new URL(req.url);
   const type = url.searchParams.get("type") ?? "daily";
   const year = parseInt(url.searchParams.get("year") ?? String(new Date().getFullYear()));
@@ -33,8 +38,12 @@ export async function GET(req: NextRequest) {
     if (!canViewTeamStats(actor)) return ok([]);
 
     let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
-    if (isManager(actor) && !actor.crossDepartmentAccess && actor.department) {
-      empFilter.department = actor.department;
+    if (isManager(actor) && !actor.crossDepartmentAccess) {
+      if (actor.managedDepartments.length > 0) {
+        empFilter.department = { $in: actor.managedDepartments };
+      } else if (actor.department) {
+        empFilter.department = actor.department;
+      }
     } else if (isTeamLead(actor)) {
       const memberIds = await getTeamMemberIds(actor.leadOfTeams);
       if (memberIds.length > 0) {
@@ -86,8 +95,10 @@ export async function GET(req: NextRequest) {
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok(null);
 
-    const target = new Date(dateStr);
-    const start = startOfDay(target);
+    // Parse date string at midday in company tz so startOfDay lands correctly
+    const parts = dateStr.split("-").map(Number);
+    const target = dateInTz(parts[0], parts[1] - 1, parts[2], 12, 0, 0, tz);
+    const start = startOfDay(target, tz);
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
 
     const daily = await DailyAttendance.findOne({
@@ -143,12 +154,13 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === "daily") {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    const monthStart = dateInTz(year, month - 1, 1, 0, 0, 0, tz);
+    const nextMonthStart = dateInTz(year, month, 1, 0, 0, 0, tz);
+    const monthEnd = new Date(nextMonthStart.getTime() - 1);
 
     const records = await DailyAttendance.find({
       user: userId,
-      date: { $gte: startDate, $lte: endDate },
+      date: { $gte: monthStart, $lte: monthEnd },
     })
       .sort({ date: -1 })
       .lean();

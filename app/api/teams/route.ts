@@ -26,6 +26,8 @@ export async function GET() {
   } else if (isManager(actor)) {
     if (actor.crossDepartmentAccess) {
       // sees all
+    } else if (actor.managedDepartments.length > 0) {
+      filter.department = { $in: actor.managedDepartments };
     } else if (actor.department) {
       filter.department = actor.department;
     } else {
@@ -75,8 +77,10 @@ export async function POST(req: Request) {
   if (!dept) return badRequest("Department not found");
 
   if (isManager(actor) && !isSuperAdmin(actor)) {
-    if (actor.department !== body.department) {
-      return badRequest("Managers can only create teams in their own department");
+    const canCreateInDept = actor.managedDepartments.includes(body.department) ||
+      actor.department === body.department;
+    if (!canCreateInDept) {
+      return badRequest("Managers can only create teams in their managed departments");
     }
   }
 

@@ -1139,7 +1139,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             ) : weeklyRecords.map((day, i) => {
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
-                const isToday = day.date === now.toISOString().slice(0, 10);
+                const isToday = day.date === new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(now);
                 const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "#f59e0b" : "#10b981";
               return (
                   <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
@@ -1273,7 +1273,7 @@ export default function DashboardHome({ user }: { user: User }) {
   /* ── Helper: fetch today's attendance detail (lightweight, for presence updates) ── */
   const fetchTodayDetail = useCallback(async () => {
     try {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
       const dailyRes = await fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null);
       if (dailyRes) {
         setPersonalAttendance((prev) => {
@@ -1311,15 +1311,14 @@ export default function DashboardHome({ user }: { user: User }) {
   const fetchPersonalData = useCallback(async () => {
     if (isSuperAdmin) return;
     try {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const todayStr = now.toISOString().slice(0, 10);
+      const pktNow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const [y, m] = pktNow.split("-").map(Number);
+      const todayStr = pktNow;
 
       const [dailyDetailRes, weeklyRes, monthlyRes, profileRes] = await Promise.all([
         fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null),
-        fetch(`/api/attendance?type=daily&year=${year}&month=${month}`).then((r) => r.ok ? r.json() : []),
-        fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`).then((r) => r.ok ? r.json() : null),
+        fetch(`/api/attendance?type=daily&year=${y}&month=${m}`).then((r) => r.ok ? r.json() : []),
+        fetch(`/api/attendance?type=monthly&year=${y}&month=${m}`).then((r) => r.ok ? r.json() : null),
         fetch("/api/profile").then((r) => r.ok ? r.json() : null),
       ]);
 

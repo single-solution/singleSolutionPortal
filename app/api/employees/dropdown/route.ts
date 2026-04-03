@@ -21,8 +21,12 @@ export async function GET() {
   };
 
   if (isManager(actor)) {
-    if (!actor.crossDepartmentAccess && actor.department) {
-      filter.department = actor.department;
+    if (!actor.crossDepartmentAccess) {
+      if (actor.managedDepartments.length > 0) {
+        filter.department = { $in: actor.managedDepartments };
+      } else if (actor.department) {
+        filter.department = actor.department;
+      }
     }
   } else if (isTeamLead(actor)) {
     const memberIds = await getTeamMemberIds(actor.leadOfTeams);

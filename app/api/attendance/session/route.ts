@@ -2,16 +2,23 @@ import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
+import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
 import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice, validateLocation } from "@/lib/geo";
 import { notifyChange } from "@/lib/eventBus";
 import { startOfDay, isSameDay } from "@/lib/dayBoundary";
+import { resolveTimezone, dateParts, dateInTz } from "@/lib/tz";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 
 const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
+
+async function loadTz(): Promise<string> {
+  const s = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
+  return resolveTimezone((s?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+}
 
 // ─── GET: session state ────────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -49,8 +56,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const tz = await loadTz();
   const now = new Date();
-  const today = startOfDay(now);
+  const today = startOfDay(now, tz);
 
   const activeSession = await ActivitySession.findOne({
     user: targetUserId,
@@ -59,7 +67,7 @@ export async function GET(req: NextRequest) {
 
   let isStale = false;
   if (activeSession) {
-    const isPreviousDay = !isSameDay(activeSession.sessionDate, now);
+    const isPreviousDay = !isSameDay(activeSession.sessionDate, now, tz);
     isStale =
       isPreviousDay ||
       now.getTime() - new Date(activeSession.lastActivity).getTime() > STALE_THRESHOLD_MS;
@@ -127,6 +135,7 @@ export async function PATCH(req: Request) {
   }
   const { latitude, longitude, accuracy } = body;
 
+  const tz = await loadTz();
   const now = new Date();
 
   const active = await ActivitySession.findOne({
@@ -138,17 +147,14 @@ export async function PATCH(req: Request) {
     return ok({ updated: false, sessionClosed: true });
   }
 
-  if (!isSameDay(active.sessionDate, now)) {
+  if (!isSameDay(active.sessionDate, now, tz)) {
     return ok({ updated: false, sessionClosed: true, dayChanged: true });
   }
 
-  // Detect sleep/suspend gap: if lastActivity was > STALE_THRESHOLD ago,
-  // the device was asleep. Close the old session at its last heartbeat
-  // and signal the client to re-check-in with a fresh session.
   const lastActivityMs = active.lastActivity ? new Date(active.lastActivity).getTime() : 0;
   if (lastActivityMs > 0 && (now.getTime() - lastActivityMs) > STALE_THRESHOLD_MS) {
     const closeTime = new Date(lastActivityMs);
-    await closeSession(active, closeTime);
+    await closeSession(active, closeTime, tz);
     notifyChange("presence");
     return ok({ updated: false, sessionClosed: true, sleepDetected: true });
   }
@@ -160,7 +166,6 @@ export async function PATCH(req: Request) {
     const prevLng = active.location?.longitude;
     const prevTime = active.lastActivity ? new Date(active.lastActivity) : undefined;
 
-    // Track consecutive identical coordinates
     let consecutive = active.location?.consecutiveIdentical ?? 0;
     if (
       prevLat != null && prevLng != null &&
@@ -232,6 +237,7 @@ export async function PATCH(req: Request) {
 async function closeSession(
   activeSession: InstanceType<typeof ActivitySession>,
   endTime: Date,
+  tz: string,
 ) {
   const startTime = activeSession.sessionTime.start;
   const durationMinutes = Math.max(
@@ -255,12 +261,12 @@ async function closeSession(
 
   await activeSession.save();
 
-  const sessionDate = startOfDay(activeSession.sessionDate);
-  await recomputeDaily(String(activeSession.user), sessionDate, endTime);
+  const sessionDate = startOfDay(activeSession.sessionDate, tz);
+  await recomputeDaily(String(activeSession.user), sessionDate, endTime, tz);
 }
 
 // ─── Recompute daily totals by summing all sessions ───────────────
-async function recomputeDaily(userId: string, sessionDate: Date, now: Date) {
+async function recomputeDaily(userId: string, sessionDate: Date, _now: Date, tz: string) {
   const allSessions = await ActivitySession.find({
     user: userId,
     sessionDate,
@@ -299,7 +305,7 @@ async function recomputeDaily(userId: string, sessionDate: Date, now: Date) {
     { upsert: true },
   );
 
-  await updateMonthlyStats(userId, sessionDate);
+  await updateMonthlyStats(userId, sessionDate, tz);
 }
 
 // ─── Check-in ─────────────────────────────────────────────────────
@@ -314,8 +320,14 @@ async function handleCheckIn(
     deviceId?: string;
   },
 ) {
+  const settings = await SystemSettings.findOne({ key: "global" })
+    .select("company.timezone shiftDefaults.graceMinutes")
+    .lean();
+  const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+  const graceMinutes = (settings?.shiftDefaults as { graceMinutes?: number })?.graceMinutes ?? 30;
+
   const now = new Date();
-  const today = startOfDay(now);
+  const today = startOfDay(now, tz);
 
   const existing = await ActivitySession.findOne({
     user: userId,
@@ -323,7 +335,7 @@ async function handleCheckIn(
   });
 
   if (existing) {
-    const isPreviousDay = !isSameDay(existing.sessionDate, now);
+    const isPreviousDay = !isSameDay(existing.sessionDate, now, tz);
     const isStale =
       now.getTime() - new Date(existing.lastActivity).getTime() > STALE_THRESHOLD_MS;
 
@@ -332,12 +344,11 @@ async function handleCheckIn(
     }
 
     const closeTime = new Date(existing.lastActivity);
-    await closeSession(existing, closeTime);
+    await closeSession(existing, closeTime, tz);
   }
 
   const inOffice = await isInOffice(body.latitude, body.longitude);
 
-  // Validate initial location for spoofing
   let initialFlagged = false;
   let initialFlagReason: string | undefined;
   if (body.latitude != null && body.longitude != null) {
@@ -385,7 +396,6 @@ async function handleCheckIn(
     isLastOfficeExit: false,
   });
 
-  // Race condition guard: if two tabs created sessions simultaneously, keep oldest
   const activeCount = await ActivitySession.countDocuments({
     user: userId,
     sessionDate: today,
@@ -408,10 +418,11 @@ async function handleCheckIn(
     const user = await User.findById(userId).select("workShift").lean();
     const shiftStart = user?.workShift?.shift?.start ?? "10:00";
     const [sh, sm] = shiftStart.split(":").map(Number);
-    const graceMinutes = 30;
-    const shiftStartDate = new Date(today);
-    shiftStartDate.setHours(sh, sm + graceMinutes, 0, 0);
-    const isLate = now > shiftStartDate;
+
+    // Build shift deadline in company timezone
+    const tp = dateParts(today, tz);
+    const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + graceMinutes, 0, tz);
+    const isLate = now > shiftDeadline;
 
     daily = await DailyAttendance.create({
       user: userId,
@@ -419,7 +430,7 @@ async function handleCheckIn(
       firstOfficeEntry: inOffice ? now : undefined,
       isPresent: true,
       isOnTime: !isLate,
-      lateBy: isLate ? Math.floor((now.getTime() - shiftStartDate.getTime()) / 60000) : 0,
+      lateBy: isLate ? Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000) : 0,
       activitySessions: [activitySession._id],
     });
   } else {
@@ -462,8 +473,9 @@ async function handleCheckOut(userId: string) {
     return badRequest("No active session found.");
   }
 
+  const tz = await loadTz();
   const now = new Date();
-  await closeSession(activeSession, now);
+  await closeSession(activeSession, now, tz);
 
   const durationMinutes = activeSession.durationMinutes;
   notifyChange("presence");
@@ -471,15 +483,18 @@ async function handleCheckOut(userId: string) {
 }
 
 // ─── Monthly stats ────────────────────────────────────────────────
-async function updateMonthlyStats(userId: string, date: Date) {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59);
+async function updateMonthlyStats(userId: string, date: Date, tz: string) {
+  const p = dateParts(date, tz);
+  const year = p.year;
+  const month = p.month + 1; // 1-indexed
+
+  const monthStart = dateInTz(year, p.month, 1, 0, 0, 0, tz);
+  const nextMonthStart = dateInTz(year, p.month + 1, 1, 0, 0, 0, tz);
+  const monthEnd = new Date(nextMonthStart.getTime() - 1);
 
   const records = await DailyAttendance.find({
     user: userId,
-    date: { $gte: startDate, $lte: endDate },
+    date: { $gte: monthStart, $lte: monthEnd },
   }).lean();
 
   const presentDays = records.filter((r) => r.isPresent).length;
@@ -490,7 +505,7 @@ async function updateMonthlyStats(userId: string, date: Date) {
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const weekdays = Array.from({ length: daysInMonth }, (_, i) => {
-    const d = new Date(year, month - 1, i + 1);
+    const d = new Date(year, p.month, i + 1);
     return d.getDay() !== 0 && d.getDay() !== 6;
   }).filter(Boolean).length;
 

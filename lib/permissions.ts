@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Team from "@/lib/models/Team";
+import Department from "@/lib/models/Department";
 import type { UserRole } from "@/lib/models/User";
 import { auth } from "@/lib/auth";
 
@@ -14,6 +15,7 @@ export interface VerifiedUser {
   email: string;
   role: UserRole;
   department?: string;
+  managedDepartments: string[];
   teams: string[];
   leadOfTeams: string[];
   isActive: boolean;
@@ -41,11 +43,18 @@ export async function getVerifiedSession(): Promise<VerifiedUser | null> {
     leadOfTeams = led.map((t) => t._id.toString());
   }
 
+  let managedDepartments: string[] = [];
+  if (dbUser.userRole === "manager") {
+    const managed = await Department.find({ manager: dbUser._id, isActive: true }).select("_id").lean();
+    managedDepartments = managed.map((d) => d._id.toString());
+  }
+
   return {
     id: dbUser._id.toString(),
     email: dbUser.email,
     role: dbUser.userRole,
     department: dbUser.department?.toString(),
+    managedDepartments,
     teams: userTeams,
     leadOfTeams,
     isActive: dbUser.isActive,
@@ -98,18 +107,19 @@ export function outranks(actor: VerifiedUser, targetRole: UserRole): boolean {
 /* ============================================ */
 
 export function isSameDepartment(user: VerifiedUser, targetDept?: string | null): boolean {
-  if (!user.department || !targetDept) return false;
-  return user.department === targetDept;
+  if (!targetDept) return false;
+  if (user.department && user.department === targetDept) return true;
+  if (user.managedDepartments.length > 0 && user.managedDepartments.includes(targetDept)) return true;
+  return false;
 }
 
 export async function isInUsersDepartment(actor: VerifiedUser, targetUserId: string): Promise<boolean> {
   if (isSuperAdmin(actor)) return true;
-  if (!actor.department) return false;
 
   const target = await User.findById(targetUserId).select("department").lean();
   if (!target?.department) return false;
 
-  return actor.department === target.department.toString();
+  return isSameDepartment(actor, target.department.toString());
 }
 
 /* ============================================ */
@@ -239,12 +249,18 @@ export async function getCampaignScopeFilter(actor: VerifiedUser): Promise<Recor
 
   const orClauses: Record<string, unknown>[] = [{ "tags.employees": actor.id }];
 
-  if (isManager(actor) && actor.department) {
-    orClauses.push({ "tags.departments": actor.department });
-    const deptTeams = await getDeptTeamIds(actor.department);
-    if (deptTeams.length > 0) orClauses.push({ "tags.teams": { $in: deptTeams } });
-    const deptEmps = await getDeptEmployeeIds(actor.department);
-    if (deptEmps.length > 0) orClauses.push({ "tags.employees": { $in: deptEmps } });
+  if (isManager(actor) && actor.managedDepartments.length > 0) {
+    orClauses.push({ "tags.departments": { $in: actor.managedDepartments } });
+    const allTeamIds: string[] = [];
+    const allEmpIds: string[] = [];
+    for (const deptId of actor.managedDepartments) {
+      const deptTeams = await getDeptTeamIds(deptId);
+      allTeamIds.push(...deptTeams);
+      const deptEmps = await getDeptEmployeeIds(deptId);
+      allEmpIds.push(...deptEmps);
+    }
+    if (allTeamIds.length > 0) orClauses.push({ "tags.teams": { $in: allTeamIds } });
+    if (allEmpIds.length > 0) orClauses.push({ "tags.employees": { $in: allEmpIds } });
   } else if (isTeamLead(actor)) {
     if (actor.department) orClauses.push({ "tags.departments": actor.department });
     if (actor.leadOfTeams.length > 0) {

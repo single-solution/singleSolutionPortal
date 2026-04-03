@@ -31,7 +31,9 @@ type SortMode = "most" | "name";
 
 export default function DepartmentsPage() {
   const { data: session } = useSession();
-  const isSuperAdmin = session?.user?.role === "superadmin";
+  const role = session?.user?.role;
+  const isSuperAdmin = role === "superadmin";
+  const canManageDepts = isSuperAdmin || role === "manager";
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "departments");
   const { data: managersRaw } = useQuery<Employee[]>("/api/employees/dropdown", "employees");
 
@@ -194,7 +196,7 @@ export default function DepartmentsPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
-        {isSuperAdmin && (
+        {canManageDepts && (
           <motion.button
             type="button"
             onClick={() => { setAddingOpen(!addingOpen); if (!addingOpen) setNewTitle(""); }}
@@ -413,8 +415,8 @@ export default function DepartmentsPage() {
 
                   {/* Footer: toggle left, actions right (matches employee card) */}
                   <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
-                    {isSuperAdmin && <StatusToggle active={dept.isActive !== false} onChange={() => toggleActive(dept)} />}
-                    {isSuperAdmin && (
+                    {canManageDepts && <StatusToggle active={dept.isActive !== false} onChange={() => toggleActive(dept)} />}
+                    {canManageDepts && (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => startEdit(dept)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>

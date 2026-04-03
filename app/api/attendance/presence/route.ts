@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
+import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
@@ -13,6 +14,7 @@ import {
   getTeamMemberIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
+import { resolveTimezone } from "@/lib/tz";
 
 export async function GET() {
   const actor = await getVerifiedSession();
@@ -24,11 +26,17 @@ export async function GET() {
 
   await connectDB();
 
-  const today = startOfDay(new Date());
+  const settings = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
+  const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+  const today = startOfDay(new Date(), tz);
 
   let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
-  if (isManager(actor) && !actor.crossDepartmentAccess && actor.department) {
-    empFilter.department = actor.department;
+  if (isManager(actor) && !actor.crossDepartmentAccess) {
+    if (actor.managedDepartments.length > 0) {
+      empFilter.department = { $in: actor.managedDepartments };
+    } else if (actor.department) {
+      empFilter.department = actor.department;
+    }
   } else if (isTeamLead(actor)) {
     const memberIds = await getTeamMemberIds(actor.leadOfTeams);
     if (memberIds.length > 0) {

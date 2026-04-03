@@ -27,6 +27,8 @@ export async function GET() {
   if (isManager(actor)) {
     if (actor.crossDepartmentAccess) {
       // manager with cross-dept access sees all employees
+    } else if (actor.managedDepartments.length > 0) {
+      filter.department = { $in: actor.managedDepartments };
     } else if (actor.department) {
       filter.department = actor.department;
     } else {
