@@ -293,7 +293,7 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 - **Campaigns + Checklist**: campaigns vertical card on the left (lg:col-span-5), pending tasks checklist on the right (lg:col-span-7). Checklist uses card-background rows (matching campaigns style) with priority icon, priority badge, status pill (Pending/In Progress), assigned-to name, created-by name, deadline, and created date. Both sections always show their card shell with skeleton rows while data loads
 - **Team breakdown**: clickable rows showing team name, lead, live/present/absent/late counts. Clicking filters the presence cards below. Shows skeleton rows during initial load
 - **Team Status (Live Presence)**: pulsing green dot header, segmented pill filter (All/Office/Remote/Late/Absent), animated employee cards with gradient avatars, breathing ring animations for live employees, `badge-*` status pills, live/flagged badges, arrival→status row, work duration pills, shift progress bars, pending tasks/campaign tags
-- **Stale session detection**: Presence API checks `lastActivity` against a 3-minute threshold. Stale employees show as inactive
+- **Stale session detection**: Presence API checks `lastActivity` against a 3-minute threshold. Stale employees show as inactive with "Last seen [time]" using the session's `lastActivity` timestamp (falls back gracefully when `DailyAttendance.lastOfficeExit` hasn't been computed yet)
 - No LivePulse on welcome bar — timer pill at bottom handles live indication for all roles
 
 **Manager / Team Lead (AdminDashboard):**

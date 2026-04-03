@@ -77,6 +77,7 @@ export async function GET() {
     let status: string = "absent";
     let todayMinutes = 0;
     let isLive = false;
+    let staleLastActivity: string | null = null;
 
     if (active) {
       const lastActivityMs = active.lastActivity ? new Date(active.lastActivity).getTime() : 0;
@@ -90,6 +91,7 @@ export async function GET() {
         if (todayMinutes > 9 * 60) status = "overtime";
         isLive = true;
       } else {
+        staleLastActivity = active.lastActivity ? new Date(active.lastActivity).toISOString() : null;
         todayMinutes = daily?.totalWorkingMinutes ?? 0;
         if (daily?.isPresent) {
           const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
@@ -131,7 +133,7 @@ export async function GET() {
       lateBy: daily?.lateBy ?? 0,
       breakMinutes: daily?.breakMinutes ?? 0,
       firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
-      lastExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null,
+      lastExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : staleLastActivity,
       shiftStart: e.workShift?.shift?.start ?? "10:00",
       shiftEnd: e.workShift?.shift?.end ?? "19:00",
       shiftBreakTime: e.workShift?.breakTime ?? 60,
