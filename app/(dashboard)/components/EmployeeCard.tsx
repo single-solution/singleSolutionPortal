@@ -289,6 +289,10 @@ export function EmployeeCard({
         aria-label={`View ${emp.firstName} ${emp.lastName}`}
       />
 
+      <div className="pointer-events-none absolute right-0 z-20 max-w-[55%] text-right" style={{ top: -5 }}>
+        <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
+      </div>
+
       <div className={`relative z-10 flex flex-1 flex-col gap-2.5 ${embedded ? "p-2.5" : "p-3"} pointer-events-none`}>
         {selectable && (
           <input
@@ -300,10 +304,6 @@ export function EmployeeCard({
             aria-label={`Select ${emp.firstName} ${emp.lastName}`}
           />
         )}
-
-        <div className="absolute right-2 top-2 z-10 max-w-[55%] text-right">
-          <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
-        </div>
 
         <div className="flex items-start gap-3 pr-1 pt-0.5">
           {emp.profileImage ? (
