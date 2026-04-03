@@ -61,6 +61,7 @@ interface PresenceRow {
   status: string;
   isLive?: boolean;
   firstEntry?: string | null;
+  lastOfficeExit?: string | null;
   lastExit?: string | null;
   todayMinutes?: number;
   officeMinutes?: number;
@@ -450,6 +451,7 @@ export default function EmployeesPage() {
                       status: p?.status,
                       locationFlagged: p?.locationFlagged,
                       firstEntry: p?.firstEntry ?? undefined,
+                      lastOfficeExit: p?.lastOfficeExit ?? undefined,
                       lastExit: p?.lastExit ?? undefined,
                       todayMinutes: p?.todayMinutes,
                       officeMinutes: p?.officeMinutes,

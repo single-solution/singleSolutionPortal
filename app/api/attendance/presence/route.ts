@@ -139,6 +139,7 @@ export async function GET() {
       lateBy: daily?.lateBy ?? 0,
       breakMinutes: daily?.breakMinutes ?? 0,
       firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
+      lastOfficeExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null,
       lastExit: staleLastActivity
         ?? (daily?.lastSessionEnd ? new Date(daily.lastSessionEnd as unknown as string).toISOString() : null)
         ?? (lastEndMap.get(id) ? new Date(lastEndMap.get(id)!).toISOString() : null)
