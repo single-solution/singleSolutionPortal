@@ -345,16 +345,18 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
           )}
             </div>
           </motion.div>
-      <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="card group relative overflow-hidden p-4 sm:min-w-[220px] shrink-0">
+      <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="card group relative overflow-hidden px-4 py-2.5 shrink-0">
         <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
-        <p className="text-caption mb-1">Local time</p>
-              <AnimatePresence mode="wait">
-                <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
-            <span className="text-title block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
-                  <span className="text-caption">{formatClockDate(now)}</span>
-                </motion.div>
-              </AnimatePresence>
+        <div className="flex items-baseline gap-2">
+          <p className="text-caption">Local time</p>
+          <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{formatClockDate(now)}</span>
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
+            <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
           </motion.div>
+        </AnimatePresence>
+      </motion.div>
     </header>
   );
 }
@@ -724,23 +726,17 @@ function AdminDashboard({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
           {presenceLoading && filteredPresence.length === 0 ? (
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+            {[1, 2, 3, 4].map((i) => (
               <div key={i} className="card flex flex-col overflow-hidden">
-                <div className="flex-1 p-2.5">
+                <div className="p-2.5">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3.5" /></div>
-                    <Bone w="w-14" h="h-4" />
+                    <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
+                    <Bone w="w-12" h="h-3.5" />
                   </div>
-                  <Bone w="w-28" h="h-2.5" />
-                  <div className="mt-2 space-y-1">
-                    <div className="flex justify-between"><Bone w="w-12" h="h-2.5" /><Bone w="w-16" h="h-2.5" /></div>
-                    <Bone w="w-full" h="h-1.5" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
-                  <Bone w="w-10" h="h-4" />
-                  <Bone w="w-16" h="h-2.5" />
+                  <Bone w="w-24" h="h-2" />
+                  <div className="mt-1.5 flex justify-between"><Bone w="w-10" h="h-2" /><Bone w="w-14" h="h-2" /></div>
+                  <div className="mt-1"><Bone w="w-full" h="h-1.5" /></div>
                 </div>
               </div>
             ))}
