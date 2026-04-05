@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
@@ -51,7 +51,7 @@ const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgr
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 export default function TasksPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager" || session?.user?.role === "teamLead";
 
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
@@ -147,17 +147,20 @@ export default function TasksPage() {
   }
 
   return (
-    <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
+    <div className="flex flex-col gap-0">
       {/* Header: title left, sort right */}
-      <motion.div
-        className="flex items-center justify-between gap-3 mb-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Tasks</h1>
-          <p className="text-subhead hidden sm:block">{taskList.length} total · {pendingCount} pending</p>
+          <p className="text-subhead hidden sm:block">
+            {tasksLoading && !tasks ? (
+              <span className="inline-block h-3 w-36 max-w-[50vw] rounded align-middle shimmer" aria-hidden />
+            ) : (
+              <>
+                {taskList.length} total · {pendingCount} pending
+              </>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["recent", "deadline", "priority"] as SortMode[]).map((s) => (
@@ -177,26 +180,21 @@ export default function TasksPage() {
             </motion.button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* Search + Create row */}
-      <motion.div
-        className="card-static p-4 mb-4 flex gap-3 items-center"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-      >
+      <div className="card-static mb-4 flex items-center gap-3 p-4">
         <div className="relative flex-1">
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input flex-1" style={{ paddingLeft: "40px" }} />
         </div>
-        {isAdmin && (
+        {sessionStatus !== "loading" && isAdmin && (
           <motion.button type="button" onClick={openCreate} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Create Task
           </motion.button>
         )}
-      </motion.div>
+      </div>
 
       {/* Priority filter */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
@@ -494,6 +492,6 @@ export default function TasksPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </motion.div>
+    </div>
   );
 }

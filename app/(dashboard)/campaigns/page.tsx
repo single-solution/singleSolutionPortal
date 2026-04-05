@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -70,7 +70,7 @@ function formatDate(d?: string) {
 }
 
 export default function CampaignsPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const role = session?.user?.role;
   const canDelete = role === "superadmin" || role === "manager";
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
@@ -244,18 +244,19 @@ export default function CampaignsPage() {
   }
 
   return (
-    <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
+    <div className="flex flex-col gap-0">
       {/* Header */}
-      <motion.div
-        className="flex items-center justify-between gap-3 mb-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Campaigns</h1>
           <p className="text-subhead hidden sm:block">
-            {campaignList.length} campaign{campaignList.length !== 1 ? "s" : ""} · {statusCounts.active} active
+            {campaignsLoading && !campaigns ? (
+              <span className="inline-block h-3 w-44 max-w-[55vw] rounded align-middle shimmer" aria-hidden />
+            ) : (
+              <>
+                {campaignList.length} campaign{campaignList.length !== 1 ? "s" : ""} · {statusCounts.active} active
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
@@ -274,15 +275,10 @@ export default function CampaignsPage() {
             </motion.button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* Search + Add */}
-      <motion.div
-        className="card-static p-4 mb-4 flex gap-3 items-center"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-      >
+      <div className="card-static mb-4 flex items-center gap-3 p-4">
         <div className="relative flex-1">
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -296,6 +292,7 @@ export default function CampaignsPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
+        {sessionStatus !== "loading" && (
         <motion.button
           type="button"
           onClick={openCreateModal}
@@ -308,7 +305,8 @@ export default function CampaignsPage() {
           </svg>
           New Campaign
         </motion.button>
-      </motion.div>
+        )}
+      </div>
 
       {/* Status filter pills */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
@@ -635,6 +633,6 @@ export default function CampaignsPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </motion.div>
+    </div>
   );
 }

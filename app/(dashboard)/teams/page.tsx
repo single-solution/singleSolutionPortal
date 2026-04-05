@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -38,7 +38,7 @@ type SortMode = "most" | "name";
 type DeptFilter = "all" | string;
 
 export default function TeamsPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const role = session?.user?.role;
   const isSuperAdmin = role === "superadmin";
   const canManageTeams = isSuperAdmin || role === "manager";
@@ -178,18 +178,19 @@ export default function TeamsPage() {
   }, [users, formDept]);
 
   return (
-    <motion.div className="flex flex-col gap-0" variants={contentReveal} initial="hidden" animate="visible">
+    <div className="flex flex-col gap-0">
       {/* Header */}
-      <motion.div
-        className="flex items-center justify-between gap-3 mb-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Teams</h1>
           <p className="text-subhead hidden sm:block">
-            {teamList.length} team{teamList.length !== 1 ? "s" : ""} · {totalMembers} member{totalMembers !== 1 ? "s" : ""}
+            {teamsLoading && !teams ? (
+              <span className="inline-block h-3 w-40 max-w-[50vw] rounded align-middle shimmer" aria-hidden />
+            ) : (
+              <>
+                {teamList.length} team{teamList.length !== 1 ? "s" : ""} · {totalMembers} member{totalMembers !== 1 ? "s" : ""}
+              </>
+            )}
           </p>
         </div>
         <div
@@ -211,15 +212,10 @@ export default function TeamsPage() {
             </motion.button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* Search + Add row */}
-      <motion.div
-        className="card-static p-4 mb-4 flex gap-3 items-center"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-      >
+      <div className="card-static mb-4 flex items-center gap-3 p-4">
         <div className="relative flex-1">
           <svg
             className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
@@ -240,7 +236,7 @@ export default function TeamsPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
-        {canManageTeams && (
+        {sessionStatus !== "loading" && canManageTeams && (
           <motion.button
             type="button"
             onClick={openCreateModal}
@@ -254,7 +250,7 @@ export default function TeamsPage() {
             Add Team
           </motion.button>
         )}
-      </motion.div>
+      </div>
 
       {/* Department filter */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
@@ -548,6 +544,6 @@ export default function TeamsPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </motion.div>
+    </div>
   );
 }

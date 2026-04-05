@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -30,7 +30,7 @@ interface Department {
 type SortMode = "most" | "name";
 
 export default function DepartmentsPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const role = session?.user?.role;
   const isSuperAdmin = role === "superadmin";
   const canManageDepts = isSuperAdmin || role === "manager";
@@ -141,22 +141,20 @@ export default function DepartmentsPage() {
   }
 
   return (
-    <motion.div
-      className="flex flex-col gap-0"
-      variants={contentReveal}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header */}
-      <motion.div
-        className="flex items-center justify-between gap-3 mb-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+    <div className="flex flex-col gap-0">
+      {/* Header — static shell avoids route loading.tsx + contentReveal double flicker */}
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Departments</h1>
-          <p className="text-subhead hidden sm:block">{deptList.length} department{deptList.length !== 1 ? "s" : ""} · {totalEmployees} team member{totalEmployees !== 1 ? "s" : ""}</p>
+          <p className="text-subhead hidden sm:block">
+            {deptsLoading && !departments ? (
+              <span className="inline-block h-3 w-44 max-w-[55vw] rounded align-middle shimmer" aria-hidden />
+            ) : (
+              <>
+                {deptList.length} department{deptList.length !== 1 ? "s" : ""} · {totalEmployees} team member{totalEmployees !== 1 ? "s" : ""}
+              </>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["most", "name"] as SortMode[]).map((s) => (
@@ -176,15 +174,10 @@ export default function DepartmentsPage() {
             </motion.button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* Search + Add row */}
-      <motion.div
-        className="card-static p-4 mb-4 flex gap-3 items-center"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-      >
+      <div className="card-static mb-4 flex items-center gap-3 p-4">
         <div className="relative flex-1">
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
           <input
@@ -196,7 +189,7 @@ export default function DepartmentsPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
-        {canManageDepts && (
+        {sessionStatus !== "loading" && canManageDepts && (
           <motion.button
             type="button"
             onClick={() => { setAddingOpen(!addingOpen); if (!addingOpen) setNewTitle(""); }}
@@ -208,7 +201,7 @@ export default function DepartmentsPage() {
             Add Department
           </motion.button>
         )}
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {addingOpen && (
@@ -456,6 +449,6 @@ export default function DepartmentsPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </motion.div>
+    </div>
   );
 }
