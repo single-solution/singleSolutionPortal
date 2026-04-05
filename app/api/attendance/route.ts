@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import ActivitySession from "@/lib/models/ActivitySession";
@@ -191,9 +192,21 @@ export async function GET(req: NextRequest) {
     const dailyMap = new Map<string, (typeof dailyRecords)[0]>();
     for (const d of dailyRecords) dailyMap.set(d.user.toString(), d);
 
+    const sessionAgg = await ActivitySession.aggregate([
+      { $match: { user: { $in: empIds }, sessionDate: { $gte: dayStart, $lte: dayEnd } } },
+      { $group: {
+        _id: "$user",
+        firstStart: { $min: "$sessionTime.start" },
+        lastEnd: { $max: { $ifNull: ["$sessionTime.end", "$lastActivity"] } },
+      }},
+    ]);
+    const sessMap = new Map<string, { firstStart: Date; lastEnd: Date }>();
+    for (const s of sessionAgg) sessMap.set(s._id.toString(), { firstStart: s.firstStart, lastEnd: s.lastEnd });
+
     const result = employees.map((emp) => {
       const id = emp._id.toString();
       const rec = dailyMap.get(id);
+      const st = sessMap.get(id);
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
@@ -207,6 +220,8 @@ export async function GET(req: NextRequest) {
         remoteMinutes: rec?.remoteMinutes ?? 0,
         firstOfficeEntry: rec?.firstOfficeEntry ?? null,
         lastOfficeExit: rec?.lastOfficeExit ?? null,
+        firstStart: st?.firstStart ?? null,
+        lastEnd: st?.lastEnd ?? null,
         lateBy: rec?.lateBy ?? 0,
       };
     });
@@ -308,7 +323,24 @@ export async function GET(req: NextRequest) {
       .sort({ date: -1 })
       .lean();
 
-    return ok(records);
+    const userOid = new mongoose.Types.ObjectId(userId);
+    const sessionAgg = await ActivitySession.aggregate([
+      { $match: { user: userOid, sessionDate: { $gte: monthStart, $lte: monthEnd } } },
+      { $group: {
+        _id: "$sessionDate",
+        firstStart: { $min: "$sessionTime.start" },
+        lastEnd: { $max: { $ifNull: ["$sessionTime.end", "$lastActivity"] } },
+      }},
+    ]);
+    const sessTimeMap = new Map<number, { firstStart: Date; lastEnd: Date }>();
+    for (const s of sessionAgg) sessTimeMap.set(new Date(s._id).getTime(), { firstStart: s.firstStart, lastEnd: s.lastEnd });
+
+    const enriched = records.map((rec) => {
+      const st = sessTimeMap.get(new Date(rec.date).getTime());
+      return { ...rec, firstStart: st?.firstStart ?? null, lastEnd: st?.lastEnd ?? null };
+    });
+
+    return ok(enriched);
   }
 
   return ok([]);

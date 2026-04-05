@@ -17,6 +17,8 @@ interface DailyRecord {
   remoteMinutes: number;
   firstOfficeEntry?: string;
   lastOfficeExit?: string;
+  firstStart?: string;
+  lastEnd?: string;
   lateBy?: number;
   breakMinutes?: number;
 }
@@ -93,6 +95,8 @@ interface TeamDateRecord {
   remoteMinutes: number;
   firstOfficeEntry?: string;
   lastOfficeExit?: string;
+  firstStart?: string;
+  lastEnd?: string;
   lateBy?: number;
 }
 
@@ -653,31 +657,56 @@ export default function AttendancePage() {
                     ) : (
                       filteredTeamDate.map((emp, idx) => {
                         const statusColor = emp.isPresent ? (emp.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)";
+                        const locLabel = emp.officeMinutes > 0 && emp.remoteMinutes > 0 ? "Split" : emp.officeMinutes > 0 ? "Office" : emp.remoteMinutes > 0 ? "Remote" : "";
+                        const locColor = emp.officeMinutes > 0 ? "var(--green)" : "var(--teal)";
                         return (
                           <motion.div
                             key={emp._id}
-                            className="flex items-center gap-3 rounded-xl p-3"
+                            className="rounded-xl p-3 space-y-2"
                             style={{ background: "var(--bg-grouped)" }}
                             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2, delay: Math.min(idx * 0.04, 0.3) }}
                           >
-                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusColor }} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
-                              <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>
-                                {emp.department}
-                                {emp.isPresent && ` · ${fmtTime(emp.firstOfficeEntry)} → ${fmtTime(emp.lastOfficeExit)}`}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusColor }} />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                                <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(emp.totalWorkingMinutes)}</p>
+                                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
+                                  background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
+                                  color: statusColor,
+                                }}>
+                                  {emp.isPresent ? (emp.isOnTime ? "On Time" : "Late") : "Absent"}
+                                </span>
+                              </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(emp.totalWorkingMinutes)}</p>
-                              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
-                                background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
-                                color: statusColor,
-                              }}>
-                                {emp.isPresent ? (emp.isOnTime ? "On Time" : "Late") : "Absent"}
-                              </span>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Arrived</span>
+                                <span style={{ color: emp.firstStart ? "var(--fg-secondary)" : "var(--fg-tertiary)" }}>{fmtTime(emp.firstStart)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Left</span>
+                                <span style={{ color: emp.lastEnd ? "var(--fg-secondary)" : "var(--fg-tertiary)" }}>{fmtTime(emp.lastEnd)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Office In</span>
+                                <span style={{ color: emp.firstOfficeEntry ? "var(--green)" : "var(--fg-tertiary)" }}>{fmtTime(emp.firstOfficeEntry)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Office Out</span>
+                                <span style={{ color: emp.lastOfficeExit ? "var(--green)" : "var(--fg-tertiary)" }}>{fmtTime(emp.lastOfficeExit)}</span>
+                              </div>
                             </div>
+                            {locLabel && (
+                              <div className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: locColor }}>
+                                <span className="h-1.5 w-1.5 rounded-full" style={{ background: locColor }} />
+                                {locLabel}{emp.officeMinutes > 0 && emp.remoteMinutes > 0 ? ` — ${fmtHours(emp.officeMinutes)} office, ${fmtHours(emp.remoteMinutes)} remote` : ""}
+                              </div>
+                            )}
                           </motion.div>
                         );
                       })
@@ -718,6 +747,12 @@ export default function AttendancePage() {
                     </div>
                   </div>
                 ) : detailData ? (
+                  (() => {
+                    const sorted = [...(detailData.activitySessions ?? [])].sort((a, b) => new Date(a.sessionTime.start).getTime() - new Date(b.sessionTime.start).getTime());
+                    const clockIn = sorted[0]?.sessionTime.start ?? detailData.firstStart;
+                    const lastSess = sorted[sorted.length - 1];
+                    const clockOut = lastSess?.sessionTime.end ?? lastSess?.lastActivity ?? detailData.lastEnd;
+                    return (
                   <div className="flex-1 overflow-y-auto p-5 space-y-5">
                     <div className="flex flex-wrap items-center gap-2">
                       <Pill color={detailData.isPresent ? (detailData.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)"} label={detailData.isPresent ? (detailData.isOnTime ? "On Time" : "Late") : "Absent"} />
@@ -732,6 +767,13 @@ export default function AttendancePage() {
                         : "No work sessions recorded for this day"}
                     </p>
 
+                    <div className="grid grid-cols-2 gap-2">
+                      <StatChip label="Arrived" value={fmtTime(clockIn)} color="var(--primary)" />
+                      <StatChip label="Left" value={fmtTime(clockOut)} color="var(--primary)" />
+                      <StatChip label="Office In" value={fmtTime(detailData.firstOfficeEntry)} color="var(--green)" />
+                      <StatChip label="Office Out" value={fmtTime(detailData.lastOfficeExit)} color="var(--green)" />
+                    </div>
+
                     <div className="grid grid-cols-3 gap-2">
                       <StatChip label="Total" value={fmtHours(detailData.totalWorkingMinutes)} color="var(--primary)" />
                       <StatChip label="Office" value={fmtHours(detailData.officeMinutes)} color="var(--green)" />
@@ -742,7 +784,7 @@ export default function AttendancePage() {
                       <div>
                         <div className="mb-1.5 flex justify-between text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                           <span>Work Split</span>
-                          <span>{fmtTime(detailData.firstOfficeEntry)} → {fmtTime(detailData.lastOfficeExit)}</span>
+                          <span>{fmtTime(clockIn)} → {fmtTime(clockOut)}</span>
                         </div>
                         <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
                           {detailData.officeMinutes > 0 && <motion.div className="h-full" style={{ background: "var(--green)" }} initial={{ width: 0 }} animate={{ width: `${(detailData.officeMinutes / detailData.totalWorkingMinutes) * 100}%` }} transition={{ duration: 0.6, delay: 0.15 }} />}
@@ -820,6 +862,8 @@ export default function AttendancePage() {
                       </div>
                     )}
                   </div>
+                    );
+                  })()
                 ) : (
                   <div className="flex flex-1 flex-col items-center justify-center p-5 text-center">
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "var(--bg-grouped)" }}>
@@ -885,7 +929,7 @@ export default function AttendancePage() {
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }} />
                       <div>
                         <p className="text-callout font-medium" style={{ color: "var(--fg)" }}>{new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(rec.firstOfficeEntry)} → {fmtTime(rec.lastOfficeExit)}</p>
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(rec.firstStart ?? rec.firstOfficeEntry)} → {fmtTime(rec.lastEnd ?? rec.lastOfficeExit)}</p>
                       </div>
                     </div>
                     <div className="text-right">
