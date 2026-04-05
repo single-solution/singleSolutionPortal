@@ -23,11 +23,6 @@ interface TaggedDept {
   title: string;
 }
 
-interface TaggedTeam {
-  _id: string;
-  name: string;
-}
-
 interface Campaign {
   _id: string;
   name: string;
@@ -40,7 +35,8 @@ interface Campaign {
   tags: {
     employees: TaggedEmployee[];
     departments: TaggedDept[];
-    teams: TaggedTeam[];
+    /** Legacy — no longer shown or edited in UI; preserved on save when updating a campaign. */
+    teams: { _id: string; name: string }[];
   };
   notes?: string;
   isActive: boolean;
@@ -76,7 +72,6 @@ export default function CampaignsPage() {
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");
-  const { data: teamsRaw } = useQuery<Array<Record<string, unknown>>>("/api/teams", "teams");
 
   const campaignList = campaigns ?? [];
   const allEmployees: SelectOption[] = useMemo(
@@ -90,10 +85,6 @@ export default function CampaignsPage() {
   const allDepartments: SelectOption[] = useMemo(
     () => (deptsRaw ?? []).map((d) => ({ _id: d._id as string, label: d.title as string })),
     [deptsRaw],
-  );
-  const allTeams: SelectOption[] = useMemo(
-    () => (teamsRaw ?? []).map((t) => ({ _id: t._id as string, label: t.name as string })),
-    [teamsRaw],
   );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -111,7 +102,6 @@ export default function CampaignsPage() {
   const [formNotes, setFormNotes] = useState("");
   const [formTagEmployees, setFormTagEmployees] = useState<string[]>([]);
   const [formTagDepts, setFormTagDepts] = useState<string[]>([]);
-  const [formTagTeams, setFormTagTeams] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Delete
@@ -130,7 +120,7 @@ export default function CampaignsPage() {
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((c) =>
-        `${c.name} ${c.description ?? ""} ${c.tags.employees.map((e) => `${e.about.firstName} ${e.about.lastName}`).join(" ")} ${c.tags.departments.map((d) => d.title).join(" ")} ${c.tags.teams.map((t) => t.name).join(" ")}`.toLowerCase().includes(q),
+        `${c.name} ${c.description ?? ""} ${c.tags.employees.map((e) => `${e.about.firstName} ${e.about.lastName}`).join(" ")} ${c.tags.departments.map((d) => d.title).join(" ")}`.toLowerCase().includes(q),
       );
     }
     if (sortMode === "name") {
@@ -152,7 +142,6 @@ export default function CampaignsPage() {
     setFormNotes("");
     setFormTagEmployees([]);
     setFormTagDepts([]);
-    setFormTagTeams([]);
     setModalOpen(true);
   }
 
@@ -167,7 +156,6 @@ export default function CampaignsPage() {
     setFormNotes(c.notes ?? "");
     setFormTagEmployees(c.tags.employees.map((e) => e._id));
     setFormTagDepts(c.tags.departments.map((d) => d._id));
-    setFormTagTeams(c.tags.teams.map((t) => t._id));
     setModalOpen(true);
   }
 
@@ -175,7 +163,7 @@ export default function CampaignsPage() {
     if (!formName.trim()) return;
     setSaving(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: formName.trim(),
         description: formDesc,
         status: formStatus,
@@ -185,8 +173,12 @@ export default function CampaignsPage() {
         notes: formNotes,
         tagEmployees: formTagEmployees,
         tagDepartments: formTagDepts,
-        tagTeams: formTagTeams,
       };
+      if (editingCampaign) {
+        payload.tagTeams = editingCampaign.tags.teams.map((t) => t._id);
+      } else {
+        payload.tagTeams = [];
+      }
       if (editingCampaign) {
         await fetch(`/api/campaigns/${editingCampaign._id}`, {
           method: "PUT",
@@ -249,12 +241,13 @@ export default function CampaignsPage() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Campaigns</h1>
-          <p className="text-subhead hidden sm:block">
+          <p className="text-subhead">
             {campaignsLoading && !campaigns ? (
               <span className="inline-block h-3 w-44 max-w-[55vw] rounded align-middle shimmer" aria-hidden />
             ) : (
               <>
                 {campaignList.length} campaign{campaignList.length !== 1 ? "s" : ""} · {statusCounts.active} active
+                <span className="text-[var(--fg-tertiary)]"> — tag departments and people; several depts can share one campaign.</span>
               </>
             )}
           </p>
@@ -334,7 +327,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Cards */}
-      <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {campaignsLoading && !campaigns ? (
             [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
@@ -381,7 +374,7 @@ export default function CampaignsPage() {
           ) : (
             filtered.map((c, i) => {
               const sc = STATUS_CONFIG[c.status];
-              const totalTags = c.tags.employees.length + c.tags.departments.length + c.tags.teams.length;
+              const totalTags = c.tags.employees.length + c.tags.departments.length;
 
               return (
                 <motion.div
@@ -426,16 +419,11 @@ export default function CampaignsPage() {
                         {/* Tagged entities */}
                         {totalTags > 0 && (
                           <div className="pt-1">
-                            <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Tagged</span>
+                            <span className="text-[11px] font-medium block mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Departments & people</span>
                             <div className="flex flex-wrap gap-1">
                               {c.tags.departments.map((d) => (
                                 <span key={d._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
                                   {d.title}
-                                </span>
-                              ))}
-                              {c.tags.teams.map((t) => (
-                                <span key={t._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
-                                  {t.name}
                                 </span>
                               ))}
                               {c.tags.employees.map((e) => (
@@ -572,22 +560,6 @@ export default function CampaignsPage() {
                 )}
 
                 {/* Tag: Teams */}
-                {allTeams.length > 0 && (
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Tag Teams</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {allTeams.map((t) => {
-                        const active = formTagTeams.includes(t._id);
-                        return (
-                          <motion.button key={t._id} type="button" onClick={() => setFormTagTeams(toggleArrayItem(formTagTeams, t._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--teal)" } : { background: "var(--bg-grouped)" }}>
-                            {t.label}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 {/* Tag: Employees */}
                 {allEmployees.length > 0 && (
                   <div>

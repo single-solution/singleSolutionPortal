@@ -25,13 +25,15 @@ superadmin (100) → manager (50) → teamLead (30) → businessDeveloper / deve
 
 | Role | Access |
 |------|--------|
-| **SuperAdmin** | Full CRUD on employees, departments, teams, tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role ("god mode") |
-| **Manager** | **Multi-department scoped**: can manage employees, departments, teams, and tasks across all departments they're assigned as manager. Nav includes Employees, Departments, Teams pages (scoped to managed departments). Can create teams in any managed department. Attendance presence for all managed departments |
-| **Team Lead** | Sees employees who **directly report to them** (`reportsTo`) and members of teams they lead. Nav includes Employees, Departments, Teams pages (scoped to their direct reports and led teams). Can create/manage tasks for those employees. Sits under a manager |
+| **SuperAdmin** | Full CRUD on employees, departments, teams (for assignments/RBAC), tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role ("god mode") |
+| **Manager** | **Multi-department scoped**: can manage employees, departments, teams, and tasks across all departments they're assigned as manager. Nav includes Employees, Departments, Campaigns (scoped to managed departments). Can create teams in any managed department. Attendance presence for all managed departments |
+| **Team Lead** | Sees employees who **directly report to them** (`reportsTo`) and members of teams they lead. Nav includes Employees, Departments, Campaigns (scoped to their direct reports and led teams). Can create/manage tasks for those employees. Sits under a manager |
 | **Business Developer** | Job pipeline tracking (17 BD fields), personal attendance |
 | **Developer** | Personal attendance, task status updates, profile management |
 
 Employees can belong to **multiple teams simultaneously** — enabling cross-team/cross-project membership. A manager can be assigned as the manager of **multiple departments** — they see and manage employees, teams, and attendance across all of them. Team Leads manage the teams they're assigned to lead.
+
+**Campaigns** (no separate Teams hub): use **Campaigns** to label initiatives that span **one or more departments** and **specific people** — the same campaign can involve overlapping departments or shared staff. The standalone **Teams** navigation page was removed; team membership still exists in data for RBAC and employee forms.
 
 ---
 
@@ -170,7 +172,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - ConfirmDialog for delete confirmation (SuperAdmin only)
 - StatusToggle for quick active/inactive flag in card footer
 - Activity logging for all campaign CRUD actions
-- Role-scoped visibility: SuperAdmin sees all; Manager sees campaigns tagged with their department/teams/employees; Team Lead sees campaigns tagged with teams they lead; Employees see campaigns they're tagged in
+- Role-scoped visibility: SuperAdmin sees all; Manager sees campaigns tagged with their department or employees; Team Lead sees campaigns tagged with teams they lead or employees in scope; Employees see campaigns they're tagged in
 
 ### Task Management
 
@@ -320,7 +322,15 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 - **Weekly overview**: horizontal-scroll strip of day cards (like DeveloperPreview) — each card shows weekday, date, status dot, and total hours. Today highlighted with primary border + glow
 - **Monthly summary**: nested stat cards (Present/Total, On-time, Avg daily hours, Total hours) with animated numbers, office vs remote stacked progress bar with percentages
 
-**Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments", "Teams" visible to SuperAdmin, Manager, and Team Lead (each scoped to their departments/teams).
+**Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments" visible to SuperAdmin, Manager, and Team Lead (each scoped to their departments and teams). There is no separate **Teams** hub — team data remains for assignments and permissions.
+
+**Department Scope Strip**: SuperAdmin and Manager see a horizontal pill strip ("All departments" | Dept A | Dept B | ...) on Dashboard, Employees, and Attendance pages. Clicking a department filters all data on that page to that department only. SuperAdmin sees all departments; Manager sees only their managed departments. TeamLead/Developer/BD roles don't see the strip (their data is already scoped server-side).
+
+**Virtual View Groups**: "Group by" toggle (Flat / By Manager / By Department) on both Dashboard Team Status and Employees page. Groups employees into collapsible sections with headers showing the manager name or department title and a count badge. Purely client-side — uses existing `reportsTo` and `department` fields, no new APIs or DB changes.
+
+**Card Density**: All card grids capped at **4 columns max** (`grid-cols-2 md:grid-cols-3 lg:grid-cols-4`). Status pill widened for full text at 4-col widths. Card inner padding increased for breathing room.
+
+**Mobile UX**: App-sized fonts on mobile (max-width 639px) — title 16px, headline 14px, body 12px, callout 11px, subhead/footnote 10px, caption 9px. All `hidden sm:block` patterns removed — subtitles and descriptions visible on mobile with compact sizing. **Hamburger menu** (visible below `sm` breakpoint) in header opens a slide-out drawer with profile link, theme switcher, pings, notifications, settings, and sign-out. Desktop header unchanged. Bottom dock stays as primary page navigation on mobile.
 
 ### Attendance Page (All Roles)
 
@@ -411,6 +421,8 @@ app/
     components/
       ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
       DataTable.tsx      # Sortable, searchable, paginated table
+      EmployeeCard.tsx   # Unified employee card (dashboard presence + employee list)
+      ScopeStrip.tsx     # Department scope filter strip (SuperAdmin/Manager only)
       Portal.tsx         # React Portal wrapper for modals (renders to document.body)
       ProcessingOverlay.tsx # Animated dot shimmer overlay
     attendance/page.tsx  # Interactive calendar + detail panel + session timeline

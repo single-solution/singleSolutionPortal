@@ -88,7 +88,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     } else if (isTeamLead(actor)) {
       if (tagDepartments !== undefined && tagDepartments.length > 0) {
-        return badRequest("Team leads cannot tag departments — tag specific teams instead");
+        return badRequest("Team leads cannot tag departments — tag employees instead");
       }
       if (tagTeams !== undefined && tagTeams.length > 0) {
         const allValid = tagTeams.every((t) => actor.leadOfTeams.includes(t));

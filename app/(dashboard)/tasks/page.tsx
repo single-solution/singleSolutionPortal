@@ -152,7 +152,7 @@ export default function TasksPage() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Tasks</h1>
-          <p className="text-subhead hidden sm:block">
+          <p className="text-subhead">
             {tasksLoading && !tasks ? (
               <span className="inline-block h-3 w-36 max-w-[50vw] rounded align-middle shimmer" aria-hidden />
             ) : (

@@ -15,6 +15,7 @@ import {
   cardHover,
 } from "@/lib/motion";
 import { EmployeeCard } from "./components/EmployeeCard";
+import { ScopeStrip } from "./components/ScopeStrip";
 import type { UserRole } from "@/lib/models/User";
 
 /* ──────────────────────── TYPES ──────────────────────── */
@@ -89,6 +90,7 @@ interface PresenceEmployee {
   email: string;
   designation: string;
   department: string;
+  departmentId: string | null;
   reportsTo: string | null;
   reportsToId: string | null;
   status: PresenceStatus;
@@ -351,12 +353,12 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
           <p className="text-caption">Local time</p>
           <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{formatClockDate(now)}</span>
         </div>
-        <AnimatePresence mode="wait">
-          <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
-            <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
+              <AnimatePresence mode="wait">
+                <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
+                  <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
+                </motion.div>
+              </AnimatePresence>
           </motion.div>
-        </AnimatePresence>
-      </motion.div>
     </header>
   );
 }
@@ -369,18 +371,18 @@ function SelfOverviewCard({ pa, userProfile, user }: {
   user: User;
 }) {
   if (!pa) {
-    return (
+                return (
       <div className="card p-5 sm:p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
           <div className="flex flex-col items-center gap-3 sm:items-start">
             <div className="shimmer h-20 w-20 rounded-full sm:h-24 sm:w-24" />
             <Bone w="w-16" h="h-5" />
-          </div>
+                  </div>
           <div className="min-w-0 flex-1 space-y-4">
             <div><Bone w="w-40" h="h-5" /><Bone w="w-28" h="h-3" /></div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[1, 2, 3].map((i) => <div key={i} className="card-static rounded-xl p-3"><Bone w="w-16" h="h-3" /><Bone w="w-12" h="h-4" /></div>)}
-            </div>
+              </div>
             <div className="space-y-2">
               <Bone w="w-full" h="h-2.5" />
             </div>
@@ -412,38 +414,38 @@ function SelfOverviewCard({ pa, userProfile, user }: {
             <div className="flex h-20 w-20 items-center justify-center rounded-full text-xl font-semibold text-white shadow-lg sm:h-24 sm:w-24 sm:text-2xl" style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}>{initials(profileName, profileLast)}</div>
           )}
           <span className="badge" style={{ background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}30` }}>{statusLabel}</span>
-                  </div>
+                    </div>
         <div className="min-w-0 flex-1 space-y-4">
           <div>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>{profileName} {profileLast}</h2>
             <p className="text-subhead">{userProfile?.department ?? ROLE_DESIGNATION[user.role]}</p>
             <p className="text-caption mt-0.5">{user.email}</p>
-              </div>
+                    </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="card-static rounded-xl p-3">
               <p className="text-caption">First entry</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.firstEntry ?? "—"}</p>
-            </div>
+                  </div>
             <div className="card-static rounded-xl p-3">
               <p className="text-caption">Hours logged</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
-          </div>
+            </div>
             <div className="card-static col-span-2 rounded-xl p-3 sm:col-span-1">
               <p className="text-caption">Office / Remote</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(pa.officeMinutes)} / {formatMinutes(pa.remoteMinutes)}</p>
               <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-secondary)" }}>{officePct}% office · {remotePct}% remote</p>
-                    </div>
-                    </div>
+      </div>
+        </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Shift progress</span>
               <span className="text-caption tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes} / {shiftTarget} min ({shiftPct}%)</span>
-                  </div>
+                </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
               <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
-            </div>
-      </div>
-        </div>
+                </div>
+          </div>
+    </div>
       </div>
     </motion.div>
   );
@@ -487,13 +489,13 @@ function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null;
               <div className="min-w-0 flex-1">
                 <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
                 <p className="text-callout mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
-              </div>
+        </div>
             </motion.li>
           ))}
         </ul>
       )}
 
-    </motion.div>
+          </motion.div>
   );
 }
 
@@ -541,8 +543,13 @@ function AdminDashboard({
   onRefreshFull: () => void;
 }) {
   const isSuperAdmin = user.role === "superadmin";
+  const [scopeDept, setScopeDept] = useState("all");
 
-  const otherEmps = useMemo(() => presenceEmps.filter((e) => e._id !== user.id), [presenceEmps, user.id]);
+  const otherEmps = useMemo(() => {
+    let list = presenceEmps.filter((e) => e._id !== user.id);
+    if (scopeDept !== "all") list = list.filter((e) => e.departmentId === scopeDept);
+    return list;
+  }, [presenceEmps, user.id, scopeDept]);
 
   const tasksByEmployee = useMemo(() => {
     const map = new Map<string, ApiTask[]>();
@@ -568,6 +575,8 @@ function AdminDashboard({
   }, [campaigns]);
 
   const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>("all");
+  type DashGroupMode = "flat" | "manager" | "department";
+  const [dashGroupMode, setDashGroupMode] = useState<DashGroupMode>("flat");
   const filteredPresence = useMemo(() => {
     return otherEmps
       .filter((e) => matchPresenceFilter(e.status, presenceFilter))
@@ -576,6 +585,34 @@ function AdminDashboard({
         return b.todayMinutes - a.todayMinutes;
       });
   }, [otherEmps, presenceFilter]);
+
+  const presenceGrouped = useMemo(() => {
+    if (dashGroupMode === "flat") return null;
+    const map = new Map<string, { label: string; employees: typeof filteredPresence }>();
+    for (const emp of filteredPresence) {
+      let key: string;
+      let label: string;
+      if (dashGroupMode === "manager") {
+        if (emp.reportsTo) {
+          key = emp.reportsToId ?? emp.reportsTo;
+          label = emp.reportsTo;
+        } else {
+          key = "__none__";
+          label = "No Manager Assigned";
+        }
+      } else {
+        key = emp.departmentId ?? "__none__";
+        label = emp.department || "No Department";
+      }
+      if (!map.has(key)) map.set(key, { label, employees: [] });
+      map.get(key)!.employees.push(emp);
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.label === "No Manager Assigned" || a.label === "No Department") return 1;
+      if (b.label === "No Manager Assigned" || b.label === "No Department") return -1;
+      return a.label.localeCompare(b.label);
+    });
+  }, [filteredPresence, dashGroupMode]);
 
   const activeCampaigns = useMemo(() => campaigns.filter((c) => c.status === "active"), [campaigns]);
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
@@ -602,6 +639,9 @@ function AdminDashboard({
       {/* 1. Welcome header */}
       <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} dataLoading={dataLoading} />
 
+      {/* Scope strip */}
+      <ScopeStrip value={scopeDept} onChange={setScopeDept} />
+
       {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -619,7 +659,7 @@ function AdminDashboard({
               <RefreshBtn onRefresh={onRefreshFull} />
             </div>
             <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
-          </div>
+              </div>
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {dataLoading ? (
               [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
@@ -636,11 +676,11 @@ function AdminDashboard({
                     {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
                     {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
                     <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
-                  </div>
-                </div>
-              </motion.div>
+              </div>
+              </div>
+            </motion.div>
             ))}
-          </div>
+        </div>
         </motion.section>
         <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
           <div className="mb-3 flex shrink-0 items-center justify-between">
@@ -651,7 +691,7 @@ function AdminDashboard({
             {!dataLoading && (
               <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
                 {pendingTasks.length} Pending
-              </motion.div>
+          </motion.div>
             )}
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
@@ -666,30 +706,30 @@ function AdminDashboard({
               const creatorName = task.createdBy?.about ? `${task.createdBy.about.firstName} ${task.createdBy.about.lastName}`.trim() : "";
               const statusLabel = task.status === "inProgress" ? "In Progress" : task.status === "pending" ? "Pending" : task.status;
               const statusColor = task.status === "inProgress" ? "var(--primary)" : task.status === "pending" ? "var(--amber)" : "var(--teal)";
-              return (
+                return (
                 <motion.div key={task._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 + ti * 0.04 }} whileHover={{ x: 4 }} className="flex shrink-0 items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
                   <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
                     </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
+                      </div>
+                      <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
                       <span className="text-[9px] rounded-full px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
                       <span className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>{statusLabel}</span>
-                    </div>
+                            </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-caption">
                       {assigneeName && <span style={{ color: "var(--fg-secondary)" }}>→ {assigneeName}</span>}
                       {creatorName && <span style={{ color: "var(--fg-tertiary)" }}>by {creatorName}</span>}
                       {task.deadline && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>Due {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
                       {task.createdAt && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
-                    </div>
-                  </div>
+                          </div>
+                      </div>
                 </motion.div>
-              );
-            })}
-          </div>
+                );
+              })}
+                    </div>
           <Link href="/tasks" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
         </motion.section>
 
@@ -707,7 +747,7 @@ function AdminDashboard({
                 <span className="text-caption font-semibold" style={{ color: "#10b981" }}>{liveCount} live</span>
                 <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
               </>
-            )}
+              )}
             </div>
           <LayoutGroup id="admin-presence-filter">
             <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
@@ -722,6 +762,13 @@ function AdminDashboard({
                 })}
               </div>
             </LayoutGroup>
+            <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+              {(["flat", "manager", "department"] as DashGroupMode[]).map((g) => (
+                <button key={g} type="button" onClick={() => setDashGroupMode(g)} className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${dashGroupMode === g ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
+                  {g === "flat" ? "Flat" : g === "manager" ? "By Manager" : "By Dept"}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
           {presenceLoading && filteredPresence.length === 0 ? (
@@ -733,68 +780,96 @@ function AdminDashboard({
                     <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
                     <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
                     <Bone w="w-12" h="h-3.5" />
-                  </div>
+        </div>
                   <Bone w="w-24" h="h-2" />
                   <div className="mt-1.5 flex justify-between"><Bone w="w-10" h="h-2" /><Bone w="w-14" h="h-2" /></div>
                   <div className="mt-1"><Bone w="w-full" h="h-1.5" /></div>
-                </div>
-              </div>
+        </div>
+            </div>
             ))}
-          </div>
+            </div>
         ) : filteredPresence.length > 0 ? (
-          <motion.div className="grid pt-4 grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
-            <AnimatePresence mode="popLayout">
-              {filteredPresence.map((emp, idx) => {
-                const empTasks = tasksByEmployee.get(emp._id) ?? [];
-                const empCampaigns = campaignsByEmployee.get(emp._id) ?? [];
-                const pendingCount = empTasks.filter((t) => t.status === "pending").length;
-                const inProgressCount = empTasks.filter((t) => t.status === "inProgress").length;
-                const activeCampNames = empCampaigns.filter((c) => c.status === "active").map((c) => c.name);
-                return (
-                  <EmployeeCard
-                    key={emp._id}
-                    idx={idx}
-                    attendanceLoading={presenceLoading}
-                    onPing={handlePing}
-                    emp={{
-                      _id: emp._id,
-                      username: emp.username,
-                      firstName: emp.firstName,
-                      lastName: emp.lastName,
-                      email: emp.email,
-                      designation: emp.designation,
-                      department: emp.department,
-                      reportsTo: emp.reportsTo ?? undefined,
-                      isLive: emp.isLive,
-                      status: emp.status,
-                      locationFlagged: emp.locationFlagged,
-                      flagReason: emp.flagReason,
-                      flagCoords: emp.flagCoords,
-                      firstEntry: emp.firstEntry ?? undefined,
-                      lastOfficeExit: emp.lastOfficeExit ?? undefined,
-                      lastExit: emp.lastExit ?? undefined,
-                      todayMinutes: emp.todayMinutes,
-                      officeMinutes: emp.officeMinutes,
-                      remoteMinutes: emp.remoteMinutes,
-                      lateBy: emp.lateBy,
-                      breakMinutes: emp.breakMinutes,
-                      sessionCount: emp.sessionCount,
-                      shiftStart: emp.shiftStart,
-                      shiftEnd: emp.shiftEnd,
-                      shiftBreakTime: emp.shiftBreakTime,
-                      pendingTasks: pendingCount,
-                      inProgressTasks: inProgressCount,
-                      campaigns: activeCampNames,
-                    }}
-                  />
-                );
-              })}
-            </AnimatePresence>
-            </motion.div>
+          (() => {
+            function renderPresenceCard(emp: PresenceEmployee, idx: number) {
+              const empTasks = tasksByEmployee.get(emp._id) ?? [];
+              const empCampaigns = campaignsByEmployee.get(emp._id) ?? [];
+              const pendingCount = empTasks.filter((t) => t.status === "pending").length;
+              const inProgressCount = empTasks.filter((t) => t.status === "inProgress").length;
+              const activeCampNames = empCampaigns.filter((c) => c.status === "active").map((c) => c.name);
+              return (
+                <EmployeeCard
+                  key={emp._id}
+                  idx={idx}
+                  attendanceLoading={presenceLoading}
+                  onPing={handlePing}
+                  emp={{
+                    _id: emp._id,
+                    username: emp.username,
+                    firstName: emp.firstName,
+                    lastName: emp.lastName,
+                    email: emp.email,
+                    designation: emp.designation,
+                    department: emp.department,
+                    reportsTo: emp.reportsTo ?? undefined,
+                    isLive: emp.isLive,
+                    status: emp.status,
+                    locationFlagged: emp.locationFlagged,
+                    flagReason: emp.flagReason,
+                    flagCoords: emp.flagCoords,
+                    firstEntry: emp.firstEntry ?? undefined,
+                    lastOfficeExit: emp.lastOfficeExit ?? undefined,
+                    lastExit: emp.lastExit ?? undefined,
+                    todayMinutes: emp.todayMinutes,
+                    officeMinutes: emp.officeMinutes,
+                    remoteMinutes: emp.remoteMinutes,
+                    lateBy: emp.lateBy,
+                    breakMinutes: emp.breakMinutes,
+                    sessionCount: emp.sessionCount,
+                    shiftStart: emp.shiftStart,
+                    shiftEnd: emp.shiftEnd,
+                    shiftBreakTime: emp.shiftBreakTime,
+                    pendingTasks: pendingCount,
+                    inProgressTasks: inProgressCount,
+                    campaigns: activeCampNames,
+                  }}
+                />
+              );
+            }
+
+            if (presenceGrouped) {
+              return (
+                <div className="space-y-5 pt-2">
+                  {presenceGrouped.map((group) => (
+                    <motion.div key={group.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{group.label}</h3>
+                        <span className="text-caption font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+                          {group.employees.length}
+                        </span>
+                      </div>
+                      <motion.div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+                        <AnimatePresence mode="popLayout">
+                          {group.employees.map((emp, idx) => renderPresenceCard(emp, idx))}
+                        </AnimatePresence>
+                      </motion.div>
+                    </motion.div>
+                  ))}
+                </div>
+              );
+            }
+
+            return (
+              <motion.div className="grid pt-4 grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+                <AnimatePresence mode="popLayout">
+                  {filteredPresence.map((emp, idx) => renderPresenceCard(emp, idx))}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })()
         ) : (
           <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
           )}
-          </div>
+            </div>
         </motion.section>
       </div>
 
@@ -806,7 +881,7 @@ function AdminDashboard({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               Pinged {pingSuccess}
             </p>
-            </motion.div>
+              </motion.div>
           )}
       </AnimatePresence>
     </div>
@@ -1017,33 +1092,33 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           <h3 className="text-section-header mb-4">Monthly summary</h3>
           {ms ? (
             <>
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <div className="card-static rounded-xl p-4">
-                  <p className="text-caption">Present / Total</p>
-                  <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
-                </div>
-                <div className="card-static rounded-xl p-4">
-                  <p className="text-caption">On-time</p>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Present / Total</p>
+              <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">On-time</p>
                   <p className="text-title mt-1 text-[var(--primary)]"><AnimatedNumber value={ms.onTimePercentage} suffix="%" /></p>
-                </div>
-                <div className="card-static rounded-xl p-4">
-                  <p className="text-caption">Avg. daily hours</p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Avg. daily hours</p>
                   <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.averageDailyHours} suffix="h" /></p>
-                </div>
-                <div className="card-static rounded-xl p-4">
-                  <p className="text-caption">Total hours</p>
+            </div>
+            <div className="card-static rounded-xl p-4">
+              <p className="text-caption">Total hours</p>
                   <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.totalWorkingHours} suffix="h" /></p>
-                </div>
-              </div>
-              <div className="mt-6 space-y-2">
+            </div>
+          </div>
+            <div className="mt-6 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Office vs remote (hours)</span>
                   <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ms.totalOfficeHours.toFixed(0)}h · {ms.totalRemoteHours.toFixed(0)}h</span>
                 </div>
-                <div className="flex h-3 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                  <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${monthlyOfficePct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
-                  <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${monthlyRemotePct}%` }} transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} />
-                </div>
+              <div className="flex h-3 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${monthlyOfficePct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
+                <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${monthlyRemotePct}%` }} transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} />
+              </div>
                 <div className="flex justify-between text-caption" style={{ color: "var(--fg-tertiary)" }}>
                   <span>Office {monthlyOfficePct.toFixed(0)}%</span>
                   <span>Remote {monthlyRemotePct.toFixed(0)}%</span>
@@ -1106,6 +1181,7 @@ export default function DashboardHome({ user }: { user: User }) {
         email: p.email ?? "",
         designation: ROLE_DESIGNATION[p.userRole] ?? p.userRole,
         department: p.department,
+        departmentId: p.departmentId ?? null,
         reportsTo: p.reportsTo ?? null,
         reportsToId: p.reportsToId ?? null,
         status: p.status as PresenceStatus,
@@ -1307,6 +1383,7 @@ export default function DashboardHome({ user }: { user: User }) {
       email: e.email ?? "",
       designation: ROLE_DESIGNATION[e.userRole] ?? e.userRole,
       department: (e.department as { title?: string })?.title ?? "Unassigned",
+      departmentId: (e.department as { _id?: string })?._id ?? null,
       reportsTo: null,
       reportsToId: null,
       status: "absent" as PresenceStatus,

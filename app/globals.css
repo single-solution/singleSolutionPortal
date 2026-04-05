@@ -159,6 +159,21 @@ body {
   color: var(--fg-tertiary);
 }
 
+@media (max-width: 639px) {
+  .text-title   { font-size: 16px; }
+  .text-headline { font-size: 14px; }
+  .text-body    { font-size: 12px; }
+  .text-callout { font-size: 11px; }
+  .text-subhead { font-size: 10px; }
+  .text-footnote { font-size: 10px; }
+  .text-caption { font-size: 9px; }
+  .text-section-header { font-size: 10px; }
+  .input { font-size: 12px; padding: 7px 10px; }
+  .btn { font-size: 10px; padding: 5px 8px; min-height: 26px; }
+  .btn-sm { font-size: 10px; padding: 4px 10px; min-height: 28px; }
+  .badge { font-size: 9px; padding: 2px 8px; }
+}
+
 /* ============================================ */
 /* SOLID CARDS                                  */
 /* ============================================ */

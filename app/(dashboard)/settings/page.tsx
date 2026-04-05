@@ -241,7 +241,7 @@ export default function SettingsPage() {
         </div>
         <div>
           <h1 className="text-title">Account Settings</h1>
-          <p className="text-subhead hidden sm:block">Manage your profile, email, and password</p>
+          <p className="text-subhead">Manage your profile, email, and password</p>
         </div>
       </FadeUp>
 

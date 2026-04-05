@@ -146,7 +146,7 @@ export default function DepartmentsPage() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Departments</h1>
-          <p className="text-subhead hidden sm:block">
+          <p className="text-subhead">
             {deptsLoading && !departments ? (
               <span className="inline-block h-3 w-44 max-w-[55vw] rounded align-middle shimmer" aria-hidden />
             ) : (

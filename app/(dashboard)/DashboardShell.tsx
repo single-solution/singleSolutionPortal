@@ -20,7 +20,6 @@ const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
   { href: "/employees", label: "Employees", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", roles: ["superadmin", "manager", "teamLead"] },
   { href: "/departments", label: "Depts", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", roles: ["superadmin", "manager", "teamLead"] },
-  { href: "/teams", label: "Teams", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z", roles: ["superadmin", "manager", "teamLead"] },
   { href: "/campaigns", label: "Campaigns", icon: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" },
   { href: "/tasks", label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
   { href: "/attendance", label: "Attendance", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
@@ -78,7 +77,7 @@ function getEntityHref(entity: string, entityId?: string): string | null {
   switch (entity) {
     case "employee": return entityId ? `/employees/${entityId}/edit` : "/employees";
     case "department": return "/departments";
-    case "team": return "/teams";
+    case "team": return "/campaigns";
     case "campaign": return "/campaigns";
     case "task": return "/tasks";
     case "attendance": return "/attendance";
@@ -92,7 +91,7 @@ function getEntityPageHref(entity: string): string | null {
   switch (entity) {
     case "employee": return "/employees";
     case "department": return "/departments";
-    case "team": return "/teams";
+    case "team": return "/campaigns";
     case "campaign": return "/campaigns";
     case "task": return "/tasks";
     case "attendance": return "/attendance";
@@ -154,6 +153,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const lastSeenRef = useRef<string | null>(null);
   const [installDismissed, setInstallDismissed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const themeRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -357,7 +357,20 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             </span>
           </Link>
 
-          <nav className="flex items-center gap-1">
+          {/* Hamburger — mobile only */}
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors sm:hidden"
+            style={{ color: "var(--fg-secondary)" }}
+            aria-label="Menu"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <nav className="hidden items-center gap-1 sm:flex">
             {/* Theme toggle */}
             <div className="relative" ref={themeRef}>
               <button
@@ -712,6 +725,149 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </nav>
         </div>
       </header>
+
+      {/* ── Mobile drawer ── */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            className="fixed inset-0 z-[70] sm:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+            <motion.aside
+              className="absolute right-0 top-0 bottom-0 w-[min(80vw,300px)] flex flex-col overflow-y-auto"
+              style={{ background: "var(--bg-elevated)", borderLeft: "1px solid var(--border)" }}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 400, damping: 36 }}
+            >
+              {/* Close */}
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+                <span className="text-[13px] font-bold" style={{ color: "var(--primary)" }}>Menu</span>
+                <button type="button" onClick={() => setMobileMenuOpen(false)} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--fg-secondary)" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* Profile */}
+              <Link
+                href={`/employees/${user.username}`}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 transition-colors"
+                style={{ borderBottom: "1px solid var(--border)" }}
+              >
+                {user.profileImage ? (
+                  <img src={user.profileImage} alt="" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-red-400 text-xs font-semibold text-white">
+                    {user.firstName?.[0]}{user.lastName?.[0]}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-semibold truncate" style={{ color: "var(--fg)" }}>{user.firstName} {user.lastName}</p>
+                  <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{user.email}</p>
+                </div>
+              </Link>
+
+              {/* Theme */}
+              <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Theme</p>
+                <div className="flex gap-1.5">
+                  {THEME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => applyTheme(opt.value)}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors ${
+                        theme === opt.value
+                          ? "bg-[var(--primary)] text-white"
+                          : "text-[var(--fg-secondary)]"
+                      }`}
+                      style={theme !== opt.value ? { background: "var(--bg-grouped)" } : undefined}
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={opt.icon} />
+                      </svg>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Links */}
+              <div className="flex-1 py-2">
+                <button
+                  type="button"
+                  onClick={() => { setMobileMenuOpen(false); setPingsOpen(true); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
+                  style={{ color: "var(--fg-secondary)" }}
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                  </svg>
+                  Pings
+                  {pingUnread > 0 && (
+                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--primary)" }}>
+                      {pingUnread > 9 ? "9+" : pingUnread}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setMobileMenuOpen(false); setNotificationsOpen(true); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
+                  style={{ color: "var(--fg-secondary)" }}
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  Notifications
+                  {unseenCount > 0 && (
+                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                      {unseenCount > 9 ? "9+" : unseenCount}
+                    </span>
+                  )}
+                </button>
+
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
+                  style={{ color: pathname.startsWith("/settings") ? "var(--primary)" : "var(--fg-secondary)" }}
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  </svg>
+                  Settings
+                </Link>
+              </div>
+
+              {/* Sign out */}
+              <div className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMobileMenuOpen(false);
+                    if (user.role !== "superadmin") {
+                      try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+                    }
+                    signOut({ callbackUrl: "/login" });
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors"
+                  style={{ color: "var(--rose)", background: "color-mix(in srgb, var(--rose) 8%, transparent)" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+                  Sign out
+                </button>
+              </div>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Main content with page transition ── */}
       <main className="mx-auto max-w-[1600px] px-5 py-4 pb-40 sm:px-8 sm:py-5 sm:pb-40 lg:px-14">

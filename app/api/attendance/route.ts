@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
       role: emp.userRole,
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
+      departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
     }));
 
     return ok(team);

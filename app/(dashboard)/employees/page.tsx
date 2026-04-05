@@ -7,9 +7,10 @@ import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmployeeCard } from "../components/EmployeeCard";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
+import { ScopeStrip } from "../components/ScopeStrip";
 
 interface Employee {
   _id: string;
@@ -19,6 +20,7 @@ interface Employee {
   userRole: string;
   department?: { _id: string; title: string };
   teams?: { _id: string; name: string }[];
+  reportsTo?: { _id: string; about: { firstName: string; lastName: string }; email: string; userRole: string } | null;
   isActive: boolean;
   isVerified?: boolean;
   workShift?: {
@@ -55,6 +57,7 @@ const ROLE_FILTER_LABELS: Record<RoleFilter, string> = {
 };
 
 type SortMode = "recent" | "name";
+type GroupMode = "flat" | "manager" | "department";
 
 interface PresenceRow {
   _id: string;
@@ -94,7 +97,14 @@ function shiftSummaryLine(emp: Employee) {
 
 export default function EmployeesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
+  const scopeDept = searchParams.get("dept") ?? "all";
+  function setScopeDept(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id === "all") params.delete("dept"); else params.set("dept", id);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
   const role = session?.user?.role;
   const isSuperAdmin = role === "superadmin";
   const isManager = role === "manager";
@@ -111,6 +121,7 @@ export default function EmployeesPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
+  const [groupMode, setGroupMode] = useState<GroupMode>("flat");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
@@ -122,6 +133,7 @@ export default function EmployeesPage() {
 
   const filtered = useMemo(() => {
     let list = empList;
+    if (scopeDept !== "all") list = list.filter((e) => e.department?._id === scopeDept);
     if (roleFilter !== "all") list = list.filter((e) => e.userRole === roleFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -133,7 +145,35 @@ export default function EmployeesPage() {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [empList, roleFilter, search, sortMode]);
+  }, [empList, scopeDept, roleFilter, search, sortMode]);
+
+  const grouped = useMemo(() => {
+    if (groupMode === "flat") return null;
+    const map = new Map<string, { label: string; employees: typeof filtered }>();
+    for (const emp of filtered) {
+      let key: string;
+      let label: string;
+      if (groupMode === "manager") {
+        if (emp.reportsTo) {
+          key = emp.reportsTo._id;
+          label = `${emp.reportsTo.about.firstName} ${emp.reportsTo.about.lastName}`;
+        } else {
+          key = "__none__";
+          label = "No Manager Assigned";
+        }
+      } else {
+        key = emp.department?._id ?? "__none__";
+        label = emp.department?.title ?? "No Department";
+      }
+      if (!map.has(key)) map.set(key, { label, employees: [] });
+      map.get(key)!.employees.push(emp);
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.label === "No Manager Assigned" || a.label === "No Department") return 1;
+      if (b.label === "No Manager Assigned" || b.label === "No Department") return -1;
+      return a.label.localeCompare(b.label);
+    });
+  }, [filtered, groupMode]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -224,7 +264,7 @@ export default function EmployeesPage() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Employees</h1>
-          <p className="text-subhead hidden sm:block">
+          <p className="text-subhead">
             {employeesLoading && !employees ? (
               <span className="inline-block h-3 w-36 max-w-[50vw] rounded align-middle shimmer" aria-hidden />
             ) : (
@@ -234,25 +274,50 @@ export default function EmployeesPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {(["recent", "name"] as SortMode[]).map((s) => (
-            <motion.button
-              key={s}
-              type="button"
-              onClick={() => setSortMode(s)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                sortMode === s
-                  ? "bg-[var(--primary)] text-white shadow-sm"
-                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-              }`}
-            >
-              {s === "recent" ? "Latest" : "A – Z"}
-            </motion.button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+            {(["flat", "manager", "department"] as GroupMode[]).map((g) => (
+              <motion.button
+                key={g}
+                type="button"
+                onClick={() => setGroupMode(g)}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                  groupMode === g
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                }`}
+              >
+                {g === "flat" ? "Flat" : g === "manager" ? "By Manager" : "By Dept"}
+              </motion.button>
+            ))}
+          </div>
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+            {(["recent", "name"] as SortMode[]).map((s) => (
+              <motion.button
+                key={s}
+                type="button"
+                onClick={() => setSortMode(s)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                  sortMode === s
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                }`}
+              >
+                {s === "recent" ? "Latest" : "A – Z"}
+              </motion.button>
+            ))}
+          </div>
         </div>
+      </div>
+
+      {/* Scope strip */}
+      <div className="mb-3">
+        <ScopeStrip value={scopeDept} onChange={setScopeDept} />
       </div>
 
       {/* Search + Add row */}
@@ -357,154 +422,147 @@ export default function EmployeesPage() {
       </div>
 
       {/* Employee Card Grid */}
-      <motion.div
-        className="grid gap-2 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-        variants={staggerContainerFast}
-        initial="hidden"
-        animate="visible"
-      >
-        <AnimatePresence mode="popLayout">
-          {employeesLoading && !employees ? (
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
-                <div className="card flex h-full flex-col overflow-hidden">
-                  <div className="flex-1 p-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
-                      <div className="min-w-0 flex-1"><div className="shimmer h-3.5 w-20 rounded" /></div>
-                      <div className="shimmer h-4 w-14 shrink-0 rounded-full" />
+      {(() => {
+        function renderCard(emp: Employee, i: number) {
+          const p = presenceById.get(emp._id);
+          const isSelected = selected.has(emp._id);
+          return (
+            <motion.div key={emp._id} variants={cardVariants} custom={i} layout whileHover={cardHover} className="h-full" exit={{ opacity: 0, scale: 0.95 }}>
+              <div className="card group relative flex h-full flex-col overflow-visible">
+                <EmployeeCard
+                  embedded
+                  idx={i}
+                  selectable={isSuperAdmin}
+                  selected={isSelected}
+                  onSelect={() => toggleSelect(emp._id)}
+                  showRoleDepartmentTeams
+                  showActions={canManage || isSuperAdmin}
+                  onEdit={canManage ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
+                  onDelete={isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
+                  emp={{
+                    _id: emp._id,
+                    username: emp.username,
+                    firstName: emp.about.firstName,
+                    lastName: emp.about.lastName,
+                    email: emp.email,
+                    designation: DESIGNATION_LABELS[emp.userRole] ?? emp.userRole,
+                    department: emp.department?.title,
+                    profileImage: emp.about.profileImage,
+                    userRole: emp.userRole,
+                    teams: emp.teams,
+                    isVerified: emp.isVerified,
+                    isLive: p?.isLive,
+                    status: p?.status,
+                    locationFlagged: p?.locationFlagged,
+                    firstEntry: p?.firstEntry ?? undefined,
+                    lastOfficeExit: p?.lastOfficeExit ?? undefined,
+                    lastExit: p?.lastExit ?? undefined,
+                    todayMinutes: p?.todayMinutes,
+                    officeMinutes: p?.officeMinutes,
+                    remoteMinutes: p?.remoteMinutes,
+                    lateBy: p?.lateBy,
+                    shiftStart: p?.shiftStart ?? emp.workShift?.shift.start,
+                    shiftEnd: p?.shiftEnd ?? emp.workShift?.shift.end,
+                    shiftBreakTime: p?.shiftBreakTime ?? emp.workShift?.breakTime,
+                    phone: emp.about.phone,
+                    shiftSummary: shiftSummaryLine(emp),
+                  }}
+                  footerSlot={
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
+                      <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                        Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                      </span>
+                      {isSuperAdmin && emp.isVerified === false && (
+                        <>
+                          <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} disabled={resendingId === emp._id} onClick={() => resendInvite(emp)} className="flex h-7 items-center gap-1 px-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50" style={{ color: "var(--teal)", background: "color-mix(in srgb, var(--teal) 10%, transparent)" }} title="Send invite email">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                            {resendingId === emp._id ? "Sending…" : "Invite"}
+                          </motion.button>
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={copyingId === emp._id} onClick={() => copyInviteLink(emp)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-50" style={{ color: "var(--fg-secondary)" }} title="Copy invite link">
+                            {copyingId === emp._id ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                            )}
+                          </motion.button>
+                        </>
+                      )}
                     </div>
-                    <div className="shimmer mt-1 h-2.5 w-28 rounded" />
-                    <div className="mt-1.5 space-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <div className="shimmer h-2.5 w-8 rounded" />
-                        <div className="shimmer h-2.5 w-20 rounded" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="shimmer h-2.5 w-16 rounded" />
-                        <div className="shimmer h-2.5 w-16 rounded" />
-                      </div>
-                    </div>
+                  }
+                />
+              </div>
+            </motion.div>
+          );
+        }
+
+        const skeletons = (
+          [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
+              <div className="card flex h-full flex-col overflow-hidden">
+                <div className="flex-1 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1"><div className="shimmer h-3.5 w-20 rounded" /></div>
+                    <div className="shimmer h-4 w-14 shrink-0 rounded-full" />
                   </div>
-                  <div className="flex items-center justify-between border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
-                    <div className="flex items-center gap-2">
-                      <div className="shimmer h-5 w-10 rounded-full" />
-                      <div className="shimmer h-2.5 w-20 rounded" />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="shimmer h-6 w-6 rounded-lg" />
-                      <div className="shimmer h-6 w-6 rounded-lg" />
-                    </div>
+                  <div className="shimmer mt-1 h-2.5 w-28 rounded" />
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex items-center justify-between"><div className="shimmer h-2.5 w-8 rounded" /><div className="shimmer h-2.5 w-20 rounded" /></div>
+                    <div className="flex items-center justify-between"><div className="shimmer h-2.5 w-16 rounded" /><div className="shimmer h-2.5 w-16 rounded" /></div>
                   </div>
                 </div>
-              </motion.div>
-            ))
-          ) : filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full card p-12 text-center">
+                <div className="flex items-center justify-between border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
+                  <div className="flex items-center gap-2"><div className="shimmer h-5 w-10 rounded-full" /><div className="shimmer h-2.5 w-20 rounded" /></div>
+                  <div className="flex items-center gap-1"><div className="shimmer h-6 w-6 rounded-lg" /><div className="shimmer h-6 w-6 rounded-lg" /></div>
+                </div>
+              </div>
+            </motion.div>
+          ))
+        );
+
+        if (employeesLoading && !employees) {
+          return <motion.div className="grid gap-3 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">{skeletons}</motion.div>;
+        }
+
+        if (filtered.length === 0) {
+          return (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center mt-4">
               <p style={{ color: "var(--fg-secondary)" }}>No employees found.</p>
             </motion.div>
-          ) : (
-            filtered.map((emp, i) => {
-              const p = presenceById.get(emp._id);
-              const isSelected = selected.has(emp._id);
-              return (
-                <motion.div
-                  key={emp._id}
-                  variants={cardVariants}
-                  custom={i}
-                  layout
-                  whileHover={cardHover}
-                  className="h-full"
-                  exit={{ opacity: 0, scale: 0.95 }}
-                >
-                  <div className="card group relative flex h-full flex-col overflow-visible">
-                  <EmployeeCard
-                    embedded
-                    idx={i}
-                    selectable={isSuperAdmin}
-                    selected={isSelected}
-                    onSelect={() => toggleSelect(emp._id)}
-                    showRoleDepartmentTeams
-                    showActions={canManage || isSuperAdmin}
-                    onEdit={canManage ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
-                    onDelete={isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
-                    emp={{
-                      _id: emp._id,
-                      username: emp.username,
-                      firstName: emp.about.firstName,
-                      lastName: emp.about.lastName,
-                      email: emp.email,
-                      designation: DESIGNATION_LABELS[emp.userRole] ?? emp.userRole,
-                      department: emp.department?.title,
-                      profileImage: emp.about.profileImage,
-                      userRole: emp.userRole,
-                      teams: emp.teams,
-                      isVerified: emp.isVerified,
-                      isLive: p?.isLive,
-                      status: p?.status,
-                      locationFlagged: p?.locationFlagged,
-                      firstEntry: p?.firstEntry ?? undefined,
-                      lastOfficeExit: p?.lastOfficeExit ?? undefined,
-                      lastExit: p?.lastExit ?? undefined,
-                      todayMinutes: p?.todayMinutes,
-                      officeMinutes: p?.officeMinutes,
-                      remoteMinutes: p?.remoteMinutes,
-                      lateBy: p?.lateBy,
-                      shiftStart: p?.shiftStart ?? emp.workShift?.shift.start,
-                      shiftEnd: p?.shiftEnd ?? emp.workShift?.shift.end,
-                      shiftBreakTime: p?.shiftBreakTime ?? emp.workShift?.breakTime,
-                      phone: emp.about.phone,
-                      shiftSummary: shiftSummaryLine(emp),
-                    }}
-                    footerSlot={
-                      <div className="flex flex-wrap items-center gap-2">
-                        {isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
-                        <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                          Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                        </span>
-                        {isSuperAdmin && emp.isVerified === false && (
-                          <>
-                            <motion.button
-                              type="button"
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.92 }}
-                              disabled={resendingId === emp._id}
-                              onClick={() => resendInvite(emp)}
-                              className="flex h-7 items-center gap-1 px-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50"
-                              style={{ color: "var(--teal)", background: "color-mix(in srgb, var(--teal) 10%, transparent)" }}
-                              title="Send invite email"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-                              {resendingId === emp._id ? "Sending…" : "Invite"}
-                            </motion.button>
-                            <motion.button
-                              type="button"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              disabled={copyingId === emp._id}
-                              onClick={() => copyInviteLink(emp)}
-                              className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
-                              style={{ color: "var(--fg-secondary)" }}
-                              title="Copy invite link"
-                            >
-                              {copyingId === emp._id ? (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                              ) : (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
-                              )}
-                            </motion.button>
-                          </>
-                        )}
-                      </div>
-                    }
-                  />
+          );
+        }
+
+        if (grouped) {
+          return (
+            <div className="space-y-5 pt-4">
+              {grouped.map((group) => (
+                <motion.div key={group.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{group.label}</h3>
+                    <span className="text-caption font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+                      {group.employees.length}
+                    </span>
                   </div>
+                  <motion.div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+                    <AnimatePresence mode="popLayout">
+                      {group.employees.map((emp, i) => renderCard(emp, i))}
+                    </AnimatePresence>
+                  </motion.div>
                 </motion.div>
-              );
-            })
-          )}
-        </AnimatePresence>
-      </motion.div>
+              ))}
+            </div>
+          );
+        }
+
+        return (
+          <motion.div className="grid gap-3 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+            <AnimatePresence mode="popLayout">
+              {filtered.map((emp, i) => renderCard(emp, i))}
+            </AnimatePresence>
+          </motion.div>
+        );
+      })()}
 
       {/* Delete Confirmation */}
       <ConfirmDialog

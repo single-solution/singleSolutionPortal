@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
+import { ScopeStrip } from "../components/ScopeStrip";
 
 /* ───── Types ───── */
 
@@ -67,6 +68,7 @@ interface TeamMember {
   name: string;
   role: string;
   department: string;
+  departmentId?: string | null;
 }
 
 /* ───── Constants ───── */
@@ -213,6 +215,11 @@ export default function AttendancePage() {
   const selectedDate = selectedDay ? new Date(year, month - 1, selectedDay) : null;
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
 
+  const [scopeDept, setScopeDept] = useState("all");
+  const filteredTeamMembers = useMemo(
+    () => scopeDept === "all" ? teamMembers : teamMembers.filter((m) => m.departmentId === scopeDept),
+    [teamMembers, scopeDept],
+  );
   const viewingMember = teamMembers.find((m) => m._id === viewingUserId);
 
   return (
@@ -221,12 +228,12 @@ export default function AttendancePage() {
       <motion.div className="flex items-start justify-between gap-3" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div>
           <h1 className="text-title">Attendance</h1>
-          <p className="text-subhead hidden sm:block">
+          <p className="text-subhead">
             {viewingMember ? `${viewingMember.name} · ` : ""}{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present
           </p>
         </div>
         {/* Team member selector */}
-        {isAdmin && teamMembers.length > 0 && (
+        {isAdmin && filteredTeamMembers.length > 0 && (
           <select
             value={viewingUserId}
             onChange={(e) => setViewingUserId(e.target.value)}
@@ -234,12 +241,15 @@ export default function AttendancePage() {
             style={{ maxWidth: 220, paddingLeft: 12, paddingRight: 12 }}
           >
             <option value="">My Attendance</option>
-            {teamMembers.map((m) => (
+            {filteredTeamMembers.map((m) => (
               <option key={m._id} value={m._id}>{m.name} — {m.department}</option>
             ))}
           </select>
         )}
       </motion.div>
+
+      {/* Scope strip */}
+      {isAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
 
       {/* Today's Session — only for self */}
       {isViewingSelf && (

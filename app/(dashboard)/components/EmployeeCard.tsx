@@ -152,7 +152,7 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
 
   return (
     <span
-      className="inline-flex max-w-[min(100%,9rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums backdrop-blur-sm"
+      className="inline-flex max-w-[min(100%,12rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums backdrop-blur-sm"
       style={{
         background: s.bg,
         color: s.color,
@@ -299,7 +299,7 @@ export function EmployeeCard({
         <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
       </div>
 
-      <div className={`relative z-10 flex flex-1 flex-col gap-2.5 ${embedded ? "p-2.5" : "p-3"} pointer-events-none`}>
+      <div className={`relative z-10 flex flex-1 flex-col gap-2.5 ${embedded ? "p-3" : "p-3.5"} pointer-events-none`}>
         {selectable && (
           <input
             type="checkbox"

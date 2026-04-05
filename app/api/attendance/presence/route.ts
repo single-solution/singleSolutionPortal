@@ -130,6 +130,7 @@ export async function GET() {
       email: e.email ?? "",
       userRole: emp.userRole,
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
+      departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
       reportsTo: rt,
       reportsToId: rtId,
       status,
