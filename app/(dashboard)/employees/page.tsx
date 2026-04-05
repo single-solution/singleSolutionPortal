@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cardVariants, cardHover } from "@/lib/motion";
+import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -94,7 +94,7 @@ function shiftSummaryLine(emp: Employee) {
 
 export default function EmployeesPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const role = session?.user?.role;
   const isSuperAdmin = role === "superadmin";
   const isManager = role === "manager";
@@ -220,11 +220,19 @@ export default function EmployeesPage() {
 
   return (
     <div className="flex flex-col gap-0">
-      {/* Header: title left, sort right — static shell (no route-level fade) to avoid flicker with data loading */}
+      {/* Header: title left, sort right — no route-level loading.tsx + no entrance fade: avoids double skeleton / flicker on client nav */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Employees</h1>
-          <p className="text-subhead hidden sm:block">{empList.length} team member{empList.length !== 1 ? "s" : ""}</p>
+          <p className="text-subhead hidden sm:block">
+            {employeesLoading && !employees ? (
+              <span className="inline-block h-3 w-36 max-w-[50vw] rounded align-middle shimmer" aria-hidden />
+            ) : (
+              <>
+                {empList.length} team member{empList.length !== 1 ? "s" : ""}
+              </>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["recent", "name"] as SortMode[]).map((s) => (
@@ -260,7 +268,7 @@ export default function EmployeesPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
-        {isSuperAdmin && (
+        {sessionStatus !== "loading" && isSuperAdmin && (
         <motion.button
           type="button"
             onClick={() => router.push("/employees/new")}
@@ -336,7 +344,9 @@ export default function EmployeesPage() {
       {/* Count + Select all */}
       <div className="mb-3 flex items-center justify-between">
         <p className="text-footnote" style={{ color: "var(--fg-secondary)" }}>
-          <span key={filtered.length}>{filtered.length}</span>
+          <motion.span key={filtered.length} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+            {filtered.length}
+          </motion.span>
           {" "}employee{filtered.length !== 1 ? "s" : ""}
         </p>
         {isSuperAdmin && (
@@ -346,12 +356,17 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* Employee Card Grid — skeleton rows are static divs (no stagger fade) to avoid layered loading flicker */}
-      <div className="grid grid-cols-2 gap-2 pt-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {/* Employee Card Grid */}
+      <motion.div
+        className="grid gap-2 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        variants={staggerContainerFast}
+        initial="hidden"
+        animate="visible"
+      >
         <AnimatePresence mode="popLayout">
           {employeesLoading && !employees ? (
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-              <div key={`skel-${i}`} className="h-full">
+              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
                 <div className="card flex h-full flex-col overflow-hidden">
                   <div className="flex-1 p-2.5">
                     <div className="flex items-center gap-2">
@@ -382,7 +397,7 @@ export default function EmployeesPage() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))
           ) : filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full card p-12 text-center">
@@ -397,8 +412,6 @@ export default function EmployeesPage() {
                   key={emp._id}
                   variants={cardVariants}
                   custom={i}
-                  initial="hidden"
-                  animate="visible"
                   layout
                   whileHover={cardHover}
                   className="h-full"
@@ -491,7 +504,7 @@ export default function EmployeesPage() {
             })
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Delete Confirmation */}
       <ConfirmDialog
