@@ -295,11 +295,11 @@ export function EmployeeCard({
         aria-label={`View ${emp.firstName} ${emp.lastName}`}
       />
 
-      <div className="pointer-events-none absolute right-0 z-50 max-w-[55%] text-right" style={{ top: -13 }}>
+      <div className="pointer-events-none absolute right-0 z-50 max-w-[55%] text-right hidden sm:block" style={{ top: -13 }}>
         <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
       </div>
 
-      <div className={`relative z-10 flex flex-1 flex-col gap-2.5 ${embedded ? "p-3" : "p-3.5"} pointer-events-none`}>
+      <div className={`relative z-10 flex flex-1 flex-col gap-2 sm:gap-2.5 ${embedded ? "p-2 sm:p-3" : "p-2.5 sm:p-3.5"} pointer-events-none`}>
         {selectable && (
           <input
             type="checkbox"
@@ -311,21 +311,22 @@ export function EmployeeCard({
           />
         )}
 
-        <div className="flex items-start gap-3 pr-1 pt-0.5">
+        <div className="flex items-start gap-2 sm:gap-3 pr-1 pt-0.5">
           {emp.profileImage ? (
-            <img src={emp.profileImage} alt="" className="pointer-events-none h-11 w-11 shrink-0 rounded-full object-cover shadow-sm" />
+            <img src={emp.profileImage} alt="" className="pointer-events-none h-7 w-7 sm:h-11 sm:w-11 shrink-0 rounded-full object-cover shadow-sm" />
           ) : (
             <div
-              className={`pointer-events-none flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${AVATAR_GRADIENTS[avatarGradIdx]}`}
+              className={`pointer-events-none flex h-7 w-7 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[10px] sm:text-sm font-semibold text-white ${AVATAR_GRADIENTS[avatarGradIdx]}`}
             >
               {initials(emp.firstName, emp.lastName)}
             </div>
           )}
-          <div className="min-w-0 flex-1 pr-16">
-            <div className="flex min-w-0 items-center gap-1">
-              <p className="text-callout truncate font-semibold" style={{ color: "var(--fg)" }}>
+          <div className="min-w-0 flex-1 pr-0 sm:pr-16">
+            <div className="flex min-w-0 items-center gap-1 flex-wrap">
+              <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
                 {emp.firstName} {emp.lastName}
               </p>
+              <span className="sm:hidden"><StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} /></span>
               {onPing && (
                 <motion.button
                   type="button"
@@ -356,12 +357,12 @@ export function EmployeeCard({
               )}
             </div>
             {subtitle && (
-              <p className="text-caption truncate" style={{ color: "var(--fg-secondary)" }}>
+              <p className="text-caption" style={{ color: "var(--fg-secondary)" }}>
                 {subtitle}
               </p>
             )}
             {emp.reportsTo && (
-              <p className="text-caption mt-0.5 truncate" style={{ color: "var(--fg-tertiary)" }}>
+              <p className="text-caption mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                 Reports to <span className="font-medium" style={{ color: "var(--fg-secondary)" }}>{emp.reportsTo}</span>
               </p>
             )}
