@@ -163,19 +163,46 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const [pingUnread, setPingUnread] = useState(0);
   const [pingsLoaded, setPingsLoaded] = useState(false);
   const pingRef = useRef<HTMLDivElement>(null);
+  const prevPingIdsRef = useRef<Set<string>>(new Set());
 
   const fetchPings = useCallback(async () => {
     try {
       const res = await fetch("/api/ping");
       if (!res.ok) return;
       const data = await res.json();
-      setPings(data.pings ?? []);
-      setPingUnread(data.unreadCount ?? 0);
+      const fetched: typeof pings = data.pings ?? [];
+      const newUnread = data.unreadCount ?? 0;
+
+      if (pingsLoaded && newUnread > pingUnread) {
+        const prevIds = prevPingIdsRef.current;
+        const fresh = fetched.filter((p) => !p.read && !prevIds.has(p._id));
+        for (const p of fresh) {
+          const name = `${p.from.about.firstName} ${p.from.about.lastName}`.trim();
+          const body = p.message || `${name} pinged you`;
+          if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+            new Notification("Ping", { body, icon: "/icon-192x192.png", tag: `ping-${p._id}` });
+          }
+        }
+      }
+
+      prevPingIdsRef.current = new Set(fetched.map((p) => p._id));
+      setPings(fetched);
+      setPingUnread(newUnread);
     } catch { /* silent */ }
     setPingsLoaded(true);
-  }, []);
+  }, [pingsLoaded, pingUnread]);
 
-  useEffect(() => { fetchPings(); }, [fetchPings]);
+  useEffect(() => { fetchPings(); }, []);
+  useEffect(() => {
+    const id = setInterval(fetchPings, 30_000);
+    return () => clearInterval(id);
+  }, [fetchPings]);
+
+  useEffect(() => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -421,7 +448,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 aria-label="Pings"
               >
                 <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 18.364a9 9 0 010-12.728" /><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" /><path strokeLinecap="round" strokeLinejoin="round" d="M8.464 15.536a5 5 0 010-7.072" /><path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" /><circle cx="12" cy="12" r="1.5" fill="currentColor" />
                 </svg>
                 {pingUnread > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white notif-badge-pulse" style={{ background: "var(--primary)" }}>
@@ -472,7 +499,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                           <div key={ping._id} className="px-3 py-2.5 transition-colors" style={{ opacity: ping.read ? 0.5 : 1, background: "transparent" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--hover-bg)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
                             <div className="flex items-start gap-2.5">
                               <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><circle cx="12" cy="12" r="1" /></svg>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium leading-snug" style={{ color: "var(--fg)" }}>
@@ -806,7 +833,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                   style={{ color: "var(--fg-secondary)" }}
                 >
                   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 18.364a9 9 0 010-12.728" /><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" /><circle cx="12" cy="12" r="1.5" fill="currentColor" />
                   </svg>
                   Pings
                   {pingUnread > 0 && (

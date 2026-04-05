@@ -142,8 +142,8 @@ export default function AttendancePage() {
     active: false, inOffice: false, startTime: null, todayMinutes: 0,
   });
 
-  const showOverview = isAdmin && !viewingUserId;
   const userIdParam = viewingUserId || "";
+  const hasSelectedEmployee = !!viewingUserId;
 
   /* ── Data loaders ── */
 
@@ -267,19 +267,27 @@ export default function AttendancePage() {
   const selectedDate = selectedDay ? new Date(year, month - 1, selectedDay) : null;
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
 
-  /* ────────────────── TEAM OVERVIEW (default for admin) ────────────────── */
+  /* ────────────────── UNIFIED VIEW ────────────────── */
 
-  if (showOverview) {
-    return (
-      <div className="flex flex-col gap-4">
-        {/* Header row: title left, scope + group + month nav right */}
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-title">Team Attendance</h1>
-            <p className="text-subhead">{MONTH_NAMES[month - 1]} {year} · {filteredSummary.length} employee{filteredSummary.length !== 1 ? "s" : ""}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            <ScopeStrip value={scopeDept} onChange={setScopeDept} />
+  function toggleEmployee(id: string) {
+    setViewingUserId((prev) => prev === id ? "" : id);
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-title">{isAdmin ? "Team Attendance" : "Attendance"}</h1>
+          <p className="text-subhead">
+            {hasSelectedEmployee && viewingMember ? `${viewingMember.name} · ` : ""}
+            {MONTH_NAMES[month - 1]} {year}
+            {hasSelectedEmployee ? ` · ${presentDays} day${presentDays !== 1 ? "s" : ""} present` : ` · ${filteredSummary.length} employee${filteredSummary.length !== 1 ? "s" : ""}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {isAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
+          {isAdmin && (
             <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
               {(["flat", "manager", "department"] as GroupMode[]).map((g) => (
                 <motion.button
@@ -298,45 +306,56 @@ export default function AttendancePage() {
                 </motion.button>
               ))}
             </div>
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-              </button>
-              <span className="text-caption font-semibold whitespace-nowrap" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1].slice(0, 3)} {year}</span>
-              <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-              </button>
-            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <span className="text-caption font-semibold whitespace-nowrap" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1].slice(0, 3)} {year}</span>
+            <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Employee pills grouped */}
-        {teamLoading ? (
-          <div className="space-y-4">
-            {[1, 2].map((i) => (
-              <div key={i} className="card-static p-4 space-y-3">
-                <div className="shimmer h-4 w-32 rounded" />
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5].map((j) => <div key={j} className="shimmer h-9 w-32 rounded-full" />)}
-                </div>
-              </div>
-            ))}
+      {/* Employee pills (always visible for admins) */}
+      {isAdmin && (
+        teamLoading ? (
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5, 6].map((j) => <div key={j} className="shimmer h-9 w-32 rounded-full" />)}
           </div>
         ) : filteredSummary.length === 0 ? (
-          <div className="card p-12 text-center">
+          <div className="card p-8 text-center">
             <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
           </div>
         ) : (
-          <motion.div className="space-y-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}>
+          <div className="space-y-3">
             {grouped.map((group) => (
-              <motion.div key={group.key} className={groupMode !== "flat" ? "card-static p-4" : ""} variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}>
+              <div key={group.key}>
                 {groupMode !== "flat" && (
-                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                     {group.label} <span style={{ color: "var(--fg-quaternary)" }}>· {group.items.length}</span>
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
+                  {!isSuperAdmin && groupMode === "flat" && (
+                    <motion.button
+                      type="button"
+                      onClick={() => toggleEmployee(authSession?.user?.id ?? "")}
+                      className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
+                      style={{
+                        borderColor: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--border)",
+                        background: viewingUserId === authSession?.user?.id ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
+                      <p className="text-xs font-semibold leading-tight" style={{ color: "var(--fg)" }}>My Attendance</p>
+                    </motion.button>
+                  )}
                   {group.items.map((emp) => {
+                    const isSelected = viewingUserId === emp._id;
                     const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
                     const statusDot = emp.presentDays > 0
                       ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
@@ -345,15 +364,18 @@ export default function AttendancePage() {
                       <motion.button
                         key={emp._id}
                         type="button"
-                        onClick={() => setViewingUserId(emp._id)}
-                        className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all hover:shadow-sm"
-                        style={{ borderColor: "var(--border)", background: "var(--bg)" }}
-                        whileHover={{ y: -1, borderColor: "var(--primary)" }}
+                        onClick={() => toggleEmployee(emp._id)}
+                        className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
+                        style={{
+                          borderColor: isSelected ? "var(--primary)" : "var(--border)",
+                          background: isSelected ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                        }}
+                        whileHover={!isSelected ? { y: -1 } : undefined}
                         whileTap={{ scale: 0.97 }}
                       >
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusDot }} />
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold leading-tight" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                          <p className="text-xs font-semibold leading-tight" style={{ color: isSelected ? "var(--primary)" : "var(--fg)" }}>{emp.name}</p>
                           <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
                             {emp.presentDays}d · {fmtHours(emp.totalMinutes)} · <span style={{ color: attendColor }}>{Math.round(emp.attendancePercentage)}%</span>
                           </p>
@@ -362,44 +384,15 @@ export default function AttendancePage() {
                     );
                   })}
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
-        )}
+          </div>
+        )
+      )}
 
-        {/* Self-attendance link for non-superadmin */}
-        {!isSuperAdmin && (
-          <button
-            type="button"
-            onClick={() => setViewingUserId(authSession?.user?.id ?? "")}
-            className="btn btn-sm self-start"
-          >
-            View My Attendance
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  /* ────────────────── INDIVIDUAL CALENDAR+TIMELINE (drill-down) ────────────────── */
-
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Header */}
-      <motion.div className="flex items-start justify-between gap-3" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        <div>
-          {isAdmin && (
-            <button type="button" onClick={() => { setViewingUserId(""); setRecords([]); setMonthlyStats(null); }} className="mb-1 flex items-center gap-1.5 text-caption font-medium transition-colors hover:text-[var(--primary)]" style={{ color: "var(--fg-tertiary)" }}>
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-              Back to team
-            </button>
-          )}
-          <h1 className="text-title">Attendance</h1>
-          <p className="text-subhead">
-            {viewingMember ? `${viewingMember.name} · ` : ""}{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present
-          </p>
-        </div>
-      </motion.div>
+      {/* Calendar + detail — shown when an employee is selected (or always for non-admin) */}
+      {(hasSelectedEmployee || !isAdmin) && (
+        <motion.div className="flex flex-col gap-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
 
       {/* Today's Session — only for self, never for superadmin */}
       {isViewingSelf && !isSuperAdmin && (
@@ -754,6 +747,8 @@ export default function AttendancePage() {
           </div>
         </motion.div>
       ) : null}
+        </motion.div>
+      )}
     </div>
   );
 }

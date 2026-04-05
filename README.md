@@ -272,8 +272,9 @@ Real-time peer-to-peer pinging within your reporting chain. Everyone can ping pe
 - `POST /api/ping` — send a ping (pool validation enforced server-side)
 - `GET /api/ping` — inbox with unread count
 - `PATCH /api/ping` — mark pings as read (individual or all)
-- Real-time delivery via Socket.IO `ping` event (when enabled) or manual refresh
-- Ping icon in header with unread badge and dropdown inbox
+- Real-time delivery via Socket.IO `ping` event (when enabled), or 30-second polling fallback
+- Browser notifications (Notification API) triggered on new pings — permission requested on first visit
+- Ping icon (signal wave) in header with unread badge and dropdown inbox
 - Each employee card on the dashboard shows who they report to and a quick-ping button
 - Non-admin roles see a rich "Reports to" card with manager's live status, arrival time, location (office/remote), hours worked, shift end, and a one-tap ping button
 - `GET /api/attendance/presence/manager` — dedicated lightweight endpoint returning the logged-in user's manager/lead live presence (status, isLive, arrival, exit, office/remote split, shift times). Fetched on mount
@@ -334,13 +335,13 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 
 ### Attendance Page
 
-**Admin default — Team Overview:**
-- Grouped employee pills (Flat / By Manager / By Department toggles) showing each employee's monthly status: present days, total hours, attendance %
-- ScopeStrip + group toggles inline in the header row (no extra row)
-- Click any employee pill → drill into their individual calendar + session timeline
-- "Back to team" breadcrumb to return from individual view
+**Admin view — Unified pills + inline detail:**
+- Grouped employee pills (Flat / By Manager / By Department toggles) always visible, showing each employee's monthly status: present days, total hours, attendance %
+- ScopeStrip + group toggles + month nav inline in the header row (no extra row)
+- Select any pill to expand that employee's calendar + timeline inline below; click again to collapse — no drill-down, no back button
+- Selected pill highlights with primary color border
 
-**Individual Calendar (drill-down or default for Employee):**
+**Individual Calendar (selected employee or default for non-admin):**
 - Interactive calendar with clickable dates and color-coded indicators (On Time / Late / Absent)
 - Day detail panel: status pills, summary, stat chips (total/office/remote hours), animated work split bar
 - Session timeline: time range, duration, Office/Remote pills, device detection, First In/Last Out badges, heartbeat, IP, office segments
