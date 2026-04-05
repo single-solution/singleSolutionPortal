@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { ScopeStrip } from "../components/ScopeStrip";
@@ -144,7 +144,7 @@ export default function AttendancePage() {
 
   /* ── Team overview state ── */
   const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
-  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamLoading, setTeamLoading] = useState(true);
   const [scopeDept, setScopeDept] = useState("all");
   const [groupMode, setGroupMode] = useState<GroupMode>("flat");
 
@@ -154,7 +154,7 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
   const [detailData, setDetailData] = useState<DetailData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
@@ -173,7 +173,7 @@ export default function AttendancePage() {
   /* ── Data loaders ── */
 
   const loadTeamSummary = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isAdmin) { setTeamLoading(false); return; }
     setTeamLoading(true);
     try {
       const res = await fetch(`/api/attendance?type=team-monthly&year=${year}&month=${month}`).then((r) => r.json());
@@ -242,7 +242,9 @@ export default function AttendancePage() {
   useEffect(() => { loadRecords(); loadMonthlyStats(); }, [loadRecords, loadMonthlyStats]);
   useEffect(() => { loadTodaySession(); }, [loadTodaySession]);
 
+  const mountRef = useRef(true);
   useEffect(() => {
+    if (mountRef.current) { mountRef.current = false; return; }
     setSelectedDay(null);
     setDetailData(null);
     setTeamDateData([]);
@@ -371,15 +373,6 @@ export default function AttendancePage() {
               ))}
             </div>
           )}
-          <div className="flex items-center gap-1">
-            <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <span className="text-caption font-semibold whitespace-nowrap" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1].slice(0, 3)} {year}</span>
-            <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -492,23 +485,32 @@ export default function AttendancePage() {
 
       {/* 3 Stat Cards — always visible */}
       <motion.div className="grid grid-cols-3 gap-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        {[
-          { label: "Present Days", value: String(statPresent), color: "var(--green)" },
-          { label: "On Time", value: String(statOnTime), color: "var(--primary)" },
-          { label: "Total Hours", value: fmtHours(statTotalMins), color: "var(--teal)" },
-        ].map((s) => (
-          <div key={s.label} className="card-static p-3 text-center">
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
-            <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
-          </div>
-        ))}
+        {(isAggregateMode && teamLoading) || (!isAggregateMode && loading) ? (
+          [1, 2, 3].map((i) => (
+            <div key={i} className="card-static p-3 text-center space-y-1.5">
+              <span className="shimmer block mx-auto h-2.5 w-16 rounded" />
+              <span className="shimmer block mx-auto h-5 w-10 rounded" />
+            </div>
+          ))
+        ) : (
+          [
+            { label: "Present Days", value: String(statPresent), color: "var(--green)" },
+            { label: "On Time", value: String(statOnTime), color: "var(--primary)" },
+            { label: "Total Hours", value: fmtHours(statTotalMins), color: "var(--teal)" },
+          ].map((s) => (
+            <div key={s.label} className="card-static p-3 text-center">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+              <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
+            </div>
+          ))
+        )}
       </motion.div>
 
       {/* Monthly Insights — always visible */}
       <div className="card-static p-4">
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
         {isAggregateMode ? (
-          filteredSummary.length > 0 ? (
+          !teamLoading && filteredSummary.length > 0 ? (
             <motion.div
               className="grid grid-cols-2 gap-2 sm:grid-cols-4"
               initial="hidden" animate="visible"
@@ -648,7 +650,18 @@ export default function AttendancePage() {
 
                 {teamDateLoading ? (
                   <div className="flex-1 space-y-2 overflow-y-auto p-4">
-                    {[1, 2, 3, 4, 5].map((i) => <div key={i} className="shimmer h-16 rounded-xl" />)}
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="rounded-xl p-3 space-y-2" style={{ background: "var(--bg-grouped)" }}>
+                        <div className="flex items-center gap-3">
+                          <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
+                          <div className="flex-1 space-y-1"><div className="shimmer h-3.5 w-24 rounded" /><div className="shimmer h-2.5 w-16 rounded" /></div>
+                          <div className="space-y-1 text-right"><div className="shimmer ml-auto h-3.5 w-12 rounded" /><div className="shimmer ml-auto h-4 w-14 rounded-full" /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                          {[1, 2, 3, 4].map((j) => <div key={j} className="shimmer h-2.5 rounded" />)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="flex-1 space-y-2 overflow-y-auto p-4">

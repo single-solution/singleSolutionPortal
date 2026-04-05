@@ -19,6 +19,7 @@ export interface EmployeeCardEmp {
   flagReason?: string | null;
   flagCoords?: { lat: number; lng: number } | null;
   firstEntry?: string;
+  firstOfficeEntry?: string;
   lastOfficeExit?: string;
   lastExit?: string;
   todayMinutes?: number;
@@ -441,12 +442,12 @@ export function EmployeeCard({
           </div>
         </div>
 
-        {/* Arrived · Office · Left */}
-        {!attendanceLoading && (emp.officeMinutes ?? 0) > 0 && (
+        {/* Arrived · Office · Left — always visible */}
+        {!attendanceLoading && (
           <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
             <div>
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Arrived</p>
-              <p className="font-semibold tabular-nums">{firstArrival}</p>
+              <p className="font-semibold tabular-nums">{emp.firstOfficeEntry ? formatTimeStr(emp.firstOfficeEntry) : "—"}</p>
             </div>
             <div className="text-center">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>

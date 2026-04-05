@@ -66,11 +66,16 @@ export async function GET() {
   const STALE_MS = 3 * 60 * 1000;
   const nowMs = Date.now();
 
-  const lastSessionEndAgg = await ActivitySession.aggregate([
-    { $match: { sessionDate: today, "sessionTime.end": { $exists: true, $ne: null } } },
-    { $group: { _id: "$user", lastEnd: { $max: "$sessionTime.end" } } },
+  const sessionAgg = await ActivitySession.aggregate([
+    { $match: { sessionDate: today } },
+    { $group: {
+      _id: "$user",
+      firstStart: { $min: "$sessionTime.start" },
+      lastEnd: { $max: { $ifNull: ["$sessionTime.end", "$lastActivity"] } },
+    }},
   ]);
-  const lastEndMap = new Map(lastSessionEndAgg.map((r) => [r._id.toString(), r.lastEnd as Date]));
+  const firstStartMap = new Map(sessionAgg.map((r) => [r._id.toString(), r.firstStart as Date]));
+  const lastEndMap = new Map(sessionAgg.map((r) => [r._id.toString(), r.lastEnd as Date]));
 
   const activeMap = new Map(activeSessions.map((s) => [s.user.toString(), s]));
   const dailyMap = new Map(dailyRecords.map((r) => [r.user.toString(), r]));
@@ -140,7 +145,13 @@ export async function GET() {
       lateBy: daily?.lateBy ?? 0,
       breakMinutes: daily?.breakMinutes ?? 0,
       sessionCount: daily?.activitySessions?.length ?? (active ? 1 : 0),
-      firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
+      firstEntry: (() => {
+        const fs = firstStartMap.get(id);
+        if (fs) return new Date(fs).toISOString();
+        if (active) return new Date(active.sessionTime.start).toISOString();
+        return null;
+      })(),
+      firstOfficeEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
       lastOfficeExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null,
       lastExit: staleLastActivity
         ?? (daily?.lastSessionEnd ? new Date(daily.lastSessionEnd as unknown as string).toISOString() : null)

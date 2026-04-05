@@ -296,8 +296,8 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 - **Campaigns + Checklist**: Campaigns on the left, pending tasks checklist on the right. Checklist shows priority, status, assignee, creator, deadline, and creation date per task. Both scroll independently when content overflows
 - **Team breakdown**: Clickable rows showing team name, lead, and live/present/absent/late counts. Clicking filters the employee presence cards below
 - **Team Status (Live Presence)**: Real-time employee cards with live pulse indicators and status filtering (All/Office/Remote/Late/Absent). Each employee card shows:
-  - **Clock In · Hours · Clock Out** — full work day span from first session start to last session end (office or remote)
-  - **Arrived · Office · Left** — office-specific entry/exit times (only shown when employee has office time)
+  - **Clock In · Hours · Clock Out** — full work day span from first session start (earliest `ActivitySession.sessionTime.start`) to last session end (latest session end / `lastActivity`), regardless of office or remote
+  - **Arrived · Office · Left** — office-specific entry/exit times (`firstOfficeEntry` / `lastOfficeExit`), always visible even when employee has no office time (displays "—")
   - **Activity Strip** — segmented progress bar showing office/remote/break time proportions within the shift, session count, remote and break durations, late penalty, and idle gap time (unaccounted gaps between sessions)
   - Tasks, campaigns, and location flag details always visible
 - **Last seen accuracy**: When an employee goes offline, "Last seen" shows their actual last activity — not just when they left the office. A remote worker who left office at 10:59 AM but continued working remotely until 11:45 AM will correctly show "Last seen 11:45 AM"
@@ -337,11 +337,13 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 **Two modes — aggregate (no pill selected) vs individual (pill selected):**
 
 **Aggregate mode (default for admins):**
-- Header shows employee count, no per-employee date
-- 3 stat cards show team totals: sum of present days, on-time days, total hours across all filtered employees
-- Monthly insights show team averages: avg daily hours, avg on-time %, avg attendance %, total hours
+- Header shows employee count, no per-employee date. Month navigation only in calendar (no duplicate header nav)
+- Today's date auto-selected on page load — employee cards for today shown immediately
+- 3 stat cards show team totals with loading shimmers: sum of present days, on-time days, total hours across all filtered employees
+- Monthly insights show team averages with loading shimmers: avg daily hours, avg on-time %, avg attendance %, total hours
 - Calendar acts as a date picker (no per-day dots since data is aggregate)
-- Click any date → right panel shows scrollable employee cards for that date with each employee's status (present/absent/late), hours worked, in/out times, department
+- Click any date → right panel shows scrollable employee cards for that date with each employee's status (present/absent/late), hours worked, Arrived/Left (session times), Office In/Out (office times), department
+- Team-date card skeletons match final card layout (name, department, time grid)
 - New `type=team-date` API endpoint fetches all employees' DailyAttendance for a specific date in one call
 
 **Individual mode (pill selected):**

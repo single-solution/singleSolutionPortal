@@ -101,6 +101,7 @@ interface PresenceEmployee {
   breakMinutes: number;
   sessionCount: number;
   firstEntry: string | null;
+  firstOfficeEntry: string | null;
   lastOfficeExit: string | null;
   lastExit: string | null;
   shiftStart: string;
@@ -818,6 +819,7 @@ function AdminDashboard({
                     flagReason: emp.flagReason,
                     flagCoords: emp.flagCoords,
                     firstEntry: emp.firstEntry ?? undefined,
+                    firstOfficeEntry: emp.firstOfficeEntry ?? undefined,
                     lastOfficeExit: emp.lastOfficeExit ?? undefined,
                     lastExit: emp.lastExit ?? undefined,
                     todayMinutes: emp.todayMinutes,
@@ -1193,6 +1195,7 @@ export default function DashboardHome({ user }: { user: User }) {
         breakMinutes: p.breakMinutes ?? 0,
         sessionCount: p.sessionCount ?? 0,
         firstEntry: p.firstEntry ?? null,
+        firstOfficeEntry: p.firstOfficeEntry ?? null,
         lastOfficeExit: p.lastOfficeExit ?? null,
         lastExit: p.lastExit ?? null,
         shiftStart: p.shiftStart ?? "10:00",
@@ -1395,6 +1398,7 @@ export default function DashboardHome({ user }: { user: User }) {
       breakMinutes: 0,
       sessionCount: 0,
       firstEntry: null,
+      firstOfficeEntry: null,
       lastOfficeExit: null,
       lastExit: null,
       shiftStart: e.workShift?.shift?.start ?? "10:00",
