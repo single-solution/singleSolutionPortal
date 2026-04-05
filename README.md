@@ -332,16 +332,20 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 
 **Mobile UX**: App-sized fonts on mobile (max-width 639px) — title 16px, headline 14px, body 12px, callout 11px, subhead/footnote 10px, caption 9px. All `hidden sm:block` patterns removed — subtitles and descriptions visible on mobile with compact sizing. **Hamburger menu** (visible below `sm` breakpoint) in header opens a slide-out drawer with profile link, theme switcher, pings, notifications, settings, and sign-out. Desktop header unchanged. Bottom dock stays as primary page navigation on mobile.
 
-### Attendance Page (All Roles)
+### Attendance Page
 
-- Interactive calendar with clickable, selectable dates and color-coded day indicators
-- Day detail panel: status pills, human-readable summary, stat chips (total/office/remote hours), animated work split bar, full session timeline per day
-- Session timeline per day: time range, duration, location pills (Office/Remote), device detection (Mac/Windows/Mobile), "First In"/"Last Out" badges, last heartbeat timestamp, IP address, office segment sub-timeline
-- Monthly insights row: avg daily hours, avg arrival/departure, on-time %, attendance %, office/remote split
-- Monthly records list with clickable rows that sync to calendar selection
-- **Admin filters (SuperAdmin/Manager/TeamLead):** Employee selector dropdown, department filter (ScopeStrip), role filter — all filters chain together to narrow the employee list
-- **SuperAdmin:** auto-selects first employee on load (no useless personal session), filters by department and role
-- **Manager/TeamLead:** "My Attendance" as default with team member dropdown, ScopeStrip for department filtering
+**Admin default — Team Overview:**
+- Grouped employee pills (Flat / By Manager / By Department toggles) showing each employee's monthly status: present days, total hours, attendance %
+- ScopeStrip + group toggles inline in the header row (no extra row)
+- Click any employee pill → drill into their individual calendar + session timeline
+- "Back to team" breadcrumb to return from individual view
+
+**Individual Calendar (drill-down or default for Employee):**
+- Interactive calendar with clickable dates and color-coded indicators (On Time / Late / Absent)
+- Day detail panel: status pills, summary, stat chips (total/office/remote hours), animated work split bar
+- Session timeline: time range, duration, Office/Remote pills, device detection, First In/Last Out badges, heartbeat, IP, office segments
+- Monthly insights: avg daily hours, avg arrival/departure, on-time %, attendance %, office/remote split
+- Monthly records list with clickable rows synced to calendar
 
 ---
 

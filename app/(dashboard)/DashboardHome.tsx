@@ -301,7 +301,7 @@ const blobGradients = [
 
 /* ──────────────────────── WELCOME HEADER ──────────────────────── */
 
-function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSuperAdmin, dataLoading }: {
+function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSuperAdmin, dataLoading, scopeStrip }: {
   user: User;
   presenceEmps: PresenceEmployee[];
   tasks: ApiTask[];
@@ -309,6 +309,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
   userProfile: UserProfile | null;
   isSuperAdmin: boolean;
   dataLoading?: boolean;
+  scopeStrip?: React.ReactNode;
 }) {
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = tasks.filter((t) => t.status === "pending").length;
@@ -347,18 +348,21 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
           )}
             </div>
           </motion.div>
-      <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="card group relative overflow-hidden px-4 py-2.5 shrink-0">
-        <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
-        <div className="flex items-baseline gap-2">
-          <p className="text-caption">Local time</p>
-          <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{formatClockDate(now)}</span>
-        </div>
-              <AnimatePresence mode="wait">
-                <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
-                  <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
-                </motion.div>
-              </AnimatePresence>
-          </motion.div>
+      <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+        {scopeStrip}
+        <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="card group relative overflow-hidden px-4 py-2.5 shrink-0">
+          <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
+          <div className="flex items-baseline gap-2">
+            <p className="text-caption">Local time</p>
+            <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{formatClockDate(now)}</span>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
+              <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
+      </div>
     </header>
   );
 }
@@ -636,11 +640,8 @@ function AdminDashboard({
 
   return (
     <div className="flex min-h-[calc(100dvh-15rem)] flex-col gap-5">
-      {/* 1. Welcome header */}
-      <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} dataLoading={dataLoading} />
-
-      {/* Scope strip */}
-      <ScopeStrip value={scopeDept} onChange={setScopeDept} />
+      {/* 1. Welcome header (includes scope strip on the right) */}
+      <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
 
       {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (

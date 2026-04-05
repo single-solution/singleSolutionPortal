@@ -274,7 +274,8 @@ export default function EmployeesPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <ScopeStrip value={scopeDept} onChange={setScopeDept} />
           <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
             {(["flat", "manager", "department"] as GroupMode[]).map((g) => (
               <motion.button
@@ -313,11 +314,6 @@ export default function EmployeesPage() {
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Scope strip */}
-      <div className="mb-3">
-        <ScopeStrip value={scopeDept} onChange={setScopeDept} />
       </div>
 
       {/* Search + Add row */}

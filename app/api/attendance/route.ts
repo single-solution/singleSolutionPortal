@@ -94,8 +94,9 @@ export async function GET(req: NextRequest) {
     }
 
     const employees = await User.find(empFilter)
-      .select("about userRole department")
+      .select("about userRole department reportsTo")
       .populate("department", "title")
+      .populate("reportsTo", "about.firstName about.lastName")
       .sort({ "about.firstName": 1 })
       .lean();
 
@@ -124,12 +125,15 @@ export async function GET(req: NextRequest) {
       const id = emp._id.toString();
       const ms = statsMap.get(id);
       const dc = dailyMap.get(id);
+      const mgr = emp.reportsTo as { _id?: unknown; about?: { firstName?: string; lastName?: string } } | null;
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
         role: emp.userRole,
         department: (emp.department as { title?: string })?.title ?? "Unassigned",
         departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
+        managerId: mgr?._id ? String(mgr._id) : null,
+        managerName: mgr?.about ? `${mgr.about.firstName ?? ""} ${mgr.about.lastName ?? ""}`.trim() : null,
         presentDays: dc?.presentDays ?? ms?.presentDays ?? 0,
         onTimeDays: dc?.onTimeDays ?? ms?.onTimeArrivals ?? 0,
         lateDays: dc?.lateDays ?? ms?.lateArrivals ?? 0,

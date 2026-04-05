@@ -63,13 +63,24 @@ interface MonthlyStats {
   attendancePercentage: number;
 }
 
-interface TeamMember {
+interface TeamMonthlySummary {
   _id: string;
   name: string;
   role: string;
   department: string;
-  departmentId?: string | null;
+  departmentId: string | null;
+  managerId: string | null;
+  managerName: string | null;
+  presentDays: number;
+  onTimeDays: number;
+  lateDays: number;
+  totalMinutes: number;
+  averageDailyHours: number;
+  onTimePercentage: number;
+  attendancePercentage: number;
 }
+
+type GroupMode = "flat" | "manager" | "department";
 
 /* ───── Constants ───── */
 
@@ -108,8 +119,17 @@ function timeAgo(dateStr: string) {
 
 export default function AttendancePage() {
   const { data: authSession } = useSession();
-  const isAdmin = authSession?.user?.role === "superadmin" || authSession?.user?.role === "manager" || authSession?.user?.role === "teamLead";
+  const isSuperAdmin = authSession?.user?.role === "superadmin";
+  const isAdmin = isSuperAdmin || authSession?.user?.role === "manager" || authSession?.user?.role === "teamLead";
 
+  /* ── Team overview state ── */
+  const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [scopeDept, setScopeDept] = useState("all");
+  const [groupMode, setGroupMode] = useState<GroupMode>("flat");
+
+  /* ── Individual drill-down state ── */
+  const [viewingUserId, setViewingUserId] = useState<string>("");
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -118,36 +138,46 @@ export default function AttendancePage() {
   const [detailData, setDetailData] = useState<DetailData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [teamLoaded, setTeamLoaded] = useState(false);
-  const [viewingUserId, setViewingUserId] = useState<string>("");
   const [todaySession, setTodaySession] = useState<{ active: boolean; inOffice: boolean; startTime: string | null; todayMinutes: number }>({
     active: false, inOffice: false, startTime: null, todayMinutes: 0,
   });
 
-  const isSuperAdmin = authSession?.user?.role === "superadmin";
-  const [filterRole, setFilterRole] = useState<string>("all");
-
+  const showOverview = isAdmin && !viewingUserId;
   const userIdParam = viewingUserId || "";
 
+  /* ── Data loaders ── */
+
+  const loadTeamSummary = useCallback(async () => {
+    if (!isAdmin) return;
+    setTeamLoading(true);
+    try {
+      const res = await fetch(`/api/attendance?type=team-monthly&year=${year}&month=${month}`).then((r) => r.json());
+      setTeamSummary(Array.isArray(res) ? res : []);
+    } catch { setTeamSummary([]); }
+    setTeamLoading(false);
+  }, [isAdmin, year, month]);
+
   const loadRecords = useCallback(async () => {
+    if (!userIdParam && isSuperAdmin) return;
     setLoading(true);
     const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
     setRecords(Array.isArray(res) ? res : []);
     setLoading(false);
-  }, [year, month, userIdParam]);
+  }, [year, month, userIdParam, isSuperAdmin]);
 
   const loadMonthlyStats = useCallback(async () => {
+    if (!userIdParam && isSuperAdmin) return;
     const qs = `type=monthly&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     try {
       const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
       setMonthlyStats(res ?? null);
     } catch { setMonthlyStats(null); }
-  }, [year, month, userIdParam]);
+  }, [year, month, userIdParam, isSuperAdmin]);
 
   const loadTodaySession = useCallback(async () => {
     if (viewingUserId && viewingUserId !== authSession?.user?.id) return;
+    if (isSuperAdmin) return;
     try {
       const res = await fetch("/api/attendance/session").then((r) => r.json());
       setTodaySession({
@@ -157,16 +187,7 @@ export default function AttendancePage() {
         todayMinutes: res.todayMinutes ?? 0,
       });
     } catch { /* ignore */ }
-  }, [viewingUserId, authSession?.user?.id]);
-
-  const loadTeam = useCallback(async () => {
-    if (!isAdmin) return;
-    try {
-      const res = await fetch("/api/attendance?type=team").then((r) => r.json());
-      setTeamMembers(Array.isArray(res) ? res : []);
-    } catch { /* ignore */ }
-    setTeamLoaded(true);
-  }, [isAdmin]);
+  }, [viewingUserId, authSession?.user?.id, isSuperAdmin]);
 
   const loadDetail = useCallback(async (day: number) => {
     setDetailLoading(true);
@@ -179,9 +200,11 @@ export default function AttendancePage() {
     setDetailLoading(false);
   }, [year, month, userIdParam]);
 
+  /* ── Effects ── */
+
+  useEffect(() => { loadTeamSummary(); }, [loadTeamSummary]);
   useEffect(() => { loadRecords(); loadMonthlyStats(); }, [loadRecords, loadMonthlyStats]);
   useEffect(() => { loadTodaySession(); }, [loadTodaySession]);
-  useEffect(() => { loadTeam(); }, [loadTeam]);
 
   useEffect(() => {
     setSelectedDay(null);
@@ -192,6 +215,31 @@ export default function AttendancePage() {
     if (selectedDay !== null) loadDetail(selectedDay);
     else setDetailData(null);
   }, [selectedDay, loadDetail]);
+
+  /* ── Derived state ── */
+
+  const filteredSummary = useMemo(
+    () => scopeDept === "all" ? teamSummary : teamSummary.filter((m) => m.departmentId === scopeDept),
+    [teamSummary, scopeDept],
+  );
+
+  const grouped = useMemo(() => {
+    if (groupMode === "flat") return [{ key: "all", label: "All Employees", items: filteredSummary }];
+    const map = new Map<string, { label: string; items: TeamMonthlySummary[] }>();
+    for (const emp of filteredSummary) {
+      const key = groupMode === "manager"
+        ? (emp.managerId ?? "unassigned")
+        : (emp.departmentId ?? "unassigned");
+      const label = groupMode === "manager"
+        ? (emp.managerName ?? "No Manager")
+        : emp.department;
+      if (!map.has(key)) map.set(key, { label, items: [] });
+      map.get(key)!.items.push(emp);
+    }
+    return Array.from(map.entries()).map(([key, v]) => ({ key, label: v.label, items: v.items }));
+  }, [filteredSummary, groupMode]);
+
+  const viewingMember = teamSummary.find((m) => m._id === viewingUserId);
 
   const recordMap = useMemo(() => {
     const map = new Map<number, DailyRecord>();
@@ -216,82 +264,142 @@ export default function AttendancePage() {
   const onTimeDays = records.filter((r) => r.isOnTime).length;
   const totalMins = records.reduce((s, r) => s + r.totalWorkingMinutes, 0);
 
-  const selectedRecord = selectedDay ? recordMap.get(selectedDay) : null;
   const selectedDate = selectedDay ? new Date(year, month - 1, selectedDay) : null;
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
 
-  const [scopeDept, setScopeDept] = useState("all");
+  /* ────────────────── TEAM OVERVIEW (default for admin) ────────────────── */
 
-  const filteredTeamMembers = useMemo(() => {
-    let list = teamMembers;
-    if (scopeDept !== "all") list = list.filter((m) => m.departmentId === scopeDept);
-    if (filterRole !== "all") list = list.filter((m) => m.role === filterRole);
-    return list;
-  }, [teamMembers, scopeDept, filterRole]);
+  if (showOverview) {
+    return (
+      <div className="flex flex-col gap-4">
+        {/* Header row: title left, scope + group + month nav right */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-title">Team Attendance</h1>
+            <p className="text-subhead">{MONTH_NAMES[month - 1]} {year} · {filteredSummary.length} employee{filteredSummary.length !== 1 ? "s" : ""}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <ScopeStrip value={scopeDept} onChange={setScopeDept} />
+            <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+              {(["flat", "manager", "department"] as GroupMode[]).map((g) => (
+                <motion.button
+                  key={g}
+                  type="button"
+                  onClick={() => setGroupMode(g)}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                    groupMode === g
+                      ? "bg-[var(--primary)] text-white shadow-sm"
+                      : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                  }`}
+                >
+                  {g === "flat" ? "Flat" : g === "manager" ? "By Manager" : "By Dept"}
+                </motion.button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <span className="text-caption font-semibold whitespace-nowrap" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1].slice(0, 3)} {year}</span>
+              <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
-  const availableRoles = useMemo(() => {
-    const roles = new Set(teamMembers.map((m) => m.role));
-    return Array.from(roles).sort();
-  }, [teamMembers]);
+        {/* Employee pills grouped */}
+        {teamLoading ? (
+          <div className="space-y-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="card-static p-4 space-y-3">
+                <div className="shimmer h-4 w-32 rounded" />
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5].map((j) => <div key={j} className="shimmer h-9 w-32 rounded-full" />)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredSummary.length === 0 ? (
+          <div className="card p-12 text-center">
+            <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
+          </div>
+        ) : (
+          <motion.div className="space-y-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}>
+            {grouped.map((group) => (
+              <motion.div key={group.key} className={groupMode !== "flat" ? "card-static p-4" : ""} variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}>
+                {groupMode !== "flat" && (
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                    {group.label} <span style={{ color: "var(--fg-quaternary)" }}>· {group.items.length}</span>
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {group.items.map((emp) => {
+                    const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
+                    const statusDot = emp.presentDays > 0
+                      ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
+                      : "var(--fg-tertiary)";
+                    return (
+                      <motion.button
+                        key={emp._id}
+                        type="button"
+                        onClick={() => setViewingUserId(emp._id)}
+                        className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all hover:shadow-sm"
+                        style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+                        whileHover={{ y: -1, borderColor: "var(--primary)" }}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusDot }} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold leading-tight" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
+                            {emp.presentDays}d · {fmtHours(emp.totalMinutes)} · <span style={{ color: attendColor }}>{Math.round(emp.attendancePercentage)}%</span>
+                          </p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
 
-  const viewingMember = teamMembers.find((m) => m._id === viewingUserId);
+        {/* Self-attendance link for non-superadmin */}
+        {!isSuperAdmin && (
+          <button
+            type="button"
+            onClick={() => setViewingUserId(authSession?.user?.id ?? "")}
+            className="btn btn-sm self-start"
+          >
+            View My Attendance
+          </button>
+        )}
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (!isSuperAdmin || !teamLoaded || teamMembers.length === 0) return;
-    if (viewingUserId && teamMembers.some((m) => m._id === viewingUserId)) return;
-    const first = filteredTeamMembers[0] ?? teamMembers[0];
-    if (first) setViewingUserId(first._id);
-  }, [isSuperAdmin, teamLoaded, teamMembers, filteredTeamMembers, viewingUserId]);
+  /* ────────────────── INDIVIDUAL CALENDAR+TIMELINE (drill-down) ────────────────── */
 
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <motion.div className="flex flex-col gap-3" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-title">Attendance</h1>
-            <p className="text-subhead">
-              {viewingMember ? `${viewingMember.name} · ` : ""}{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present
-            </p>
-          </div>
+      <motion.div className="flex items-start justify-between gap-3" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <div>
+          {isAdmin && (
+            <button type="button" onClick={() => { setViewingUserId(""); setRecords([]); setMonthlyStats(null); }} className="mb-1 flex items-center gap-1.5 text-caption font-medium transition-colors hover:text-[var(--primary)]" style={{ color: "var(--fg-tertiary)" }}>
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              Back to team
+            </button>
+          )}
+          <h1 className="text-title">Attendance</h1>
+          <p className="text-subhead">
+            {viewingMember ? `${viewingMember.name} · ` : ""}{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present
+          </p>
         </div>
-
-        {/* Filters row — all admins */}
-        {isAdmin && filteredTeamMembers.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Employee selector */}
-            <select
-              value={viewingUserId}
-              onChange={(e) => setViewingUserId(e.target.value)}
-              className="input text-sm flex-1 min-w-0"
-              style={{ maxWidth: 260, paddingLeft: 12, paddingRight: 12 }}
-            >
-              {!isSuperAdmin && <option value="">My Attendance</option>}
-              {filteredTeamMembers.map((m) => (
-                <option key={m._id} value={m._id}>{m.name} — {m.department}</option>
-              ))}
-            </select>
-
-            {/* Role filter */}
-            {availableRoles.length > 1 && (
-              <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-                className="input text-sm"
-                style={{ maxWidth: 160, paddingLeft: 12, paddingRight: 12 }}
-              >
-                <option value="all">All Roles</option>
-                {availableRoles.map((r) => (
-                  <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
       </motion.div>
-
-      {/* Department scope strip — all admins */}
-      {isAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
 
       {/* Today's Session — only for self, never for superadmin */}
       {isViewingSelf && !isSuperAdmin && (
@@ -343,7 +451,7 @@ export default function AttendancePage() {
         ))}
       </motion.div>
 
-      {/* Monthly analytics from MonthlyAttendanceStats */}
+      {/* Monthly analytics */}
       <div className="card-static p-4">
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
         {monthlyStats ? (
@@ -351,10 +459,7 @@ export default function AttendancePage() {
             className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
             initial="hidden"
             animate="visible"
-            variants={{
-              hidden: { opacity: 0 },
-              visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
-            }}
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
           >
             {[
               { label: "Avg Daily", value: `${monthlyStats.averageDailyHours.toFixed(1)}h`, color: "var(--primary)" },
@@ -364,13 +469,7 @@ export default function AttendancePage() {
               { label: "Attendance %", value: `${Math.round(monthlyStats.attendancePercentage)}%`, color: monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)" },
               { label: "Office / Remote", value: `${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`, color: "var(--teal)" },
             ].map((chip) => (
-              <motion.div
-                key={chip.label}
-                variants={{
-                  hidden: { opacity: 0, y: 8 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
-                }}
-              >
+              <motion.div key={chip.label} variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}>
                 <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
               </motion.div>
             ))}
@@ -391,14 +490,7 @@ export default function AttendancePage() {
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <AnimatePresence mode="wait">
-            <motion.span
-              key={`${month}-${year}`}
-              className="text-headline"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.2 }}
-            >
+            <motion.span key={`${month}-${year}`} className="text-headline" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }}>
               {MONTH_NAMES[month - 1]} {year}
             </motion.span>
           </AnimatePresence>
@@ -412,31 +504,31 @@ export default function AttendancePage() {
             <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
           ))}
           <AnimatePresence mode="wait">
-              <motion.div key={`${year}-${month}-${viewingUserId}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`empty-${i}`} />)}
+            <motion.div key={`${year}-${month}-${viewingUserId}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`empty-${i}`} />)}
               {Array.from({ length: daysInMonth }, (_, i) => {
                 const day = i + 1;
                 const rec = recordMap.get(day);
                 const isToday = isCurrentMonth && day === today.getDate();
-                  const isSelected = selectedDay === day;
-                  const isFuture = isCurrentMonth ? day > today.getDate() : new Date(year, month - 1, day) > today;
+                const isSelected = selectedDay === day;
+                const isFuture = isCurrentMonth ? day > today.getDate() : new Date(year, month - 1, day) > today;
                 let dotColor = "transparent";
                 if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
                 else if (rec) dotColor = "var(--rose)";
 
                 return (
-                    <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
-                      className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all outline-none"
-                      style={{
-                        ...(isSelected ? { background: "var(--primary)", borderRadius: "0.5rem" } : isToday ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem" } : {}),
-                        cursor: isFuture ? "default" : "pointer", opacity: isFuture ? 0.35 : 1,
-                      }}
-                      whileHover={!isFuture ? { scale: 1.08 } : undefined} whileTap={!isFuture ? { scale: 0.92 } : undefined}
-                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: isFuture ? 0.35 : 1, scale: 1 }} transition={{ duration: 0.2, delay: Math.min(i * 0.01, 0.3) }}
-                    >
-                      <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
-                    </motion.button>
+                  <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
+                    className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all outline-none"
+                    style={{
+                      ...(isSelected ? { background: "var(--primary)", borderRadius: "0.5rem" } : isToday ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem" } : {}),
+                      cursor: isFuture ? "default" : "pointer", opacity: isFuture ? 0.35 : 1,
+                    }}
+                    whileHover={!isFuture ? { scale: 1.08 } : undefined} whileTap={!isFuture ? { scale: 0.92 } : undefined}
+                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: isFuture ? 0.35 : 1, scale: 1 }} transition={{ duration: 0.2, delay: Math.min(i * 0.01, 0.3) }}
+                  >
+                    <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
+                  </motion.button>
                 );
               })}
             </motion.div>
@@ -473,62 +565,18 @@ export default function AttendancePage() {
                 </div>
 
                 {detailLoading ? (
-                  <motion.div className="flex flex-1 flex-col overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                          <div className="shimmer h-6 w-48 rounded" />
-                          <div className="shimmer h-3 w-14 rounded" />
-                        </div>
-                        <div className="shimmer h-8 w-8 rounded-lg" />
-                      </div>
+                  <div className="flex-1 space-y-5 overflow-y-auto p-5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="shimmer h-6 w-20 rounded-full" />
+                      <div className="shimmer h-6 w-24 rounded-full" />
                     </div>
-                    <div className="flex-1 space-y-5 overflow-y-auto p-5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="shimmer h-6 w-20 rounded-full" />
-                        <div className="shimmer h-6 w-24 rounded-full" />
-                        <div className="shimmer h-6 w-28 rounded-full" />
-                      </div>
-                      <div className="shimmer h-4 w-full max-w-md rounded" />
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="shimmer h-14 w-full rounded-xl" />
-                        <div className="shimmer h-14 w-full rounded-xl" />
-                        <div className="shimmer h-14 w-full rounded-xl" />
-                      </div>
-                      <div>
-                        <div className="mb-1.5 flex justify-between">
-                          <div className="shimmer h-3 w-16 rounded" />
-                          <div className="shimmer h-3 w-32 rounded" />
-                        </div>
-                        <div className="shimmer h-2.5 w-full rounded-full" />
-                      </div>
-                      <div>
-                        <div className="shimmer mb-3 h-3 w-32 rounded" />
-                        <div className="relative pl-5">
-                          <div className="absolute bottom-1 left-[7px] top-1 w-0.5 rounded-full" style={{ background: "var(--border)" }} />
-                          {[1, 2].map((i) => (
-                            <div key={i} className="relative mb-4 last:mb-0">
-                              <div className="absolute -left-5 top-1 h-3.5 w-3.5 rounded-full shimmer" />
-                              <div className="rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="shimmer h-4 w-40 rounded" />
-                                  <div className="shimmer h-5 w-14 rounded-full" />
-                                </div>
-                                <div className="mt-2 flex flex-wrap gap-1.5">
-                                  <div className="shimmer h-5 w-16 rounded-full" />
-                                  <div className="shimmer h-5 w-20 rounded-full" />
-                                  <div className="shimmer h-5 w-14 rounded-full" />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    <div className="shimmer h-4 w-full max-w-md rounded" />
+                    <div className="grid grid-cols-3 gap-2">
+                      {[1, 2, 3].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}
                     </div>
-                  </motion.div>
+                  </div>
                 ) : detailData ? (
                   <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                    {/* Status pills */}
                     <div className="flex flex-wrap items-center gap-2">
                       <Pill color={detailData.isPresent ? (detailData.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)"} label={detailData.isPresent ? (detailData.isOnTime ? "On Time" : "Late") : "Absent"} />
                       {(detailData.lateBy ?? 0) > 0 && <Pill color="var(--amber)" label={`Late by ${fmtHours(detailData.lateBy!)}`} variant="outline" />}
@@ -536,21 +584,18 @@ export default function AttendancePage() {
                       <Pill color="var(--fg-tertiary)" label={`${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}`} variant="outline" />
                     </div>
 
-                    {/* Summary text */}
                     <p className="text-caption" style={{ color: "var(--fg-secondary)" }}>
                       {detailData.isPresent
                         ? `Worked ${fmtHours(detailData.totalWorkingMinutes)} across ${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}${detailData.officeMinutes > 0 && detailData.remoteMinutes > 0 ? " — split between office and remote" : detailData.officeMinutes > 0 ? " — from office" : " — remotely"}`
                         : "No work sessions recorded for this day"}
                     </p>
 
-                    {/* Stat chips */}
                     <div className="grid grid-cols-3 gap-2">
                       <StatChip label="Total" value={fmtHours(detailData.totalWorkingMinutes)} color="var(--primary)" />
                       <StatChip label="Office" value={fmtHours(detailData.officeMinutes)} color="var(--green)" />
                       <StatChip label="Remote" value={fmtHours(detailData.remoteMinutes)} color="var(--teal)" />
                     </div>
 
-                    {/* Work split bar */}
                     {detailData.totalWorkingMinutes > 0 && (
                       <div>
                         <div className="mb-1.5 flex justify-between text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
@@ -568,47 +613,23 @@ export default function AttendancePage() {
                       </div>
                     )}
 
-                    {/* Session timeline */}
                     {detailData.activitySessions && detailData.activitySessions.length > 0 && (
                       <div>
                         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Session Timeline</p>
                         <div className="relative pl-5">
                           <div className="absolute left-[7px] top-1 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
-                          <motion.div
-                            className="space-y-4"
-                            initial="hidden"
-                            animate="visible"
-                            variants={{
-                              hidden: { opacity: 0 },
-                              visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
-                            }}
-                          >
+                          <motion.div className="space-y-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } } }}>
                             {detailData.activitySessions
                               .sort((a, b) => new Date(a.sessionTime.start).getTime() - new Date(b.sessionTime.start).getTime())
                               .map((sess) => {
                                 const device = detectDevice(sess.platform);
-                                const statusConf = sess.status === "active"
-                                  ? { color: "var(--green)", label: "Active" }
-                                  : sess.status === "timeout"
-                                    ? { color: "var(--amber)", label: "Timed Out" }
-                                    : { color: "var(--fg-tertiary)", label: "Ended" };
-
+                                const statusConf = sess.status === "active" ? { color: "var(--green)", label: "Active" } : sess.status === "timeout" ? { color: "var(--amber)", label: "Timed Out" } : { color: "var(--fg-tertiary)", label: "Ended" };
                                 return (
-                                  <motion.div
-                                    key={sess._id}
-                                    className="relative"
-                                    variants={{
-                                      hidden: { opacity: 0, x: -12 },
-                                      visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } },
-                                    }}
-                                  >
-                                    {/* Timeline dot */}
+                                  <motion.div key={sess._id} className="relative" variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                                     <div className="absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${sess.location.inOffice ? "var(--green)" : "var(--teal)"}` }}>
                                       {sess.status === "active" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--green)" }} />}
                                     </div>
-
                                     <div className="rounded-xl p-3 transition-colors" style={{ background: "var(--bg-grouped)" }}>
-                                      {/* Time range + duration */}
                                       <div className="flex items-center justify-between gap-2">
                                         <span className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
                                           {fmtTime(sess.sessionTime.start)}
@@ -619,8 +640,6 @@ export default function AttendancePage() {
                                           {fmtHours(sess.durationMinutes)}
                                         </span>
                                       </div>
-
-                                      {/* Pills: location, status, device, first-in/last-out badges */}
                                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                         <Pill color={sess.location.inOffice ? "var(--green)" : "var(--teal)"} label={sess.location.inOffice ? "Office" : "Remote"} size="sm" />
                                         <Pill color={statusConf.color} label={statusConf.label} size="sm" variant="outline" />
@@ -628,52 +647,23 @@ export default function AttendancePage() {
                                         {sess.isFirstOfficeEntry && <Pill color="var(--primary)" label="First In" size="sm" />}
                                         {sess.isLastOfficeExit && <Pill color="var(--amber)" label="Last Out" size="sm" />}
                                       </div>
-
-                                      {/* Last heartbeat for active sessions */}
                                       {sess.status === "active" && sess.lastActivity && (
-                                        <p className="mt-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                                          Last heartbeat {timeAgo(sess.lastActivity)}
-                                        </p>
+                                        <p className="mt-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Last heartbeat {timeAgo(sess.lastActivity)}</p>
                                       )}
-
-                                      {/* IP address for audit */}
                                       {sess.ipAddress && (
-                                        <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                                          IP {sess.ipAddress}
-                                        </p>
+                                        <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>IP {sess.ipAddress}</p>
                                       )}
-
-                                      {/* Office segments sub-timeline */}
                                       {sess.officeSegments && sess.officeSegments.length > 0 && (
                                         <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "color-mix(in srgb, var(--border) 60%, transparent)" }}>
                                           <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Office Segments</p>
-                                          <motion.div
-                                            className="space-y-1"
-                                            initial="hidden"
-                                            animate="visible"
-                                            variants={{
-                                              hidden: { opacity: 0 },
-                                              visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
-                                            }}
-                                          >
+                                          <motion.div className="space-y-1" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}>
                                             {sess.officeSegments.map((seg, si) => (
-                                              <motion.div
-                                                key={si}
-                                                className="flex items-center justify-between text-[10px]"
-                                                variants={{
-                                                  hidden: { opacity: 0, x: -10 },
-                                                  visible: { opacity: 1, x: 0 },
-                                                }}
-                                              >
+                                              <motion.div key={si} className="flex items-center justify-between text-[10px]" variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
                                                 <div className="flex items-center gap-1.5">
                                                   <span className="h-1 w-1 rounded-full" style={{ background: "var(--green)" }} />
-                                                  <span style={{ color: "var(--fg-secondary)" }}>
-                                                    {fmtTime(seg.entryTime)} → {seg.exitTime ? fmtTime(seg.exitTime) : "now"}
-                                                  </span>
+                                                  <span style={{ color: "var(--fg-secondary)" }}>{fmtTime(seg.entryTime)} → {seg.exitTime ? fmtTime(seg.exitTime) : "now"}</span>
                                                 </div>
-                                                <span className="font-semibold" style={{ color: "var(--green)" }}>
-                                                  {fmtHours(seg.durationMinutes)}
-                                                </span>
+                                                <span className="font-semibold" style={{ color: "var(--green)" }}>{fmtHours(seg.durationMinutes)}</span>
                                               </motion.div>
                                             ))}
                                           </motion.div>
@@ -695,9 +685,6 @@ export default function AttendancePage() {
                     </div>
                     <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>
                       {isSelectedToday ? "No data yet — session in progress" : "No attendance recorded"}
-                    </p>
-                    <p className="text-caption mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                      {isSelectedToday ? "Data appears after your first session closes" : "This day has no tracked sessions"}
                     </p>
                   </div>
                 )}
@@ -726,17 +713,9 @@ export default function AttendancePage() {
               <div key={i} className="flex w-full items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
-                  <div className="space-y-1.5">
-                    <div className="shimmer h-4 w-28 rounded" />
-                    <div className="shimmer h-3 w-36 rounded" />
-                  </div>
+                  <div className="space-y-1.5"><div className="shimmer h-4 w-28 rounded" /><div className="shimmer h-3 w-36 rounded" /></div>
                 </div>
-                <div className="text-right">
-                  <div className="shimmer ml-auto h-4 w-12 rounded" />
-                  <div className="mt-1.5 flex justify-end">
-                    <div className="shimmer h-5 w-16 rounded-full" />
-                  </div>
-                </div>
+                <div className="text-right"><div className="shimmer ml-auto h-4 w-12 rounded" /><div className="mt-1.5 flex justify-end"><div className="shimmer h-5 w-16 rounded-full" /></div></div>
               </div>
             ))}
           </div>
@@ -760,11 +739,11 @@ export default function AttendancePage() {
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }} />
                   <div>
                     <p className="text-callout font-medium" style={{ color: "var(--fg)" }}>{new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
-                      <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(rec.firstOfficeEntry)} → {fmtTime(rec.lastOfficeExit)}</p>
-                    </div>
+                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(rec.firstOfficeEntry)} → {fmtTime(rec.lastOfficeExit)}</p>
+                  </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
+                  <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
                   <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: rec.isPresent ? (rec.isOnTime ? "color-mix(in srgb, var(--green) 15%, transparent)" : "color-mix(in srgb, var(--amber) 15%, transparent)") : "color-mix(in srgb, var(--rose) 15%, transparent)", color: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }}>
                     {rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent"}
                   </span>
@@ -774,11 +753,7 @@ export default function AttendancePage() {
             })}
           </div>
         </motion.div>
-      ) : (
-        <motion.div className="card p-12 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <p style={{ color: "var(--fg-secondary)" }}>No attendance records for this month yet.</p>
-        </motion.div>
-      )}
+      ) : null}
     </div>
   );
 }
