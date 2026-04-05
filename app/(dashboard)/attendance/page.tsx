@@ -80,6 +80,22 @@ interface TeamMonthlySummary {
   attendancePercentage: number;
 }
 
+interface TeamDateRecord {
+  _id: string;
+  name: string;
+  role: string;
+  department: string;
+  departmentId: string | null;
+  isPresent: boolean;
+  isOnTime: boolean;
+  totalWorkingMinutes: number;
+  officeMinutes: number;
+  remoteMinutes: number;
+  firstOfficeEntry?: string;
+  lastOfficeExit?: string;
+  lateBy?: number;
+}
+
 type GroupMode = "flat" | "manager" | "department";
 
 /* ───── Constants ───── */
@@ -89,7 +105,7 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 
 /* ───── Helpers ───── */
 
-function fmtTime(dateStr?: string) {
+function fmtTime(dateStr?: string | null) {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
@@ -128,10 +144,10 @@ export default function AttendancePage() {
   const [scopeDept, setScopeDept] = useState("all");
   const [groupMode, setGroupMode] = useState<GroupMode>("flat");
 
-  /* ── Individual drill-down state ── */
+  /* ── Individual state ── */
   const [viewingUserId, setViewingUserId] = useState<string>("");
   const [records, setRecords] = useState<DailyRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -142,8 +158,13 @@ export default function AttendancePage() {
     active: false, inOffice: false, startTime: null, todayMinutes: 0,
   });
 
+  /* ── Team date state ── */
+  const [teamDateData, setTeamDateData] = useState<TeamDateRecord[]>([]);
+  const [teamDateLoading, setTeamDateLoading] = useState(false);
+
   const userIdParam = viewingUserId || "";
   const hasSelectedEmployee = !!viewingUserId;
+  const isAggregateMode = isAdmin && !hasSelectedEmployee;
 
   /* ── Data loaders ── */
 
@@ -158,26 +179,26 @@ export default function AttendancePage() {
   }, [isAdmin, year, month]);
 
   const loadRecords = useCallback(async () => {
-    if (!userIdParam && isSuperAdmin) return;
+    if (!userIdParam && isAdmin) return;
     setLoading(true);
     const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
     setRecords(Array.isArray(res) ? res : []);
     setLoading(false);
-  }, [year, month, userIdParam, isSuperAdmin]);
+  }, [year, month, userIdParam, isAdmin]);
 
   const loadMonthlyStats = useCallback(async () => {
-    if (!userIdParam && isSuperAdmin) return;
+    if (!userIdParam && isAdmin) return;
     const qs = `type=monthly&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     try {
       const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
       setMonthlyStats(res ?? null);
     } catch { setMonthlyStats(null); }
-  }, [year, month, userIdParam, isSuperAdmin]);
+  }, [year, month, userIdParam, isAdmin]);
 
   const loadTodaySession = useCallback(async () => {
     if (viewingUserId && viewingUserId !== authSession?.user?.id) return;
-    if (isSuperAdmin) return;
+    if (isAdmin && !viewingUserId) return;
     try {
       const res = await fetch("/api/attendance/session").then((r) => r.json());
       setTodaySession({
@@ -187,7 +208,7 @@ export default function AttendancePage() {
         todayMinutes: res.todayMinutes ?? 0,
       });
     } catch { /* ignore */ }
-  }, [viewingUserId, authSession?.user?.id, isSuperAdmin]);
+  }, [viewingUserId, authSession?.user?.id, isAdmin]);
 
   const loadDetail = useCallback(async (day: number) => {
     setDetailLoading(true);
@@ -200,6 +221,17 @@ export default function AttendancePage() {
     setDetailLoading(false);
   }, [year, month, userIdParam]);
 
+  const loadTeamDate = useCallback(async (day: number) => {
+    if (!isAdmin) return;
+    setTeamDateLoading(true);
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    try {
+      const res = await fetch(`/api/attendance?type=team-date&date=${dateStr}`).then((r) => r.json());
+      setTeamDateData(Array.isArray(res) ? res : []);
+    } catch { setTeamDateData([]); }
+    setTeamDateLoading(false);
+  }, [isAdmin, year, month]);
+
   /* ── Effects ── */
 
   useEffect(() => { loadTeamSummary(); }, [loadTeamSummary]);
@@ -209,12 +241,21 @@ export default function AttendancePage() {
   useEffect(() => {
     setSelectedDay(null);
     setDetailData(null);
+    setTeamDateData([]);
   }, [year, month, viewingUserId]);
 
   useEffect(() => {
-    if (selectedDay !== null) loadDetail(selectedDay);
-    else setDetailData(null);
-  }, [selectedDay, loadDetail]);
+    if (selectedDay === null) {
+      setDetailData(null);
+      setTeamDateData([]);
+      return;
+    }
+    if (isAggregateMode) {
+      loadTeamDate(selectedDay);
+    } else {
+      loadDetail(selectedDay);
+    }
+  }, [selectedDay, isAggregateMode, loadDetail, loadTeamDate]);
 
   /* ── Derived state ── */
 
@@ -247,6 +288,11 @@ export default function AttendancePage() {
     return map;
   }, [records]);
 
+  const filteredTeamDate = useMemo(
+    () => scopeDept === "all" ? teamDateData : teamDateData.filter((e) => e.departmentId === scopeDept),
+    [teamDateData, scopeDept],
+  );
+
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
   const today = new Date();
@@ -264,14 +310,28 @@ export default function AttendancePage() {
   const onTimeDays = records.filter((r) => r.isOnTime).length;
   const totalMins = records.reduce((s, r) => s + r.totalWorkingMinutes, 0);
 
+  const aggPresentDays = filteredSummary.reduce((s, e) => s + e.presentDays, 0);
+  const aggOnTimeDays = filteredSummary.reduce((s, e) => s + e.onTimeDays, 0);
+  const aggTotalMins = filteredSummary.reduce((s, e) => s + e.totalMinutes, 0);
+  const aggAvgDaily = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.averageDailyHours, 0) / filteredSummary.length : 0;
+  const aggAvgOnTime = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.onTimePercentage, 0) / filteredSummary.length : 0;
+  const aggAvgAttendance = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.attendancePercentage, 0) / filteredSummary.length : 0;
+
+  const statPresent = isAggregateMode ? aggPresentDays : presentDays;
+  const statOnTime = isAggregateMode ? aggOnTimeDays : onTimeDays;
+  const statTotalMins = isAggregateMode ? aggTotalMins : totalMins;
+
   const selectedDate = selectedDay ? new Date(year, month - 1, selectedDay) : null;
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
 
-  /* ────────────────── UNIFIED VIEW ────────────────── */
+  const teamDatePresent = filteredTeamDate.filter((e) => e.isPresent).length;
+  const teamDateLate = filteredTeamDate.filter((e) => e.isPresent && !e.isOnTime).length;
 
   function toggleEmployee(id: string) {
     setViewingUserId((prev) => prev === id ? "" : id);
   }
+
+  /* ────────────────── RENDER ────────────────── */
 
   return (
     <div className="flex flex-col gap-4">
@@ -280,9 +340,9 @@ export default function AttendancePage() {
         <div>
           <h1 className="text-title">{isAdmin ? "Team Attendance" : "Attendance"}</h1>
           <p className="text-subhead">
-            {hasSelectedEmployee && viewingMember ? `${viewingMember.name} · ` : ""}
-            {MONTH_NAMES[month - 1]} {year}
-            {hasSelectedEmployee ? ` · ${presentDays} day${presentDays !== 1 ? "s" : ""} present` : ` · ${filteredSummary.length} employee${filteredSummary.length !== 1 ? "s" : ""}`}
+            {isAdmin
+              ? (hasSelectedEmployee && viewingMember ? viewingMember.name : `${filteredSummary.length} employee${filteredSummary.length !== 1 ? "s" : ""}`)
+              : `${MONTH_NAMES[month - 1]} ${year}`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -319,7 +379,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Employee pills (always visible for admins) */}
+      {/* Employee pills (admins) */}
       {isAdmin && (
         teamLoading ? (
           <div className="flex flex-wrap gap-2">
@@ -390,52 +450,48 @@ export default function AttendancePage() {
         )
       )}
 
-      {/* Calendar + detail — shown when an employee is selected (or always for non-admin) */}
-      {(hasSelectedEmployee || !isAdmin) && (
-        <motion.div className="flex flex-col gap-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-
-      {/* Today's Session — only for self, never for superadmin */}
-      {isViewingSelf && !isSuperAdmin && (
+      {/* Today's Session — only for self in individual mode */}
+      {!isAggregateMode && isViewingSelf && !isSuperAdmin && (
         <motion.div className="card-xl flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{
-            background: todaySession.active
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{
+              background: todaySession.active
                 ? todaySession.inOffice ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #3b82f6, #2563eb)"
-              : "linear-gradient(135deg, var(--fg-tertiary), var(--fg-secondary))",
-          }}>
+                : "linear-gradient(135deg, var(--fg-tertiary), var(--fg-secondary))",
+            }}>
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <div>
-            <p className="text-headline" style={{ color: "var(--fg)" }}>
+            </div>
+            <div>
+              <p className="text-headline" style={{ color: "var(--fg)" }}>
                 {todaySession.active ? (todaySession.inOffice ? "Working from Office" : "Working Remotely") : "Session Inactive"}
-            </p>
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
-              {todaySession.active && todaySession.startTime
-                ? `Since ${new Date(todaySession.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — auto-tracked`
-                : "Your session starts automatically when you open the app"}
-            </p>
+              </p>
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
+                {todaySession.active && todaySession.startTime
+                  ? `Since ${new Date(todaySession.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — auto-tracked`
+                  : "Your session starts automatically when you open the app"}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4 text-right">
-          <div>
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Today Total</p>
+          <div className="flex items-center gap-4 text-right">
+            <div>
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Today Total</p>
               <p className="text-lg font-bold" style={{ color: "var(--primary)" }}>{fmtHours(todaySession.todayMinutes)}</p>
-          </div>
-          <span className="flex h-3 w-3 shrink-0">
+            </div>
+            <span className="flex h-3 w-3 shrink-0">
               <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: todaySession.active ? (todaySession.inOffice ? "#10b981" : "#3b82f6") : "var(--fg-tertiary)" }}>
-              {todaySession.active && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: todaySession.inOffice ? "#10b981" : "#3b82f6" }} />}
+                {todaySession.active && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: todaySession.inOffice ? "#10b981" : "#3b82f6" }} />}
+              </span>
             </span>
-          </span>
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
       )}
 
-      {/* Basic stats */}
+      {/* 3 Stat Cards — always visible */}
       <motion.div className="grid grid-cols-3 gap-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         {[
-          { label: "Present Days", value: String(presentDays), color: "var(--green)" },
-          { label: "On Time", value: String(onTimeDays), color: "var(--primary)" },
-          { label: "Total Hours", value: fmtHours(totalMins), color: "var(--teal)" },
+          { label: "Present Days", value: String(statPresent), color: "var(--green)" },
+          { label: "On Time", value: String(statOnTime), color: "var(--primary)" },
+          { label: "Total Hours", value: fmtHours(statTotalMins), color: "var(--teal)" },
         ].map((s) => (
           <div key={s.label} className="card-static p-3 text-center">
             <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
@@ -444,14 +500,36 @@ export default function AttendancePage() {
         ))}
       </motion.div>
 
-      {/* Monthly analytics */}
+      {/* Monthly Insights — always visible */}
       <div className="card-static p-4">
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
-        {monthlyStats ? (
+        {isAggregateMode ? (
+          filteredSummary.length > 0 ? (
+            <motion.div
+              className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+              initial="hidden" animate="visible"
+              variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
+            >
+              {[
+                { label: "Avg Daily", value: `${aggAvgDaily.toFixed(1)}h`, color: "var(--primary)" },
+                { label: "Avg On-Time", value: `${Math.round(aggAvgOnTime)}%`, color: aggAvgOnTime >= 80 ? "var(--green)" : "var(--amber)" },
+                { label: "Avg Attendance", value: `${Math.round(aggAvgAttendance)}%`, color: aggAvgAttendance >= 90 ? "var(--green)" : "var(--rose)" },
+                { label: "Total Hours", value: `${Math.round(aggTotalMins / 60)}h`, color: "var(--teal)" },
+              ].map((chip) => (
+                <motion.div key={chip.label} variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}>
+                  <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => <div key={i} className="card-static rounded-xl p-3 space-y-1.5"><span className="shimmer block h-2.5 w-14 rounded" /><span className="shimmer block h-4 w-10 rounded" /></div>)}
+            </div>
+          )
+        ) : monthlyStats ? (
           <motion.div
             className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
-            initial="hidden"
-            animate="visible"
+            initial="hidden" animate="visible"
             variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
           >
             {[
@@ -474,71 +552,142 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* Calendar + Detail */}
+      {/* Calendar + Detail panel */}
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
         {/* Calendar */}
         <motion.div className="card-static p-3 sm:p-4 lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <div className="mb-3 flex items-center justify-between">
-          <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <AnimatePresence mode="wait">
-            <motion.span key={`${month}-${year}`} className="text-headline" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }}>
-              {MONTH_NAMES[month - 1]} {year}
-            </motion.span>
-          </AnimatePresence>
-          <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-          </button>
-        </div>
+          <div className="mb-3 flex items-center justify-between">
+            <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <AnimatePresence mode="wait">
+              <motion.span key={`${month}-${year}`} className="text-headline" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }}>
+                {MONTH_NAMES[month - 1]} {year}
+              </motion.span>
+            </AnimatePresence>
+            <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
 
-        <div className="grid grid-cols-7 gap-1">
-          {DAY_NAMES.map((d) => (
-            <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
-          ))}
-          <AnimatePresence mode="wait">
-            <motion.div key={`${year}-${month}-${viewingUserId}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-              {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`empty-${i}`} />)}
-              {Array.from({ length: daysInMonth }, (_, i) => {
-                const day = i + 1;
-                const rec = recordMap.get(day);
-                const isToday = isCurrentMonth && day === today.getDate();
-                const isSelected = selectedDay === day;
-                const isFuture = isCurrentMonth ? day > today.getDate() : new Date(year, month - 1, day) > today;
-                let dotColor = "transparent";
-                if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
-                else if (rec) dotColor = "var(--rose)";
+          <div className="grid grid-cols-7 gap-1">
+            {DAY_NAMES.map((d) => (
+              <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
+            ))}
+            <AnimatePresence mode="wait">
+              <motion.div key={`${year}-${month}-${viewingUserId}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`empty-${i}`} />)}
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const day = i + 1;
+                  const rec = recordMap.get(day);
+                  const isToday = isCurrentMonth && day === today.getDate();
+                  const isSelected = selectedDay === day;
+                  const isFuture = isCurrentMonth ? day > today.getDate() : new Date(year, month - 1, day) > today;
+                  let dotColor = "transparent";
+                  if (!isAggregateMode) {
+                    if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
+                    else if (rec) dotColor = "var(--rose)";
+                  }
 
-                return (
-                  <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
-                    className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all outline-none"
-                    style={{
-                      ...(isSelected ? { background: "var(--primary)", borderRadius: "0.5rem" } : isToday ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem" } : {}),
-                      cursor: isFuture ? "default" : "pointer", opacity: isFuture ? 0.35 : 1,
-                    }}
-                    whileHover={!isFuture ? { scale: 1.08 } : undefined} whileTap={!isFuture ? { scale: 0.92 } : undefined}
-                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: isFuture ? 0.35 : 1, scale: 1 }} transition={{ duration: 0.2, delay: Math.min(i * 0.01, 0.3) }}
-                  >
-                    <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
-                  </motion.button>
-                );
-              })}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+                  return (
+                    <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
+                      className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all outline-none"
+                      style={{
+                        ...(isSelected ? { background: "var(--primary)", borderRadius: "0.5rem" } : isToday ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem" } : {}),
+                        cursor: isFuture ? "default" : "pointer", opacity: isFuture ? 0.35 : 1,
+                      }}
+                      whileHover={!isFuture ? { scale: 1.08 } : undefined} whileTap={!isFuture ? { scale: 0.92 } : undefined}
+                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: isFuture ? 0.35 : 1, scale: 1 }} transition={{ duration: 0.2, delay: Math.min(i * 0.01, 0.3) }}
+                    >
+                      <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
+                    </motion.button>
+                  );
+                })}
+              </motion.div>
+            </AnimatePresence>
+          </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
-        </div>
-      </motion.div>
+          {!isAggregateMode && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
+            </div>
+          )}
+        </motion.div>
 
-        {/* Day detail panel */}
+        {/* Right panel — context-dependent */}
         <div className="flex flex-col lg:col-span-2">
           <AnimatePresence mode="wait">
-            {selectedDay !== null ? (
+            {/* ── Aggregate mode: team date cards ── */}
+            {isAggregateMode && selectedDay !== null ? (
+              <motion.div key={`team-date-${selectedDay}`} className="card-xl flex flex-1 flex-col overflow-hidden"
+                initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              >
+                <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-headline" style={{ color: "var(--fg)" }}>
+                        {selectedDate?.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+                      </p>
+                      <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
+                        {teamDatePresent} present · {teamDateLate} late · {filteredTeamDate.length - teamDatePresent} absent
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => setSelectedDay(null)} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-tertiary)" }}>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                </div>
+
+                {teamDateLoading ? (
+                  <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                    {[1, 2, 3, 4, 5].map((i) => <div key={i} className="shimmer h-16 rounded-xl" />)}
+                  </div>
+                ) : (
+                  <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                    {filteredTeamDate.length === 0 ? (
+                      <p className="py-8 text-center text-callout" style={{ color: "var(--fg-secondary)" }}>No employee data for this date</p>
+                    ) : (
+                      filteredTeamDate.map((emp, idx) => {
+                        const statusColor = emp.isPresent ? (emp.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)";
+                        return (
+                          <motion.div
+                            key={emp._id}
+                            className="flex items-center gap-3 rounded-xl p-3"
+                            style={{ background: "var(--bg-grouped)" }}
+                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, delay: Math.min(idx * 0.04, 0.3) }}
+                          >
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusColor }} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                              <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>
+                                {emp.department}
+                                {emp.isPresent && ` · ${fmtTime(emp.firstOfficeEntry)} → ${fmtTime(emp.lastOfficeExit)}`}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(emp.totalWorkingMinutes)}</p>
+                              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
+                                background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
+                                color: statusColor,
+                              }}>
+                                {emp.isPresent ? (emp.isOnTime ? "On Time" : "Late") : "Absent"}
+                              </span>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </motion.div>
+
+            ) : !isAggregateMode && selectedDay !== null ? (
+              /* ── Individual mode: session detail ── */
               <motion.div key={`detail-${selectedDay}`} className="card-xl flex flex-1 flex-col overflow-hidden"
                 initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 28 }}
@@ -683,11 +832,14 @@ export default function AttendancePage() {
                 )}
               </motion.div>
             ) : (
+              /* ── Placeholder ── */
               <motion.div key="placeholder" className="card-xl flex flex-1 flex-col items-center justify-center p-8 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "var(--bg-grouped)" }}>
                   <svg className="h-7 w-7" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
                 </div>
-                <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>Select a date</p>
+                <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>
+                  {isAggregateMode ? "Select a date to view team attendance" : "Select a date"}
+                </p>
                 <p className="text-caption mt-1" style={{ color: "var(--fg-tertiary)" }}>Tap any day on the calendar to see details</p>
               </motion.div>
             )}
@@ -695,59 +847,59 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Monthly records list */}
-      {loading ? (
-        <motion.div className="card-static overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
-            <div className="shimmer h-5 w-40 rounded" />
-          </div>
-          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex w-full items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
-                  <div className="space-y-1.5"><div className="shimmer h-4 w-28 rounded" /><div className="shimmer h-3 w-36 rounded" /></div>
-                </div>
-                <div className="text-right"><div className="shimmer ml-auto h-4 w-12 rounded" /><div className="mt-1.5 flex justify-end"><div className="shimmer h-5 w-16 rounded-full" /></div></div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      ) : records.length > 0 ? (
-        <motion.div className="card-static overflow-hidden" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
-            <h3 className="text-headline text-sm">Monthly Records</h3>
-          </div>
-          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-            {records.map((rec, i) => {
-              const recDay = new Date(rec.date).getDate();
-              const isHighlighted = selectedDay === recDay;
-              return (
-                <motion.button key={rec._id} type="button" onClick={() => setSelectedDay(recDay)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors"
-                  style={isHighlighted ? { background: "color-mix(in srgb, var(--primary) 8%, transparent)" } : {}}
-                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.3) }} whileHover={{ x: 3 }}
-                >
-                <div className="flex items-center gap-3">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }} />
-                  <div>
-                    <p className="text-callout font-medium" style={{ color: "var(--fg)" }}>{new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
-                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(rec.firstOfficeEntry)} → {fmtTime(rec.lastOfficeExit)}</p>
+      {/* Monthly records list — individual mode only */}
+      {!isAggregateMode && (
+        loading ? (
+          <motion.div className="card-static overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+              <div className="shimmer h-5 w-40 rounded" />
+            </div>
+            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="flex w-full items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
+                    <div className="space-y-1.5"><div className="shimmer h-4 w-28 rounded" /><div className="shimmer h-3 w-36 rounded" /></div>
                   </div>
+                  <div className="text-right"><div className="shimmer ml-auto h-4 w-12 rounded" /><div className="mt-1.5 flex justify-end"><div className="shimmer h-5 w-16 rounded-full" /></div></div>
                 </div>
-                <div className="text-right">
-                  <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
-                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: rec.isPresent ? (rec.isOnTime ? "color-mix(in srgb, var(--green) 15%, transparent)" : "color-mix(in srgb, var(--amber) 15%, transparent)") : "color-mix(in srgb, var(--rose) 15%, transparent)", color: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }}>
-                    {rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent"}
-                  </span>
-                </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </motion.div>
-      ) : null}
-        </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        ) : records.length > 0 ? (
+          <motion.div className="card-static overflow-hidden" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+              <h3 className="text-headline text-sm">Monthly Records</h3>
+            </div>
+            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+              {records.map((rec, i) => {
+                const recDay = new Date(rec.date).getDate();
+                const isHighlighted = selectedDay === recDay;
+                return (
+                  <motion.button key={rec._id} type="button" onClick={() => setSelectedDay(recDay)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors"
+                    style={isHighlighted ? { background: "color-mix(in srgb, var(--primary) 8%, transparent)" } : {}}
+                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.3) }} whileHover={{ x: 3 }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }} />
+                      <div>
+                        <p className="text-callout font-medium" style={{ color: "var(--fg)" }}>{new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(rec.firstOfficeEntry)} → {fmtTime(rec.lastOfficeExit)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
+                      <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: rec.isPresent ? (rec.isOnTime ? "color-mix(in srgb, var(--green) 15%, transparent)" : "color-mix(in srgb, var(--amber) 15%, transparent)") : "color-mix(in srgb, var(--rose) 15%, transparent)", color: rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)" }}>
+                        {rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent"}
+                      </span>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : null
       )}
     </div>
   );

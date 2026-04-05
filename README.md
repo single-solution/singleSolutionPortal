@@ -334,18 +334,28 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 
 ### Attendance Page
 
-**Admin view — Unified pills + inline detail:**
-- Grouped employee pills (Flat / By Manager / By Department toggles) always visible, showing each employee's monthly status: present days, total hours, attendance %
-- ScopeStrip + group toggles + month nav inline in the header row (no extra row)
-- Select any pill to expand that employee's calendar + timeline inline below; click again to collapse — no drill-down, no back button
-- Selected pill highlights with primary color border
+**Two modes — aggregate (no pill selected) vs individual (pill selected):**
 
-**Individual Calendar (selected employee or default for non-admin):**
-- Interactive calendar with clickable dates and color-coded indicators (On Time / Late / Absent)
+**Aggregate mode (default for admins):**
+- Header shows employee count, no per-employee date
+- 3 stat cards show team totals: sum of present days, on-time days, total hours across all filtered employees
+- Monthly insights show team averages: avg daily hours, avg on-time %, avg attendance %, total hours
+- Calendar acts as a date picker (no per-day dots since data is aggregate)
+- Click any date → right panel shows scrollable employee cards for that date with each employee's status (present/absent/late), hours worked, in/out times, department
+- New `type=team-date` API endpoint fetches all employees' DailyAttendance for a specific date in one call
+
+**Individual mode (pill selected):**
+- Click an employee pill → hides aggregate cards, shows that employee's detailed calendar with color-coded dots (On Time / Late / Absent)
+- Click pill again to deselect and return to aggregate mode
 - Day detail panel: status pills, summary, stat chips (total/office/remote hours), animated work split bar
 - Session timeline: time range, duration, Office/Remote pills, device detection, First In/Last Out badges, heartbeat, IP, office segments
 - Monthly insights: avg daily hours, avg arrival/departure, on-time %, attendance %, office/remote split
 - Monthly records list with clickable rows synced to calendar
+
+**Shared:**
+- Grouped employee pills (Flat / By Manager / By Department toggles) always visible at top
+- ScopeStrip + group toggles + month nav inline in the header row
+- Calendar always visible with month navigation
 
 ---
 

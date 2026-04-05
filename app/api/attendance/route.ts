@@ -147,6 +147,73 @@ export async function GET(req: NextRequest) {
     return ok(result);
   }
 
+  if (type === "team-date") {
+    if (!canViewTeamStats(actor)) return ok([]);
+
+    const dateStr = url.searchParams.get("date");
+    if (!dateStr) return ok([]);
+
+    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+    if (isManager(actor) && !actor.crossDepartmentAccess) {
+      if (actor.managedDepartments.length > 0) {
+        empFilter.department = { $in: actor.managedDepartments };
+      } else if (actor.department) {
+        empFilter.department = actor.department;
+      }
+    } else if (isTeamLead(actor)) {
+      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+      if (memberIds.length > 0) {
+        empFilter._id = { $in: memberIds };
+      } else {
+        return ok([]);
+      }
+    } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
+      empFilter.department = actor.department;
+    }
+
+    const employees = await User.find(empFilter)
+      .select("about userRole department")
+      .populate("department", "title")
+      .sort({ "about.firstName": 1 })
+      .lean();
+
+    const parts = dateStr.split("-").map(Number);
+    const target = dateInTz(parts[0], parts[1] - 1, parts[2], 12, 0, 0, tz);
+    const dayStart = startOfDay(target, tz);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+    const empIds = employees.map((e) => e._id);
+    const dailyRecords = await DailyAttendance.find({
+      user: { $in: empIds },
+      date: { $gte: dayStart, $lte: dayEnd },
+    }).lean();
+
+    const dailyMap = new Map<string, (typeof dailyRecords)[0]>();
+    for (const d of dailyRecords) dailyMap.set(d.user.toString(), d);
+
+    const result = employees.map((emp) => {
+      const id = emp._id.toString();
+      const rec = dailyMap.get(id);
+      return {
+        _id: id,
+        name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
+        role: emp.userRole,
+        department: (emp.department as { title?: string })?.title ?? "Unassigned",
+        departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
+        isPresent: rec?.isPresent ?? false,
+        isOnTime: rec?.isOnTime ?? false,
+        totalWorkingMinutes: rec?.totalWorkingMinutes ?? 0,
+        officeMinutes: rec?.officeMinutes ?? 0,
+        remoteMinutes: rec?.remoteMinutes ?? 0,
+        firstOfficeEntry: rec?.firstOfficeEntry ?? null,
+        lastOfficeExit: rec?.lastOfficeExit ?? null,
+        lateBy: rec?.lateBy ?? 0,
+      };
+    });
+
+    return ok(result);
+  }
+
   let targetDept: string | null | undefined = undefined;
   let targetTeams: string[] | undefined = undefined;
   if (userId !== actor.id && !isSuperAdmin(actor)) {
