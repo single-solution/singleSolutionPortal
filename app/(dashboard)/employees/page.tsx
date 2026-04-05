@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { contentReveal, staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
+import { cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -219,19 +219,9 @@ export default function EmployeesPage() {
   }
 
   return (
-    <motion.div
-      className="flex flex-col gap-0"
-      variants={contentReveal}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header: title left, sort right */}
-      <motion.div
-        className="flex items-center justify-between gap-3 mb-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+    <div className="flex flex-col gap-0">
+      {/* Header: title left, sort right — static shell (no route-level fade) to avoid flicker with data loading */}
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Employees</h1>
           <p className="text-subhead hidden sm:block">{empList.length} team member{empList.length !== 1 ? "s" : ""}</p>
@@ -255,15 +245,10 @@ export default function EmployeesPage() {
             </motion.button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* Search + Add row */}
-      <motion.div
-        className="card-static p-4 mb-4 flex gap-3 items-center"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-      >
+      <div className="card-static mb-4 flex items-center gap-3 p-4">
         <div className="relative flex-1">
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
           <input
@@ -287,7 +272,7 @@ export default function EmployeesPage() {
           Add Employee
         </motion.button>
         )}
-      </motion.div>
+      </div>
 
       {/* Role filter */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
@@ -351,9 +336,7 @@ export default function EmployeesPage() {
       {/* Count + Select all */}
       <div className="mb-3 flex items-center justify-between">
         <p className="text-footnote" style={{ color: "var(--fg-secondary)" }}>
-          <motion.span key={filtered.length} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
-            {filtered.length}
-          </motion.span>
+          <span key={filtered.length}>{filtered.length}</span>
           {" "}employee{filtered.length !== 1 ? "s" : ""}
         </p>
         {isSuperAdmin && (
@@ -363,17 +346,12 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* Employee Card Grid */}
-      <motion.div
-        className="grid gap-2 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-        variants={staggerContainerFast}
-        initial="hidden"
-        animate="visible"
-      >
+      {/* Employee Card Grid — skeleton rows are static divs (no stagger fade) to avoid layered loading flicker */}
+      <div className="grid grid-cols-2 gap-2 pt-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         <AnimatePresence mode="popLayout">
           {employeesLoading && !employees ? (
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-              <motion.div key={`skel-${i}`} variants={cardVariants} custom={i} className="h-full">
+              <div key={`skel-${i}`} className="h-full">
                 <div className="card flex h-full flex-col overflow-hidden">
                   <div className="flex-1 p-2.5">
                     <div className="flex items-center gap-2">
@@ -404,7 +382,7 @@ export default function EmployeesPage() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))
           ) : filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full card p-12 text-center">
@@ -419,6 +397,8 @@ export default function EmployeesPage() {
                   key={emp._id}
                   variants={cardVariants}
                   custom={i}
+                  initial="hidden"
+                  animate="visible"
                   layout
                   whileHover={cardHover}
                   className="h-full"
@@ -511,7 +491,7 @@ export default function EmployeesPage() {
             })
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
 
       {/* Delete Confirmation */}
       <ConfirmDialog
@@ -536,6 +516,6 @@ export default function EmployeesPage() {
         onConfirm={handleBulkDeactivate}
         onCancel={() => setBulkDeleteOpen(false)}
       />
-    </motion.div>
+    </div>
   );
 }
