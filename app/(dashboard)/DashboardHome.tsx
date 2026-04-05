@@ -74,6 +74,10 @@ interface PersonalAttendance {
   isOnTime: boolean;
   lateBy: number;
   firstEntry: string | null;
+  clockIn: string | null;
+  clockOut: string | null;
+  firstOfficeEntry: string | null;
+  lastOfficeExit: string | null;
   monthlyAvgHours: number;
   monthlyOnTimePct: number;
   avgInTime: string;
@@ -217,6 +221,17 @@ const STATUS_BADGE_CLASS: Record<PresenceStatus, string> = {
 };
 
 /* ──────────────────────── HELPERS ──────────────────────── */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function extractClockTimes(sessions: any[]): { clockIn: string | null; clockOut: string | null } {
+  if (!sessions?.length) return { clockIn: null, clockOut: null };
+  const sorted = [...sessions].sort((a, b) => new Date(a.sessionTime?.start).getTime() - new Date(b.sessionTime?.start).getTime());
+  const clockIn = sorted[0]?.sessionTime?.start ?? null;
+  const last = sorted[sorted.length - 1];
+  const clockOut = last?.sessionTime?.end ?? last?.lastActivity ?? null;
+  return { clockIn: clockIn ? new Date(clockIn).toISOString() : null, clockOut: clockOut ? new Date(clockOut).toISOString() : null };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -426,21 +441,41 @@ function SelfOverviewCard({ pa, userProfile, user }: {
             <p className="text-subhead">{userProfile?.department ?? ROLE_DESIGNATION[user.role]}</p>
             <p className="text-caption mt-0.5">{user.email}</p>
                     </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="card-static rounded-xl p-3">
-              <p className="text-caption">First entry</p>
-              <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.firstEntry ?? "—"}</p>
-                  </div>
-            <div className="card-static rounded-xl p-3">
-              <p className="text-caption">Hours logged</p>
+          {/* Clock In / Hours / Clock Out */}
+          <div className="grid grid-cols-3 gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+            <div className="card-static rounded-xl p-2.5">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
+              <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
+            </div>
+            <div className="card-static rounded-xl p-2.5 text-center">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
             </div>
-            <div className="card-static col-span-2 rounded-xl p-3 sm:col-span-1">
-              <p className="text-caption">Office / Remote</p>
-              <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(pa.officeMinutes)} / {formatMinutes(pa.remoteMinutes)}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-secondary)" }}>{officePct}% office · {remotePct}% remote</p>
-      </div>
-        </div>
+            <div className="card-static rounded-xl p-2.5 text-right">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
+              <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
+            </div>
+          </div>
+          {/* Arrived / Office / Left */}
+          <div className="grid grid-cols-3 gap-2" style={{ color: "var(--fg-secondary)" }}>
+            <div className="card-static rounded-xl p-2.5">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Arrived</p>
+              <p className="text-callout font-semibold tabular-nums">{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
+            </div>
+            <div className="card-static rounded-xl p-2.5 text-center">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
+              <p className="text-callout font-semibold tabular-nums">{formatMinutes(pa.officeMinutes)}</p>
+            </div>
+            <div className="card-static rounded-xl p-2.5 text-right">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Left</p>
+              <p className="text-callout font-semibold tabular-nums">{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
+            </div>
+          </div>
+          {/* Office / Remote split */}
+          <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
+            <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
+            <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
+          </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Shift progress</span>
@@ -465,7 +500,8 @@ function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null;
 
   const events = useMemo(() => {
     const evs: { key: string; dot: string; time: string; label: string }[] = [];
-    if (pa?.firstEntry) evs.push({ key: "login", dot: statusColor, time: pa.firstEntry, label: `Checked in at ${pa.firstEntry}` });
+    const checkInTime = pa?.clockIn ? formatClock(new Date(pa.clockIn)) : pa?.firstEntry;
+    if (checkInTime) evs.push({ key: "login", dot: statusColor, time: checkInTime, label: `Checked in at ${checkInTime}` });
     if (pa && pa.todaySessions > 1) evs.push({ key: "sessions", dot: "var(--amber)", time: `${pa.todaySessions} sessions`, label: `${pa.todaySessions} sessions today (${formatMinutes(pa.officeMinutes)} office, ${formatMinutes(pa.remoteMinutes)} remote)` });
     if (pa && pa.todayMinutes > 0) evs.push({ key: "active", dot: "var(--teal)", time: "Now", label: `Active now · ${formatMinutes(pa.todayMinutes)} logged` });
     if (!isLoading && evs.length === 0) evs.push({ key: "empty", dot: "var(--fg-tertiary)", time: "—", label: "No activity yet today" });
@@ -1218,7 +1254,8 @@ export default function DashboardHome({ user }: { user: User }) {
       const dailyRes = await fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null);
       if (dailyRes) {
         setPersonalAttendance((prev) => {
-          const base = prev ?? { todayMinutes: 0, todaySessions: 0, officeMinutes: 0, remoteMinutes: 0, isOnTime: true, lateBy: 0, firstEntry: null, monthlyAvgHours: 0, monthlyOnTimePct: 0, avgInTime: "", avgOutTime: "" };
+          const base = prev ?? { todayMinutes: 0, todaySessions: 0, officeMinutes: 0, remoteMinutes: 0, isOnTime: true, lateBy: 0, firstEntry: null, clockIn: null, clockOut: null, firstOfficeEntry: null, lastOfficeExit: null, monthlyAvgHours: 0, monthlyOnTimePct: 0, avgInTime: "", avgOutTime: "" };
+          const ct = extractClockTimes(dailyRes.activitySessions ?? []);
           return {
             ...base,
             todayMinutes: dailyRes.totalWorkingMinutes ?? 0,
@@ -1228,6 +1265,10 @@ export default function DashboardHome({ user }: { user: User }) {
             isOnTime: dailyRes.isOnTime ?? true,
             lateBy: dailyRes.lateBy ?? 0,
             firstEntry: dailyRes.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+            clockIn: ct.clockIn,
+            clockOut: ct.clockOut,
+            firstOfficeEntry: dailyRes.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toISOString() : null,
+            lastOfficeExit: dailyRes.lastOfficeExit ? new Date(dailyRes.lastOfficeExit).toISOString() : null,
           };
         });
       }
@@ -1264,6 +1305,7 @@ export default function DashboardHome({ user }: { user: User }) {
       ]);
 
       if (dailyDetailRes) {
+        const ct = extractClockTimes(dailyDetailRes.activitySessions ?? []);
         setPersonalAttendance({
           todayMinutes: dailyDetailRes.totalWorkingMinutes ?? 0,
           todaySessions: dailyDetailRes.activitySessions?.length ?? 0,
@@ -1272,6 +1314,10 @@ export default function DashboardHome({ user }: { user: User }) {
           isOnTime: dailyDetailRes.isOnTime ?? true,
           lateBy: dailyDetailRes.lateBy ?? 0,
           firstEntry: dailyDetailRes.firstOfficeEntry ? new Date(dailyDetailRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+          clockIn: ct.clockIn,
+          clockOut: ct.clockOut,
+          firstOfficeEntry: dailyDetailRes.firstOfficeEntry ? new Date(dailyDetailRes.firstOfficeEntry).toISOString() : null,
+          lastOfficeExit: dailyDetailRes.lastOfficeExit ? new Date(dailyDetailRes.lastOfficeExit).toISOString() : null,
           monthlyAvgHours: monthlyRes?.averageDailyHours ?? 0,
           monthlyOnTimePct: monthlyRes?.onTimePercentage ?? 0,
           avgInTime: monthlyRes?.averageOfficeInTime ?? "",
@@ -1279,7 +1325,7 @@ export default function DashboardHome({ user }: { user: User }) {
         });
       } else if (monthlyRes) {
         setPersonalAttendance((prev) => {
-          const base = prev ?? { todayMinutes: 0, todaySessions: 0, officeMinutes: 0, remoteMinutes: 0, isOnTime: true, lateBy: 0, firstEntry: null, monthlyAvgHours: 0, monthlyOnTimePct: 0, avgInTime: "", avgOutTime: "" };
+          const base = prev ?? { todayMinutes: 0, todaySessions: 0, officeMinutes: 0, remoteMinutes: 0, isOnTime: true, lateBy: 0, firstEntry: null, clockIn: null, clockOut: null, firstOfficeEntry: null, lastOfficeExit: null, monthlyAvgHours: 0, monthlyOnTimePct: 0, avgInTime: "", avgOutTime: "" };
           return {
             ...base,
             monthlyAvgHours: monthlyRes.averageDailyHours ?? 0,
