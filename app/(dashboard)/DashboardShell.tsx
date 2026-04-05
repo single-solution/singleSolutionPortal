@@ -163,46 +163,19 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const [pingUnread, setPingUnread] = useState(0);
   const [pingsLoaded, setPingsLoaded] = useState(false);
   const pingRef = useRef<HTMLDivElement>(null);
-  const prevPingIdsRef = useRef<Set<string>>(new Set());
 
   const fetchPings = useCallback(async () => {
     try {
       const res = await fetch("/api/ping");
       if (!res.ok) return;
       const data = await res.json();
-      const fetched: typeof pings = data.pings ?? [];
-      const newUnread = data.unreadCount ?? 0;
-
-      if (pingsLoaded && newUnread > pingUnread) {
-        const prevIds = prevPingIdsRef.current;
-        const fresh = fetched.filter((p) => !p.read && !prevIds.has(p._id));
-        for (const p of fresh) {
-          const name = `${p.from.about.firstName} ${p.from.about.lastName}`.trim();
-          const body = p.message || `${name} pinged you`;
-          if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-            new Notification("Ping", { body, icon: "/icon-192x192.png", tag: `ping-${p._id}` });
-          }
-        }
-      }
-
-      prevPingIdsRef.current = new Set(fetched.map((p) => p._id));
-      setPings(fetched);
-      setPingUnread(newUnread);
+      setPings(data.pings ?? []);
+      setPingUnread(data.unreadCount ?? 0);
     } catch { /* silent */ }
     setPingsLoaded(true);
-  }, [pingsLoaded, pingUnread]);
-
-  useEffect(() => { fetchPings(); }, []);
-  useEffect(() => {
-    const id = setInterval(fetchPings, 30_000);
-    return () => clearInterval(id);
-  }, [fetchPings]);
-
-  useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
   }, []);
+
+  useEffect(() => { fetchPings(); }, [fetchPings]);
 
   const fetchLogs = useCallback(async () => {
     try {

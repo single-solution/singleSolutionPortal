@@ -272,8 +272,7 @@ Real-time peer-to-peer pinging within your reporting chain. Everyone can ping pe
 - `POST /api/ping` — send a ping (pool validation enforced server-side)
 - `GET /api/ping` — inbox with unread count
 - `PATCH /api/ping` — mark pings as read (individual or all)
-- Real-time delivery via Socket.IO `ping` event (when enabled), or 30-second polling fallback
-- Browser notifications (Notification API) triggered on new pings — permission requested on first visit
+- Real-time delivery via Socket.IO `ping` event (when enabled) or manual refresh
 - Ping icon (signal wave) in header with unread badge and dropdown inbox
 - Each employee card on the dashboard shows who they report to and a quick-ping button
 - Non-admin roles see a rich "Reports to" card with manager's live status, arrival time, location (office/remote), hours worked, shift end, and a one-tap ping button
