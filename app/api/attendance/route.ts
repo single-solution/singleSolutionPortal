@@ -72,6 +72,77 @@ export async function GET(req: NextRequest) {
     return ok(team);
   }
 
+  if (type === "team-monthly") {
+    if (!canViewTeamStats(actor)) return ok([]);
+
+    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+    if (isManager(actor) && !actor.crossDepartmentAccess) {
+      if (actor.managedDepartments.length > 0) {
+        empFilter.department = { $in: actor.managedDepartments };
+      } else if (actor.department) {
+        empFilter.department = actor.department;
+      }
+    } else if (isTeamLead(actor)) {
+      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+      if (memberIds.length > 0) {
+        empFilter._id = { $in: memberIds };
+      } else {
+        return ok([]);
+      }
+    } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
+      empFilter.department = actor.department;
+    }
+
+    const employees = await User.find(empFilter)
+      .select("about userRole department")
+      .populate("department", "title")
+      .sort({ "about.firstName": 1 })
+      .lean();
+
+    const empIds = employees.map((e) => e._id);
+    const stats = await MonthlyAttendanceStats.find({
+      user: { $in: empIds },
+      year,
+      month,
+    }).lean();
+
+    const statsMap = new Map<string, typeof stats[0]>();
+    for (const s of stats) statsMap.set(s.user.toString(), s);
+
+    const monthStart = dateInTz(year, month - 1, 1, 0, 0, 0, tz);
+    const nextMonthStart = dateInTz(year, month, 1, 0, 0, 0, tz);
+    const monthEnd = new Date(nextMonthStart.getTime() - 1);
+
+    const dailyCounts = await DailyAttendance.aggregate([
+      { $match: { user: { $in: empIds }, date: { $gte: monthStart, $lte: monthEnd } } },
+      { $group: { _id: "$user", presentDays: { $sum: { $cond: ["$isPresent", 1, 0] } }, onTimeDays: { $sum: { $cond: ["$isOnTime", 1, 0] } }, totalMinutes: { $sum: "$totalWorkingMinutes" }, lateDays: { $sum: { $cond: [{ $gt: ["$lateBy", 0] }, 1, 0] } } } },
+    ]);
+    const dailyMap = new Map<string, typeof dailyCounts[0]>();
+    for (const d of dailyCounts) dailyMap.set(d._id.toString(), d);
+
+    const result = employees.map((emp) => {
+      const id = emp._id.toString();
+      const ms = statsMap.get(id);
+      const dc = dailyMap.get(id);
+      return {
+        _id: id,
+        name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
+        role: emp.userRole,
+        department: (emp.department as { title?: string })?.title ?? "Unassigned",
+        departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
+        presentDays: dc?.presentDays ?? ms?.presentDays ?? 0,
+        onTimeDays: dc?.onTimeDays ?? ms?.onTimeArrivals ?? 0,
+        lateDays: dc?.lateDays ?? ms?.lateArrivals ?? 0,
+        totalMinutes: dc?.totalMinutes ?? Math.round((ms?.totalWorkingHours ?? 0) * 60),
+        averageDailyHours: ms?.averageDailyHours ?? 0,
+        onTimePercentage: ms?.onTimePercentage ?? 0,
+        attendancePercentage: ms?.attendancePercentage ?? 0,
+      };
+    });
+
+    return ok(result);
+  }
+
   let targetDept: string | null | undefined = undefined;
   let targetTeams: string[] | undefined = undefined;
   if (userId !== actor.id && !isSuperAdmin(actor)) {

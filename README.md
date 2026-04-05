@@ -332,13 +332,21 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 
 **Mobile UX**: App-sized fonts on mobile (max-width 639px) — title 16px, headline 14px, body 12px, callout 11px, subhead/footnote 10px, caption 9px. All `hidden sm:block` patterns removed — subtitles and descriptions visible on mobile with compact sizing. **Hamburger menu** (visible below `sm` breakpoint) in header opens a slide-out drawer with profile link, theme switcher, pings, notifications, settings, and sign-out. Desktop header unchanged. Bottom dock stays as primary page navigation on mobile.
 
-### Attendance Page (All Roles)
+### Attendance Page
 
+**SuperAdmin — Team Attendance Hub:**
+- Team overview grid showing all employees' monthly attendance stats (present days, on-time arrivals, total hours, late arrivals, attendance %)
+- Aggregate stats bar across all employees (or scoped by department via ScopeStrip)
+- Searchable employee cards — click any employee to drill into their individual calendar
+- "Back to team" breadcrumb to return from individual view to the hub
+- No personal session card (SuperAdmin doesn't track attendance)
+
+**Manager / TeamLead / Employee:**
 - Interactive calendar with clickable, selectable dates and color-coded day indicators
 - Day detail panel (equal height with calendar): status pills, human-readable summary, stat chips (total/office/remote hours), animated work split bar
 - Session timeline per day: time range, duration, location pills (Office/Remote), device detection (Mac/Windows/Mobile), "First In"/"Last Out" badges, last heartbeat timestamp, IP address, office segment sub-timeline
 - Monthly insights row: avg daily hours, avg arrival/departure, on-time %, attendance %, office/remote split
-- Team member selector (SuperAdmin/Manager) to view any employee's calendar
+- Team member selector (Manager/TeamLead) to view any employee's calendar
 - Monthly records list with clickable rows that sync to calendar selection
 
 ---
