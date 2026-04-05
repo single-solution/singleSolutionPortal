@@ -71,21 +71,6 @@ interface TeamMember {
   departmentId?: string | null;
 }
 
-interface TeamMonthlySummary {
-  _id: string;
-  name: string;
-  role: string;
-  department: string;
-  departmentId: string | null;
-  presentDays: number;
-  onTimeDays: number;
-  lateDays: number;
-  totalMinutes: number;
-  averageDailyHours: number;
-  onTimePercentage: number;
-  attendancePercentage: number;
-}
-
 /* ───── Constants ───── */
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -134,15 +119,14 @@ export default function AttendancePage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
-  const [teamSummaryLoading, setTeamSummaryLoading] = useState(false);
+  const [teamLoaded, setTeamLoaded] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string>("");
   const [todaySession, setTodaySession] = useState<{ active: boolean; inOffice: boolean; startTime: string | null; todayMinutes: number }>({
     active: false, inOffice: false, startTime: null, todayMinutes: 0,
   });
 
   const isSuperAdmin = authSession?.user?.role === "superadmin";
-  const showTeamHub = isSuperAdmin && !viewingUserId;
+  const [filterRole, setFilterRole] = useState<string>("all");
 
   const userIdParam = viewingUserId || "";
 
@@ -181,17 +165,8 @@ export default function AttendancePage() {
       const res = await fetch("/api/attendance?type=team").then((r) => r.json());
       setTeamMembers(Array.isArray(res) ? res : []);
     } catch { /* ignore */ }
+    setTeamLoaded(true);
   }, [isAdmin]);
-
-  const loadTeamSummary = useCallback(async () => {
-    if (!isAdmin) return;
-    setTeamSummaryLoading(true);
-    try {
-      const res = await fetch(`/api/attendance?type=team-monthly&year=${year}&month=${month}`).then((r) => r.json());
-      setTeamSummary(Array.isArray(res) ? res : []);
-    } catch { setTeamSummary([]); }
-    setTeamSummaryLoading(false);
-  }, [isAdmin, year, month]);
 
   const loadDetail = useCallback(async (day: number) => {
     setDetailLoading(true);
@@ -207,7 +182,6 @@ export default function AttendancePage() {
   useEffect(() => { loadRecords(); loadMonthlyStats(); }, [loadRecords, loadMonthlyStats]);
   useEffect(() => { loadTodaySession(); }, [loadTodaySession]);
   useEffect(() => { loadTeam(); }, [loadTeam]);
-  useEffect(() => { loadTeamSummary(); }, [loadTeamSummary]);
 
   useEffect(() => {
     setSelectedDay(null);
@@ -247,217 +221,77 @@ export default function AttendancePage() {
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
 
   const [scopeDept, setScopeDept] = useState("all");
-  const filteredTeamMembers = useMemo(
-    () => scopeDept === "all" ? teamMembers : teamMembers.filter((m) => m.departmentId === scopeDept),
-    [teamMembers, scopeDept],
-  );
+
+  const filteredTeamMembers = useMemo(() => {
+    let list = teamMembers;
+    if (scopeDept !== "all") list = list.filter((m) => m.departmentId === scopeDept);
+    if (filterRole !== "all") list = list.filter((m) => m.role === filterRole);
+    return list;
+  }, [teamMembers, scopeDept, filterRole]);
+
+  const availableRoles = useMemo(() => {
+    const roles = new Set(teamMembers.map((m) => m.role));
+    return Array.from(roles).sort();
+  }, [teamMembers]);
+
   const viewingMember = teamMembers.find((m) => m._id === viewingUserId);
 
-  const filteredTeamSummary = useMemo(
-    () => scopeDept === "all" ? teamSummary : teamSummary.filter((m) => m.departmentId === scopeDept),
-    [teamSummary, scopeDept],
-  );
-
-  const [teamSearch, setTeamSearch] = useState("");
-  const searchedTeamSummary = useMemo(() => {
-    if (!teamSearch.trim()) return filteredTeamSummary;
-    const q = teamSearch.toLowerCase();
-    return filteredTeamSummary.filter(
-      (m) => m.name.toLowerCase().includes(q) || m.department.toLowerCase().includes(q) || m.role.toLowerCase().includes(q),
-    );
-  }, [filteredTeamSummary, teamSearch]);
-
-  const teamAggregate = useMemo(() => {
-    const list = filteredTeamSummary;
-    if (list.length === 0) return null;
-    const totalPresent = list.reduce((s, m) => s + m.presentDays, 0);
-    const totalOnTime = list.reduce((s, m) => s + m.onTimeDays, 0);
-    const totalLate = list.reduce((s, m) => s + m.lateDays, 0);
-    const totalMinutes = list.reduce((s, m) => s + m.totalMinutes, 0);
-    const avgAttendance = list.reduce((s, m) => s + m.attendancePercentage, 0) / list.length;
-    const avgOnTime = list.reduce((s, m) => s + m.onTimePercentage, 0) / list.length;
-    return { employees: list.length, totalPresent, totalOnTime, totalLate, totalMinutes, avgAttendance, avgOnTime };
-  }, [filteredTeamSummary]);
-
-  if (showTeamHub) {
-    return (
-      <div className="flex flex-col gap-4">
-        {/* Header */}
-        <motion.div className="flex items-start justify-between gap-3" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <div>
-            <h1 className="text-title">Team Attendance</h1>
-            <p className="text-subhead">{MONTH_NAMES[month - 1]} {year} · {filteredTeamSummary.length} employee{filteredTeamSummary.length !== 1 ? "s" : ""}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <span className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1].slice(0, 3)} {year}</span>
-            <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Scope strip */}
-        <ScopeStrip value={scopeDept} onChange={setScopeDept} />
-
-        {/* Aggregate stats */}
-        {teamAggregate && (
-          <motion.div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            {[
-              { label: "Employees", value: String(teamAggregate.employees), color: "var(--primary)" },
-              { label: "Present Days", value: String(teamAggregate.totalPresent), color: "var(--green)" },
-              { label: "On Time", value: String(teamAggregate.totalOnTime), color: "var(--teal)" },
-              { label: "Late Arrivals", value: String(teamAggregate.totalLate), color: "var(--amber)" },
-              { label: "Avg Attendance", value: `${Math.round(teamAggregate.avgAttendance)}%`, color: teamAggregate.avgAttendance >= 90 ? "var(--green)" : "var(--rose)" },
-              { label: "Total Hours", value: fmtHours(teamAggregate.totalMinutes), color: "var(--primary)" },
-            ].map((s) => (
-              <div key={s.label} className="card-static p-3 text-center">
-                <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
-                <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
-              </div>
-            ))}
-          </motion.div>
-        )}
-
-        {/* Search */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input
-              type="text"
-              placeholder="Search employees…"
-              value={teamSearch}
-              onChange={(e) => setTeamSearch(e.target.value)}
-              className="input w-full pl-9 text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Employee cards grid */}
-        {teamSummaryLoading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div key={i} className="card-static p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="shimmer h-10 w-10 rounded-full" />
-                  <div className="space-y-1.5 flex-1">
-                    <div className="shimmer h-4 w-24 rounded" />
-                    <div className="shimmer h-3 w-32 rounded" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="shimmer h-10 rounded-lg" />
-                  <div className="shimmer h-10 rounded-lg" />
-                  <div className="shimmer h-10 rounded-lg" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : searchedTeamSummary.length > 0 ? (
-          <motion.div
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            initial="hidden"
-            animate="visible"
-            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
-          >
-            {searchedTeamSummary.map((emp) => {
-              const initials = emp.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-              const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
-              return (
-                <motion.button
-                  key={emp._id}
-                  type="button"
-                  onClick={() => setViewingUserId(emp._id)}
-                  className="card-xl p-4 text-left transition-all hover:shadow-md"
-                  variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, var(--primary), var(--teal))" }}>
-                      {initials}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{emp.name}</p>
-                      <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{emp.department} · {emp.role}</p>
-                    </div>
-                    <div className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `color-mix(in srgb, ${attendColor} 14%, transparent)`, color: attendColor }}>
-                      {Math.round(emp.attendancePercentage)}%
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                      <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Present</p>
-                      <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{emp.presentDays}</p>
-                    </div>
-                    <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                      <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>On Time</p>
-                      <p className="text-sm font-bold" style={{ color: "var(--teal)" }}>{emp.onTimeDays}</p>
-                    </div>
-                    <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                      <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
-                      <p className="text-sm font-bold" style={{ color: "var(--primary)" }}>{fmtHours(emp.totalMinutes)}</p>
-                    </div>
-                  </div>
-
-                  {emp.lateDays > 0 && (
-                    <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--amber)" }}>
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      {emp.lateDays} late arrival{emp.lateDays !== 1 ? "s" : ""}
-                    </div>
-                  )}
-                </motion.button>
-              );
-            })}
-          </motion.div>
-        ) : (
-          <motion.div className="card p-12 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>
-              {teamSearch ? "No employees match your search" : "No attendance data for this month"}
-            </p>
-          </motion.div>
-        )}
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!isSuperAdmin || !teamLoaded || teamMembers.length === 0) return;
+    if (viewingUserId && teamMembers.some((m) => m._id === viewingUserId)) return;
+    const first = filteredTeamMembers[0] ?? teamMembers[0];
+    if (first) setViewingUserId(first._id);
+  }, [isSuperAdmin, teamLoaded, teamMembers, filteredTeamMembers, viewingUserId]);
 
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <motion.div className="flex items-start justify-between gap-3" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        <div>
-          {isSuperAdmin && viewingUserId ? (
-            <button type="button" onClick={() => setViewingUserId("")} className="mb-1 flex items-center gap-1.5 text-caption font-medium transition-colors hover:text-[var(--primary)]" style={{ color: "var(--fg-tertiary)" }}>
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-              Back to team
-            </button>
-          ) : null}
-          <h1 className="text-title">Attendance</h1>
-          <p className="text-subhead">
-            {viewingMember ? `${viewingMember.name} · ` : ""}{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present
-          </p>
+      <motion.div className="flex flex-col gap-3" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-title">Attendance</h1>
+            <p className="text-subhead">
+              {viewingMember ? `${viewingMember.name} · ` : ""}{MONTH_NAMES[month - 1]} {year} · {presentDays} day{presentDays !== 1 ? "s" : ""} present
+            </p>
+          </div>
         </div>
-        {/* Team member selector — hide for superadmin (they use the team hub) */}
-        {isAdmin && !isSuperAdmin && filteredTeamMembers.length > 0 && (
-          <select
-            value={viewingUserId}
-            onChange={(e) => setViewingUserId(e.target.value)}
-            className="input text-sm"
-            style={{ maxWidth: 220, paddingLeft: 12, paddingRight: 12 }}
-          >
-            <option value="">My Attendance</option>
-            {filteredTeamMembers.map((m) => (
-              <option key={m._id} value={m._id}>{m.name} — {m.department}</option>
-            ))}
-          </select>
+
+        {/* Filters row — all admins */}
+        {isAdmin && filteredTeamMembers.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Employee selector */}
+            <select
+              value={viewingUserId}
+              onChange={(e) => setViewingUserId(e.target.value)}
+              className="input text-sm flex-1 min-w-0"
+              style={{ maxWidth: 260, paddingLeft: 12, paddingRight: 12 }}
+            >
+              {!isSuperAdmin && <option value="">My Attendance</option>}
+              {filteredTeamMembers.map((m) => (
+                <option key={m._id} value={m._id}>{m.name} — {m.department}</option>
+              ))}
+            </select>
+
+            {/* Role filter */}
+            {availableRoles.length > 1 && (
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="input text-sm"
+                style={{ maxWidth: 160, paddingLeft: 12, paddingRight: 12 }}
+              >
+                <option value="all">All Roles</option>
+                {availableRoles.map((r) => (
+                  <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                ))}
+              </select>
+            )}
+          </div>
         )}
       </motion.div>
 
-      {/* Scope strip — for non-superadmin admins */}
-      {isAdmin && !isSuperAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
+      {/* Department scope strip — all admins */}
+      {isAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
 
       {/* Today's Session — only for self, never for superadmin */}
       {isViewingSelf && !isSuperAdmin && (
