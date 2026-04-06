@@ -688,90 +688,9 @@ function AdminDashboard({
         </div>
       )}
 
-      {/* 3. Campaigns (left) + Tasks (right) for admin/superadmin */}
-      <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[1fr_1fr]">
-        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-5 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="mb-3 flex shrink-0 items-center justify-between">
-            <div className="flex items-center min-w-0">
-              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
-              <RefreshBtn onRefresh={onRefreshFull} />
-            </div>
-            <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
-              </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
-            {dataLoading ? (
-              [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
-            ) : activeCampaigns.length === 0 ? (
-              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
-            ) : activeCampaigns.map((camp, ci) => (
-              <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
-                  <div className="flex gap-1.5 mt-0.5">
-                    {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
-                    {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
-                    <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
-              </div>
-              </div>
-            </motion.div>
-            ))}
-        </div>
-        </motion.section>
-        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="mb-3 flex shrink-0 items-center justify-between">
-            <div className="flex items-center min-w-0">
-              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
-              <RefreshBtn onRefresh={onRefreshFull} />
-            </div>
-            {!dataLoading && (
-              <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
-                {pendingTasks.length} Pending
-          </motion.div>
-            )}
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
-            {dataLoading ? (
-              [1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
-            ) : pendingTasks.length === 0 ? (
-              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>All caught up!</p>
-            ) : pendingTasks.map((task, ti) => {
-              const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
-              const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
-              const assigneeName = task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName}`.trim() : "";
-              const creatorName = task.createdBy?.about ? `${task.createdBy.about.firstName} ${task.createdBy.about.lastName}`.trim() : "";
-              const statusLabel = task.status === "inProgress" ? "In Progress" : task.status === "pending" ? "Pending" : task.status;
-              const statusColor = task.status === "inProgress" ? "var(--primary)" : task.status === "pending" ? "var(--amber)" : "var(--teal)";
-                return (
-                <motion.div key={task._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 + ti * 0.04 }} whileHover={{ x: 4 }} className="flex shrink-0 items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
-                    </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
-                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
-                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>{statusLabel}</span>
-                            </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-caption">
-                      {assigneeName && <span style={{ color: "var(--fg-secondary)" }}>→ {assigneeName}</span>}
-                      {creatorName && <span style={{ color: "var(--fg-tertiary)" }}>by {creatorName}</span>}
-                      {task.deadline && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>Due {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
-                      {task.createdAt && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
-                          </div>
-                      </div>
-                </motion.div>
-                );
-              })}
-                    </div>
-          <Link href="/tasks" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
-        </motion.section>
-
-      {/* 4. Live Presence — employee cards */}
+      {/* 3. Team Status + Campaigns/Checklist */}
+      <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[1fr_0.7fr]">
+      {/* 3a. Live Presence — employee cards (Team Status) */}
       <motion.section className="card relative flex flex-col overflow-visible p-4 sm:p-5 lg:col-span-12 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -909,6 +828,88 @@ function AdminDashboard({
           <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
           )}
             </div>
+        </motion.section>
+
+        {/* 3b. Active Campaigns (left) + Checklist (right) */}
+        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-5 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-3 flex shrink-0 items-center justify-between">
+            <div className="flex items-center min-w-0">
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
+              <RefreshBtn onRefresh={onRefreshFull} />
+            </div>
+            <Link href="/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
+            {dataLoading ? (
+              [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
+            ) : activeCampaigns.length === 0 ? (
+              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
+            ) : activeCampaigns.map((camp, ci) => (
+              <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
+                  <div className="flex gap-1.5 mt-0.5">
+                    {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
+                    {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
+                    <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-3 flex shrink-0 items-center justify-between">
+            <div className="flex items-center min-w-0">
+              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
+              <RefreshBtn onRefresh={onRefreshFull} />
+            </div>
+            {!dataLoading && (
+              <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
+                {pendingTasks.length} Pending
+              </motion.div>
+            )}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
+            {dataLoading ? (
+              [1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
+            ) : pendingTasks.length === 0 ? (
+              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>All caught up!</p>
+            ) : pendingTasks.map((task, ti) => {
+              const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
+              const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
+              const assigneeName = task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName}`.trim() : "";
+              const creatorName = task.createdBy?.about ? `${task.createdBy.about.firstName} ${task.createdBy.about.lastName}`.trim() : "";
+              const statusLabel = task.status === "inProgress" ? "In Progress" : task.status === "pending" ? "Pending" : task.status;
+              const statusColor = task.status === "inProgress" ? "var(--primary)" : task.status === "pending" ? "var(--amber)" : "var(--teal)";
+              return (
+                <motion.div key={task._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 + ti * 0.04 }} whileHover={{ x: 4 }} className="flex shrink-0 items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
+                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
+                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>{statusLabel}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-caption">
+                      {assigneeName && <span style={{ color: "var(--fg-secondary)" }}>→ {assigneeName}</span>}
+                      {creatorName && <span style={{ color: "var(--fg-tertiary)" }}>by {creatorName}</span>}
+                      {task.deadline && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>Due {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+                      {task.createdAt && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+          <Link href="/tasks" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
         </motion.section>
       </div>
 

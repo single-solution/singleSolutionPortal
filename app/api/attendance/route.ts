@@ -47,11 +47,9 @@ export async function GET(req: NextRequest) {
       }
     } else if (isTeamLead(actor)) {
       const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      if (memberIds.length > 0) {
-        empFilter._id = { $in: memberIds };
-      } else {
-        return ok([]);
-      }
+      const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
+      if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
+      empFilter.$or = orClauses;
     } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
       empFilter.department = actor.department;
     }
@@ -85,11 +83,9 @@ export async function GET(req: NextRequest) {
       }
     } else if (isTeamLead(actor)) {
       const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      if (memberIds.length > 0) {
-        empFilter._id = { $in: memberIds };
-      } else {
-        return ok([]);
-      }
+      const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
+      if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
+      empFilter.$or = orClauses;
     } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
       empFilter.department = actor.department;
     }
@@ -163,11 +159,9 @@ export async function GET(req: NextRequest) {
       }
     } else if (isTeamLead(actor)) {
       const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      if (memberIds.length > 0) {
-        empFilter._id = { $in: memberIds };
-      } else {
-        return ok([]);
-      }
+      const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
+      if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
+      empFilter.$or = orClauses;
     } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
       empFilter.department = actor.department;
     }
@@ -231,13 +225,20 @@ export async function GET(req: NextRequest) {
 
   let targetDept: string | null | undefined = undefined;
   let targetTeams: string[] | undefined = undefined;
+  let targetReportsTo: string | null = null;
   if (userId !== actor.id && !isSuperAdmin(actor)) {
-    const target = await User.findById(userId).select("department teams").lean();
+    const target = await User.findById(userId).select("department teams reportsTo").lean();
     targetDept = target?.department?.toString();
     targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString());
+    targetReportsTo = target?.reportsTo?.toString() ?? null;
   }
 
-  if (!canViewAttendance(actor, userId, targetDept, targetTeams)) return ok([]);
+  const allowed = canViewAttendance(actor, userId, targetDept, targetTeams)
+    || (isTeamLead(actor) && targetReportsTo === actor.id);
+  if (!allowed) {
+    if (type === "detail" || type === "monthly") return ok(null);
+    return ok([]);
+  }
 
   if (type === "monthly") {
     const stats = await MonthlyAttendanceStats.findOne({

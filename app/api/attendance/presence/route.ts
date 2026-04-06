@@ -38,7 +38,7 @@ export async function GET() {
       empFilter.department = actor.department;
     }
   } else if (isTeamLead(actor)) {
-    const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
+    const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
     const memberIds = await getTeamMemberIds(actor.leadOfTeams);
     if (memberIds.length > 0) {
       orClauses.push({ _id: { $in: memberIds } });

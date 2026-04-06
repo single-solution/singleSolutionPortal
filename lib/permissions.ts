@@ -153,6 +153,7 @@ export function canEditEmployee(actor: VerifiedUser, targetId: string, targetDep
   if (isSuperAdmin(actor)) return true;
   if (actor.id === targetId) return true;
   if (isManager(actor) && isSameDepartment(actor, targetDept)) return true;
+  if (isManager(actor) && actor.managedDepartments.length === 0 && !actor.department) return true;
   if (isTeamLead(actor) && targetTeams && isInLeadTeams(actor, targetTeams)) return true;
   return false;
 }
@@ -160,8 +161,9 @@ export function canEditEmployee(actor: VerifiedUser, targetId: string, targetDep
 export function canViewEmployee(actor: VerifiedUser, targetId: string, targetDept?: string | null, targetTeams?: string[]): boolean {
   if (isSuperAdmin(actor)) return true;
   if (actor.id === targetId) return true;
-  if (isManager(actor) && isSameDepartment(actor, targetDept)) return true;
   if (isManager(actor) && actor.crossDepartmentAccess) return true;
+  if (isManager(actor) && isSameDepartment(actor, targetDept)) return true;
+  if (isManager(actor) && actor.managedDepartments.length === 0 && !actor.department) return true;
   if (isTeamLead(actor) && targetTeams && isInLeadTeams(actor, targetTeams)) return true;
   return false;
 }
@@ -203,8 +205,9 @@ export function canAssignTaskTo(actor: VerifiedUser, targetDept?: string | null,
 export function canViewAttendance(actor: VerifiedUser, targetId: string, targetDept?: string | null, targetTeams?: string[]): boolean {
   if (isSuperAdmin(actor)) return true;
   if (actor.id === targetId) return true;
-  if (isManager(actor) && isSameDepartment(actor, targetDept)) return true;
   if (isManager(actor) && actor.crossDepartmentAccess) return true;
+  if (isManager(actor) && isSameDepartment(actor, targetDept)) return true;
+  if (isManager(actor) && actor.managedDepartments.length === 0 && !actor.department) return true;
   if (isTeamLead(actor) && targetTeams && isInLeadTeams(actor, targetTeams)) return true;
   return false;
 }

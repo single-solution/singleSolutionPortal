@@ -26,8 +26,8 @@ superadmin (100) → manager (50) → teamLead (30) → businessDeveloper / deve
 | Role | Access |
 |------|--------|
 | **SuperAdmin** | Full CRUD on employees, departments, teams (for assignments/RBAC), tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role ("god mode") |
-| **Manager** | **Multi-department scoped**: can manage employees, departments, teams, and tasks across all departments they're assigned as manager. Nav includes Employees, Departments, Campaigns (scoped to managed departments). Can create teams in any managed department. Attendance presence for all managed departments |
-| **Team Lead** | Sees employees who **directly report to them** (`reportsTo`) and members of teams they lead. Nav includes Employees, Departments, Campaigns (scoped to their direct reports and led teams). Can create/manage tasks for those employees. Sits under a manager |
+| **Manager** | **Multi-department scoped**: can manage employees, departments, teams, and tasks across all departments they're assigned as manager. Nav includes Employees, Departments, Campaigns (scoped to managed departments). Can create teams in any managed department. Attendance presence for all managed departments. Managers with no explicit department scope see all employees (consistent across dashboard and employee list pages). Cannot edit own profile from the Employees page (self-management via Profile only) |
+| **Team Lead** | Sees employees who **directly report to them** (`reportsTo`) AND members of teams they lead — both sources merged via `$or` query. Nav includes Employees, Departments, Campaigns (scoped to their direct reports and led teams). Can create/manage tasks for those employees. Can view attendance for any employee who reports to them or is in their led teams. Cannot edit own profile from the Employees page. Sits under a manager |
 | **Business Developer** | Job pipeline tracking (17 BD fields), personal attendance |
 | **Developer** | Personal attendance, task status updates, profile management |
 
@@ -118,7 +118,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 ### Employee Management
 
-- Full CRUD with role-based access (SuperAdmin manages all, Manager manages their team)
+- Full CRUD with role-based access (SuperAdmin manages all, Manager manages their department scope). **Self-edit blocked**: no user sees edit/delete actions on their own card in the Employees page — self-management is done under Profile/Settings only
 - **Unified EmployeeCard** component (`components/EmployeeCard.tsx`) used on BOTH the dashboard presence grid AND the employee list page — consistent card design everywhere
 - **Card design**: top-right pulsing status pill (green "In Office" / blue "Remote" when live, gray "Last seen" with time, or amber "Absent"), avatar with gradient ring, first arrival time, total hours, shift progress bar with two-segment overtime visualization (regular hours in primary color, overtime in purple), task/campaign pills
 - **Clickable employee cards** → navigate to `/employees/[username]` detail page (clean URLs using username instead of ObjectID). Detail page mirrors the self-overview dashboard style: animated profile header with status badge, today's KPI cards, shift progress bar, activity timeline with live pulsing dots, task cards with priority/status pills, weekly overview strip with hover effects, and full monthly summary with office-vs-remote progress bar
@@ -293,10 +293,8 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 **SuperAdmin (AdminDashboard):**
 - **Welcome header**: time-of-day greeting with "Single Solution Sync" label, inline status badge pills showing **live** counts only (In Office = currently live + in office, Remote = currently live + remote, Late = anyone with `lateBy > 0`, Absent). Late employees are also correctly counted in their location bucket (Office/Remote) — lateness is an orthogonal attribute, not a location status. Compact time card on the right with blob gradient and live clock (no task/campaign chips — full cards below already show this)
 - **No stat cards row**: removed the duplicate Total/InOffice/Late/Absent card row — the welcome pills already convey this at a glance
-- **Viewport-filling dashboard**: All three main sections (Campaigns, Checklist, Team Status) fill the screen equally down to the bottom dock with inner scrolling — no compressed cards or wasted space on any screen size
-- **Campaigns + Checklist**: Campaigns on the left, pending tasks checklist on the right. Checklist shows priority, status, assignee, creator, deadline, and creation date per task. Both scroll independently when content overflows
-- **Team breakdown**: Clickable rows showing team name, lead, and live/present/absent/late counts. Clicking filters the employee presence cards below
-- **Team Status (Live Presence)**: Real-time employee cards with live pulse indicators and status filtering (All/Office/Remote/Late/Absent). Each employee card shows:
+- **Viewport-filling dashboard**: Layout order is **Team Status → Campaigns + Checklist** (team status first for immediate visibility). Grid uses `lg:grid-rows-[1fr_0.7fr]` — Team Status takes full row height, Campaigns/Checklist row is 30% shorter with inner scrolling
+- **Team Status (Live Presence)**: Real-time employee cards with live pulse indicators and status filtering (All/Office/Remote/Late/Absent). Full-width top row. Each employee card shows:
   - **Clock In · Hours · Clock Out** — full work day span from first session start (earliest `ActivitySession.sessionTime.start`) to last session end (latest session end / `lastActivity`), regardless of office or remote
   - **Arrived · Office · Left** — office-specific entry/exit times (`firstOfficeEntry` / `lastOfficeExit`), always visible even when employee has no office time (displays "—")
   - **Activity Strip** — segmented progress bar showing office/remote/break time proportions within the shift, session count, remote and break durations, late penalty, and idle gap time (unaccounted gaps between sessions)

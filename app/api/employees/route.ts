@@ -31,9 +31,8 @@ export async function GET() {
       filter.department = { $in: actor.managedDepartments };
     } else if (actor.department) {
       filter.department = actor.department;
-    } else {
-      filter._id = actor.id;
     }
+    // no else — managers with no explicit scope see all employees (matches dashboard)
   } else if (isTeamLead(actor)) {
     const orClauses: Record<string, unknown>[] = [
       { _id: actor.id },
