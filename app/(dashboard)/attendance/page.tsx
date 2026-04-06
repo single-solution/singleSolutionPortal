@@ -154,13 +154,11 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [detailData, setDetailData] = useState<DetailData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
-  const [todaySession, setTodaySession] = useState<{ active: boolean; inOffice: boolean; startTime: string | null; todayMinutes: number }>({
-    active: false, inOffice: false, startTime: null, todayMinutes: 0,
-  });
+  const [selfMonthlyStats, setSelfMonthlyStats] = useState<MonthlyStats | null>(null);
 
   /* ── Team date state ── */
   const [teamDateData, setTeamDateData] = useState<TeamDateRecord[]>([]);
@@ -200,19 +198,13 @@ export default function AttendancePage() {
     } catch { setMonthlyStats(null); }
   }, [year, month, userIdParam, isAdmin]);
 
-  const loadTodaySession = useCallback(async () => {
-    if (viewingUserId && viewingUserId !== authSession?.user?.id) return;
-    if (isAdmin && !viewingUserId) return;
+  const loadSelfMonthlyStats = useCallback(async () => {
+    if (!isAdmin || isSuperAdmin) return;
     try {
-      const res = await fetch("/api/attendance/session").then((r) => r.json());
-      setTodaySession({
-        active: !!res.activeSession,
-        inOffice: res.activeSession?.location?.inOffice ?? false,
-        startTime: res.activeSession?.sessionTime?.start ?? null,
-        todayMinutes: res.todayMinutes ?? 0,
-      });
-    } catch { /* ignore */ }
-  }, [viewingUserId, authSession?.user?.id, isAdmin]);
+      const res = await fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`).then((r) => r.json());
+      setSelfMonthlyStats(res ?? null);
+    } catch { setSelfMonthlyStats(null); }
+  }, [isAdmin, isSuperAdmin, year, month]);
 
   const loadDetail = useCallback(async (day: number) => {
     setDetailLoading(true);
@@ -240,7 +232,7 @@ export default function AttendancePage() {
 
   useEffect(() => { loadTeamSummary(); }, [loadTeamSummary]);
   useEffect(() => { loadRecords(); loadMonthlyStats(); }, [loadRecords, loadMonthlyStats]);
-  useEffect(() => { loadTodaySession(); }, [loadTodaySession]);
+  useEffect(() => { loadSelfMonthlyStats(); }, [loadSelfMonthlyStats]);
 
   const mountRef = useRef(true);
   useEffect(() => {
@@ -303,8 +295,6 @@ export default function AttendancePage() {
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
-  const isViewingSelf = !viewingUserId || viewingUserId === authSession?.user?.id;
-
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear((y) => y - 1); } else setMonth((m) => m - 1);
   }
@@ -312,20 +302,12 @@ export default function AttendancePage() {
     if (month === 12) { setMonth(1); setYear((y) => y + 1); } else setMonth((m) => m + 1);
   }
 
-  const presentDays = records.filter((r) => r.isPresent).length;
-  const onTimeDays = records.filter((r) => r.isOnTime).length;
-  const totalMins = records.reduce((s, r) => s + r.totalWorkingMinutes, 0);
-
   const aggPresentDays = filteredSummary.reduce((s, e) => s + e.presentDays, 0);
   const aggOnTimeDays = filteredSummary.reduce((s, e) => s + e.onTimeDays, 0);
   const aggTotalMins = filteredSummary.reduce((s, e) => s + e.totalMinutes, 0);
   const aggAvgDaily = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.averageDailyHours, 0) / filteredSummary.length : 0;
   const aggAvgOnTime = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.onTimePercentage, 0) / filteredSummary.length : 0;
   const aggAvgAttendance = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.attendancePercentage, 0) / filteredSummary.length : 0;
-
-  const statPresent = isAggregateMode ? aggPresentDays : presentDays;
-  const statOnTime = isAggregateMode ? aggOnTimeDays : onTimeDays;
-  const statTotalMins = isAggregateMode ? aggTotalMins : totalMins;
 
   const selectedDate = selectedDay ? new Date(year, month - 1, selectedDay) : null;
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
@@ -396,6 +378,28 @@ export default function AttendancePage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
+                  {/* "All" pill — aggregate mode */}
+                  {groupMode === "flat" && (
+                    <motion.button
+                      type="button"
+                      onClick={() => setViewingUserId("")}
+                      className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
+                      style={{
+                        borderColor: !viewingUserId ? "var(--primary)" : "var(--border)",
+                        background: !viewingUserId ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold leading-tight" style={{ color: !viewingUserId ? "var(--primary)" : "var(--fg)" }}>All Employees</p>
+                        <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
+                          {aggPresentDays}d · {fmtHours(aggTotalMins)} · <span style={{ color: aggAvgAttendance >= 90 ? "var(--green)" : aggAvgAttendance >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(aggAvgAttendance)}%</span>
+                        </p>
+                      </div>
+                    </motion.button>
+                  )}
+                  {/* "My Attendance" pill — non-superadmin admins */}
                   {!isSuperAdmin && groupMode === "flat" && (
                     <motion.button
                       type="button"
@@ -407,8 +411,17 @@ export default function AttendancePage() {
                       }}
                       whileTap={{ scale: 0.97 }}
                     >
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
-                      <p className="text-xs font-semibold leading-tight" style={{ color: "var(--fg)" }}>My Attendance</p>
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: selfMonthlyStats ? "var(--green)" : "var(--fg-tertiary)" }} />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold leading-tight" style={{ color: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--fg)" }}>My Attendance</p>
+                        {selfMonthlyStats ? (
+                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
+                            {selfMonthlyStats.presentDays}d · {fmtHours(selfMonthlyStats.totalWorkingHours * 60)} · <span style={{ color: selfMonthlyStats.attendancePercentage >= 90 ? "var(--green)" : selfMonthlyStats.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(selfMonthlyStats.attendancePercentage)}%</span>
+                          </p>
+                        ) : (
+                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>—</p>
+                        )}
+                      </div>
                     </motion.button>
                   )}
                   {group.items.map((emp) => {
@@ -446,117 +459,6 @@ export default function AttendancePage() {
           </div>
         )
       )}
-
-      {/* Today's Session — only for self in individual mode */}
-      {!isAggregateMode && isViewingSelf && !isSuperAdmin && (
-        <motion.div className="card-xl flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{
-              background: todaySession.active
-                ? todaySession.inOffice ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #3b82f6, #2563eb)"
-                : "linear-gradient(135deg, var(--fg-tertiary), var(--fg-secondary))",
-            }}>
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <div>
-              <p className="text-headline" style={{ color: "var(--fg)" }}>
-                {todaySession.active ? (todaySession.inOffice ? "Working from Office" : "Working Remotely") : "Session Inactive"}
-              </p>
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
-                {todaySession.active && todaySession.startTime
-                  ? `Since ${new Date(todaySession.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — auto-tracked`
-                  : "Your session starts automatically when you open the app"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-right">
-            <div>
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Today Total</p>
-              <p className="text-lg font-bold" style={{ color: "var(--primary)" }}>{fmtHours(todaySession.todayMinutes)}</p>
-            </div>
-            <span className="flex h-3 w-3 shrink-0">
-              <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: todaySession.active ? (todaySession.inOffice ? "#10b981" : "#3b82f6") : "var(--fg-tertiary)" }}>
-                {todaySession.active && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: todaySession.inOffice ? "#10b981" : "#3b82f6" }} />}
-              </span>
-            </span>
-          </div>
-        </motion.div>
-      )}
-
-      {/* 3 Stat Cards — always visible */}
-      <motion.div className="grid grid-cols-3 gap-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        {(isAggregateMode && teamLoading) || (!isAggregateMode && loading) ? (
-          [1, 2, 3].map((i) => (
-            <div key={i} className="card-static p-3 text-center space-y-1.5">
-              <span className="shimmer block mx-auto h-2.5 w-16 rounded" />
-              <span className="shimmer block mx-auto h-5 w-10 rounded" />
-            </div>
-          ))
-        ) : (
-          [
-            { label: "Present Days", value: String(statPresent), color: "var(--green)" },
-            { label: "On Time", value: String(statOnTime), color: "var(--primary)" },
-            { label: "Total Hours", value: fmtHours(statTotalMins), color: "var(--teal)" },
-          ].map((s) => (
-            <div key={s.label} className="card-static p-3 text-center">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
-              <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
-            </div>
-          ))
-        )}
-      </motion.div>
-
-      {/* Monthly Insights — always visible */}
-      <div className="card-static p-4">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
-        {isAggregateMode ? (
-          !teamLoading && filteredSummary.length > 0 ? (
-            <motion.div
-              className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-              initial="hidden" animate="visible"
-              variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
-            >
-              {[
-                { label: "Avg Daily", value: `${aggAvgDaily.toFixed(1)}h`, color: "var(--primary)" },
-                { label: "Avg On-Time", value: `${Math.round(aggAvgOnTime)}%`, color: aggAvgOnTime >= 80 ? "var(--green)" : "var(--amber)" },
-                { label: "Avg Attendance", value: `${Math.round(aggAvgAttendance)}%`, color: aggAvgAttendance >= 90 ? "var(--green)" : "var(--rose)" },
-                { label: "Total Hours", value: `${Math.round(aggTotalMins / 60)}h`, color: "var(--teal)" },
-              ].map((chip) => (
-                <motion.div key={chip.label} variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}>
-                  <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
-                </motion.div>
-              ))}
-            </motion.div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => <div key={i} className="card-static rounded-xl p-3 space-y-1.5"><span className="shimmer block h-2.5 w-14 rounded" /><span className="shimmer block h-4 w-10 rounded" /></div>)}
-            </div>
-          )
-        ) : monthlyStats ? (
-          <motion.div
-            className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"
-            initial="hidden" animate="visible"
-            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
-          >
-            {[
-              { label: "Avg Daily", value: `${monthlyStats.averageDailyHours.toFixed(1)}h`, color: "var(--primary)" },
-              { label: "Avg Arrival", value: monthlyStats.averageOfficeInTime ?? "—", color: "var(--green)" },
-              { label: "Avg Departure", value: monthlyStats.averageOfficeOutTime ?? "—", color: "var(--amber)" },
-              { label: "On-Time %", value: `${Math.round(monthlyStats.onTimePercentage)}%`, color: monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" },
-              { label: "Attendance %", value: `${Math.round(monthlyStats.attendancePercentage)}%`, color: monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)" },
-              { label: "Office / Remote", value: `${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`, color: "var(--teal)" },
-            ].map((chip) => (
-              <motion.div key={chip.label} variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}>
-                <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
-              </motion.div>
-            ))}
-          </motion.div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="card-static rounded-xl p-3 space-y-1.5"><span className="shimmer block h-2.5 w-14 rounded" /><span className="shimmer block h-4 w-10 rounded" /></div>)}
-          </div>
-        )}
-      </div>
 
       {/* Calendar + Detail panel */}
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
@@ -888,21 +790,76 @@ export default function AttendancePage() {
                   </div>
                 )}
               </motion.div>
+            ) : isAggregateMode ? (
+              /* ── Aggregate month summary (no date selected) ── */
+              <motion.div key="agg-summary" className="card-xl flex flex-1 flex-col overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                  <p className="text-headline" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1]} Summary</p>
+                  <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{filteredSummary.length} employees · select a date for details</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {teamLoading ? (
+                    <div className="grid grid-cols-2 gap-2">{[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StatChip label="Working Days" value={`${aggPresentDays}`} color="var(--green)" />
+                        <StatChip label="Total Hours" value={fmtHours(aggTotalMins)} color="var(--teal)" />
+                        <StatChip label="Avg Daily" value={`${aggAvgDaily.toFixed(1)}h`} color="var(--primary)" />
+                        <StatChip label="Avg On-Time" value={`${Math.round(aggAvgOnTime)}%`} color={aggAvgOnTime >= 80 ? "var(--green)" : "var(--amber)"} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StatChip label="Attendance" value={`${Math.round(aggAvgAttendance)}%`} color={aggAvgAttendance >= 90 ? "var(--green)" : "var(--rose)"} />
+                        <StatChip label="On-Time Days" value={`${aggOnTimeDays}`} color="var(--primary)" />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </motion.div>
             ) : (
-              /* ── Placeholder ── */
+              /* ── Individual placeholder ── */
               <motion.div key="placeholder" className="card-xl flex flex-1 flex-col items-center justify-center p-8 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "var(--bg-grouped)" }}>
                   <svg className="h-7 w-7" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
                 </div>
-                <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>
-                  {isAggregateMode ? "Select a date to view team attendance" : "Select a date"}
-                </p>
+                <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>Select a date</p>
                 <p className="text-caption mt-1" style={{ color: "var(--fg-tertiary)" }}>Tap any day on the calendar to see details</p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Monthly Insights — individual mode */}
+      {!isAggregateMode && (
+        <div className="card-static p-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
+          {monthlyStats ? (
+            <motion.div
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
+              initial="hidden" animate="visible"
+              variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
+            >
+              {[
+                { label: "Working Days", value: `${monthlyStats.presentDays} / ${monthlyStats.totalWorkingDays}`, color: "var(--green)" },
+                { label: "Total Hours", value: `${Math.round(monthlyStats.totalWorkingHours)}h`, color: "var(--teal)" },
+                { label: "Avg Daily", value: `${monthlyStats.averageDailyHours.toFixed(1)}h`, color: "var(--primary)" },
+                { label: "On-Time %", value: `${Math.round(monthlyStats.onTimePercentage)}%`, color: monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" },
+                { label: "Attendance", value: `${Math.round(monthlyStats.attendancePercentage)}%`, color: monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)" },
+                { label: "Office / Remote", value: `${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`, color: "var(--teal)" },
+              ].map((chip) => (
+                <motion.div key={chip.label} variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}>
+                  <AnalyticChip label={chip.label} value={chip.value} color={chip.color} />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : loading ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="card-static rounded-xl p-3 space-y-1.5"><span className="shimmer block h-2.5 w-14 rounded" /><span className="shimmer block h-4 w-10 rounded" /></div>)}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Monthly records list — individual mode only */}
       {!isAggregateMode && (

@@ -333,31 +333,29 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 
 ### Attendance Page
 
-**Two modes — aggregate (no pill selected) vs individual (pill selected):**
+**Layout order: Header → Pills → Calendar + Detail → Monthly Insights → Monthly Records**
 
-**Aggregate mode (default for admins):**
-- Header shows employee count, no per-employee date. Month navigation only in calendar (no duplicate header nav)
-- Today's date auto-selected on page load — employee cards for today shown immediately
-- 3 stat cards show team totals with loading shimmers: sum of present days, on-time days, total hours across all filtered employees
-- Monthly insights show team averages with loading shimmers: avg daily hours, avg on-time %, avg attendance %, total hours
-- Calendar acts as a date picker (no per-day dots since data is aggregate)
-- Click any date → right panel shows scrollable employee cards for that date with each employee's status (present/absent/late), hours worked, Arrived/Left (session times), Office In/Out (office times), department
-- Team-date card skeletons match final card layout (name, department, time grid)
-- New `type=team-date` API endpoint fetches all employees' DailyAttendance for a specific date in one call
+**Pill bar (admins):**
+- **"All Employees" pill** — always first, auto-selected on load. Shows aggregate stats inline: total present days, total hours, avg attendance %. Clicking it returns to aggregate mode
+- **"My Attendance" pill** — for managers and team leads (not superadmin). Shows the logged-in user's own monthly stats (present days, total hours, attendance %). Fetched separately from the team data
+- **Employee pills** — each shows name, present days, total hours, attendance % with color-coded indicators. Clicking selects that employee for individual mode; clicking again deselects
+- Grouped by Flat / By Manager / By Department toggles
 
-**Individual mode (pill selected):**
-- Click an employee pill → hides aggregate cards, shows that employee's detailed calendar with color-coded dots (On Time / Late / Absent)
-- Click pill again to deselect and return to aggregate mode
-- Day detail panel: status pills, summary, stat chips (total/office/remote hours), animated work split bar
-- Session timeline: time range, duration, Office/Remote pills, device detection, First In/Last Out badges, heartbeat, IP, office segments
-- Monthly insights: avg daily hours, avg arrival/departure, on-time %, attendance %, office/remote split
-- Monthly records list with clickable rows synced to calendar
+**Aggregate mode ("All" selected, no date):**
+- Right panel shows a **month summary card** with working days, total hours, avg daily hours, avg on-time %, avg attendance %, on-time days — no more empty placeholder
+- Calendar acts as a date picker (no per-day dots). Click any date → right panel shows scrollable employee cards for that date
+- No separate stat cards row — all stats consolidated in the summary panel and pill bar
+
+**Individual mode (employee pill selected):**
+- Calendar shows color-coded dots (On Time / Late / Absent)
+- Click a date → detailed day panel: status pills, time grid (Arrived/Left/Office In/Out), session timeline with device detection
+- **Monthly Insights card** shown below calendar with working days (present/total), total hours, avg daily, on-time %, attendance %, office/remote split
+- Monthly records list below insights
 
 **Shared:**
-- Grouped employee pills (Flat / By Manager / By Department toggles) always visible at top
 - ScopeStrip + group toggles + month nav inline in the header row
 - Calendar always visible with month navigation
-- **Self-exclusion enforced server-side** — all team attendance APIs (`team`, `team-monthly`, `team-date`) exclude the requesting user (`_id: { $ne: actor.id }`). Admins see their own attendance via the dashboard self-overview card and their personal attendance view, not in the team pill list
+- **Self-exclusion enforced server-side** — all team attendance APIs exclude the requesting user. "My Attendance" pill provides self-view
 
 ---
 
