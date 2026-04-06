@@ -3,6 +3,7 @@ import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
+  isSuperAdmin,
   isManager,
   isTeamLead,
   isEmployee,
@@ -16,9 +17,10 @@ export async function GET() {
   await connectDB();
 
   let filter: Record<string, unknown> = {
-    isActive: true,
     userRole: { $ne: "superadmin" },
   };
+
+  if (!isSuperAdmin(actor)) filter.isActive = true;
 
   if (isManager(actor)) {
     if (!actor.crossDepartmentAccess) {

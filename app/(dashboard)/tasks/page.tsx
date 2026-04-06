@@ -40,7 +40,7 @@ const AVATAR_GRADIENTS = [
 ];
 
 const DESIGNATION_LABELS: Record<string, string> = {
-  manager: "Manager", businessDeveloper: "Business Developer", developer: "Developer",
+  manager: "Manager", teamLead: "Team Lead", businessDeveloper: "Business Developer", developer: "Developer",
 };
 
 type PriorityFilter = "all" | "low" | "medium" | "high" | "urgent";
