@@ -861,6 +861,80 @@ export default function AttendancePage() {
         </div>
       )}
 
+      {/* Employee monthly stats cards — aggregate mode */}
+      {isAggregateMode && !teamLoading && filteredSummary.length > 0 && (
+        <div>
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+            Employee Overview · {filteredSummary.length}
+          </p>
+          <motion.div
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            initial="hidden" animate="visible"
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
+          >
+            {filteredSummary.map((emp) => {
+              const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
+              const onTimeColor = emp.onTimePercentage >= 80 ? "var(--green)" : emp.onTimePercentage >= 50 ? "var(--amber)" : "var(--rose)";
+              const statusDot = emp.presentDays > 0
+                ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
+                : "var(--fg-tertiary)";
+              return (
+                <motion.div
+                  key={emp._id}
+                  className="card group cursor-pointer overflow-hidden transition-all hover:shadow-md"
+                  onClick={() => { setViewingUserId(emp._id); setSelectedDay(null); }}
+                  variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="p-4 space-y-3">
+                    {/* Name + department */}
+                    <div className="flex items-center gap-3">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusDot }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                        <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{
+                        background: `color-mix(in srgb, ${attendColor} 12%, transparent)`,
+                        color: attendColor,
+                      }}>
+                        {Math.round(emp.attendancePercentage)}%
+                      </span>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days</p>
+                        <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{emp.presentDays}</p>
+                      </div>
+                      <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+                        <p className="text-sm font-bold" style={{ color: "var(--teal)" }}>{fmtHours(emp.totalMinutes)}</p>
+                      </div>
+                      <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg/Day</p>
+                        <p className="text-sm font-bold" style={{ color: "var(--primary)" }}>{emp.averageDailyHours.toFixed(1)}h</p>
+                      </div>
+                    </div>
+
+                    {/* Bottom row */}
+                    <div className="flex items-center justify-between text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                      <div className="flex items-center gap-3">
+                        <span>On-time <strong style={{ color: onTimeColor }}>{Math.round(emp.onTimePercentage)}%</strong></span>
+                        <span>Late <strong style={{ color: emp.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</strong></span>
+                      </div>
+                      <span className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>View →</span>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      )}
+
       {/* Monthly records list — individual mode only */}
       {!isAggregateMode && (
         loading ? (
