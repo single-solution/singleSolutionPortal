@@ -118,7 +118,7 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 
 ### Employee Management
 
-- Full CRUD with role-based access (SuperAdmin manages all, Manager manages their department scope). **Self-edit blocked**: no user sees edit/delete actions on their own card in the Employees page — self-management is done under Profile/Settings only
+- Full CRUD with role-based access (SuperAdmin manages all, Manager manages their department scope). **Self-exclusion enforced server-side**: the employees API (`GET /api/employees`) excludes the requesting user from results (`_id: { $ne: actor.id }`). The employees PUT endpoint blocks self-edit with 403 ("Use the Profile page"). Self-management is strictly under Profile/Settings. Role filter toggles on the Employees page are **dynamic** — only roles present in the actual employee list are shown (e.g., no "BD" pill if there are no Business Developers under the current user)
 - **Unified EmployeeCard** component (`components/EmployeeCard.tsx`) used on BOTH the dashboard presence grid AND the employee list page — consistent card design everywhere
 - **Card design**: top-right pulsing status pill (green "In Office" / blue "Remote" when live, gray "Last seen" with time, or amber "Absent"), avatar with gradient ring, first arrival time, total hours, shift progress bar with two-segment overtime visualization (regular hours in primary color, overtime in purple), task/campaign pills
 - **Clickable employee cards** → navigate to `/employees/[username]` detail page (clean URLs using username instead of ObjectID). Detail page mirrors the self-overview dashboard style: animated profile header with status badge, today's KPI cards, shift progress bar, activity timeline with live pulsing dots, task cards with priority/status pills, weekly overview strip with hover effects, and full monthly summary with office-vs-remote progress bar
@@ -323,7 +323,7 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 
 **Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments" visible to SuperAdmin, Manager, and Team Lead (each scoped to their departments and teams). There is no separate **Teams** hub — team data remains for assignments and permissions.
 
-**Department Scope Strip**: SuperAdmin and Manager see a horizontal pill strip ("All departments" | Dept A | Dept B | ...) on Dashboard, Employees, and Attendance pages. Clicking a department filters all data on that page to that department only. SuperAdmin sees all departments; Manager sees only their managed departments. TeamLead/Developer/BD roles don't see the strip (their data is already scoped server-side).
+**Department Scope Strip**: SuperAdmin and Manager see a horizontal pill strip ("All departments" | Dept A | Dept B | ...) on Dashboard, Employees, and Attendance pages — but only if the user has access to **2+ departments**. The strip is populated from the departments API which is already access-scoped (managers see only managed departments, team leads see their department). If a user has access to only one department, the strip is hidden entirely. Clicking a department filters all data on that page.
 
 **Virtual View Groups**: "Group by" toggle (Flat / By Manager / By Department) on both Dashboard Team Status and Employees page. Groups employees into collapsible sections with headers showing the manager name or department title and a count badge. Purely client-side — uses existing `reportsTo` and `department` fields, no new APIs or DB changes.
 
@@ -357,6 +357,7 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 - Grouped employee pills (Flat / By Manager / By Department toggles) always visible at top
 - ScopeStrip + group toggles + month nav inline in the header row
 - Calendar always visible with month navigation
+- **Self-exclusion enforced server-side** — all team attendance APIs (`team`, `team-monthly`, `team-date`) exclude the requesting user (`_id: { $ne: actor.id }`). Admins see their own attendance via the dashboard self-overview card and their personal attendance view, not in the team pill list
 
 ---
 

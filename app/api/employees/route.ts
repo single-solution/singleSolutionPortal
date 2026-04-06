@@ -22,7 +22,7 @@ export async function GET() {
 
   await connectDB();
 
-  let filter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+  let filter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" }, _id: { $ne: actor.id } };
 
   if (isManager(actor)) {
     if (actor.crossDepartmentAccess) {
@@ -32,10 +32,8 @@ export async function GET() {
     } else if (actor.department) {
       filter.department = actor.department;
     }
-    // no else — managers with no explicit scope see all employees (matches dashboard)
   } else if (isTeamLead(actor)) {
     const orClauses: Record<string, unknown>[] = [
-      { _id: actor.id },
       { reportsTo: actor.id },
     ];
     const memberIds = await getTeamMemberIds(actor.leadOfTeams);
@@ -44,7 +42,7 @@ export async function GET() {
     }
     filter.$or = orClauses;
   } else if (isEmployee(actor)) {
-    filter._id = actor.id;
+    return ok([]);
   }
 
   const users = await User.find(filter)

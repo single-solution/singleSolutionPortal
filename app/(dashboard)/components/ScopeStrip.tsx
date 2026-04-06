@@ -22,7 +22,7 @@ export function ScopeStrip({ value, onChange, className }: ScopeStripProps) {
   const shouldShow = role === "superadmin" || role === "manager";
   const { data: deptsRaw } = useQuery<Dept[]>(shouldShow ? "/api/departments" : null, "scopeDepts");
 
-  if (!shouldShow || !deptsRaw || deptsRaw.length === 0) return null;
+  if (!shouldShow || !deptsRaw || deptsRaw.length < 2) return null;
 
   const options: { id: string; label: string }[] = [
     { id: "all", label: "All departments" },

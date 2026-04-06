@@ -265,14 +265,9 @@ export default function AttendancePage() {
 
   /* ── Derived state ── */
 
-  const myId = authSession?.user?.id;
   const filteredSummary = useMemo(
-    () => {
-      let list = teamSummary.filter((m) => m._id !== myId);
-      if (scopeDept !== "all") list = list.filter((m) => m.departmentId === scopeDept);
-      return list;
-    },
-    [teamSummary, scopeDept, myId],
+    () => scopeDept === "all" ? teamSummary : teamSummary.filter((m) => m.departmentId === scopeDept),
+    [teamSummary, scopeDept],
   );
 
   const grouped = useMemo(() => {

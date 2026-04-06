@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
@@ -129,8 +129,18 @@ export default function EmployeesPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  const myId = session?.user?.id;
-  const empList = useMemo(() => (employees ?? []).filter((e) => e._id !== myId), [employees, myId]);
+  const empList = employees ?? [];
+
+  const availableRoles = useMemo(() => {
+    const rolesInList = new Set(empList.map((e) => e.userRole));
+    return (Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).filter(
+      (k) => k === "all" || rolesInList.has(k),
+    );
+  }, [empList]);
+
+  useEffect(() => {
+    if (roleFilter !== "all" && !availableRoles.includes(roleFilter)) setRoleFilter("all");
+  }, [availableRoles, roleFilter]);
 
   const filtered = useMemo(() => {
     let list = empList;
@@ -347,7 +357,7 @@ export default function EmployeesPage() {
       {/* Role filter */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {(Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).map((k) => {
+          {availableRoles.map((k) => {
             const active = roleFilter === k;
             return (
               <motion.button
@@ -433,9 +443,9 @@ export default function EmployeesPage() {
                   selected={isSelected}
                   onSelect={() => toggleSelect(emp._id)}
                   showRoleDepartmentTeams
-                  showActions={(canManage || isSuperAdmin) && emp._id !== session?.user?.id}
-                  onEdit={canManage && emp._id !== session?.user?.id ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
-                  onDelete={isSuperAdmin && emp._id !== session?.user?.id ? () => setDeleteTarget(emp) : undefined}
+                  showActions={canManage || isSuperAdmin}
+                  onEdit={canManage ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
+                  onDelete={isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
                   emp={{
                     _id: emp._id,
                     username: emp.username,

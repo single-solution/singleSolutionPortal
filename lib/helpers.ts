@@ -7,8 +7,8 @@ export async function getSession() {
   return auth();
 }
 
-export function forbidden() {
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export function forbidden(msg = "Forbidden") {
+  return NextResponse.json({ error: msg }, { status: 403 });
 }
 
 export function unauthorized() {

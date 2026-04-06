@@ -28,9 +28,8 @@ export async function GET() {
         deptFilter._id = { $in: actor.managedDepartments };
       } else if (actor.department) {
         deptFilter._id = actor.department;
-      } else {
-        return ok([]);
       }
+      // no else — managers with no explicit scope see all departments
     }
   } else if (isTeamLead(actor)) {
     if (actor.leadOfTeams.length > 0) {

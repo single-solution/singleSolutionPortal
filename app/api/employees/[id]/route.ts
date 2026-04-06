@@ -50,23 +50,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  const isSelf = actor.id === id;
+  if (actor.id === id) return forbidden("Use the Profile page to edit your own details");
 
-  if (!isSelf && !isSuperAdmin(actor) && !isManager(actor) && !isTeamLead(actor)) return forbidden();
+  if (!isSuperAdmin(actor) && !isManager(actor) && !isTeamLead(actor)) return forbidden();
 
   await connectDB();
   const body = await req.json();
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
-
-  if (isSelf) {
-    if (body.fullName !== undefined) {
-      const parts = body.fullName.trim().split(/\s+/);
-      update["about.firstName"] = parts[0] || "";
-      update["about.lastName"] = parts.slice(1).join(" ");
-    }
-    if (body.phone !== undefined) update["about.phone"] = body.phone;
-  }
 
   if (isSuperAdmin(actor)) {
     if (body.fullName !== undefined) {
@@ -112,10 +103,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
       update.password = await bcrypt.hash(body.password, 12);
     }
-  } else if (isManager(actor) && !isSelf) {
+  } else if (isManager(actor)) {
     if (body.workShift) update.workShift = body.workShift;
     if (body.teams !== undefined) update.teams = body.teams ?? [];
-  } else if (isTeamLead(actor) && !isSelf) {
+  } else if (isTeamLead(actor)) {
     if (body.workShift) update.workShift = body.workShift;
   }
 

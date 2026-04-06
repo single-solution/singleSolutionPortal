@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   if (type === "team") {
     if (!canViewTeamStats(actor)) return ok([]);
 
-    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" }, _id: { $ne: actor.id } };
     if (isManager(actor) && !actor.crossDepartmentAccess) {
       if (actor.managedDepartments.length > 0) {
         empFilter.department = { $in: actor.managedDepartments };
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       }
     } else if (isTeamLead(actor)) {
       const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
+      const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
       if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
       empFilter.$or = orClauses;
     } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
   if (type === "team-monthly") {
     if (!canViewTeamStats(actor)) return ok([]);
 
-    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" }, _id: { $ne: actor.id } };
     if (isManager(actor) && !actor.crossDepartmentAccess) {
       if (actor.managedDepartments.length > 0) {
         empFilter.department = { $in: actor.managedDepartments };
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       }
     } else if (isTeamLead(actor)) {
       const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
+      const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
       if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
       empFilter.$or = orClauses;
     } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok([]);
 
-    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+    let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" }, _id: { $ne: actor.id } };
     if (isManager(actor) && !actor.crossDepartmentAccess) {
       if (actor.managedDepartments.length > 0) {
         empFilter.department = { $in: actor.managedDepartments };
@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
       }
     } else if (isTeamLead(actor)) {
       const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
+      const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
       if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
       empFilter.$or = orClauses;
     } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
