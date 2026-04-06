@@ -138,7 +138,8 @@ function timeAgo(dateStr: string) {
 /* ───── Page ───── */
 
 export default function AttendancePage() {
-  const { data: authSession } = useSession();
+  const { data: authSession, status: sessionStatus } = useSession();
+  const sessionReady = sessionStatus !== "loading";
   const isSuperAdmin = authSession?.user?.role === "superadmin";
   const isAdmin = isSuperAdmin || authSession?.user?.role === "manager" || authSession?.user?.role === "teamLead";
 
@@ -171,6 +172,7 @@ export default function AttendancePage() {
   /* ── Data loaders ── */
 
   const loadTeamSummary = useCallback(async () => {
+    if (!sessionReady) return;
     if (!isAdmin) { setTeamLoading(false); return; }
     setTeamLoading(true);
     try {
@@ -178,33 +180,35 @@ export default function AttendancePage() {
       setTeamSummary(Array.isArray(res) ? res : []);
     } catch { setTeamSummary([]); }
     setTeamLoading(false);
-  }, [isAdmin, year, month]);
+  }, [sessionReady, isAdmin, year, month]);
 
   const loadRecords = useCallback(async () => {
+    if (!sessionReady) return;
     if (!userIdParam && isAdmin) return;
     setLoading(true);
     const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
     setRecords(Array.isArray(res) ? res : []);
     setLoading(false);
-  }, [year, month, userIdParam, isAdmin]);
+  }, [sessionReady, year, month, userIdParam, isAdmin]);
 
   const loadMonthlyStats = useCallback(async () => {
+    if (!sessionReady) return;
     if (!userIdParam && isAdmin) return;
     const qs = `type=monthly&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     try {
       const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
       setMonthlyStats(res ?? null);
     } catch { setMonthlyStats(null); }
-  }, [year, month, userIdParam, isAdmin]);
+  }, [sessionReady, year, month, userIdParam, isAdmin]);
 
   const loadSelfMonthlyStats = useCallback(async () => {
-    if (!isAdmin || isSuperAdmin) return;
+    if (!sessionReady || !isAdmin || isSuperAdmin) return;
     try {
       const res = await fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`).then((r) => r.json());
       setSelfMonthlyStats(res ?? null);
     } catch { setSelfMonthlyStats(null); }
-  }, [isAdmin, isSuperAdmin, year, month]);
+  }, [sessionReady, isAdmin, isSuperAdmin, year, month]);
 
   const loadDetail = useCallback(async (day: number) => {
     setDetailLoading(true);
@@ -320,6 +324,100 @@ export default function AttendancePage() {
   }
 
   /* ────────────────── RENDER ────────────────── */
+
+  if (!sessionReady) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-title">Attendance</h1>
+            <span className="shimmer mt-1 block h-4 w-28 rounded" />
+          </div>
+        </div>
+        {/* Pill bar skeleton */}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
+            <div className="space-y-1"><span className="shimmer block h-3 w-20 rounded" /><span className="shimmer block h-2.5 w-16 rounded" /></div>
+          </div>
+          {[1, 2, 3, 4, 5].map((j) => (
+            <div key={j} className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+              <span className="shimmer h-2 w-2 shrink-0 rounded-full" />
+              <div className="space-y-1"><span className="shimmer block h-3 w-16 rounded" /><span className="shimmer block h-2.5 w-20 rounded" /></div>
+            </div>
+          ))}
+        </div>
+        {/* Calendar + summary skeleton */}
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
+          <div className="card-static p-3 sm:p-4 lg:col-span-3">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="shimmer h-5 w-5 rounded-lg" />
+              <span className="text-headline">{MONTH_NAMES[month - 1]} {year}</span>
+              <div className="shimmer h-5 w-5 rounded-lg" />
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {DAY_NAMES.map((d) => (
+                <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
+              ))}
+              {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e-${i}`} />)}
+              {Array.from({ length: daysInMonth }, (_, i) => (
+                <div key={i} className="flex flex-col items-center gap-0.5 rounded-lg py-1.5">
+                  <span className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>{i + 1}</span>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "transparent" }} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col lg:col-span-2">
+            <div className="card-xl flex flex-1 flex-col overflow-hidden">
+              <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                <span className="shimmer block h-5 w-32 rounded" />
+                <span className="shimmer mt-1 block h-3 w-40 rounded" />
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="rounded-xl p-2.5 text-center space-y-1.5" style={{ background: "var(--bg-grouped)" }}>
+                      <span className="shimmer block mx-auto h-2 w-14 rounded" />
+                      <span className="shimmer block mx-auto h-4 w-10 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Employee overview skeleton */}
+        <div>
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Employee Overview</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="card overflow-hidden">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1 space-y-1"><span className="shimmer block h-3.5 w-24 rounded" /><span className="shimmer block h-2.5 w-16 rounded" /></div>
+                    <span className="shimmer h-5 w-10 rounded-full" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 2, 3].map((j) => (
+                      <div key={j} className="rounded-lg p-2 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                        <span className="shimmer block mx-auto h-2 w-8 rounded" /><span className="shimmer block mx-auto h-4 w-10 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3"><span className="shimmer h-2.5 w-16 rounded" /><span className="shimmer h-2.5 w-12 rounded" /></div>
+                    <span className="shimmer h-2.5 w-10 rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
