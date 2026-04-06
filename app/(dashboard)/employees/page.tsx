@@ -109,7 +109,7 @@ export default function EmployeesPage() {
   const isSuperAdmin = role === "superadmin";
   const isManager = role === "manager";
   const canManage = isSuperAdmin || isManager;
-  const { data: employees, loading: employeesLoading, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "employees");
+  const { data: employees, loading: employeesLoading, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>("/api/employees", "employees");
   const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "presence");
 
   const presenceById = useMemo(() => {
@@ -261,12 +261,28 @@ export default function EmployeesPage() {
   }
 
   async function toggleActive(emp: Employee) {
-    await fetch(`/api/employees/${emp._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !emp.isActive }),
-    });
-    await refetchEmployees();
+    const newStatus = !emp.isActive;
+    mutateEmployees((prev) =>
+      prev ? prev.map((e) => (e._id === emp._id ? { ...e, isActive: newStatus } : e)) : prev,
+    );
+    try {
+      const res = await fetch(`/api/employees/${emp._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+      if (!res.ok) {
+        mutateEmployees((prev) =>
+          prev ? prev.map((e) => (e._id === emp._id ? { ...e, isActive: !newStatus } : e)) : prev,
+        );
+        toast.error("Failed to update status");
+      }
+    } catch {
+      mutateEmployees((prev) =>
+        prev ? prev.map((e) => (e._id === emp._id ? { ...e, isActive: !newStatus } : e)) : prev,
+      );
+      toast.error("Failed to update status");
+    }
   }
 
   return (
@@ -434,8 +450,8 @@ export default function EmployeesPage() {
           const p = presenceById.get(emp._id);
           const isSelected = selected.has(emp._id);
           return (
-            <motion.div key={emp._id} variants={cardVariants} custom={i} layout whileHover={cardHover} className="h-full" exit={{ opacity: 0, scale: 0.95 }}>
-              <div className="card group relative flex h-full flex-col overflow-visible">
+            <motion.div key={emp._id} variants={cardVariants} custom={i} layout layoutId={emp._id} whileHover={cardHover} className="h-full" exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }} transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}>
+              <div className={`card group relative flex h-full flex-col overflow-visible transition-opacity duration-300 ${!emp.isActive ? "opacity-50 grayscale" : ""}`}>
                 <EmployeeCard
                   embedded
                   idx={i}

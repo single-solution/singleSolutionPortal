@@ -69,7 +69,7 @@ export default function CampaignsPage() {
   const { data: session, status: sessionStatus } = useSession();
   const role = session?.user?.role;
   const canDelete = role === "superadmin" || role === "manager";
-  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
+  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");
 
@@ -214,12 +214,26 @@ export default function CampaignsPage() {
   }
 
   async function toggleActive(c: Campaign) {
-    await fetch(`/api/campaigns/${c._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !c.isActive }),
-    });
-    await refetchCampaigns();
+    const newStatus = !(c.isActive !== false);
+    mutateCampaigns((prev) =>
+      prev ? prev.map((x) => (x._id === c._id ? { ...x, isActive: newStatus } : x)) : prev,
+    );
+    try {
+      const res = await fetch(`/api/campaigns/${c._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+      if (!res.ok) {
+        mutateCampaigns((prev) =>
+          prev ? prev.map((x) => (x._id === c._id ? { ...x, isActive: !newStatus } : x)) : prev,
+        );
+      }
+    } catch {
+      mutateCampaigns((prev) =>
+        prev ? prev.map((x) => (x._id === c._id ? { ...x, isActive: !newStatus } : x)) : prev,
+      );
+    }
   }
 
   async function quickStatus(c: Campaign, newStatus: CampaignStatus) {
@@ -383,10 +397,12 @@ export default function CampaignsPage() {
                   custom={i}
                   whileHover={cardHover}
                   layout
+                  layoutId={c._id}
                   className="h-full"
-                  exit={{ opacity: 0, scale: 0.95 }}
+                  exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                  transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
                 >
-                  <div className="card group relative overflow-hidden flex h-full flex-col">
+                  <div className={`card group relative overflow-hidden flex h-full flex-col transition-opacity duration-300 ${c.isActive === false ? "opacity-50 grayscale" : ""}`}>
                     <div className="flex-1 p-2.5">
                       {/* Header row */}
                       <div className="flex items-start gap-2 justify-between">

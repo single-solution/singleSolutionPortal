@@ -22,7 +22,8 @@ export async function GET() {
 
   await connectDB();
 
-  let filter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" }, _id: { $ne: actor.id } };
+  let filter: Record<string, unknown> = { userRole: { $ne: "superadmin" }, _id: { $ne: actor.id } };
+  if (!isSuperAdmin(actor)) filter.isActive = true;
 
   if (isManager(actor)) {
     if (actor.crossDepartmentAccess) {

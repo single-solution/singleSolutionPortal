@@ -279,8 +279,10 @@ export default function TasksPage() {
                   custom={i}
                   whileHover={cardHover}
                   layout
+                  layoutId={task._id}
                   className="h-full"
-                  exit={{ opacity: 0, scale: 0.95 }}
+                  exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                  transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
                 >
                   <div className="card group relative overflow-hidden flex h-full flex-col">
                     <div className="p-2.5 flex-1">

@@ -34,7 +34,7 @@ export default function DepartmentsPage() {
   const role = session?.user?.role;
   const isSuperAdmin = role === "superadmin";
   const canManageDepts = isSuperAdmin || role === "manager";
-  const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "departments");
+  const { data: departments, loading: deptsLoading, refetch: refetchDepts, mutate: mutateDepts } = useQuery<Department[]>("/api/departments", "departments");
   const { data: managersRaw } = useQuery<Employee[]>("/api/employees/dropdown", "employees");
 
   const deptList = departments ?? [];
@@ -132,12 +132,26 @@ export default function DepartmentsPage() {
   }
 
   async function toggleActive(dept: Department) {
-    await fetch(`/api/departments/${dept._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !dept.isActive }),
-    });
-    await refetchDepts();
+    const newStatus = !(dept.isActive !== false);
+    mutateDepts((prev) =>
+      prev ? prev.map((d) => (d._id === dept._id ? { ...d, isActive: newStatus } : d)) : prev,
+    );
+    try {
+      const res = await fetch(`/api/departments/${dept._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+      if (!res.ok) {
+        mutateDepts((prev) =>
+          prev ? prev.map((d) => (d._id === dept._id ? { ...d, isActive: !newStatus } : d)) : prev,
+        );
+      }
+    } catch {
+      mutateDepts((prev) =>
+        prev ? prev.map((d) => (d._id === dept._id ? { ...d, isActive: !newStatus } : d)) : prev,
+      );
+    }
   }
 
   return (
@@ -304,10 +318,12 @@ export default function DepartmentsPage() {
                 custom={i}
                 whileHover={cardHover}
                 layout
+                layoutId={dept._id}
                 className="h-full"
-                exit={{ opacity: 0, scale: 0.95 }}
+                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
               >
-                <div className="card group relative overflow-hidden flex h-full flex-col">
+                <div className={`card group relative overflow-hidden flex h-full flex-col transition-opacity duration-300 ${dept.isActive === false ? "opacity-50 grayscale" : ""}`}>
                   <div className="flex-1 p-2.5">
                     <div>
                       {isEditing ? (

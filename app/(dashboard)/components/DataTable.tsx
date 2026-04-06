@@ -26,14 +26,13 @@ interface DataTableProps<T> {
 export function StatusToggle({ active, onChange }: { active: boolean; onChange?: () => void }) {
   return (
     <div
-      className="relative h-5 w-9 sm:h-7 sm:w-12 shrink-0 cursor-pointer rounded-full transition-colors"
+      className="relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors"
       style={{ background: active ? "var(--primary)" : "var(--fg-tertiary)" }}
       onClick={onChange}
     >
       <motion.div
-        className="absolute top-[3px] sm:top-1 h-3.5 w-3.5 sm:h-5 sm:w-5 rounded-full bg-white shadow-md"
-        style={{ left: active ? "calc(100% - 1rem - 2px)" : "3px" }}
-        layout
+        className="absolute top-[3px] h-3.5 w-3.5 rounded-full bg-white shadow-sm"
+        animate={{ left: active ? "calc(100% - 14px - 3px)" : "3px" }}
         transition={{ type: "spring", stiffness: 500, damping: 35 }}
       />
     </div>
