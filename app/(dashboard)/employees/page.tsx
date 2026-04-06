@@ -11,6 +11,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { ScopeStrip } from "../components/ScopeStrip";
+import { useGuide } from "@/lib/useGuide";
+import { employeesTour } from "@/lib/tourConfigs";
 
 interface Employee {
   _id: string;
@@ -99,6 +101,8 @@ export default function EmployeesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
+  const { registerTour } = useGuide();
+  useEffect(() => { registerTour("employees", employeesTour); }, [registerTour]);
   const scopeDept = searchParams.get("dept") ?? "all";
   function setScopeDept(id: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -288,7 +292,7 @@ export default function EmployeesPage() {
   return (
     <div className="flex flex-col gap-0">
       {/* Header: title left, sort right — no route-level loading.tsx + no entrance fade: avoids double skeleton / flicker on client nav */}
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div data-tour="employees-header" className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Employees</h1>
           <p className="text-subhead">
@@ -344,7 +348,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Search + Add row */}
-      <div className="card-static mb-4 flex items-center gap-3 p-4">
+      <div data-tour="employees-search" className="card-static mb-4 flex items-center gap-3 p-4">
         <div className="relative flex-1">
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
           <input
@@ -371,7 +375,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Role filter */}
-      <div className="mb-4 flex items-center gap-2 flex-wrap">
+      <div data-tour="employees-filters" className="mb-4 flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {availableRoles.map((k) => {
             const active = roleFilter === k;
@@ -579,7 +583,7 @@ export default function EmployeesPage() {
         }
 
         return (
-          <motion.div className="grid gap-3 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+          <motion.div data-tour="employees-grid" className="grid gap-3 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
             <AnimatePresence mode="popLayout">
               {filtered.map((emp, i) => renderCard(emp, i))}
             </AnimatePresence>

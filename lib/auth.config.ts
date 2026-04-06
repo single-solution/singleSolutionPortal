@@ -1,8 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
 
 const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password", "/setup-password", "/preview"];
-const ADMIN_ONLY = ["/employees", "/departments", "/teams", "/campaigns"];
+const ADMIN_ONLY = ["/employees", "/teams", "/campaigns"];
 const ADMIN_ROLES = ["superadmin", "manager", "teamLead"];
+const SUPERADMIN_ONLY = ["/departments"];
 
 export const authConfig: NextAuthConfig = {
   providers: [],
@@ -29,6 +30,11 @@ export const authConfig: NextAuthConfig = {
       if (!isLoggedIn) return false;
 
       const role = (auth?.user as Record<string, unknown>)?.role as string | undefined;
+
+      if (SUPERADMIN_ONLY.some((p) => pathname.startsWith(p)) && role !== "superadmin") {
+        return Response.redirect(new URL("/", nextUrl));
+      }
+
       const isAdminRoute = ADMIN_ONLY.some((p) => pathname.startsWith(p));
       if (isAdminRoute && role && !ADMIN_ROLES.includes(role)) {
         return Response.redirect(new URL("/", nextUrl));

@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useSession } from "next-auth/react";
+import { useGuide } from "@/lib/useGuide";
+import { settingsTour } from "@/lib/tourConfigs";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -71,6 +73,8 @@ function getAvatarGradient(name: string) {
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const { registerTour } = useGuide();
+  useEffect(() => { registerTour("settings", settingsTour); }, [registerTour]);
   const isSuperAdmin = session?.user?.role === "superadmin";
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -249,6 +253,7 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {/* Profile card */}
         <FadeUp delay={0.08} className="card-xl p-6 sm:p-8">
+          <div data-tour="settings-profile" />
           <h2 className="text-headline mb-4">Profile</h2>
           <div className="mb-5 flex items-center gap-4">
             <motion.div
@@ -335,7 +340,7 @@ export default function SettingsPage() {
 
         {/* Account card — email + password */}
         <FadeUp delay={0.14}>
-          <form onSubmit={handleAccountSubmit} className="card-xl p-6 sm:p-8 h-full flex flex-col">
+          <form onSubmit={handleAccountSubmit} className="card-xl p-6 sm:p-8 h-full flex flex-col" data-tour="settings-security">
             <h2 className="text-headline mb-4">Email & Password</h2>
             <div className="space-y-5 flex-1">
               <div>
@@ -418,11 +423,11 @@ export default function SettingsPage() {
       <PreferencesSection />
 
       {/* SuperAdmin row: Test Email + System Settings side by side */}
-      {isSuperAdmin && <SuperAdminSettings
+      {isSuperAdmin && <div data-tour="settings-system"><SuperAdminSettings
         testEmail={testEmail} setTestEmail={setTestEmail}
         testType={testType} setTestType={setTestType}
         sendingTestEmail={sendingTestEmail} handleTestEmail={handleTestEmail}
-      />}
+      /></div>}
     </div>
   );
 }

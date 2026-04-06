@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
@@ -8,6 +8,8 @@ import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 import { useSession } from "next-auth/react";
+import { useGuide } from "@/lib/useGuide";
+import { campaignsTour } from "@/lib/tourConfigs";
 
 type CampaignStatus = "active" | "paused" | "completed" | "cancelled";
 
@@ -67,6 +69,8 @@ function formatDate(d?: string) {
 
 export default function CampaignsPage() {
   const { data: session, status: sessionStatus } = useSession();
+  const { registerTour } = useGuide();
+  useEffect(() => { registerTour("campaigns", campaignsTour); }, [registerTour]);
   const role = session?.user?.role;
   const canDelete = role === "superadmin" || role === "manager";
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
@@ -252,7 +256,7 @@ export default function CampaignsPage() {
   return (
     <div className="flex flex-col gap-0">
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div data-tour="campaigns-header" className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Campaigns</h1>
           <p className="text-subhead">
@@ -316,7 +320,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Status filter pills */}
-      <div className="mb-4 flex items-center gap-2 flex-wrap">
+      <div data-tour="campaigns-filters" className="mb-4 flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["all", "active", "paused", "completed", "cancelled"] as StatusFilter[]).map((s) => (
             <motion.button
@@ -341,7 +345,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Cards */}
-      <motion.div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div data-tour="campaigns-grid" className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {campaignsLoading && !campaigns ? (
             [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (

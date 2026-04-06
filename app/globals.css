@@ -610,3 +610,88 @@ select.input {
 [data-theme="dark"] ::selection {
   background: rgba(239,68,68,0.25);
 }
+
+/* ============================================ */
+/* GUIDE / SPOTLIGHT TOUR                       */
+/* ============================================ */
+.guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: auto;
+}
+
+.guide-spotlight-hole {
+  position: fixed;
+  z-index: 9999;
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+  pointer-events: none;
+  transition: top 0.35s cubic-bezier(0.22,1,0.36,1),
+              left 0.35s cubic-bezier(0.22,1,0.36,1),
+              width 0.35s cubic-bezier(0.22,1,0.36,1),
+              height 0.35s cubic-bezier(0.22,1,0.36,1);
+}
+
+[data-theme="dark"] .guide-spotlight-hole {
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.72);
+}
+
+.guide-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 340px;
+  width: max-content;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+  padding: 16px 18px;
+  pointer-events: auto;
+}
+
+.guide-tooltip-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+.guide-progress-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.guide-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.guide-welcome-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+[data-theme="dark"] .guide-welcome-backdrop {
+  background: rgba(0,0,0,0.65);
+}
+
+@keyframes guide-pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.06); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
+
+.guide-pulse-ring {
+  animation: guide-pulse-ring 2s ease-in-out infinite;
+}

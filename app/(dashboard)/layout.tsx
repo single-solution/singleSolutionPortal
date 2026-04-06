@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { DashboardShell } from "./DashboardShell";
 import Providers from "./Providers";
+import { GuideProvider } from "@/lib/useGuide";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -9,7 +10,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <Providers>
-      <DashboardShell user={session.user}>{children}</DashboardShell>
+      <GuideProvider userName={session.user.firstName ?? "there"}>
+        <DashboardShell user={session.user}>{children}</DashboardShell>
+      </GuideProvider>
     </Providers>
   );
 }

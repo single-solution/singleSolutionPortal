@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { ScopeStrip } from "../components/ScopeStrip";
+import { useGuide } from "@/lib/useGuide";
+import { attendanceTour } from "@/lib/tourConfigs";
 
 /* ───── Types ───── */
 
@@ -144,6 +146,8 @@ function timeAgo(dateStr: string) {
 
 export default function AttendancePage() {
   const { data: authSession, status: sessionStatus } = useSession();
+  const { registerTour } = useGuide();
+  useEffect(() => { registerTour("attendance", attendanceTour); }, [registerTour]);
   const sessionReady = sessionStatus !== "loading";
   const isSuperAdmin = authSession?.user?.role === "superadmin";
   const isAdmin = isSuperAdmin || authSession?.user?.role === "manager" || authSession?.user?.role === "teamLead";
@@ -335,7 +339,7 @@ export default function AttendancePage() {
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
+      <div data-tour="attendance-header" className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-title">{sessionReady && isAdmin ? "Team Attendance" : "Attendance"}</h1>
           {pillsLoading ? (
@@ -374,6 +378,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Employee pills (admins) — skeleton while session or team data loads */}
+      <div data-tour="attendance-pills" />
       {pillsLoading ? (
         <div className="flex flex-wrap gap-2">
           <div className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
@@ -489,7 +494,7 @@ export default function AttendancePage() {
       ) : null}
 
       {/* Calendar + Detail panel */}
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
+      <div data-tour="attendance-calendar" className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
         {/* Calendar */}
         <motion.div className="card-static p-3 sm:p-4 lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <div className="mb-3 flex items-center justify-between">
@@ -950,7 +955,7 @@ export default function AttendancePage() {
 
       {/* Employee monthly stats cards — aggregate mode */}
       {pillsLoading && (
-        <div>
+        <div data-tour="attendance-overview">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
             Employee Overview
           </p>
@@ -988,7 +993,7 @@ export default function AttendancePage() {
         </div>
       )}
       {isAggregateMode && !teamLoading && filteredSummary.length > 0 && (
-        <div>
+        <div data-tour="attendance-overview">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
             Employee Overview · {filteredSummary.length}
           </p>

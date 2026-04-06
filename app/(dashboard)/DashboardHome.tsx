@@ -17,6 +17,8 @@ import {
 import { EmployeeCard } from "./components/EmployeeCard";
 import { ScopeStrip } from "./components/ScopeStrip";
 import type { UserRole } from "@/lib/models/User";
+import { useGuide } from "@/lib/useGuide";
+import { dashboardTour } from "@/lib/tourConfigs";
 
 /* ──────────────────────── TYPES ──────────────────────── */
 
@@ -347,7 +349,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
   const timeKey = `${now.getHours()}-${now.getMinutes()}`;
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <header data-tour="dashboard-welcome" className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <motion.div className="min-w-0" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
         <p className="text-caption mb-0.5">Single Solution Sync</p>
         <h1 className="text-title"><span style={{ color: "var(--primary)" }}>{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {profileName}!</span></h1>
@@ -586,6 +588,8 @@ function AdminDashboard({
   onRefreshFull: () => void;
 }) {
   const isSuperAdmin = user.role === "superadmin";
+  const { registerTour } = useGuide();
+  useEffect(() => { registerTour("dashboard", dashboardTour); }, [registerTour]);
   const [scopeDept, setScopeDept] = useState("all");
 
   const otherEmps = useMemo(() => {
@@ -693,7 +697,7 @@ function AdminDashboard({
       {/* 3. Team Status + Campaigns/Checklist */}
       <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[1fr_0.7fr]">
       {/* 3a. Live Presence — employee cards (Team Status) */}
-      <motion.section className="card relative flex flex-col overflow-visible p-4 sm:p-5 lg:col-span-12 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+      <motion.section data-tour="dashboard-team-status" className="card relative flex flex-col overflow-visible p-4 sm:p-5 lg:col-span-12 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
@@ -835,7 +839,7 @@ function AdminDashboard({
         </motion.section>
 
         {/* 3b. Active Campaigns (left) + Checklist (right) */}
-        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-5 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+        <motion.section data-tour="dashboard-campaigns" className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-5 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
           <div className="mb-3 flex shrink-0 items-center justify-between">
             <div className="flex items-center min-w-0">
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
@@ -865,7 +869,7 @@ function AdminDashboard({
             ))}
           </div>
         </motion.section>
-        <motion.section className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
+        <motion.section data-tour="dashboard-checklist" className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
           <div className="mb-3 flex shrink-0 items-center justify-between">
             <div className="flex items-center min-w-0">
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>

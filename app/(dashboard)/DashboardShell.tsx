@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { dockEntrance, tabIndicatorTransition } from "@/lib/motion";
 import type { UserRole } from "@/lib/models/User";
+import { useGuide } from "@/lib/useGuide";
 import SessionTracker from "./SessionTracker";
 
 interface NavLink {
@@ -19,7 +20,7 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
   { href: "/employees", label: "Employees", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", roles: ["superadmin", "manager", "teamLead"] },
-  { href: "/departments", label: "Depts", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", roles: ["superadmin", "manager", "teamLead"] },
+  { href: "/departments", label: "Depts", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", roles: ["superadmin"] },
   { href: "/campaigns", label: "Campaigns", icon: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" },
   { href: "/tasks", label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
   { href: "/attendance", label: "Attendance", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
@@ -141,11 +142,24 @@ interface DashboardShellProps {
   children: React.ReactNode;
 }
 
+const PATH_TO_TOUR_NAME: Record<string, string> = {
+  "/": "Dashboard",
+  "/employees": "Employees",
+  "/departments": "Departments",
+  "/campaigns": "Campaigns",
+  "/tasks": "Tasks",
+  "/attendance": "Attendance",
+  "/settings": "Settings",
+};
+
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { startTour, startWelcome } = useGuide();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [themeOpen, setThemeOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpRef = useRef<HTMLDivElement>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [logsLoaded, setLogsLoaded] = useState(false);
@@ -255,6 +269,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       if (themeRef.current && !themeRef.current.contains(t)) setThemeOpen(false);
       if (notifRef.current && !notifRef.current.contains(t)) setNotificationsOpen(false);
       if (pingRef.current && !pingRef.current.contains(t)) setPingsOpen(false);
+      if (helpRef.current && !helpRef.current.contains(t)) setHelpOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -697,6 +712,59 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 </AnimatePresence>
               </div>
 
+            {/* Help / Guide */}
+            <div className="relative" ref={helpRef}>
+              <button
+                type="button"
+                onClick={() => { setHelpOpen((o) => !o); setThemeOpen(false); setNotificationsOpen(false); setPingsOpen(false); }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
+                aria-label="Help & Guides"
+              >
+                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 18h.01" />
+                  <circle cx="12" cy="12" r="9.5" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {helpOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute right-0 top-full z-50 mt-2 min-w-[180px] overflow-hidden rounded-xl border shadow-lg"
+                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+                  >
+                    <div className="px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Guides</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setHelpOpen(false); startWelcome(); }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)]"
+                    >
+                      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                      Welcome Tour
+                    </button>
+                    {PATH_TO_TOUR_NAME[pathname] && (
+                      <button
+                        type="button"
+                        onClick={() => { setHelpOpen(false); startTour(pathname === "/" ? "dashboard" : pathname.slice(1) as Parameters<typeof startTour>[0]); }}
+                        className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)]"
+                      >
+                        <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {PATH_TO_TOUR_NAME[pathname]} Guide
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Settings link */}
             <Link
               href="/settings"
@@ -833,6 +901,19 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                   )}
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => { setMobileMenuOpen(false); startWelcome(); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
+                  style={{ color: "var(--fg-secondary)" }}
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 18h.01" />
+                    <circle cx="12" cy="12" r="9.5" />
+                  </svg>
+                  Help &amp; Guides
+                </button>
+
                 <Link
                   href="/settings"
                   onClick={() => setMobileMenuOpen(false)}
@@ -901,6 +982,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           )}
           <LayoutGroup>
             <nav
+              data-tour="dock-nav"
               className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
               style={{ padding: "8px 12px" }}
             >

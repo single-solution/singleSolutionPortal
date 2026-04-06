@@ -59,6 +59,16 @@ export interface IUser extends Document {
   preferences?: {
     showCoordinates?: boolean;
   };
+  guideTours: {
+    welcome: boolean;
+    dashboard: boolean;
+    employees: boolean;
+    departments: boolean;
+    campaigns: boolean;
+    tasks: boolean;
+    attendance: boolean;
+    settings: boolean;
+  };
   crossDepartmentAccess: boolean;
   teamStatsVisible: boolean;
   isActive: boolean;
@@ -138,6 +148,16 @@ const userSchema = new Schema<IUser>(
     lastSeenLogId: { type: String, default: null },
     preferences: {
       showCoordinates: { type: Boolean, default: false },
+    },
+    guideTours: {
+      welcome: { type: Boolean, default: false },
+      dashboard: { type: Boolean, default: false },
+      employees: { type: Boolean, default: false },
+      departments: { type: Boolean, default: false },
+      campaigns: { type: Boolean, default: false },
+      tasks: { type: Boolean, default: false },
+      attendance: { type: Boolean, default: false },
+      settings: { type: Boolean, default: false },
     },
     crossDepartmentAccess: { type: Boolean, default: false },
     teamStatsVisible: { type: Boolean, default: true },

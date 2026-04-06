@@ -5,364 +5,183 @@ Automatic employee presence and attendance tracking system. Detects when employe
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router, TypeScript)
-- **Styling**: Tailwind CSS 4, Poppins font, clean professional SaaS design (solid white/dark surfaces, shadow-based depth, red brand accent, frosted dock matching header)
-- **Animations**: Framer Motion (spring-based micro-interactions, stagger entrances, layout animations)
+- **Styling**: Tailwind CSS 4, Framer Motion animations
 - **Database**: MongoDB Atlas (Mongoose ODM)
-- **Auth**: NextAuth.js v5 (Credentials provider, JWT strategy)
-- **Email**: Nodemailer (SMTP — welcome, password reset, attendance alerts)
-- **Real-time**: Socket.IO infrastructure (dormant on Vercel, active on self-hosted). Manual refresh buttons on dashboard sections + notification panels. `useQuery` client-side cache (stale-while-revalidate). Heartbeat polling (30s) for attendance tracking. Browser Notifications API. SuperAdmin `liveUpdates` toggle in System Settings to enable Socket.IO when self-hosting
-- **Geolocation**: Haversine formula, configurable office geofence (50m default)
-- **PWA**: Progressive Web App (installable, offline-first service worker)
-- **Deployment**: Vercel (serverless, Socket.IO dormant) or self-hosted Node.js (Socket.IO active via custom `server.ts`)
+- **Auth**: NextAuth.js v5 (JWT)
+- **Email**: Nodemailer (SMTP)
+- **Real-time**: Socket.IO (optional — dormant on Vercel, active on self-hosted)
+- **PWA**: Installable, offline-first service worker
+- **Deployment**: Vercel (serverless) or self-hosted Node.js
 
 ## Roles
 
 5-level role hierarchy:
 
 ```
-superadmin (100) → manager (50) → teamLead (30) → businessDeveloper / developer (10)
+superadmin → manager → teamLead → businessDeveloper / developer
 ```
 
 | Role | Access |
 |------|--------|
-| **SuperAdmin** | Full CRUD on employees, departments, teams (for assignments/RBAC), tasks, system settings; attendance reports, email testing. **No personal attendance tracking** — purely oversight role ("god mode") |
-| **Manager** | **Multi-department scoped**: can manage employees, departments, teams, and tasks across all departments they're assigned as manager. Nav includes Employees, Departments, Campaigns (scoped to managed departments). Can create teams in any managed department. Attendance presence for all managed departments. Managers with no explicit department scope see all employees (consistent across dashboard and employee list pages). Cannot edit own profile from the Employees page (self-management via Profile only) |
-| **Team Lead** | Sees employees who **directly report to them** (`reportsTo`) AND members of teams they lead — both sources merged via `$or` query. Nav includes Employees, Departments, Campaigns (scoped to their direct reports and led teams). Can create/manage tasks for those employees. Can view attendance for any employee who reports to them or is in their led teams. Cannot edit own profile from the Employees page. Sits under a manager |
-| **Business Developer** | Job pipeline tracking (17 BD fields), personal attendance |
-| **Developer** | Personal attendance, task status updates, profile management |
+| **SuperAdmin** | Full access to everything. Manages employees, departments, campaigns, tasks, system settings. No personal attendance — purely oversight. |
+| **Manager** | Multi-department scoped. Manages employees, teams, tasks, and attendance across assigned departments. No access to Departments page. |
+| **Team Lead** | Sees employees who report to them + members of teams they lead. Can manage tasks and view attendance for their scope. No access to Departments page. |
+| **Business Developer** | Job pipeline tracking (17 BD-specific fields), personal attendance. |
+| **Developer** | Personal attendance, task status updates, profile management. |
 
-Employees can belong to **multiple teams simultaneously** — enabling cross-team/cross-project membership. A manager can be assigned as the manager of **multiple departments** — they see and manage employees, teams, and attendance across all of them. Team Leads manage the teams they're assigned to lead.
+Employees can belong to multiple teams simultaneously. Managers can manage multiple departments. Team Leads manage the teams they're assigned to lead.
 
-**Campaigns** (no separate Teams hub): use **Campaigns** to label initiatives that span **one or more departments** and **specific people** — the same campaign can involve overlapping departments or shared staff. The standalone **Teams** navigation page was removed; team membership still exists in data for RBAC and employee forms.
+**Campaigns** replace the old standalone Teams page — use them to label initiatives that span one or more departments and specific people.
 
 ---
 
 ## Features
 
-### Attendance & Presence (Heartbeat-Based)
+### Automatic Attendance Tracking
 
-The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual check-in/check-out.
+The core feature. Uses a **heartbeat model** — no manual check-in/check-out required.
 
-**How it works:**
-- When a desktop user opens the app, a session is automatically created and a heartbeat starts (PATCH every 30s)
-- The heartbeat updates `lastActivity` and sends GPS coordinates for office detection
-- If the heartbeat stops for **3 minutes** (6 missed beats), the session is considered dead
-- Any new desktop device can then take over by creating a new session (the server auto-closes the dead one)
-- Mobile devices are always read-only — they never create sessions, only display synced data
+- Employee opens the app on desktop → session starts automatically
+- A heartbeat pings the server every 30 seconds with GPS coordinates
+- If the heartbeat stops for 3+ minutes (laptop closed, crash, etc.), the session is auto-closed
+- Mobile devices are read-only — they display synced data but never create sessions
+- Only one active session per user at any time (prevents hour inflation)
+- Sleep/wake is handled gracefully — old session closes at last heartbeat, new session starts fresh
+- Idle detection: 1hr of inactivity triggers nudge toasts, then pauses the timer with an overlay
 
-**Session lifecycle:**
-- **Check-in**: automatic on page load (desktop only), with geolocation one-shot
-- **Heartbeat**: every 30s PATCH with coords + lastActivity update
-- **Check-out**: `sendBeacon` on tab close (best-effort) OR stale cleanup on next check-in OR explicit sign-out
-- **Stale cleanup**: when a new check-in finds an existing session with `lastActivity > 3 min` ago, it auto-closes it (duration = lastActivity − start)
-- **Daily recomputation**: on every session close, all sessions for that day are summed to produce daily totals
+**Office Detection:**
+- GPS coordinates compared against configurable office geofence (Haversine formula)
+- Tracks office vs remote time separately with entry/exit segments
+- Works with Wi-Fi triangulation on laptops (not phone GPS)
+- Best-effort: if geo is denied, the session still works
 
-**One active session rule:**
-- Only one active session per user at any time — prevents hour inflation from multiple devices
-- Second desktop sees "active on another device" and polls every 30s in readonly mode
-- When the active device dies, the readonly desktop auto-takes-over
+**Anti-Spoofing (4 layers):**
+1. Accuracy zero detection (fake GPS extensions)
+2. Teleportation detection (impossible movement speed between heartbeats)
+3. Round coordinate detection (crude manual entries)
+4. Zero variance (disabled — incompatible with Wi-Fi positioning)
+- When flagged: timer pauses, employee sees a warning with "Re-check Location" option
+- Two-tier severity: Warning (≤2 flags/30d) vs Violation (>2 flags, pauses timer)
+- Does not lock out employees — lets them self-correct
 
-**Geolocation:**
-- Updated every 30s via the heartbeat (replaces continuous `watchPosition` — less battery, same accuracy for 50m geofence)
-- Office/remote transition detection with office segment tracking (entryTime, exitTime, durationMinutes per segment)
-- Best-effort: if geo is denied, the session still works — just can't determine in-office vs remote
+**Day Boundary:**
+- Attendance day starts at 6 AM, not midnight
+- Work done between midnight–6 AM counts toward the previous day
+- All date math is timezone-aware (configurable, defaults to Asia/Karachi)
 
-**Timer pill (bottom of screen):**
-- Color-coded gradient: green = in-office, blue = remote, red = location flagged, gray = offline
-- Shows: live ticking elapsed time | cumulative today total (completed sessions + active)
-- Readonly mode: "another device" label or "📱 synced" for mobile
-- Stale session: shows "inactive" instead of a running timer
-- **Sleep/suspend recovery**: When the laptop lid is closed (device sleeps), heartbeats stop. On wake, the first heartbeat detects the stale gap (> 3 min since last activity), the server auto-closes the old session at the last heartbeat timestamp, and the client creates a fresh session. The timer resets to count from the new check-in — no inflated hours from sleep time. The client also tracks wall-clock time between heartbeats to detect sleep gaps even when `visibilitychange` doesn't fire (common in installed PWAs)
-- Idle/Away: visibility-aware detection — tab hidden (user in another app) keeps timer running; tab visible + 1hr no interaction triggers 3 nudge toasts (5min apart starting at 1h 5m), then pauses timer with full-screen "Stepped Away" overlay
+**Dual Lateness Tracking:**
+- "Late to work" — when the employee first started any session (office or remote) vs shift deadline
+- "Late to office" — when the employee physically arrived at the office vs shift deadline
+- These are tracked independently, so a remote-on-time but office-late employee shows both statuses
 
-**Fake location detection (laptop-optimized anti-spoofing):**
-- Designed for **laptop geolocation** (Wi-Fi triangulation / IP geolocation), not phone GPS. Mobile tracking is disabled
-- **Layer 1 — Accuracy zero**: Fake GPS extensions report accuracy as exactly `0`. Real Wi-Fi triangulation on laptops reports 20–200 m. Only flags when accuracy is exactly zero
-- **Layer 2 — Teleportation**: Compares haversine distance between consecutive heartbeats against elapsed time. Flags if implied speed exceeds 200 km/h (~55 m/s). Only fires within an active session — sleep/wake creates a new session so office→home jumps don't trigger it
-- **Layer 3 — Zero variance**: **Disabled**. Wi-Fi positioning returns the exact same coordinates as long as the same networks are visible. An employee at their desk gets byte-identical coords all day. This layer was designed for phone GPS micro-drift and is incompatible with laptop geolocation
-- **Layer 4 — Round coordinates**: Flags coordinates with fewer than 2 significant decimal digits (catches crude manual entries like `31.5, 74.3`). Lenient threshold accounts for Wi-Fi triangulation precision
-- When flagged: timer pauses, heartbeat stops, red warning pill + full-screen overlay with reason text. Employee can click "Re-check Location" to trigger an immediate fresh geo reading — if clean, timer resumes automatically. A **browser notification** (system-level toast) is also sent so the employee sees the alert even when the app is in the background or minimized
-- Session restart notifications: when the server auto-closes a stale session (e.g. after laptop sleep), the employee receives a browser notification informing them their session was restarted
-- Flag state persisted on `ActivitySession.location` (flagReason, flaggedAt, consecutiveIdentical) and returned in both GET and PATCH responses — visible to managers/admins on the dashboard presence cards
-- Does not ban or lock out — pauses and warns, letting employees self-correct. SuperAdmin exempt
+**Timer Pill:**
+- Floating pill at the bottom of the screen showing live elapsed time and today's total
+- Color-coded: green (office), blue (remote), red (flagged), gray (offline)
 
-**Day boundary (6 AM, not midnight) + timezone-aware attendance:**
-- The attendance day starts at **6 AM**, not midnight. Work done between midnight and 6 AM counts toward the **previous day**
-- Prevents employees who stay late past midnight from appearing as "early arrivals" the next day. Their post-midnight work is logged to the correct day, and the next morning's actual arrival time becomes the real "first entry"
-- **Timezone-aware**: all attendance date math uses the company timezone from `SystemSettings.company.timezone` (default `Asia/Karachi`, UTC+5). `lib/tz.ts` provides `dateParts()`, `dateInTz()`, and `resolveTimezone()` — converting between IANA timezone strings and timezone-correct Date objects using `Intl.DateTimeFormat`. This ensures shift times like "10:00" are always interpreted as 10:00 AM in Pakistan time regardless of where the server is hosted (e.g. UTC cloud instances). The client also uses `Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" })` to send the correct PKT date when fetching attendance data
-- Shared `lib/dayBoundary.ts` exports `startOfDay(d, tz?)` and `isSameDay(a, b, tz?)` — used consistently across all attendance APIs (session, presence, presence/manager, trend, detail). When `tz` is provided, hour extraction uses the target timezone
-- Example: employee works office until 1 AM on April 2nd → that session belongs to April 1st (logical day). Employee arrives next day at 11 AM → first entry for April 2nd is 11 AM (correctly marked late if shift starts at 10 AM)
+### Dashboard
 
-**Daily & monthly rollup:**
-- `DailyAttendance`: totalWorkingMinutes, officeMinutes, remoteMinutes, isPresent, isOnTime, lateBy, isLateToOffice, lateToOfficeBy, firstOfficeEntry, lastOfficeExit
-- `MonthlyAttendanceStats`: presentDays, absentDays, onTimeArrivals, lateArrivals, averageDailyHours, totalWorkingHours, attendancePercentage
-- **Dual lateness tracking**: `isOnTime` / `lateBy` measures when the employee **first started working** (remote or office) vs their shift deadline. `isLateToOffice` / `lateToOfficeBy` measures when the employee **physically arrived at the office** vs the shift deadline — computed independently when `firstOfficeEntry` is first set. An employee who starts working remotely on time but arrives at the office hours later will show `isOnTime: true` but `isLateToOffice: true` with the appropriate late-to-office duration
-- Lateness calculated from employee's configured shift start + configurable grace period (read from SystemSettings, default 30 min)
+Real-time overview for each role:
 
-**Real-world scenarios:**
+- **SuperAdmin/Manager/Team Lead**: Welcome greeting with live status counts (In Office, Remote, Late, Absent) → Team Status grid with employee cards showing clock in/out, hours, shift progress, office/remote breakdown → Active Campaigns → Task Checklist
+- **Developer/BD**: Personal overview with clock in/out times, office/remote split, shift progress bar → Weekly strip → Monthly summary
 
-| Scenario | What happens |
-|----------|-------------|
-| Normal workday (open 9am, close 6pm) | Check-in → 9h heartbeat → sendBeacon checkout → 540 min |
-| Lunch break (close lid, sendBeacon fails) | Session #1 frozen at 12:00. Reopen at 1pm → heartbeat detects stale → server auto-closes #1 at 12:00 (3h) → new #2 starts → close at 6pm (5h) → total 8h |
-| Leave office, open at home | Session #1 frozen at 6pm. Open at home → heartbeat stale → server auto-closes #1 at 6pm → new #2 starts from home (remote), timer resets |
-| Laptop crash | Heartbeat stops → session stale after 3 min → next device takes over |
-| Open on MacBook + phone | MacBook = active (heartbeat). Phone = readonly (polls). MacBook closed → phone shows last synced data |
-| Two desktops | Desktop A = active. Desktop B = readonly. A dies → B auto-takes-over after 3 min |
-| Working past midnight | Heartbeat detects day change → auto-closes yesterday's session → creates today's seamlessly |
-| Internet drops < 3 min | Heartbeat fails silently, resumes on reconnect. Session stays alive. |
-| Internet drops > 3 min (single device) | PATCH resumes and updates lastActivity. Session survives. Only closed if another device tries to check in. |
-| Explicit sign-out | Checkout API called before signOut → clean session close |
-| Tab visible, 1hr+ idle | 3 "Still there?" nudge toasts (5min apart) → if ignored, timer pauses + overlay. Any interaction resumes. |
-| Tab hidden (user in VS Code etc.) | Timer runs normally — no idle detection while tab is backgrounded |
-| Browser crash | No sendBeacon. Session stale → cleaned up on next check-in |
+Each section loads independently with its own skeleton — no global loading gate. Manual refresh buttons on each section; Socket.IO pushes updates when enabled.
+
+**Scope Strip**: SuperAdmin and Manager see a department filter strip on Dashboard, Employees, and Attendance — only if they have access to 2+ departments.
+
+**View Groups**: "Group by" toggle (Flat / By Manager / By Department) on Dashboard and Employees page.
 
 ### Employee Management
 
-- Full CRUD with role-based access (SuperAdmin manages all, Manager manages their department scope). **Self-exclusion enforced server-side**: the employees API (`GET /api/employees`) excludes the requesting user from results (`_id: { $ne: actor.id }`). The employees PUT endpoint blocks self-edit with 403 ("Use the Profile page"). Self-management is strictly under Profile/Settings. Role filter toggles on the Employees page are **dynamic** — only roles present in the actual employee list are shown (e.g., no "BD" pill if there are no Business Developers under the current user)
-- **Unified EmployeeCard** component (`components/EmployeeCard.tsx`) used on BOTH the dashboard presence grid AND the employee list page — consistent card design everywhere
-- **Card design**: top-right pulsing status pill (green "In Office" / blue "Remote" when live, gray "Last seen" with time, or amber "Absent"), avatar with gradient ring, first arrival time, total hours, shift progress bar with two-segment overtime visualization (regular hours in primary color, overtime in purple), task/campaign pills
-- **Clickable employee cards** → navigate to `/employees/[username]` detail page (clean URLs using username instead of ObjectID). Detail page mirrors the self-overview dashboard style: animated profile header with status badge, today's KPI cards, shift progress bar, activity timeline with live pulsing dots, task cards with priority/status pills, weekly overview strip with hover effects, and full monthly summary with office-vs-remote progress bar
-- **Multi-department manager assignment**: when creating/editing a manager or team lead, toggle-chip selector for "Managed Departments" — sets that user as the manager on each selected department. Managers can manage all employees, teams, and attendance across all their managed departments
-- Full-width create/edit forms (`/employees/new`, `/employees/[username]/edit`) with 2-column grid layout: Personal Info + Role & Assignment side-by-side on desktop, full-width Shift Configuration card with internal grid below
-- **Department assignment**: unified toggle-chip design for all roles — managers/team leads can multi-select departments they manage; regular employees single-select their department (clicking another deselects the previous)
-- **Reports To**: dropdown selector showing team leads and managers. If no supervisor is explicitly chosen, the employee is **automatically assigned to the department manager** as a fallback (resolved server-side on create)
-- **Equal-height employee cards**: `flex-1` + `mt-auto` layout ensures all cards in a grid row stretch to the same height with attendance data pinned to the bottom — consistent on both the dashboard presence grid and the employees list page
-- ConfirmDialog for all destructive actions (deactivate single + bulk)
-- Profile image upload (base64, max 2MB) with initials fallback avatar
-- Shift configuration per employee (shift type, start/end hours, working days, break time, grace period)
-- Business Developer fields (17 additional fields: jobID, platform, proposalStatus, clientCountry, etc.)
-- Welcome email sent on account creation with temporary password
-- StatusToggle for quick active/inactive toggle from card footer — compact size (20×36px), spring-animated knob, optimistic update (card stays visible with dimmed grayscale appearance instead of disappearing). SuperAdmin sees all employees including inactive ones
+- Full CRUD with role-based access control
+- Employee cards with live status, hours, shift progress, tasks/campaigns
+- Click any card → rich detail page with profile, today's KPIs, activity timeline, weekly/monthly stats
+- Multi-department manager assignment via toggle chips
+- Shift configuration per employee (type, hours, working days, break, grace period)
+- Business Developer fields (17 additional pipeline fields)
+- Quick active/inactive toggle with optimistic UI (deactivated cards stay visible but dimmed)
+- Profile image upload, welcome email on creation
+- Self-edit prevented server-side — employees manage their own profile under Settings only
 
-### Department Management
+### Department Management (SuperAdmin Only)
 
-- Search + "Add Department" button in action bar (matches employees/tasks layout)
-- Collapsible inline add row with name input + **parent department selector** + Create/Cancel buttons
-- **Parent Department hierarchy**: departments can optionally reference a parent department, enabling nested organizational structures (displayed as "↳ Parent Name" on cards)
-- Inline edit within card (expand fields on edit click) — includes parent department selector (self-reference excluded from options)
-- ConfirmDialog for delete confirmation
-- Card grid with gradient avatars, employee count progress bars, manager display + email + parent department label
-- Sort toggles: Most Employees / Name
-- Hover-visible edit/delete action buttons in card footer
-- Equal-height cards across all CRUD pages (flex-based stretch)
-
-### Team Management
-
-- **Teams as department sub-sections**: e.g., "Node Team" and "Laravel Team" under the "Development" department
-- Full CRUD: create, edit, delete teams with department assignment and optional team lead
-- Card grid with gradient avatars, member count badges, lead info display
-- Search + filter by department toggle pills
-- Centered modal for create/edit (department selector, lead selector from employees, description)
-- Delete confirmation via ConfirmDialog (removes team references from members on delete)
-- Sort toggles: Most Members / Name
-- Card footer: StatusToggle + creation date + hover-visible edit/delete buttons
-- Role-scoped: SuperAdmin sees all teams; Manager sees teams in all their managed departments; Team Lead sees teams they lead
-- Employee form includes **multi-team selector** (toggle chips) — employees can belong to multiple teams simultaneously
+- Department CRUD with parent hierarchy support
+- Inline add/edit within cards
+- Manager assignment per department
+- Employee and team count display
 
 ### Campaign / Project Tracking
 
-- Track ongoing campaigns, projects, and initiatives with lifecycle status management
-- **Statuses**: Active → Paused → Completed / Cancelled (quick-action buttons on cards for instant transitions)
-- **Tag anyone**: associate employees, departments, and teams with a campaign via toggle chip selectors
-- Card grid with gradient avatars, status badges, date ranges, budget, tagged entity pills (color-coded by type)
-- Search across campaign names, descriptions, and tagged entity names
-- Filter pills by status (All, Active, Paused, Completed, Cancelled) with counts
-- Sort toggles: Recent / A–Z
-- Centered modal for create/edit with date pickers, budget field, multi-select tags, notes
-- ConfirmDialog for delete confirmation (SuperAdmin only)
-- StatusToggle for quick active/inactive flag in card footer
-- Activity logging for all campaign CRUD actions
-- Role-scoped visibility: SuperAdmin sees all; Manager sees campaigns tagged with their department or employees; Team Lead sees campaigns tagged with teams they lead or employees in scope; Employees see campaigns they're tagged in
+- Track initiatives across departments and people
+- Lifecycle statuses: Active → Paused → Completed / Cancelled
+- Tag employees, departments, and teams to any campaign
+- Filter by status, search across names and tagged entities
 
 ### Task Management
 
-- Priority-based task assignment with deadline tracking
-- Centered modal for create/edit (no page navigation required)
-- Search field in action bar
-- Filter pills by priority (All, Low, Medium, High, Urgent)
-- Sort toggles: Recent / Name
-- ConfirmDialog for delete confirmation
-- Role-scoped: SuperAdmin sees all, Manager sees team, others see own
-- Status validation (pending → in-progress → completed/cancelled)
-- Assignees can only update task status; admins can reassign
-- Card details: assignee role + department, "Updated" date in footer when modified
-
-### Auth Module
-
-- **Login page**: animated hero section with floating particles + gradient orbs, email/password inputs with icons, shake-on-error animation, toast notifications, "Encrypted · Rate limited · Fast" security badges footer
-- **Forgot password**: animated orbs background, success state with dev-mode reset URL display, toast feedback
-- **Reset password**: PasswordInput with show/hide toggle, PasswordStrength 5-bar meter (Weak→Excellent), confirm password match indicator with color feedback
-- **Shared components**: `PasswordInput` (reusable toggle field), `PasswordStrength` (animated strength meter)
-- **Toast notifications**: global glass-styled toaster via `ToasterProvider` (react-hot-toast)
-
-### Security
-
-- Token-based password reset (SHA-256 hashed, 1hr expiry, emailed link)
-- Rate limiting on reset endpoints (5 attempts per 15 min window, in-memory)
-- IDOR protection on employee API (role + department scoping)
-- Server-side route guards in middleware (admin routes blocked for non-admin roles)
-- Password strength meter enforced on all password inputs
-- bcryptjs password hashing
-- Auto-verification: `isVerified` flag set to `true` on first successful login AND on password reset completion (invite flow safety net)
-
-### Design System
-
-- **Glass design system**: theme-aware glass surfaces (`--glass-bg`, `--glass-border`), frosted blur on header + dock only (16–20px), inset highlights (`--glass-border-inner`). `backdrop-filter` removed from cards, inputs, badges, and buttons for performance — replaced with slightly more opaque solid-glass backgrounds
-- **Floating dock navigation**: `.dock-glass` with dark-mode-optimized borders and shadows, Framer Motion `layoutId` sliding active indicator (LayoutGroup scoped to dock only — lightweight on 7 items)
-- **Performance-first route transitions**: `AnimatePresence mode="wait"` with opacity + scale(0.985→1) + translateY (all GPU-compositable, no filter:blur). Prevents dual-page rendering during route changes
-- **Socket.IO real-time** (optional): Custom `server.ts` wraps Next.js + Socket.IO on a single HTTP port. `lib/socket.ts` provides `emitSocket()` for server-side event emission to rooms/users. `lib/useSocket.ts` client-side hook connects when `liveUpdates` is enabled in SystemSettings. Events: `presence`, `activity`, `ping`. When Socket.IO is disabled (default on Vercel), dashboard sections have manual refresh buttons instead
-- **`useQuery` client cache**: module-level `Map<string, CacheEntry>`. On mount: returns cached data instantly (no loading flash), revalidates in background. `loading` only true on first-ever fetch — perfect for skeleton display. Navigation between cached pages is instant. Sparse dropdown endpoint (`/api/employees/dropdown`) for lightweight employee lists in forms
-- **Dashboard GPU reduction**: All dashboard views use table-based presence lists and compact KPI strips (no gradient stat cards, no donut charts). `AnimatedNumber` only runs rAF on initial mount. `backdrop-filter` removed from dashboard headers. CSS `pulse-ring-*` and `.live-dot` classes replace JS animations
-- **Unified page layouts**: every CRUD page follows — header with sort toggles → card-static action bar (search + add button) → filter pill row → card grid
-- **Card footer standard**: `border-t` footer with status/date left, hover-visible edit/delete buttons right
-- **Route-level `loading.tsx`**: every CRUD route has a dedicated `loading.tsx` file — NO parent-level `loading.tsx` at the `(dashboard)` group (to prevent double-skeleton flashes on sub-page navigation). Static content (page titles, subtitles, sort tabs, filter labels, search bars, action buttons) renders as real text immediately — only database-fetched data (card grids, counts, dynamic values) uses shimmer placeholders. Next.js shows these instantly on navigation before the page component mounts. Loaded content fades in via `contentReveal` variant (opacity + translateY transition) for a smooth skeleton-to-content crossfade — no hard swap
-- **Inline skeletons match route-level skeletons**: every CRUD page's inline skeleton (shown while `useQuery` loads fresh data) uses the exact same card structure as its `loading.tsx` — same proportions, same footer, same number of skeleton cards. The attendance page takes this further: each skeleton section (pill bar, right panel, employee overview grid, monthly insights, monthly records) replicates the exact DOM structure of its loaded state — including background colors, border styles, grid columns, and container shapes. Static text (section headings, "Monthly Records" title, calendar day headers) renders immediately; only API-dependent values use `shimmer` placeholders. This ensures the transition from route-level skeleton → page skeleton → real content is seamless with no jarring layout shifts
-- **Inline skeleton loading**: Beyond route-level skeletons, every data-dependent card, section, and list within pages uses inline shimmer skeletons while its specific data loads. `useQuery` exposes `loading` state and all CRUD list pages (employees, tasks, departments, teams, campaigns) show a skeleton card grid when `loading && !data`. Dashboard sections (campaigns, tasks, teams, weekly, monthly, timeline, self-overview) always render their card shell immediately with skeleton content. Notification bell and ping inbox show skeleton entries before their respective API calls complete. This prevents "No data found" messages from flashing during initial load
-- **Framer Motion**: spring constants `stiffness: 400, damping: 25` for buttons; `whileHover: 1.02, whileTap: 0.98` for primary actions; `1.05/0.92` for filter pills; `staggerContainerFast` + `cardVariants` + `cardHover` standardized across all 5 CRUD card grids (employees, departments, teams, tasks, campaigns) — GPU-only `transform` + `opacity` with staggered delays (0.06s per card); card-shine hover sweep; month label crossfade; timeline stagger; avatar crossfade on image change; modal form field stagger; empty state scale-in. **Smooth CRUD transitions**: every card has `layout` + `layoutId` for spring-based reflow (stiffness 300, damping 30) when items are added, removed, reordered, or filtered. `AnimatePresence mode="popLayout"` with `exit={{ opacity: 0, scale: 0.95 }}` on all card grids — cards shrink and fade out on removal while remaining cards smoothly slide into their new positions. StatusToggle uses optimistic `mutate()` so cards stay in place with dimmed appearance instead of disappearing and reappearing after refetch
-- **GPU-optimized animations**: badge dots breathe via CSS `transform: scale` (3s, no repaints); status ring pulse uses border + `transform: scale` on `::after` pseudo-element (no `box-shadow` animation); `pulse-glow` uses transform-only scale (no shadow recalc); aurora background drifts via `transform: translate` on oversized `::before` pseudo (30s, `will-change: transform`); notification badge pulses via CSS keyframes; card entrance stagger uses Framer Motion `cardVariants` with 0.06s per-card delay. No infinite `box-shadow` animations anywhere. No `filter: blur()` in any animation
-- **Form labels**: standardized `text-xs font-medium text-[var(--fg-secondary)] mb-1`
-- **Input icons**: all icon-prefixed inputs use `left-3.5` icon + `paddingLeft: 40px`
-
-### Settings & Configuration
-
-- **Profile card**: full name, phone, profile image (base64 upload), metadata pills (@username, role badge, department)
-- **Security card**: email change (current password required, 24h cooldown, auto-updates username and activity logs), password change with PasswordStrength meter
-- **Email testing**: toggle between invite/reset/alert types, centered send button, toast feedback
-- **System Settings** (SuperAdmin only): company name, timezone, office geofence (lat/lng/radius), shift defaults (start time, work hours, work days)
-- **Dark / Light / System** theme toggle (persisted to localStorage, no flash on load)
-
-### Activity Log & Notifications (Role-Hierarchical)
-
-- **DB-backed activity log** (`ActivityLog` model) — every CRUD action recorded with user, action, entity, details, and **targeting metadata**
-- **Role-hierarchical visibility** — notifications respect the org hierarchy, not just department/team membership:
-  - **`targetUserIds[]`**: specific users the action is about (task assignee, employee created, campaign-tagged employees) — these users always see the log regardless of role
-  - **`targetDepartmentId`**: department this action relates to — **only visible to managers** of that department (not regular developers/BDs)
-  - **`targetTeamIds[]`**: teams this action relates to — **only visible to team leads** who lead those teams (not regular team members) + department managers
-  - **`visibility`**: `"all"` (everyone sees) | `"targeted"` (role-filtered matching) | `"self"` (only the actor)
-  - **`userEmail` match**: actors always see their own actions
-  - **SuperAdmin** sees everything; **Manager** sees department + team scope; **Team Lead** sees teams they lead; **Developer/BD** only sees logs where they're directly targeted or performed the action
-- **Cross-device read sync** — `lastSeenLogId` cursor on `User` model, synced via `GET/PUT /api/user/last-seen`
-- **Push / refresh** — bell auto-fetches via Socket.IO `activity` event (when enabled) or manual refresh button
-- **Mark as read on open** — opening the bell panel marks all current entries as seen
-- **Unseen badge** — red pulsing badge with count (capped at 9+)
-- **Entity SVG icons** — each entity type has a distinct icon and color
-- **Clickable links** — each log entry navigates to the relevant page
-- **Self-referencing "You"** — if the logged-in user performed the action, the notification shows "You" instead of their name/email (e.g. "You created a task" instead of "admin created a task"). The subtitle also shows "you" instead of the username
-- **Seen/unseen dimming** — read entries fade to 50% opacity
-- **"Mark all read" button** — persists to server for cross-device consistency
-
-### PWA & Offline
-
-- `manifest.json` with SVG app icon
-- Service worker (`sw.js`) with cache-first + stale-while-revalidate strategy
-- "Install App" prompt (hidden when already in standalone mode)
-- `sendBeacon` for best-effort check-out on tab/browser close
-
-### Hierarchy Ping System
-
-Real-time peer-to-peer pinging within your reporting chain. Everyone can ping people in their hierarchy pool:
-
-- **SuperAdmin** can ping anyone in the organization
-- **Manager** can ping anyone in their department
-- **Team Lead** can ping their team members and their direct manager
-- **Employee** can ping their manager/lead and same-team members
-
-**Architecture:**
-- `Ping` model: `from`, `to`, `message` (280 char), `read`, `createdAt`
-- `POST /api/ping` — send a ping (pool validation enforced server-side)
-- `GET /api/ping` — inbox with unread count
-- `PATCH /api/ping` — mark pings as read (individual or all)
-- Real-time delivery via Socket.IO `ping` event (when enabled) or manual refresh
-- Ping icon (signal wave) in header with unread badge and dropdown inbox
-- Each employee card on the dashboard shows who they report to and a quick-ping button
-- Non-admin roles see a rich "Reports to" card with manager's live status, arrival time, location (office/remote), hours worked, shift end, and a one-tap ping button
-- `GET /api/attendance/presence/manager` — dedicated lightweight endpoint returning the logged-in user's manager/lead live presence (status, isLive, arrival, exit, office/remote split, shift times). Fetched on mount
-
-### Dashboard (Real-Time)
-
-The dashboard loads data on mount and provides **manual refresh buttons** on each section header. When Socket.IO is enabled (`liveUpdates: true` in System Settings), data updates push automatically.
-
-- **Per-section loading**: No global skeleton gate — header and static sections render immediately while data-dependent sections (presence grid, attendance stats) show inline shimmers only for their own loading state. Presence data (`fetchLive`) loads in parallel with core data (`fetchFull`) on initial mount
-- **Card-shell skeleton pattern**: Every card and section always renders its structural frame (borders, headings, layout) immediately. Data-dependent content inside cards uses shimmer placeholders (`shimmer` CSS class) until the API responds — no card appears/disappears during loading. Applied to: SelfOverviewCard (avatar + stat boxes), TodayTimelineCard (timeline events + task list), campaigns/tasks/teams sections (card with skeleton rows), weekly overview (day card strip), monthly summary (stat cards), all 5 CRUD list pages (skeleton card grids instead of "No X found" flash), settings system sections (skeleton inputs), attendance monthly insights (skeleton analytic chips), notification bell (skeleton log entries), ping inbox (skeleton ping entries), welcome header (skeleton task/campaign count text)
-- **Live attendance detail**: `/api/attendance?type=detail` includes elapsed minutes from the currently active session (not just closed sessions), so "hours logged" and status badges reflect real-time presence. Client-side `extractClockTimes()` computes `clockIn` (earliest session start) and `clockOut` (latest session end / lastActivity) from the populated `activitySessions` array — separate from `firstOfficeEntry` / `lastOfficeExit` which are office-specific
-- **Presence API session aggregation**: `GET /api/attendance/presence` aggregates `ActivitySession` to compute `firstEntry` (earliest `sessionTime.start` across all sessions — office or remote) and `firstOfficeEntry` (office-specific arrival) as distinct fields. Remote-only workers now correctly show their session start time as "Clock In" instead of blank
-- **Refresh buttons**: Each dashboard section (Team Status, Campaigns, Checklist) has a refresh button. Notification bell and ping inbox also have refresh buttons. No background polling — zero CPU/network drain on Vercel
-- **Socket.IO push** (when enabled): `presence`, `activity`, `ping` events auto-trigger refetches. Connection managed by `useSocket` hook
-- **Design language**: Matches preview page — card borders (`card`, `card-static`), blob gradient corners on stat cards, `badge-office`/`badge-remote`/`badge-late`/`badge-overtime`/`badge-absent` status pills, gradient avatar rings, animated numbers, `text-title`/`text-headline`/`text-caption` typography classes, animated segmented pill filters with `LayoutGroup`
-
-**SuperAdmin (AdminDashboard):**
-- **Welcome header**: time-of-day greeting with "Single Solution Sync" label, inline status badge pills showing **live** counts only (In Office = currently live + in office, Remote = currently live + remote, Late = anyone with `lateBy > 0`, Absent). Late employees are also correctly counted in their location bucket (Office/Remote) — lateness is an orthogonal attribute, not a location status. Compact time card on the right with blob gradient and live clock (no task/campaign chips — full cards below already show this)
-- **No stat cards row**: removed the duplicate Total/InOffice/Late/Absent card row — the welcome pills already convey this at a glance
-- **Viewport-filling dashboard**: Layout order is **Team Status → Campaigns + Checklist** (team status first for immediate visibility). Grid uses `lg:grid-rows-[1fr_0.7fr]` — Team Status takes full row height, Campaigns/Checklist row is 30% shorter with inner scrolling
-- **Team Status (Live Presence)**: Real-time employee cards with live pulse indicators and status filtering (All/Office/Remote/Late/Absent). Full-width top row. Each employee card shows:
-  - **Clock In · Hours · Clock Out** — full work day span from first session start (earliest `ActivitySession.sessionTime.start`) to last session end (latest session end / `lastActivity`), regardless of office or remote
-  - **Arrived · Office · Left** — office-specific entry/exit times (`firstOfficeEntry` / `lastOfficeExit`), always visible even when employee has no office time (displays "—")
-  - **Activity Strip** — segmented progress bar showing office/remote/break time proportions within the shift, session count, remote and break durations, late penalty, office-arrival lateness (red chip when employee started work on time remotely but arrived at the office late), and idle gap time (unaccounted gaps between sessions)
-  - Tasks, campaigns, and location flag details always visible
-- **Last seen accuracy**: When an employee goes offline, "Last seen" shows their actual last activity — not just when they left the office. A remote worker who left office at 10:59 AM but continued working remotely until 11:45 AM will correctly show "Last seen 11:45 AM"
-- **Stale session handling**: If an employee's browser closes without checking out, total working time still includes the unclosed session's elapsed minutes so hours aren't lost
-- **Location-first status**: An employee's status always reflects their physical location (office/remote) — a late employee working remotely correctly shows as "Remote", not "In Office". Lateness is shown as a separate indicator
-- **Location flag tolerance & escalation**: Fake location detection uses a two-tier severity system:
-  - **Warning** (≤ 2 flags in 30 days): Timer keeps running, employee sees a warning toast, manager and SuperAdmin are notified
-  - **Violation** (> 2 flags in 30 days): Timer pauses until location is re-verified, manager and SuperAdmin notified with elevated severity
-  - Flag history is tracked per employee with full details — coordinates (clickable map link), detection reasons, timestamps, and acknowledgment status
-  - Managers see flags for their department, team leads for their reports, SuperAdmins see all flags
-- No LivePulse on welcome bar — timer pill at bottom handles live indication for all roles
-
-**Manager / Team Lead (AdminDashboard):**
-- **Welcome header**: same design as SuperAdmin but with pending tasks + active campaigns count instead of status badge pills
-- **Self Overview card** (DeveloperPreview-style): large avatar, name/department/email, status badge, **Clock In · Hours · Clock Out** row (session-based, works for office and remote), **Arrived · Office · Left** row (office-specific, always visible with "—" when no office data), office/remote split chips with percentages, animated shift progress bar. Shows skeleton avatar + stat boxes while attendance data loads
-- **Today Timeline card**: vertical activity timeline (check-in, sessions, active now). Shows skeleton timeline dots while loading
-- Same campaigns, checklist, team breakdown, and team status sections as SuperAdmin
-
-**Developer / Business Developer (OtherRoleOverview):**
-- **Welcome header**: greeting with "Single Solution Sync" label, local time display (no LivePulse)
-- **Self Overview + Timeline** (side-by-side on desktop): DeveloperPreview-style profile hero card with avatar, status badge, **Clock In · Hours · Clock Out** (earliest session start → latest session end), **Arrived · Office · Left** (office-specific, always visible), office/remote split chips, shift progress bar. Timeline card with activity events (check-in time uses earliest session start — works for remote workers too)
-- **Weekly overview**: horizontal-scroll strip of day cards (like DeveloperPreview) — each card shows weekday, date, status dot, and total hours. Today highlighted with primary border + glow
-- **Monthly summary**: nested stat cards (Present/Total, On-time, Avg daily hours, Total hours) with animated numbers, office vs remote stacked progress bar with percentages
-
-**Navigation**: "Overview" (all roles), "Campaigns", "Tasks", "Attendance" visible to all. "Employees", "Departments" visible to SuperAdmin, Manager, and Team Lead (each scoped to their departments and teams). There is no separate **Teams** hub — team data remains for assignments and permissions.
-
-**Department Scope Strip**: SuperAdmin and Manager see a horizontal pill strip ("All departments" | Dept A | Dept B | ...) on Dashboard, Employees, and Attendance pages — but only if the user has access to **2+ departments**. The strip is populated from the departments API which is already access-scoped (managers see only managed departments, team leads see their department). If a user has access to only one department, the strip is hidden entirely. Clicking a department filters all data on that page.
-
-**Virtual View Groups**: "Group by" toggle (Flat / By Manager / By Department) on both Dashboard Team Status and Employees page. Groups employees into collapsible sections with headers showing the manager name or department title and a count badge. Purely client-side — uses existing `reportsTo` and `department` fields, no new APIs or DB changes.
-
-**Card Density**: All card grids capped at **4 columns max** (`grid-cols-2 md:grid-cols-3 lg:grid-cols-4`). Status pill widened for full text at 4-col widths. Card inner padding increased for breathing room.
-
-**Mobile UX**: App-sized fonts on mobile (max-width 639px) — title 16px, headline 14px, body 12px, callout 11px, subhead/footnote 10px, caption 9px. All `hidden sm:block` patterns removed — subtitles and descriptions visible on mobile with compact sizing. **Hamburger menu** (visible below `sm` breakpoint) in header opens a slide-out drawer with profile link, theme switcher, pings, notifications, settings, and sign-out. Desktop header unchanged. Bottom dock stays as primary page navigation on mobile.
+- Priority-based assignment (Low / Medium / High / Urgent) with deadlines
+- Admins create and reassign; assignees update status only
+- Status flow: Pending → In Progress → Completed / Cancelled
 
 ### Attendance Page
 
-**Layout order: Header → Pills → Calendar + Detail → Monthly Insights → Monthly Records**
+- **Aggregate mode**: Select "All Employees" to see team-wide monthly stats, pick a date to see everyone's status for that day
+- **Individual mode**: Click an employee pill to see their calendar with color-coded dots, click a day for detailed breakdown (times, sessions, timeline)
+- **Employee Overview**: Grid of monthly summary cards per employee (attendance %, hours, late days, on-time %)
+- Month navigation, department scope filter, group-by toggles
+- Self-exclusion enforced server-side — "My Attendance" pill for self-view
 
-**Pill bar (admins):**
-- **"All Employees" pill** — always first, auto-selected on load. Shows aggregate stats inline: total present days, total hours, avg attendance %. Clicking it returns to aggregate mode
-- **"My Attendance" pill** — for managers and team leads (not superadmin). Shows the logged-in user's own monthly stats (present days, total hours, attendance %). Fetched separately from the team data
-- **Employee pills** — each shows name, present days, total hours, attendance % with color-coded indicators. Clicking selects that employee for individual mode; clicking again deselects
-- Grouped by Flat / By Manager / By Department toggles
+### Hierarchy Ping System
 
-**Aggregate mode ("All" selected, no date):**
-- Right panel shows a **month summary card** with working days, total hours, avg daily hours, avg on-time %, avg attendance %, on-time days — no more empty placeholder
-- Calendar acts as a date picker (no per-day dots). Click any date → right panel shows scrollable employee cards for that date with "On Time" / "Late" badge and "Office +Xh" badge when late to office
-- No separate stat cards row — all stats consolidated in the summary panel and pill bar
+Peer-to-peer messaging within reporting chains:
+- SuperAdmin can ping anyone; Manager pings their department; Team Lead pings reports + manager; Employee pings manager/lead + teammates
+- Signal-wave icon in header with unread badge and dropdown inbox
+- Quick-ping button on dashboard employee cards
+- Non-admin roles see their manager's live status with a one-tap ping button
 
-**Individual mode (employee pill selected):**
-- Calendar shows color-coded dots (On Time / Late / Absent)
-- Click a date → detailed day panel: status pills (On Time/Late, Late by Xh, Office +Xh if late to office), time grid (Arrived/Left/Office In/Out), session timeline with device detection
-- **Monthly Insights card** shown below calendar with working days (present/total), total hours, avg daily, on-time %, attendance %, office/remote split
-- Monthly records list below insights
+### Learning Guide (Onboarding)
 
-**Employee Overview (aggregate mode, "All" selected):**
-- Grid of employee cards below the calendar, each showing: name, department, status dot, attendance %, present days, total hours, avg daily hours, on-time %, late days, late-to-office days (when applicable)
-- Clicking any employee card switches to individual mode for that employee
-- Only visible when team data has loaded and employees exist
+- **Welcome modal**: 4-slide overview shown on first login (replayable anytime)
+- **Page tours**: Each major page has a spotlight tour that highlights key UI elements with explanations — auto-triggers on first visit
+- **Help button**: Question-mark icon in header to replay the welcome tour or current page guide
+- Progress tracked in database — syncs across devices
 
-**Shared:**
-- ScopeStrip + group toggles + month nav inline in the header row
-- Calendar always visible with month navigation
-- **Self-exclusion enforced server-side** — all team attendance APIs exclude the requesting user. "My Attendance" pill provides self-view
-- **Skeleton-to-content matching**: All loading skeletons mirror the exact layout of the loaded state — static content (page title, calendar grid, section labels like "Monthly Records", "Monthly Insights", "Employee Overview") renders immediately as real text; only data-dependent elements (pill stats, summary values, employee cards, record rows, insight chips) use shimmer placeholders. The "All Employees" pill skeleton renders with primary-colored border/dot matching the real selected state, while employee pill skeletons show neutral borders with name+stat shimmer lines. The aggregate summary panel shows the static month title immediately with a shimmer subtitle; the detail panel skeleton matches the real layout (status pills → summary text → 2×2 time grid → 3-col hours grid → timeline with vertical line and session cards). Employee overview card skeletons replicate the card structure (dot + name/dept + percentage badge + 3-col stat grid + bottom row). This ensures zero layout shift during the loading → loaded transition
+### Activity Log & Notifications
+
+- Every CRUD action is logged with role-hierarchical visibility
+- SuperAdmin sees all; Manager sees their department scope; Team Lead sees their teams; Employees see logs where they're targeted
+- Bell icon with unread badge, "Mark all read", cross-device sync
+- Clickable entries navigate to relevant pages
+
+### Settings & Configuration
+
+- Profile management (name, phone, image upload)
+- Email change (requires current password, 24hr cooldown)
+- Password change with strength meter
+- System Settings (SuperAdmin): company name, timezone, office geofence, shift defaults, live updates toggle
+- Dark / Light / System theme toggle
+
+### Security
+
+- bcryptjs password hashing
+- Token-based password reset (SHA-256, 1hr expiry)
+- Rate limiting (5 attempts / 15 min)
+- IDOR protection (role + department scoping on all APIs)
+- Server-side route guards in middleware
+- Self-edit prevention on employee API
+
+### PWA & Offline
+
+- Installable as a native app (manifest + service worker)
+- `sendBeacon` for best-effort check-out on tab close
+- Cache-first + stale-while-revalidate strategy
+
+### Mobile UX
+
+- App-sized fonts and spacing on mobile
+- Hamburger menu with profile, theme, pings, notifications, settings
+- Bottom dock as primary navigation
+- All content visible (no hidden-on-mobile patterns)
 
 ---
 
@@ -408,128 +227,98 @@ SMTP_FROM=your-email@gmail.com
 
 ```
 app/
-  layout.tsx             # Root layout (fonts, metadata, ThemeProvider)
-  globals.css            # Global styles (glass variables, shimmer, card classes, badges, dock)
-  login/                 # Auth login page (hero, particles, orbs)
-  forgot-password/       # Token-based password reset request
-  reset-password/        # Reset password with strength meter
-  preview/               # Public demo/preview feature (DeveloperPreview, SuperAdminPreview, ManagerPreview)
-  (dashboard)/           # Route group — all authenticated pages (no /dashboard/ in URL)
-    layout.tsx           # Dashboard layout (wraps DashboardShell)
-    Providers.tsx        # Client providers (SessionProvider, ToasterProvider)
-    page.tsx             # Dashboard entry (reads session, renders DashboardHome)
-    DashboardHome.tsx    # Real-time dashboard (SSE event-driven) with KPI, presence, trend, campaigns, tasks
-    DashboardShell.tsx   # Header, dock nav, theme, notifications, PWA install prompt
-    SessionTracker.tsx   # Heartbeat attendance: active/readonly/booting modes
+  layout.tsx               Root layout
+  globals.css              Global styles and design tokens
+  login/                   Login page
+  forgot-password/         Password reset request
+  reset-password/          Reset password with strength meter
+  preview/                 Public demo/preview
+  (dashboard)/             Route group — authenticated pages
+    layout.tsx             Dashboard layout wrapper
+    Providers.tsx          Client providers (SessionProvider)
+    page.tsx               Dashboard entry point
+    DashboardHome.tsx      Real-time dashboard
+    DashboardShell.tsx     Header, dock nav, theme, notifications
+    SessionTracker.tsx     Heartbeat attendance tracker
     employees/
-      page.tsx           # Employee list with filters, bulk actions, rich cards (useQuery cached)
-      loading.tsx        # Route-level shimmer skeleton (pixel-perfect card grid)
-      EmployeeForm.tsx   # Shared full-page create/edit form
-      new/page.tsx       # Create employee route
-      [slug]/page.tsx    # Employee detail page (accepts username or ID via resolveUserId)
-      [slug]/EmployeeDetailClient.tsx # Rich client component for employee detail (animated, dashboard-style)
-      [slug]/edit/page.tsx # Edit employee route (resolves username to ID)
+      page.tsx             Employee list
+      loading.tsx          Skeleton loader
+      EmployeeForm.tsx     Create/edit form
+      new/page.tsx         Create employee
+      [slug]/page.tsx      Employee detail (by username or ID)
+      [slug]/edit/page.tsx Edit employee
     departments/
-      page.tsx           # Department management (useQuery cached, server-side team/employee counts)
-      loading.tsx        # Route-level shimmer skeleton
+      page.tsx             Department management
+      loading.tsx          Skeleton loader
     teams/
-      page.tsx           # Team management (useQuery cached, dept filter, create/edit modal)
-      loading.tsx        # Route-level shimmer skeleton
+      page.tsx             Team management
+      loading.tsx          Skeleton loader
     campaigns/
-      page.tsx           # Campaign/project tracking (useQuery cached, status lifecycle, entity tagging)
-      loading.tsx        # Route-level shimmer skeleton
+      page.tsx             Campaign tracking
+      loading.tsx          Skeleton loader
     tasks/
-      page.tsx           # Task board (useQuery cached, centered glass modal)
-      loading.tsx        # Route-level shimmer skeleton
-    components/
-      ConfirmDialog.tsx  # Reusable glass confirm/danger dialog
-      DataTable.tsx      # Sortable, searchable, paginated table
-      EmployeeCard.tsx   # Unified employee card (dashboard presence + employee list)
-      ScopeStrip.tsx     # Department scope filter strip (SuperAdmin/Manager only)
-      Portal.tsx         # React Portal wrapper for modals (renders to document.body)
-      ProcessingOverlay.tsx # Animated dot shimmer overlay
-    attendance/page.tsx  # Interactive calendar + detail panel + session timeline
+      page.tsx             Task board
+      loading.tsx          Skeleton loader
+    attendance/page.tsx    Calendar + detail + team overview
     settings/
-      page.tsx           # Profile (with metadata pills), security, system (deduplicated settings fetch), email testing
-      loading.tsx        # Route-level shimmer skeleton
+      page.tsx             Profile, security, system config
+      loading.tsx          Skeleton loader
+    components/
+      SpotlightTour.tsx    Guided page tour overlay
+      WelcomeGuide.tsx     First-login welcome modal
+      ConfirmDialog.tsx    Reusable confirm/danger dialog
+      DataTable.tsx        Sortable data table + StatusToggle
+      EmployeeCard.tsx     Unified employee card component
+      ScopeStrip.tsx       Department scope filter
+      Portal.tsx           React Portal for modals
   api/
-    auth/[...nextauth]/  # NextAuth route handler
-    auth/forgot-password/# Token generation + email
-    auth/reset-password/ # Token validation + password update
-    employees/           # CRUD with role scoping + activity logging
-    employees/[id]/      # GET/PUT/DELETE single employee (role-scoped canViewEmployee/canEditEmployee)
-    employees/[id]/resend-invite/ # POST resend welcome email with new setup-password link
-    employees/resolve/   # GET resolve username to employee ID (for [slug] routes)
-    employees/dropdown/  # Sparse employee list (id, name, role, dept, teams) for form dropdowns — SuperAdmin sees all employees including inactive; other roles see active only
-    departments/         # CRUD with manager population + server-side team/employee counts + activity logging
-    departments/[id]/    # PUT/DELETE single department (SuperAdmin only)
-    teams/               # CRUD with dept scoping + member count aggregation
-    teams/[id]/          # GET/PUT/DELETE single team (role-scoped canEditTeam)
-    campaigns/           # CRUD with entity tagging (employees, departments, teams) + status lifecycle
-    campaigns/[id]/      # GET/PUT/DELETE single campaign (role-scoped)
-    tasks/               # CRUD with team scoping + activity logging
-    tasks/[id]/          # GET/PUT/DELETE single task (role-scoped)
-    attendance/          # GET daily/monthly/detail/team attendance records (timezone-aware date queries)
-      session/           # Check-in, check-out, heartbeat PATCH, session GET (timezone-aware lateness + settings grace)
-      presence/          # Real-time employee status for dashboard (includes lateBy, isLateToOffice, lateToOfficeBy)
-      presence/manager/  # Logged-in user's manager/lead live presence
-      trend/             # Last 5 working days present count for team attendance chart
-    ping/                # POST send ping, GET inbox with unread count, PATCH mark read
-    activity-logs/       # GET latest 20 activity log entries
-    settings/            # SystemSettings CRUD (SuperAdmin only, includes liveUpdates toggle) + activity logging
-    user/last-seen/      # GET + PUT lastSeenLogId for notification read sync
-    profile/             # Self profile + base64 image upload
-    profile/password/    # Password change with current password validation
-    test-email/          # SMTP testing endpoint
-components/
-  Logo.tsx               # Shared logo component
-  PasswordInput.tsx      # Reusable show/hide password field
-  PasswordStrength.tsx   # Animated 5-bar strength meter
-  ToasterProvider.tsx    # Global glass-styled toast notifications
+    auth/                  NextAuth + password reset
+    employees/             Employee CRUD + dropdown
+    departments/           Department CRUD (SuperAdmin write)
+    teams/                 Team CRUD
+    campaigns/             Campaign CRUD + entity tagging
+    tasks/                 Task CRUD
+    attendance/            Daily/monthly records + session + presence
+    guide/                 Onboarding tour progress
+    ping/                  Peer-to-peer pings
+    activity-logs/         Activity log entries
+    settings/              System settings (SuperAdmin)
+    user/last-seen/        Notification read sync
+    profile/               Self profile + password
+    test-email/            SMTP testing
 lib/
-  activityLogger.ts     # Fire-and-forget logActivity() utility + emitSocket() integration
-  socket.ts             # Server-side emitSocket() — emit Socket.IO events to rooms/users (no-op when Socket.IO is not running)
-  useSocket.ts          # Client-side Socket.IO hook — connects when liveUpdates is enabled
-  useQuery.ts           # Lightweight client cache: stale-while-revalidate, no SSE dependency
-  auth.ts               # NextAuth config (credentials, JWT, callbacks)
-  auth.config.ts        # Middleware auth config with route guards
-  permissions.ts        # DB-verified session, role hierarchy, team/dept scoping helpers
-  db.ts                 # MongoDB connection singleton
-  tz.ts                 # Timezone-aware date helpers — resolveTimezone(), dateParts(), dateInTz(), todayDateStr() using Intl.DateTimeFormat
-  dayBoundary.ts        # 6 AM attendance day boundary — startOfDay(d, tz?) and isSameDay(a, b, tz?) used across all attendance APIs
-  geo.ts                # Haversine + office geofence (reads SystemSettings) + validateLocation() 4-layer anti-spoofing
-  helpers.ts            # Response helpers (ok, badRequest, forbidden, etc.)
-  mail.ts               # Nodemailer + HTML email templates
-  rateLimit.ts          # In-memory rate limiter
-  motion.ts             # Framer Motion animation presets
-  mockData.ts           # Mock data generator for preview/demo pages
+  auth.ts                  NextAuth config
+  auth.config.ts           Middleware route guards
+  permissions.ts           Role verification + scoping helpers
+  db.ts                    MongoDB connection
+  helpers.ts               Response utilities
+  mail.ts                  Email templates + sending
+  useQuery.ts              Client-side cache (stale-while-revalidate)
+  useGuide.tsx             Onboarding tour provider
+  tourConfigs.ts           Tour step definitions
+  socket.ts                Server-side Socket.IO emitter
+  useSocket.ts             Client-side Socket.IO hook
+  activityLogger.ts        Activity logging utility
+  geo.ts                   Geofence + anti-spoofing
+  tz.ts                    Timezone-aware date math
+  dayBoundary.ts           6 AM day boundary logic
+  rateLimit.ts             Rate limiter
+  motion.ts                Animation presets
   models/
-    ActivityLog.ts      # Append-only activity log (user, action, entity, details, targeting: targetUserIds, targetDepartmentId, targetTeamIds, visibility)
-    SystemSettings.ts   # Global config (office, shifts, company, liveUpdates toggle)
-    User.ts             # User (5 roles incl. teamLead, shifts, teams[], reportsTo supervisor ref, BD fields, reset tokens, lastSeenLogId)
-    Department.ts       # Department with manager ref + optional parentDepartment ref (hierarchical)
-    Team.ts             # Team (name, slug, department, lead, description)
-    Campaign.ts         # Campaign (name, status lifecycle, tagged employees/departments/teams, dates, budget)
-    Ping.ts             # Peer-to-peer ping messages (from, to, message, read, createdAt)
-    ActivitySession.ts  # Session with office segments + heartbeat lastActivity + location fraud detection fields (accuracy, locationFlagged, flagReason, flaggedAt, consecutiveIdentical)
-    ActivityTask.ts     # Task with priority, deadline, status
-    DailyAttendance.ts  # Daily rollup (sessions, minutes, on-time, office-arrival lateness)
-    MonthlyAttendanceStats.ts # Monthly aggregated stats
-server.ts                # Custom Next.js server with Socket.IO (single HTTP port)
-middleware.ts            # Auth + role-based route protection
-types/
-  global.d.ts           # BeforeInstallPromptEvent, PWA types
-public/
-  manifest.json         # PWA manifest
-  sw.js                 # Service worker
-  icons/icon.svg        # SVG app icon for PWA manifest
-  favicon.svg           # SVG favicon
-ATTENDANCE_PLAN.md      # Detailed attendance system design document
+    User.ts                User (5 roles, shifts, teams, reportsTo)
+    Department.ts          Department with manager + parent hierarchy
+    Team.ts                Team (department, lead)
+    Campaign.ts            Campaign (status lifecycle, tagged entities)
+    Ping.ts                Ping messages
+    ActivitySession.ts     Work session with office segments + fraud detection
+    ActivityTask.ts        Task (priority, deadline, status)
+    DailyAttendance.ts     Daily attendance rollup
+    MonthlyAttendanceStats.ts Monthly aggregate stats
+    ActivityLog.ts         Activity log entries
+    SystemSettings.ts      Global config
+server.ts                  Custom server with Socket.IO
+middleware.ts              Auth + route protection
 ```
-
-## Attendance System Architecture
-
-For the full technical design document including API contracts, data flow diagrams, edge case analysis, race condition handling, and stale threshold rationale, see [`ATTENDANCE_PLAN.md`](./ATTENDANCE_PLAN.md).
 
 ## License
 

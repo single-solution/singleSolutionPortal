@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 import { useSession } from "next-auth/react";
+import { useGuide } from "@/lib/useGuide";
+import { tasksTour } from "@/lib/tourConfigs";
 
 interface Task {
   _id: string;
@@ -52,6 +54,8 @@ const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, 
 
 export default function TasksPage() {
   const { data: session, status: sessionStatus } = useSession();
+  const { registerTour } = useGuide();
+  useEffect(() => { registerTour("tasks", tasksTour); }, [registerTour]);
   const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager" || session?.user?.role === "teamLead";
 
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
@@ -149,7 +153,7 @@ export default function TasksPage() {
   return (
     <div className="flex flex-col gap-0">
       {/* Header: title left, sort right */}
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div data-tour="tasks-header" className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-title">Tasks</h1>
           <p className="text-subhead">
@@ -197,7 +201,7 @@ export default function TasksPage() {
       </div>
 
       {/* Priority filter */}
-      <div className="mb-4 flex items-center gap-2 flex-wrap">
+      <div data-tour="tasks-filters" className="mb-4 flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
           {(["all", "low", "medium", "high", "urgent"] as PriorityFilter[]).map((f) => {
             const active = prioFilter === f;
@@ -227,7 +231,7 @@ export default function TasksPage() {
       </div>
 
       {/* Task Card Grid */}
-      <motion.div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div data-tour="tasks-grid" className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {tasksLoading && !tasks ? (
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
