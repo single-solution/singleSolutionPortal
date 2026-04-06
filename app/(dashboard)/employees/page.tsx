@@ -129,7 +129,8 @@ export default function EmployeesPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  const empList = employees ?? [];
+  const myId = session?.user?.id;
+  const empList = useMemo(() => (employees ?? []).filter((e) => e._id !== myId), [employees, myId]);
 
   const filtered = useMemo(() => {
     let list = empList;
