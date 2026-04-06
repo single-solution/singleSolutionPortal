@@ -37,7 +37,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("ss-theme");var d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})();if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js").catch(function(){})`,
+            __html: `(function(){try{var t=localStorage.getItem("ss-theme");var d=t==="dark";document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})();if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js").catch(function(){})`,
           }}
         />
       </head>
