@@ -94,8 +94,9 @@ The core of this app. Uses a **heartbeat model** instead of Socket.IO or manual 
 - Example: employee works office until 1 AM on April 2nd → that session belongs to April 1st (logical day). Employee arrives next day at 11 AM → first entry for April 2nd is 11 AM (correctly marked late if shift starts at 10 AM)
 
 **Daily & monthly rollup:**
-- `DailyAttendance`: totalWorkingMinutes, officeMinutes, remoteMinutes, isPresent, isOnTime, lateBy, firstOfficeEntry, lastOfficeExit
+- `DailyAttendance`: totalWorkingMinutes, officeMinutes, remoteMinutes, isPresent, isOnTime, lateBy, isLateToOffice, lateToOfficeBy, firstOfficeEntry, lastOfficeExit
 - `MonthlyAttendanceStats`: presentDays, absentDays, onTimeArrivals, lateArrivals, averageDailyHours, totalWorkingHours, attendancePercentage
+- **Dual lateness tracking**: `isOnTime` / `lateBy` measures when the employee **first started working** (remote or office) vs their shift deadline. `isLateToOffice` / `lateToOfficeBy` measures when the employee **physically arrived at the office** vs the shift deadline — computed independently when `firstOfficeEntry` is first set. An employee who starts working remotely on time but arrives at the office hours later will show `isOnTime: true` but `isLateToOffice: true` with the appropriate late-to-office duration
 - Lateness calculated from employee's configured shift start + configurable grace period (read from SystemSettings, default 30 min)
 
 **Real-world scenarios:**
@@ -297,7 +298,7 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 - **Team Status (Live Presence)**: Real-time employee cards with live pulse indicators and status filtering (All/Office/Remote/Late/Absent). Full-width top row. Each employee card shows:
   - **Clock In · Hours · Clock Out** — full work day span from first session start (earliest `ActivitySession.sessionTime.start`) to last session end (latest session end / `lastActivity`), regardless of office or remote
   - **Arrived · Office · Left** — office-specific entry/exit times (`firstOfficeEntry` / `lastOfficeExit`), always visible even when employee has no office time (displays "—")
-  - **Activity Strip** — segmented progress bar showing office/remote/break time proportions within the shift, session count, remote and break durations, late penalty, and idle gap time (unaccounted gaps between sessions)
+  - **Activity Strip** — segmented progress bar showing office/remote/break time proportions within the shift, session count, remote and break durations, late penalty, office-arrival lateness (red chip when employee started work on time remotely but arrived at the office late), and idle gap time (unaccounted gaps between sessions)
   - Tasks, campaigns, and location flag details always visible
 - **Last seen accuracy**: When an employee goes offline, "Last seen" shows their actual last activity — not just when they left the office. A remote worker who left office at 10:59 AM but continued working remotely until 11:45 AM will correctly show "Last seen 11:45 AM"
 - **Stale session handling**: If an employee's browser closes without checking out, total working time still includes the unclosed session's elapsed minutes so hours aren't lost
@@ -343,17 +344,17 @@ The dashboard loads data on mount and provides **manual refresh buttons** on eac
 
 **Aggregate mode ("All" selected, no date):**
 - Right panel shows a **month summary card** with working days, total hours, avg daily hours, avg on-time %, avg attendance %, on-time days — no more empty placeholder
-- Calendar acts as a date picker (no per-day dots). Click any date → right panel shows scrollable employee cards for that date
+- Calendar acts as a date picker (no per-day dots). Click any date → right panel shows scrollable employee cards for that date with "On Time" / "Late" badge and "Office +Xh" badge when late to office
 - No separate stat cards row — all stats consolidated in the summary panel and pill bar
 
 **Individual mode (employee pill selected):**
 - Calendar shows color-coded dots (On Time / Late / Absent)
-- Click a date → detailed day panel: status pills, time grid (Arrived/Left/Office In/Out), session timeline with device detection
+- Click a date → detailed day panel: status pills (On Time/Late, Late by Xh, Office +Xh if late to office), time grid (Arrived/Left/Office In/Out), session timeline with device detection
 - **Monthly Insights card** shown below calendar with working days (present/total), total hours, avg daily, on-time %, attendance %, office/remote split
 - Monthly records list below insights
 
 **Employee Overview (aggregate mode, "All" selected):**
-- Grid of employee cards below the calendar, each showing: name, department, status dot, attendance %, present days, total hours, avg daily hours, on-time %, late days
+- Grid of employee cards below the calendar, each showing: name, department, status dot, attendance %, present days, total hours, avg daily hours, on-time %, late days, late-to-office days (when applicable)
 - Clicking any employee card switches to individual mode for that employee
 - Only visible when team data has loaded and employees exist
 
@@ -459,7 +460,7 @@ app/
     employees/[id]/      # GET/PUT/DELETE single employee (role-scoped canViewEmployee/canEditEmployee)
     employees/[id]/resend-invite/ # POST resend welcome email with new setup-password link
     employees/resolve/   # GET resolve username to employee ID (for [slug] routes)
-    employees/dropdown/  # Sparse employee list (id, name, role, dept, teams) for form dropdowns
+    employees/dropdown/  # Sparse employee list (id, name, role, dept, teams) for form dropdowns — SuperAdmin sees all employees including inactive; other roles see active only
     departments/         # CRUD with manager population + server-side team/employee counts + activity logging
     departments/[id]/    # PUT/DELETE single department (SuperAdmin only)
     teams/               # CRUD with dept scoping + member count aggregation
@@ -470,7 +471,7 @@ app/
     tasks/[id]/          # GET/PUT/DELETE single task (role-scoped)
     attendance/          # GET daily/monthly/detail/team attendance records (timezone-aware date queries)
       session/           # Check-in, check-out, heartbeat PATCH, session GET (timezone-aware lateness + settings grace)
-      presence/          # Real-time employee status for dashboard (includes lateBy)
+      presence/          # Real-time employee status for dashboard (includes lateBy, isLateToOffice, lateToOfficeBy)
       presence/manager/  # Logged-in user's manager/lead live presence
       trend/             # Last 5 working days present count for team attendance chart
     ping/                # POST send ping, GET inbox with unread count, PATCH mark read
@@ -512,7 +513,7 @@ lib/
     Ping.ts             # Peer-to-peer ping messages (from, to, message, read, createdAt)
     ActivitySession.ts  # Session with office segments + heartbeat lastActivity + location fraud detection fields (accuracy, locationFlagged, flagReason, flaggedAt, consecutiveIdentical)
     ActivityTask.ts     # Task with priority, deadline, status
-    DailyAttendance.ts  # Daily rollup (sessions, minutes, on-time)
+    DailyAttendance.ts  # Daily rollup (sessions, minutes, on-time, office-arrival lateness)
     MonthlyAttendanceStats.ts # Monthly aggregated stats
 server.ts                # Custom Next.js server with Socket.IO (single HTTP port)
 middleware.ts            # Auth + role-based route protection

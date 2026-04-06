@@ -26,6 +26,8 @@ export interface EmployeeCardEmp {
   officeMinutes?: number;
   remoteMinutes?: number;
   lateBy?: number;
+  isLateToOffice?: boolean;
+  lateToOfficeBy?: number;
   breakMinutes?: number;
   sessionCount?: number;
   shiftStart?: string;
@@ -236,6 +238,11 @@ function ActivityStrip({ emp, todayMinutes, shiftStart, shiftEnd, shiftBreakTime
         {(emp.lateBy ?? 0) > 0 && (
           <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>
             +{formatMinutesShort(emp.lateBy ?? 0)} late
+          </span>
+        )}
+        {emp.isLateToOffice && (emp.lateToOfficeBy ?? 0) > 0 && (
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#ef444412", color: "#ef4444" }}>
+            +{formatMinutesShort(emp.lateToOfficeBy ?? 0)} late to office
           </span>
         )}
         {idleMins > 5 && (

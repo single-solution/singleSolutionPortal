@@ -13,6 +13,8 @@ export interface IDailyAttendance extends Document {
   isPresent: boolean;
   isOnTime: boolean;
   lateBy: number;
+  isLateToOffice: boolean;
+  lateToOfficeBy: number;
   breakMinutes: number;
   activitySessions: Types.ObjectId[];
   createdAt: Date;
@@ -32,6 +34,8 @@ const dailyAttendanceSchema = new Schema<IDailyAttendance>(
     isPresent: { type: Boolean, default: false },
     isOnTime: { type: Boolean, default: false },
     lateBy: { type: Number, default: 0 },
+    isLateToOffice: { type: Boolean, default: false },
+    lateToOfficeBy: { type: Number, default: 0 },
     breakMinutes: { type: Number, default: 0 },
     activitySessions: [{ type: Schema.Types.ObjectId, ref: "ActivitySession" }],
   },

@@ -20,6 +20,8 @@ interface DailyRecord {
   firstStart?: string;
   lastEnd?: string;
   lateBy?: number;
+  isLateToOffice?: boolean;
+  lateToOfficeBy?: number;
   breakMinutes?: number;
 }
 
@@ -76,6 +78,7 @@ interface TeamMonthlySummary {
   presentDays: number;
   onTimeDays: number;
   lateDays: number;
+  lateToOfficeDays: number;
   totalMinutes: number;
   averageDailyHours: number;
   onTimePercentage: number;
@@ -98,6 +101,8 @@ interface TeamDateRecord {
   firstStart?: string;
   lastEnd?: string;
   lateBy?: number;
+  isLateToOffice?: boolean;
+  lateToOfficeBy?: number;
 }
 
 type GroupMode = "flat" | "manager" | "department";
@@ -619,6 +624,14 @@ export default function AttendancePage() {
                                 }}>
                                   {emp.isPresent ? (emp.isOnTime ? "On Time" : "Late") : "Absent"}
                                 </span>
+                                {emp.isLateToOffice && (
+                                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
+                                    background: "color-mix(in srgb, var(--rose) 15%, transparent)",
+                                    color: "var(--rose)",
+                                  }}>
+                                    Office +{fmtHours(emp.lateToOfficeBy ?? 0)}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
@@ -729,6 +742,7 @@ export default function AttendancePage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Pill color={detailData.isPresent ? (detailData.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)"} label={detailData.isPresent ? (detailData.isOnTime ? "On Time" : "Late") : "Absent"} />
                       {(detailData.lateBy ?? 0) > 0 && <Pill color="var(--amber)" label={`Late by ${fmtHours(detailData.lateBy!)}`} variant="outline" />}
+                      {detailData.isLateToOffice && (detailData.lateToOfficeBy ?? 0) > 0 && <Pill color="var(--rose)" label={`Office +${fmtHours(detailData.lateToOfficeBy!)}`} variant="outline" />}
                       {(detailData.breakMinutes ?? 0) > 0 && <Pill color="var(--fg-tertiary)" label={`${fmtHours(detailData.breakMinutes!)} break`} variant="outline" />}
                       <Pill color="var(--fg-tertiary)" label={`${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}`} variant="outline" />
                     </div>
@@ -1035,6 +1049,9 @@ export default function AttendancePage() {
                       <div className="flex items-center gap-3">
                         <span>On-time <strong style={{ color: onTimeColor }}>{Math.round(emp.onTimePercentage)}%</strong></span>
                         <span>Late <strong style={{ color: emp.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</strong></span>
+                        {(emp.lateToOfficeDays ?? 0) > 0 && (
+                          <span>Office <strong style={{ color: "var(--rose)" }}>{emp.lateToOfficeDays}d</strong></span>
+                        )}
                       </div>
                       <span className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>View →</span>
                     </div>

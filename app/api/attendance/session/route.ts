@@ -514,10 +514,10 @@ async function handleCheckIn(
     const shiftStart = user?.workShift?.shift?.start ?? "10:00";
     const [sh, sm] = shiftStart.split(":").map(Number);
 
-    // Build shift deadline in company timezone
     const tp = dateParts(today, tz);
     const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + graceMinutes, 0, tz);
     const isLate = now > shiftDeadline;
+    const isLateToOffice = inOffice && now > shiftDeadline;
 
     daily = await DailyAttendance.create({
       user: userId,
@@ -526,6 +526,8 @@ async function handleCheckIn(
       isPresent: true,
       isOnTime: !isLate,
       lateBy: isLate ? Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000) : 0,
+      isLateToOffice,
+      lateToOfficeBy: isLateToOffice ? Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000) : 0,
       activitySessions: [activitySession._id],
     });
   } else {
@@ -533,6 +535,16 @@ async function handleCheckIn(
     daily.activitySessions.push(activitySession._id);
     if (inOffice && !daily.firstOfficeEntry) {
       daily.firstOfficeEntry = now;
+
+      const user = await User.findById(userId).select("workShift").lean();
+      const shiftStart = user?.workShift?.shift?.start ?? "10:00";
+      const [sh, sm] = shiftStart.split(":").map(Number);
+      const tp = dateParts(today, tz);
+      const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + graceMinutes, 0, tz);
+      if (now > shiftDeadline) {
+        daily.isLateToOffice = true;
+        daily.lateToOfficeBy = Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000);
+      }
     }
     await daily.save();
   }

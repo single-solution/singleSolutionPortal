@@ -102,6 +102,8 @@ interface PresenceEmployee {
   officeMinutes: number;
   remoteMinutes: number;
   lateBy: number;
+  isLateToOffice: boolean;
+  lateToOfficeBy: number;
   breakMinutes: number;
   sessionCount: number;
   firstEntry: string | null;
@@ -781,6 +783,8 @@ function AdminDashboard({
                     officeMinutes: emp.officeMinutes,
                     remoteMinutes: emp.remoteMinutes,
                     lateBy: emp.lateBy,
+                    isLateToOffice: emp.isLateToOffice,
+                    lateToOfficeBy: emp.lateToOfficeBy,
                     breakMinutes: emp.breakMinutes,
                     sessionCount: emp.sessionCount,
                     shiftStart: emp.shiftStart,
@@ -1229,6 +1233,8 @@ export default function DashboardHome({ user }: { user: User }) {
         officeMinutes: p.officeMinutes ?? 0,
         remoteMinutes: p.remoteMinutes ?? 0,
         lateBy: p.lateBy ?? 0,
+        isLateToOffice: p.isLateToOffice ?? false,
+        lateToOfficeBy: p.lateToOfficeBy ?? 0,
         breakMinutes: p.breakMinutes ?? 0,
         sessionCount: p.sessionCount ?? 0,
         firstEntry: p.firstEntry ?? null,
@@ -1442,6 +1448,8 @@ export default function DashboardHome({ user }: { user: User }) {
       officeMinutes: 0,
       remoteMinutes: 0,
       lateBy: 0,
+      isLateToOffice: false,
+      lateToOfficeBy: 0,
       breakMinutes: 0,
       sessionCount: 0,
       firstEntry: null,

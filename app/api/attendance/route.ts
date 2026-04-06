@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
 
     const dailyCounts = await DailyAttendance.aggregate([
       { $match: { user: { $in: empIds }, date: { $gte: monthStart, $lte: monthEnd } } },
-      { $group: { _id: "$user", presentDays: { $sum: { $cond: ["$isPresent", 1, 0] } }, onTimeDays: { $sum: { $cond: ["$isOnTime", 1, 0] } }, totalMinutes: { $sum: "$totalWorkingMinutes" }, lateDays: { $sum: { $cond: [{ $gt: ["$lateBy", 0] }, 1, 0] } } } },
+      { $group: { _id: "$user", presentDays: { $sum: { $cond: ["$isPresent", 1, 0] } }, onTimeDays: { $sum: { $cond: ["$isOnTime", 1, 0] } }, totalMinutes: { $sum: "$totalWorkingMinutes" }, lateDays: { $sum: { $cond: [{ $gt: ["$lateBy", 0] }, 1, 0] } }, lateToOfficeDays: { $sum: { $cond: [{ $eq: ["$isLateToOffice", true] }, 1, 0] } } } },
     ]);
     const dailyMap = new Map<string, typeof dailyCounts[0]>();
     for (const d of dailyCounts) dailyMap.set(d._id.toString(), d);
@@ -134,6 +134,7 @@ export async function GET(req: NextRequest) {
         presentDays: dc?.presentDays ?? ms?.presentDays ?? 0,
         onTimeDays: dc?.onTimeDays ?? ms?.onTimeArrivals ?? 0,
         lateDays: dc?.lateDays ?? ms?.lateArrivals ?? 0,
+        lateToOfficeDays: dc?.lateToOfficeDays ?? 0,
         totalMinutes: dc?.totalMinutes ?? Math.round((ms?.totalWorkingHours ?? 0) * 60),
         averageDailyHours: ms?.averageDailyHours ?? 0,
         onTimePercentage: ms?.onTimePercentage ?? 0,
@@ -217,6 +218,8 @@ export async function GET(req: NextRequest) {
         firstStart: st?.firstStart ?? null,
         lastEnd: st?.lastEnd ?? null,
         lateBy: rec?.lateBy ?? 0,
+        isLateToOffice: rec?.isLateToOffice ?? false,
+        lateToOfficeBy: rec?.lateToOfficeBy ?? 0,
       };
     });
 
@@ -282,6 +285,8 @@ export async function GET(req: NextRequest) {
           isPresent: true,
           isOnTime: true,
           lateBy: 0,
+          isLateToOffice: false,
+          lateToOfficeBy: 0,
           firstOfficeEntry: activeOnly.location?.inOffice ? activeOnly.sessionTime.start : null,
           activitySessions: [activeOnly],
           _synthesized: true,

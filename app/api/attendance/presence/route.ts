@@ -143,6 +143,8 @@ export async function GET() {
       officeMinutes: daily?.officeMinutes ?? 0,
       remoteMinutes: daily?.remoteMinutes ?? 0,
       lateBy: daily?.lateBy ?? 0,
+      isLateToOffice: daily?.isLateToOffice ?? false,
+      lateToOfficeBy: daily?.lateToOfficeBy ?? 0,
       breakMinutes: daily?.breakMinutes ?? 0,
       sessionCount: daily?.activitySessions?.length ?? (active ? 1 : 0),
       firstEntry: (() => {
