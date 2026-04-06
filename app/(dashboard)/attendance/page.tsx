@@ -323,109 +323,17 @@ export default function AttendancePage() {
     setViewingUserId((prev) => prev === id ? "" : id);
   }
 
-  /* ────────────────── RENDER ────────────────── */
+  const pillsLoading = !sessionReady || teamLoading;
 
-  if (!sessionReady) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-title">Attendance</h1>
-            <span className="shimmer mt-1 block h-4 w-28 rounded" />
-          </div>
-        </div>
-        {/* Pill bar skeleton */}
-        <div className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
-            <div className="space-y-1"><span className="shimmer block h-3 w-20 rounded" /><span className="shimmer block h-2.5 w-16 rounded" /></div>
-          </div>
-          {[1, 2, 3, 4, 5].map((j) => (
-            <div key={j} className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-              <span className="shimmer h-2 w-2 shrink-0 rounded-full" />
-              <div className="space-y-1"><span className="shimmer block h-3 w-16 rounded" /><span className="shimmer block h-2.5 w-20 rounded" /></div>
-            </div>
-          ))}
-        </div>
-        {/* Calendar + summary skeleton */}
-        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
-          <div className="card-static p-3 sm:p-4 lg:col-span-3">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="shimmer h-5 w-5 rounded-lg" />
-              <span className="text-headline">{MONTH_NAMES[month - 1]} {year}</span>
-              <div className="shimmer h-5 w-5 rounded-lg" />
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {DAY_NAMES.map((d) => (
-                <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
-              ))}
-              {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e-${i}`} />)}
-              {Array.from({ length: daysInMonth }, (_, i) => (
-                <div key={i} className="flex flex-col items-center gap-0.5 rounded-lg py-1.5">
-                  <span className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>{i + 1}</span>
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "transparent" }} />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col lg:col-span-2">
-            <div className="card-xl flex flex-1 flex-col overflow-hidden">
-              <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
-                <span className="shimmer block h-5 w-32 rounded" />
-                <span className="shimmer mt-1 block h-3 w-40 rounded" />
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="rounded-xl p-2.5 text-center space-y-1.5" style={{ background: "var(--bg-grouped)" }}>
-                      <span className="shimmer block mx-auto h-2 w-14 rounded" />
-                      <span className="shimmer block mx-auto h-4 w-10 rounded" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Employee overview skeleton */}
-        <div>
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Employee Overview</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card overflow-hidden">
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1 space-y-1"><span className="shimmer block h-3.5 w-24 rounded" /><span className="shimmer block h-2.5 w-16 rounded" /></div>
-                    <span className="shimmer h-5 w-10 rounded-full" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[1, 2, 3].map((j) => (
-                      <div key={j} className="rounded-lg p-2 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                        <span className="shimmer block mx-auto h-2 w-8 rounded" /><span className="shimmer block mx-auto h-4 w-10 rounded" />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3"><span className="shimmer h-2.5 w-16 rounded" /><span className="shimmer h-2.5 w-12 rounded" /></div>
-                    <span className="shimmer h-2.5 w-10 rounded" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  /* ────────────────── RENDER ────────────────── */
 
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-title">{isAdmin ? "Team Attendance" : "Attendance"}</h1>
-          {isAdmin && teamLoading ? (
+          <h1 className="text-title">{sessionReady && isAdmin ? "Team Attendance" : "Attendance"}</h1>
+          {pillsLoading ? (
             <span className="shimmer mt-1 block h-4 w-28 rounded" />
           ) : (
             <p className="text-subhead">
@@ -436,8 +344,8 @@ export default function AttendancePage() {
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {isAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
-          {isAdmin && (
+          {sessionReady && isAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
+          {sessionReady && isAdmin && (
             <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
               {(["flat", "manager", "department"] as GroupMode[]).map((g) => (
                 <motion.button
@@ -460,34 +368,32 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Employee pills (admins) */}
-      {isAdmin && (
-        teamLoading ? (
-          <div className="flex flex-wrap gap-2">
-            {/* "All" pill skeleton */}
-            <div className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
+      {/* Employee pills (admins) — skeleton while session or team data loads */}
+      {pillsLoading ? (
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
+            <div className="space-y-1">
+              <span className="shimmer block h-3 w-20 rounded" />
+              <span className="shimmer block h-2.5 w-16 rounded" />
+            </div>
+          </div>
+          {[1, 2, 3, 4, 5].map((j) => (
+            <div key={j} className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+              <span className="shimmer h-2 w-2 shrink-0 rounded-full" />
               <div className="space-y-1">
-                <span className="shimmer block h-3 w-20 rounded" />
-                <span className="shimmer block h-2.5 w-16 rounded" />
+                <span className="shimmer block h-3 w-16 rounded" />
+                <span className="shimmer block h-2.5 w-20 rounded" />
               </div>
             </div>
-            {[1, 2, 3, 4, 5].map((j) => (
-              <div key={j} className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-                <span className="shimmer h-2 w-2 shrink-0 rounded-full" />
-                <div className="space-y-1">
-                  <span className="shimmer block h-3 w-16 rounded" />
-                  <span className="shimmer block h-2.5 w-20 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredSummary.length === 0 ? (
-          <div className="card p-8 text-center">
-            <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
+          ))}
+        </div>
+      ) : isAdmin && filteredSummary.length === 0 ? (
+        <div className="card p-8 text-center">
+          <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
+        </div>
+      ) : isAdmin ? (
+        <div className="space-y-3">
             {grouped.map((group) => (
               <div key={group.key}>
                 {groupMode !== "flat" && (
@@ -574,9 +480,8 @@ export default function AttendancePage() {
                 </div>
               </div>
             ))}
-          </div>
-        )
-      )}
+        </div>
+      ) : null}
 
       {/* Calendar + Detail panel */}
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
@@ -634,7 +539,7 @@ export default function AttendancePage() {
             </AnimatePresence>
           </div>
 
-          {!isAggregateMode && (
+          {sessionReady && !isAggregateMode && (
             <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
@@ -942,19 +847,19 @@ export default function AttendancePage() {
                   </div>
                 )}
               </motion.div>
-            ) : isAggregateMode ? (
+            ) : isAggregateMode || !sessionReady ? (
               /* ── Aggregate month summary (no date selected) ── */
               <motion.div key="agg-summary" className="card-xl flex flex-1 flex-col overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
                   <p className="text-headline" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1]} Summary</p>
-                  {teamLoading ? (
+                  {pillsLoading ? (
                     <span className="shimmer mt-1 block h-3 w-40 rounded" />
                   ) : (
                     <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{filteredSummary.length} employees · select a date for details</p>
                   )}
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {teamLoading ? (
+                  {pillsLoading ? (
                     <div className="grid grid-cols-2 gap-2">
                       {[1, 2, 3, 4, 5, 6].map((i) => (
                         <div key={i} className="rounded-xl p-2.5 text-center space-y-1.5" style={{ background: "var(--bg-grouped)" }}>
@@ -994,7 +899,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Monthly Insights — individual mode */}
-      {!isAggregateMode && (
+      {sessionReady && !isAggregateMode && (
         <div className="card-static p-4">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Insights</p>
           {monthlyStats ? (
@@ -1030,7 +935,7 @@ export default function AttendancePage() {
       )}
 
       {/* Employee monthly stats cards — aggregate mode */}
-      {isAggregateMode && teamLoading && (
+      {pillsLoading && (
         <div>
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
             Employee Overview
@@ -1142,7 +1047,7 @@ export default function AttendancePage() {
       )}
 
       {/* Monthly records list — individual mode only */}
-      {!isAggregateMode && (
+      {sessionReady && !isAggregateMode && (
         loading ? (
           <motion.div className="card-static overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
