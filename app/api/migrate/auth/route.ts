@@ -17,9 +17,14 @@ const ROLE_TO_PRESET: Record<string, "employee" | "teamLead" | "manager" | "admi
 
 const SYSTEM_DESIGNATIONS: { name: string; color: string; preset: "employee" | "teamLead" | "manager" | "admin" }[] = [
   { name: "Employee", color: "#6b7280", preset: "employee" },
+  { name: "Developer", color: "#06b6d4", preset: "employee" },
+  { name: "Senior Developer", color: "#0891b2", preset: "employee" },
+  { name: "Business Developer", color: "#f59e0b", preset: "employee" },
   { name: "Team Lead", color: "#3b82f6", preset: "teamLead" },
   { name: "Manager", color: "#8b5cf6", preset: "manager" },
   { name: "Admin", color: "#ef4444", preset: "admin" },
+  { name: "Intern", color: "#a1a1aa", preset: "employee" },
+  { name: "HR", color: "#ec4899", preset: "manager" },
 ];
 
 export async function POST() {

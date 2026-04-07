@@ -3,7 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password", "/setup-password", "/preview"];
 const ADMIN_ONLY = ["/organization", "/workspace"];
 const ADMIN_ROLES = ["superadmin", "manager", "teamLead"];
-const SUPERADMIN_ONLY = ["/designations"];
+const SUPERADMIN_ONLY: string[] = [];
 
 export const authConfig: NextAuthConfig = {
   providers: [],
@@ -66,6 +66,7 @@ export const authConfig: NextAuthConfig = {
       if (pathname === "/campaigns") return Response.redirect(new URL("/workspace/campaigns", nextUrl));
       if (pathname === "/tasks") return Response.redirect(new URL("/workspace/tasks", nextUrl));
       if (pathname === "/attendance") return Response.redirect(new URL("/insights-desk/attendance", nextUrl));
+      if (pathname === "/designations") return Response.redirect(new URL("/organization", nextUrl));
 
       const role = (auth?.user as Record<string, unknown>)?.role as string | undefined;
 

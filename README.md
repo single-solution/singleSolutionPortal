@@ -21,9 +21,9 @@ The platform uses a **dynamic, permission-based** authorization system instead o
 
 ### Core Concepts
 
-**Designations** are named titles (e.g., "Manager", "QA Lead", "Developer") with 50 configurable default permission toggles across 10 categories: Employees, Members, Departments, Teams, Tasks, Campaigns, Attendance, Leaves, Payroll, and System.
+**Designations** are named titles (e.g., "Manager", "QA Lead", "Developer") managed from the Organization page sidebar (SuperAdmin only). They are simple labels with a color — permissions are configured at the Membership level, not on the designation itself.
 
-**Memberships** link a User to a Department and optional Team with a Designation. Permissions are copied from the Designation defaults but are fully customizable per assignment — two "QA Leads" in different departments can have completely different permissions.
+**Memberships** link a User to a Department and optional Team with a Designation. Permissions are fully customizable per assignment — two "QA Leads" in different departments can have completely different permissions.
 
 **Reporting Chain** — each Membership has a `reportsTo` field defining who manages whom in each context. Write actions (edit, delete, toggle) are blocked against anyone above you in the chain.
 
@@ -33,12 +33,13 @@ The platform uses a **dynamic, permission-based** authorization system instead o
 
 | Designation | Access Level |
 |-------------|-------------|
-| **Employee** | All 50 permissions OFF. Personal access only (own profile, attendance, tasks, leave requests, payslips). |
+| **Employee** | Personal access only (own profile, attendance, tasks, leave requests, payslips). |
+| **Developer** / **Senior Developer** / **Business Developer** / **Intern** | Same as Employee base access. |
 | **Team Lead** | View employees, teams, tasks, campaigns, attendance. Create/edit/reassign tasks. |
-| **Manager** | All of Team Lead plus: create/edit employees, manage teams, approve leaves, view payroll, export attendance. |
-| **Admin** | All 50 permissions ON within assigned scope (still bound by reporting chain for write actions). |
+| **Manager** / **HR** | All of Team Lead plus: create/edit employees, manage teams, approve leaves, view payroll, export attendance. |
+| **Admin** | All permissions ON within assigned scope (still bound by reporting chain for write actions). |
 
-SuperAdmins can create additional designations with any combination of defaults from the Designations management page.
+These are auto-seeded on first access. SuperAdmins can create, rename, or deactivate designations from the Organization page sidebar.
 
 ### Two-Check Security
 
@@ -59,14 +60,13 @@ SuperAdmin bypasses both checks. The client never decides access — it only ref
 | — Campaigns | `/workspace/campaigns` | Campaign cards with sidebar tree grouped by status, detail view with linked tasks |
 | — Tasks | `/workspace/tasks` | Task list with sidebar for grouping (by status/assignee/campaign/priority) and filtering |
 | — Updates | `/workspace/updates` | Activity feed with timeline, auto-refresh |
-| **Organization** | `/organization` | Unified Employees + Departments + Teams management with org tree sidebar |
+| **Organization** | `/organization` | Unified Employees + Departments + Teams management with org tree sidebar + designations panel |
 | **Insights Desk** | `/insights-desk/` | Analytics hub for attendance, calendar, leaves, and payroll |
 | — Attendance | `/insights-desk/attendance` | Team/employee attendance with calendar, session timelines, monthly stats |
 | — Calendar | `/insights-desk/calendar` | Monthly calendar with color-coded attendance, leaves, and holidays |
 | — Leaves | `/insights-desk/leaves` | Leave request form, approval queue, balance tracking |
 | — Payroll | `/insights-desk/payroll` | Payroll configuration, holidays, payslip generation |
 | **Settings** | `/settings` | Profile, security, system configuration |
-| **Roles** | `/designations` | Designation management (SuperAdmin only) |
 
 Employee detail pages use singular routes: `/employee/[slug]` with tabbed sections for Overview, Attendance, Profile, Activity, Leaves, and Payroll.
 
@@ -122,11 +122,13 @@ Each section loads independently with its own skeleton. Department scope filter 
 
 Unified page for managing employees, departments, and teams:
 
-- **Org tree sidebar** with department → team → employee hierarchy
-- **Context views** that change based on selection (department overview, team members, unassigned employees)
+- **Org tree sidebar** with department → team hierarchy; "All Employees" as default overview
+- **Designations panel** in sidebar (SuperAdmin only) — create, edit, toggle designations as simple titles
+- **Overview mode** shows all employees with sort (Name / Email / Role) and group (All / Department / Team) controls
+- **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
-- Assignment modal for adding employees to departments/teams with designation and custom permissions
 - Search, view mode toggles (Tree / Flat / Card Grid)
+- Simplified employee creation — only name, email, designation, and shift. Department/team/reporting assigned later from Organization page
 
 ### Workspace
 
@@ -238,7 +240,7 @@ npm run dev:next
 
 Open [http://localhost:3000](http://localhost:3000) and log in with your admin account. Create employees, departments, and tasks from the dashboard.
 
-**First-time setup**: Run the auth migration at `POST /api/migrate/auth` to create default designations and convert existing user roles to the new Membership model.
+**First-time setup**: Default designations (Employee, Developer, Team Lead, Manager, Admin, HR, etc.) are auto-seeded when a SuperAdmin first opens the Organization page. Optionally run `POST /api/migrate/auth` to convert existing user roles to the new Membership model.
 
 ### Environment Variables
 
@@ -270,7 +272,8 @@ app/
     DashboardHome.tsx       Real-time dashboard (decomposed into sub-components)
     DashboardShell.tsx      Header, dock nav, theme, notifications
     SessionTracker.tsx      Heartbeat attendance tracker
-    organization/           Unified employees + departments + teams management
+    organization/           Unified employees + departments + teams + designations management
+      DesignationsPanel.tsx Inline designation management (SuperAdmin, sidebar)
     workspace/
       layout.tsx            Shared header + tab bar for workspace sub-pages
       campaigns/            Campaign management with sidebar tree + detail view
@@ -291,7 +294,7 @@ app/
       SettingsProfile.tsx   Profile sub-component
       SettingsSecurity.tsx  Security sub-component
       SettingsSystem.tsx    System settings sub-component
-    designations/           Designation management (SuperAdmin)
+    designations/           Legacy redirect → /organization
     components/
       EmployeeCard.tsx      Unified employee card component
       SpotlightTour.tsx     Guided page tour overlay

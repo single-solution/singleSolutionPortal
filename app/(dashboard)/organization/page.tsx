@@ -10,8 +10,11 @@ import { useQuery } from "@/lib/useQuery";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { useGuide } from "@/lib/useGuide";
 import { organizationTour } from "@/lib/tourConfigs";
+import { DesignationsPanel } from "./DesignationsPanel";
 
 type ViewMode = "tree" | "flat" | "cards";
+type SortKey = "name" | "email" | "role";
+type GroupBy = "none" | "department" | "team";
 
 type Selection =
   | { kind: "none" }
@@ -114,6 +117,10 @@ function idStr(x: unknown): string {
   return String(x);
 }
 
+function empFullName(emp: Employee): string {
+  return `${emp.about.firstName} ${emp.about.lastName}`.trim();
+}
+
 function NavPill({
   active,
   onClick,
@@ -155,7 +162,8 @@ export default function OrganizationPage() {
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("organization", organizationTour); }, [registerTour]);
   const role = session?.user?.role;
-  const isSuperAdmin = role === "superadmin";
+  const isSuperAdminFlag = session?.user?.isSuperAdmin === true;
+  const isSuperAdmin = role === "superadmin" || isSuperAdminFlag;
   const isManager = role === "manager";
   const canManage = isSuperAdmin || isManager;
 
@@ -168,6 +176,8 @@ export default function OrganizationPage() {
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(() => new Set());
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [groupBy, setGroupBy] = useState<GroupBy>("none");
 
   const deptList = useMemo(() => departments ?? [], [departments]);
   const teamList = useMemo(() => teams ?? [], [teams]);
@@ -225,13 +235,42 @@ export default function OrganizationPage() {
     return list;
   }, [empList, selection, search, unassignedEmployees]);
 
-  const sortedEmployees = useMemo(
-    () =>
-      [...baseFilteredEmployees].sort((a, b) =>
-        `${a.about.firstName} ${a.about.lastName}`.localeCompare(`${b.about.firstName} ${b.about.lastName}`),
-      ),
-    [baseFilteredEmployees],
-  );
+  const sortedEmployees = useMemo(() => {
+    const arr = [...baseFilteredEmployees];
+    switch (sortKey) {
+      case "name":
+        arr.sort((a, b) => empFullName(a).localeCompare(empFullName(b)));
+        break;
+      case "email":
+        arr.sort((a, b) => a.email.localeCompare(b.email));
+        break;
+      case "role":
+        arr.sort((a, b) => a.userRole.localeCompare(b.userRole) || empFullName(a).localeCompare(empFullName(b)));
+        break;
+    }
+    return arr;
+  }, [baseFilteredEmployees, sortKey]);
+
+  const groupedEmployees = useMemo(() => {
+    if (groupBy === "none" || selection.kind !== "none") return null;
+    const groups: { key: string; label: string; members: Employee[] }[] = [];
+    if (groupBy === "department") {
+      for (const dept of deptList) {
+        const members = sortedEmployees.filter((e) => idStr(e.department?._id) === dept._id);
+        if (members.length > 0) groups.push({ key: dept._id, label: dept.title, members });
+      }
+      const noD = sortedEmployees.filter((e) => !e.department?._id);
+      if (noD.length > 0) groups.push({ key: "unassigned", label: "Unassigned", members: noD });
+    } else if (groupBy === "team") {
+      for (const team of teamList) {
+        const members = sortedEmployees.filter((e) => (e.teams ?? []).some((t) => idStr(t._id) === team._id));
+        if (members.length > 0) groups.push({ key: team._id, label: team.name, members });
+      }
+      const noT = sortedEmployees.filter((e) => !(e.teams ?? []).length);
+      if (noT.length > 0) groups.push({ key: "no-team", label: "No Team", members: noT });
+    }
+    return groups;
+  }, [groupBy, selection.kind, deptList, teamList, sortedEmployees]);
 
   const selectedDepartment = useMemo(() => {
     if (selection.kind !== "department") return null;
@@ -328,6 +367,79 @@ export default function OrganizationPage() {
     );
   };
 
+  const renderFlatRow = (emp: Employee) => (
+    <Link
+      key={emp._id}
+      href={`/employee/${emp.username}`}
+      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-grouped)]"
+    >
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+        style={{ background: "var(--primary)" }}
+      >
+        {(emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "")}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium" style={{ color: "var(--fg)" }}>
+          {emp.about.firstName} {emp.about.lastName}
+        </p>
+        <p className="truncate text-xs" style={{ color: "var(--fg-secondary)" }}>
+          {DESIGNATION_LABELS[emp.userRole] ?? emp.userRole} · {emp.email}
+        </p>
+      </div>
+    </Link>
+  );
+
+  const renderEmployeeGrid = (emps: Employee[], emptyMsg: string) => {
+    if (employeesLoading) {
+      return (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="card-xl shimmer h-40 rounded-xl" />
+          ))}
+        </div>
+      );
+    }
+    if (emps.length === 0) {
+      return (
+        <p className="p-6 text-sm" style={{ color: "var(--fg-secondary)" }}>{emptyMsg}</p>
+      );
+    }
+    if (viewMode === "cards") {
+      return (
+        <motion.div
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+          variants={staggerContainerFast}
+          initial="hidden"
+          animate="visible"
+        >
+          <AnimatePresence>{emps.map((emp, i) => renderEmployeeCard(emp, i))}</AnimatePresence>
+        </motion.div>
+      );
+    }
+    if (viewMode === "flat") {
+      return (
+        <div className="card-xl divide-y overflow-hidden" style={{ borderColor: "var(--border)" }}>
+          {emps.map((emp) => renderFlatRow(emp))}
+        </div>
+      );
+    }
+    return (
+      <div className="card-xl p-4">
+        <ul className="space-y-2 border-l-2 pl-3" style={{ borderColor: "var(--border)" }}>
+          {emps.map((emp) => (
+            <li key={emp._id}>
+              <Link href={`/employee/${emp.username}`} className="text-sm font-medium transition-colors hover:underline" style={{ color: "var(--primary)" }}>
+                {emp.about.firstName} {emp.about.lastName}
+              </Link>
+              <span className="ml-2 text-xs" style={{ color: "var(--fg-secondary)" }}>{emp.email}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   const loading = deptsLoading || teamsLoading || employeesLoading;
 
   const sidebarNodes = (
@@ -346,7 +458,7 @@ export default function OrganizationPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
         </span>
-        Company
+        All Employees
       </button>
 
       {visibleDepts.map((dept) => {
@@ -364,12 +476,7 @@ export default function OrganizationPage() {
                 aria-expanded={expanded}
               >
                 <motion.svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
+                  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                   animate={{ rotate: expanded ? 90 : 0 }}
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -383,12 +490,8 @@ export default function OrganizationPage() {
                 }}
                 className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left text-sm font-medium transition-colors"
                 style={{
-                  background:
-                    selection.kind === "department" && selection.id === dept._id
-                      ? "color-mix(in srgb, var(--primary) 12%, transparent)"
-                      : "transparent",
-                  color:
-                    selection.kind === "department" && selection.id === dept._id ? "var(--primary)" : "var(--fg)",
+                  background: selection.kind === "department" && selection.id === dept._id ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent",
+                  color: selection.kind === "department" && selection.id === dept._id ? "var(--primary)" : "var(--fg)",
                 }}
               >
                 <span className="block truncate">{dept.title}</span>
@@ -415,19 +518,12 @@ export default function OrganizationPage() {
                       onClick={() => setSelection({ kind: "team", id: team._id, departmentId: idStr(team.department) })}
                       className="mb-0.5 flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors"
                       style={{
-                        background:
-                          selection.kind === "team" && selection.id === team._id
-                            ? "color-mix(in srgb, var(--primary) 10%, transparent)"
-                            : "transparent",
-                        color:
-                          selection.kind === "team" && selection.id === team._id ? "var(--primary)" : "var(--fg-secondary)",
+                        background: selection.kind === "team" && selection.id === team._id ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent",
+                        color: selection.kind === "team" && selection.id === team._id ? "var(--primary)" : "var(--fg-secondary)",
                       }}
                     >
                       <span className="truncate font-medium">{team.name}</span>
-                      <span
-                        className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
-                        style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}
-                      >
+                      <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
                         {team.memberCount}
                       </span>
                     </button>
@@ -445,20 +541,22 @@ export default function OrganizationPage() {
           onClick={() => setSelection({ kind: "unassigned" })}
           className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium transition-colors"
           style={{
-            background:
-              selection.kind === "unassigned" ? "color-mix(in srgb, var(--amber) 14%, transparent)" : "var(--bg-grouped)",
+            background: selection.kind === "unassigned" ? "color-mix(in srgb, var(--amber) 14%, transparent)" : "var(--bg-grouped)",
             color: selection.kind === "unassigned" ? "var(--amber)" : "var(--fg-secondary)",
           }}
         >
           Unassigned
-          <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums"
-            style={{ background: "var(--bg-elevated)", color: "var(--fg-tertiary)" }}
-          >
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums" style={{ background: "var(--bg-elevated)", color: "var(--fg-tertiary)" }}>
             {unassignedCount}
           </span>
         </button>
       </div>
+
+      {isSuperAdmin && (
+        <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+          <DesignationsPanel />
+        </div>
+      )}
     </div>
   );
 
@@ -466,8 +564,8 @@ export default function OrganizationPage() {
 
   const mobilePills = (
     <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <NavPill active={selection.kind === "none"} onClick={() => setSelection({ kind: "none" })}>
-        Overview
+      <NavPill active={selection.kind === "none"} onClick={() => setSelection({ kind: "none" })} badge={empList.length}>
+        All
       </NavPill>
       <NavPill
         active={selection.kind === "unassigned"}
@@ -511,86 +609,94 @@ export default function OrganizationPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {sessionStatus !== "loading" && canManage && (
-            <>
-              <motion.button
-                type="button"
-                onClick={() => router.push("/organization")}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="btn btn-secondary btn-sm"
-              >
-                Add Department
-              </motion.button>
-              <motion.button
-                type="button"
-                onClick={() => router.push("/employee/new")}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="btn btn-primary btn-sm"
-              >
-                Add Employee
-              </motion.button>
-            </>
+            <motion.button
+              type="button"
+              onClick={() => router.push("/employee/new")}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="btn btn-primary btn-sm"
+            >
+              Add Employee
+            </motion.button>
           )}
         </div>
       </div>
 
       {/* Top bar */}
       <div className="card-xl mb-4 flex flex-col gap-3 p-4">
-        <div className="relative w-full md:max-w-md">
-          <svg
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
-            style={{ color: "var(--fg-tertiary)" }}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search people, departments, teams…"
-            className="input w-full"
-            style={{ paddingLeft: "40px" }}
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-md">
+            <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search people, departments, teams…"
+              className="input w-full"
+              style={{ paddingLeft: "40px" }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>View</span>
+            {(["cards", "flat", "tree"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-all ${viewMode === mode ? "shadow-sm" : ""}`}
+                style={viewMode === mode ? { background: "var(--primary)", color: "white" } : { background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>
-            View
-          </span>
-          {(["tree", "flat", "cards"] as const).map((mode) => (
-            <motion.button
-              key={mode}
-              type="button"
-              onClick={() => setViewMode(mode)}
-              whileTap={{ scale: 0.97 }}
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-all ${
-                viewMode === mode ? "shadow-sm" : ""
-              }`}
-              style={
-                viewMode === mode
-                  ? { background: "var(--primary)", color: "white" }
-                  : { background: "var(--bg-grouped)", color: "var(--fg-secondary)" }
-              }
-            >
-              {mode}
-            </motion.button>
-          ))}
-        </div>
+        {selection.kind === "none" && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>Sort</span>
+              {(["name", "email", "role"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSortKey(s)}
+                  className="rounded-lg px-2 py-1 text-[11px] font-medium capitalize transition-all"
+                  style={sortKey === s ? { background: "color-mix(in srgb, var(--primary) 14%, transparent)", color: "var(--primary)" } : { color: "var(--fg-secondary)" }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>Group</span>
+              {([["none", "All"], ["department", "Dept"], ["team", "Team"]] as const).map(([g, label]) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGroupBy(g as GroupBy)}
+                  className="rounded-lg px-2 py-1 text-[11px] font-medium transition-all"
+                  style={groupBy === g ? { background: "color-mix(in srgb, var(--teal) 14%, transparent)", color: "var(--teal)" } : { color: "var(--fg-secondary)" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         {/* Mobile: horizontal pills */}
         <div className="lg:hidden">{mobilePills}</div>
 
-        {/* Left sidebar — desktop */}
+        {/* Left sidebar */}
         <aside
           className="card-xl hidden max-h-[calc(100vh-220px)] w-full shrink-0 overflow-y-auto p-3 lg:block lg:w-[300px]"
-          style={{ borderColor: "var(--border)" }}
+          style={{ borderColor: "var(--border)", scrollbarWidth: "thin" }}
         >
           {deptsLoading && deptList.length === 0 ? (
             <div className="space-y-2 p-2">
@@ -613,51 +719,51 @@ export default function OrganizationPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.25 }}
+                className="space-y-4"
               >
-                <div className="card-xl p-6">
-                  <h2 className="text-lg font-semibold" style={{ color: "var(--fg)" }}>
-                    Overview
-                  </h2>
-                  <p className="mt-1 text-sm" style={{ color: "var(--fg-secondary)" }}>
-                    Select a department or team to see members. Use view modes to change how people are listed.
-                  </p>
-                  <motion.div
-                    className="mt-6 grid gap-3 sm:grid-cols-3"
-                    variants={staggerContainerFast}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    {[
-                      { label: "Employees", value: loading ? "—" : empList.length, sub: "in your access scope" },
-                      { label: "Departments", value: loading ? "—" : deptList.length, sub: "active org units" },
-                      { label: "Teams", value: loading ? "—" : teamList.length, sub: "across departments" },
-                    ].map((stat, i) => (
-                      <motion.div
-                        key={stat.label}
-                        variants={cardVariants}
-                        custom={i}
-                        className="rounded-xl border p-4"
-                        style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}
-                      >
-                        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>
-                          {stat.label}
-                        </p>
-                        <p className="mt-1 text-3xl font-bold tabular-nums" style={{ color: "var(--fg)" }}>
-                          {stat.value}
-                        </p>
-                        <p className="mt-0.5 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
-                          {stat.sub}
-                        </p>
-                      </motion.div>
-                    ))}
-                  </motion.div>
+                {/* Stats row */}
+                <motion.div
+                  className="grid gap-3 sm:grid-cols-3"
+                  variants={staggerContainerFast}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {[
+                    { label: "Employees", value: loading ? "—" : empList.length, sub: "total people" },
+                    { label: "Departments", value: loading ? "—" : deptList.length, sub: "active org units" },
+                    { label: "Teams", value: loading ? "—" : teamList.length, sub: "across departments" },
+                  ].map((stat, i) => (
+                    <motion.div
+                      key={stat.label}
+                      variants={cardVariants}
+                      custom={i}
+                      className="card-xl rounded-xl p-4"
+                    >
+                      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>{stat.label}</p>
+                      <p className="mt-1 text-2xl font-bold tabular-nums" style={{ color: "var(--fg)" }}>{stat.value}</p>
+                      <p className="mt-0.5 text-[11px]" style={{ color: "var(--fg-secondary)" }}>{stat.sub}</p>
+                    </motion.div>
+                  ))}
+                </motion.div>
 
-                  {!canManage && (
-                    <p className="mt-6 text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                      You can browse the org chart for your access level. Contact an administrator to add departments or employees.
-                    </p>
-                  )}
-                </div>
+                {/* Grouped or flat employee list */}
+                {groupedEmployees ? (
+                  <div className="space-y-4">
+                    {groupedEmployees.map((g) => (
+                      <div key={g.key}>
+                        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--fg)" }}>
+                          {g.label}
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+                            {g.members.length}
+                          </span>
+                        </h3>
+                        {renderEmployeeGrid(g.members, "No people in this group.")}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  renderEmployeeGrid(sortedEmployees, "No people found.")
+                )}
               </motion.div>
             )}
 
@@ -673,22 +779,11 @@ export default function OrganizationPage() {
                 <div className="card-xl p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-xl font-bold" style={{ color: "var(--fg)" }}>
-                        {selectedDepartment.title}
-                      </h2>
+                      <h2 className="text-xl font-bold" style={{ color: "var(--fg)" }}>{selectedDepartment.title}</h2>
                       <p className="mt-1 text-sm tabular-nums" style={{ color: "var(--fg-secondary)" }}>
                         {selectedDepartment.employeeCount} employees · {selectedDepartment.teamCount} teams
                       </p>
                     </div>
-                    {canManage && (
-                      <Link
-                        href="/departments"
-                        className="text-xs font-medium transition-colors hover:underline"
-                        style={{ color: "var(--primary)" }}
-                      >
-                        Manage in Departments →
-                      </Link>
-                    )}
                   </div>
 
                   {deptTeams.length > 0 && (
@@ -699,11 +794,7 @@ export default function OrganizationPage() {
                           type="button"
                           onClick={() => setSelection({ kind: "team", id: t._id, departmentId: selectedDepartment._id })}
                           className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
-                          style={{
-                            borderColor: "var(--border)",
-                            background: "var(--bg-grouped)",
-                            color: "var(--fg)",
-                          }}
+                          style={{ borderColor: "var(--border)", background: "var(--bg-grouped)", color: "var(--fg)" }}
                         >
                           {t.name}
                           <span className="tabular-nums opacity-70">{t.memberCount}</span>
@@ -713,81 +804,22 @@ export default function OrganizationPage() {
                   )}
                 </div>
 
-                {employeesLoading ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <div key={i} className="card-xl shimmer h-40 rounded-xl" />
-                    ))}
-                  </div>
-                ) : viewMode === "cards" ? (
-                  <motion.div
-                    className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
-                    variants={staggerContainerFast}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    <AnimatePresence>
-                      {sortedEmployees.map((emp, i) => renderEmployeeCard(emp, i))}
-                    </AnimatePresence>
-                  </motion.div>
-                ) : viewMode === "flat" ? (
-                  <div className="card-xl divide-y overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                    {sortedEmployees.length === 0 ? (
-                      <p className="p-6 text-sm" style={{ color: "var(--fg-secondary)" }}>
-                        No people match this filter.
-                      </p>
-                    ) : (
-                      sortedEmployees.map((emp) => (
-                        <Link
-                          key={emp._id}
-                          href={`/employee/${emp.username}`}
-                          className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-grouped)]"
-                        >
-                          <div
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                            style={{ background: "var(--primary)" }}
-                          >
-                            {(emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "")}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium" style={{ color: "var(--fg)" }}>
-                              {emp.about.firstName} {emp.about.lastName}
-                            </p>
-                            <p className="truncate text-xs" style={{ color: "var(--fg-secondary)" }}>
-                              {DESIGNATION_LABELS[emp.userRole] ?? emp.userRole} · {emp.email}
-                            </p>
-                          </div>
-                        </Link>
-                      ))
-                    )}
-                  </div>
-                ) : (
+                {viewMode === "tree" && employeesGroupedByTeam ? (
                   <div className="space-y-6">
-                    {employeesGroupedByTeam?.map(({ team, members }) => (
+                    {employeesGroupedByTeam.map(({ team, members }) => (
                       <div key={team?._id ?? "no-team"} className="card-xl overflow-hidden p-4">
                         <h3 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>
                           {team ? team.name : "No team"}
-                          <span className="ml-2 text-xs font-normal tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                            ({members.length})
-                          </span>
+                          <span className="ml-2 text-xs font-normal tabular-nums" style={{ color: "var(--fg-tertiary)" }}>({members.length})</span>
                         </h3>
                         <div className="mt-3 space-y-1 border-l-2 pl-3" style={{ borderColor: "var(--border)" }}>
                           {members.length === 0 ? (
-                            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                              None
-                            </p>
+                            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>None</p>
                           ) : (
                             members.map((emp) => (
-                              <Link
-                                key={emp._id}
-                                href={`/employee/${emp.username}`}
-                                className="block truncate text-sm py-0.5 transition-colors hover:underline"
-                                style={{ color: "var(--primary)" }}
-                              >
+                              <Link key={emp._id} href={`/employee/${emp.username}`} className="block truncate text-sm py-0.5 transition-colors hover:underline" style={{ color: "var(--primary)" }}>
                                 {emp.about.firstName} {emp.about.lastName}
-                                <span className="ml-2 text-xs" style={{ color: "var(--fg-secondary)" }}>
-                                  {emp.email}
-                                </span>
+                                <span className="ml-2 text-xs" style={{ color: "var(--fg-secondary)" }}>{emp.email}</span>
                               </Link>
                             ))
                           )}
@@ -795,6 +827,8 @@ export default function OrganizationPage() {
                       </div>
                     ))}
                   </div>
+                ) : (
+                  renderEmployeeGrid(sortedEmployees, "No people match this filter.")
                 )}
               </motion.div>
             )}
@@ -809,82 +843,12 @@ export default function OrganizationPage() {
                 className="space-y-4"
               >
                 <div className="card-xl p-5">
-                  <h2 className="text-xl font-bold" style={{ color: "var(--fg)" }}>
-                    {selectedTeam.name}
-                  </h2>
+                  <h2 className="text-xl font-bold" style={{ color: "var(--fg)" }}>{selectedTeam.name}</h2>
                   <p className="mt-1 text-sm tabular-nums" style={{ color: "var(--fg-secondary)" }}>
                     {selectedTeam.department?.title} · {selectedTeam.memberCount} members
                   </p>
                 </div>
-
-                {employeesLoading ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="card-xl shimmer h-40 rounded-xl" />
-                    ))}
-                  </div>
-                ) : viewMode === "cards" ? (
-                  <motion.div
-                    className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
-                    variants={staggerContainerFast}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    <AnimatePresence>
-                      {sortedEmployees.map((emp, i) => renderEmployeeCard(emp, i))}
-                    </AnimatePresence>
-                  </motion.div>
-                ) : viewMode === "flat" ? (
-                  <div className="card-xl divide-y overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                    {sortedEmployees.length === 0 ? (
-                      <p className="p-6 text-sm" style={{ color: "var(--fg-secondary)" }}>
-                        No members in this team.
-                      </p>
-                    ) : (
-                      sortedEmployees.map((emp) => (
-                        <Link
-                          key={emp._id}
-                          href={`/employee/${emp.username}`}
-                          className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-grouped)]"
-                        >
-                          <div
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                            style={{ background: "var(--primary)" }}
-                          >
-                            {(emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "")}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium" style={{ color: "var(--fg)" }}>
-                              {emp.about.firstName} {emp.about.lastName}
-                            </p>
-                            <p className="truncate text-xs" style={{ color: "var(--fg-secondary)" }}>
-                              {emp.email}
-                            </p>
-                          </div>
-                        </Link>
-                      ))
-                    )}
-                  </div>
-                ) : (
-                  <div className="card-xl p-4">
-                    <ul className="space-y-2 border-l-2 pl-3" style={{ borderColor: "var(--border)" }}>
-                      {sortedEmployees.map((emp) => (
-                        <li key={emp._id}>
-                          <Link
-                            href={`/employee/${emp.username}`}
-                            className="text-sm font-medium transition-colors hover:underline"
-                            style={{ color: "var(--primary)" }}
-                          >
-                            {emp.about.firstName} {emp.about.lastName}
-                          </Link>
-                          <span className="ml-2 text-xs" style={{ color: "var(--fg-secondary)" }}>
-                            {emp.email}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {renderEmployeeGrid(sortedEmployees, "No members in this team.")}
               </motion.div>
             )}
 
@@ -898,69 +862,12 @@ export default function OrganizationPage() {
                 className="space-y-4"
               >
                 <div className="card-xl p-5">
-                  <h2 className="text-xl font-bold" style={{ color: "var(--fg)" }}>
-                    Unassigned
-                  </h2>
+                  <h2 className="text-xl font-bold" style={{ color: "var(--fg)" }}>Unassigned</h2>
                   <p className="mt-1 text-sm" style={{ color: "var(--fg-secondary)" }}>
                     People without a department ({unassignedCount}).
                   </p>
                 </div>
-
-                {employeesLoading ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="card-xl shimmer h-40 rounded-xl" />
-                    ))}
-                  </div>
-                ) : viewMode === "cards" ? (
-                  <motion.div
-                    className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
-                    variants={staggerContainerFast}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    <AnimatePresence>
-                      {sortedEmployees.map((emp, i) => renderEmployeeCard(emp, i))}
-                    </AnimatePresence>
-                  </motion.div>
-                ) : viewMode === "flat" ? (
-                  <div className="card-xl divide-y overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                    {sortedEmployees.map((emp) => (
-                      <Link
-                        key={emp._id}
-                        href={`/employee/${emp.username}`}
-                        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-grouped)]"
-                      >
-                        <div
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                          style={{ background: "var(--primary)" }}
-                        >
-                          {(emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "")}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" style={{ color: "var(--fg)" }}>
-                            {emp.about.firstName} {emp.about.lastName}
-                          </p>
-                          <p className="truncate text-xs" style={{ color: "var(--fg-secondary)" }}>
-                            {emp.email}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="card-xl p-4">
-                    <ul className="space-y-2">
-                      {sortedEmployees.map((emp) => (
-                        <li key={emp._id}>
-                          <Link href={`/employee/${emp.username}`} className="text-sm font-medium" style={{ color: "var(--primary)" }}>
-                            {emp.about.firstName} {emp.about.lastName}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {renderEmployeeGrid(sortedEmployees, "No unassigned people.")}
               </motion.div>
             )}
           </AnimatePresence>

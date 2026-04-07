@@ -14,10 +14,10 @@ interface TeamOption { _id: string; name: string; department?: { _id: string } |
 interface SupervisorOption { _id: string; fullName: string; userRole: string; departmentId: string; }
 
 const ROLES = [
-  { value: "manager", label: "Manager" },
-  { value: "teamLead", label: "Team Lead" },
-  { value: "businessDeveloper", label: "Business Developer" },
   { value: "developer", label: "Developer" },
+  { value: "businessDeveloper", label: "Business Developer" },
+  { value: "teamLead", label: "Team Lead" },
+  { value: "manager", label: "Manager" },
 ];
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -194,7 +194,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         const res = await fetch(`/api/employees/${employeeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (res.ok) {
           toast.success("Employee updated");
-          router.push("/employees");
+          router.push("/organization");
         } else {
           const data = await res.json();
           toast.error(data.error || "Failed to update");
@@ -216,7 +216,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         });
         if (res.ok) {
           toast.success("Employee invited");
-          router.push("/employees");
+          router.push("/organization");
         } else {
           const data = await res.json();
           toast.error(data.error || "Failed to create");
@@ -271,7 +271,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       >
         <button
           type="button"
-          onClick={() => router.push("/employees")}
+          onClick={() => router.push("/organization")}
           className="page-icon bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform"
         >
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 12H5M12 19l-7-7 7-7" /></svg>
@@ -281,7 +281,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           <p className="text-subhead hidden sm:block">{isEdit ? "Update employee details and shift configuration." : "Add a new team member — they'll set their own password."}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button type="button" onClick={() => router.push("/employees")} className="btn btn-secondary hidden sm:inline-flex">Cancel</button>
+          <button type="button" onClick={() => router.push("/organization")} className="btn btn-secondary hidden sm:inline-flex">Cancel</button>
           <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary">
             {saving ? "Saving..." : isEdit ? "Update" : "Invite"}
           </motion.button>
@@ -342,7 +342,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           </div>
         </motion.div>
 
-        {/* Role & Department card */}
+        {/* Role & Assignment card */}
         <motion.div
           className="card-xl p-6"
           initial={{ opacity: 0, y: 16 }}
@@ -358,100 +358,107 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Reports To</label>
-              <select className="input" value={form.reportsTo} onChange={(e) => setForm({ ...form, reportsTo: e.target.value })}>
-                <option value="">None</option>
-                {supervisors.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.fullName} ({s.userRole === "teamLead" ? "Team Lead" : "Manager"})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {departments.length > 0 && (
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">
-                  {isLeadOrManager ? "Departments" : "Department"}
-                </label>
-                {isLeadOrManager && (
-                  <p className="text-[11px] mb-2" style={{ color: "var(--fg-tertiary)" }}>
-                    Departments this {form.userRole === "manager" ? "manager" : "lead"} can view and manage
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {departments.map((d) => {
-                    const active = isLeadOrManager
-                      ? form.managedDepartments.includes(d._id)
-                      : form.department === d._id;
-                    return (
-                      <motion.button
-                        key={d._id}
-                        type="button"
-                        onClick={() => {
-                          if (isLeadOrManager) {
-                            toggleManagedDept(d._id);
-                          } else {
-                            setForm((f) => ({ ...f, department: f.department === d._id ? "" : d._id }));
-                          }
-                        }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.92 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          active
-                            ? "bg-[var(--primary)] text-white shadow-sm"
-                            : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                        }`}
-                        style={!active ? { background: "var(--bg-grouped)" } : undefined}
-                      >
-                        {d.title}
-                      </motion.button>
-                    );
-                  })}
+            {isEdit && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Reports To</label>
+                  <select className="input" value={form.reportsTo} onChange={(e) => setForm({ ...form, reportsTo: e.target.value })}>
+                    <option value="">None</option>
+                    {supervisors.map((s) => (
+                      <option key={s._id} value={s._id}>
+                        {s.fullName} ({s.userRole === "teamLead" ? "Team Lead" : "Manager"})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+
+                {departments.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">
+                      {isLeadOrManager ? "Departments" : "Department"}
+                    </label>
+                    {isLeadOrManager && (
+                      <p className="text-[11px] mb-2" style={{ color: "var(--fg-tertiary)" }}>
+                        Departments this {form.userRole === "manager" ? "manager" : "lead"} can view and manage
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {departments.map((d) => {
+                        const active = isLeadOrManager
+                          ? form.managedDepartments.includes(d._id)
+                          : form.department === d._id;
+                        return (
+                          <motion.button
+                            key={d._id}
+                            type="button"
+                            onClick={() => {
+                              if (isLeadOrManager) {
+                                toggleManagedDept(d._id);
+                              } else {
+                                setForm((f) => ({ ...f, department: f.department === d._id ? "" : d._id }));
+                              }
+                            }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.92 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              active
+                                ? "bg-[var(--primary)] text-white shadow-sm"
+                                : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                            }`}
+                            style={!active ? { background: "var(--bg-grouped)" } : undefined}
+                          >
+                            {d.title}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <AnimatePresence>
+                  {filteredTeams.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3, ease }}
+                    >
+                      <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Teams</label>
+                      <div className="flex flex-wrap gap-2">
+                        {filteredTeams.map((t) => {
+                          const active = form.teams.includes(t._id);
+                          return (
+                            <motion.button
+                              key={t._id}
+                              type="button"
+                              onClick={() => toggleTeam(t._id)}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.92 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                active
+                                  ? "bg-[var(--teal)] text-white shadow-sm"
+                                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                              }`}
+                              style={!active ? { background: "var(--bg-grouped)" } : undefined}
+                            >
+                              {t.name}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             )}
 
-            <AnimatePresence>
-              {filteredTeams.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease }}
-                >
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Teams</label>
-                  <div className="flex flex-wrap gap-2">
-                    {filteredTeams.map((t) => {
-                      const active = form.teams.includes(t._id);
-                      return (
-                        <motion.button
-                          key={t._id}
-                          type="button"
-                          onClick={() => toggleTeam(t._id)}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.92 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            active
-                              ? "bg-[var(--teal)] text-white shadow-sm"
-                              : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                          }`}
-                          style={!active ? { background: "var(--bg-grouped)" } : undefined}
-                        >
-                          {t.name}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[11px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                    Select one or more teams. Employees can belong to multiple teams.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {!isEdit && (
+              <p className="text-[11px] rounded-lg p-2" style={{ color: "var(--fg-tertiary)", background: "var(--bg-grouped)" }}>
+                Department, team, and reporting assignments can be configured after the employee is added, from the Organization page.
+              </p>
+            )}
           </div>
         </motion.div>
       </motion.div>
@@ -528,7 +535,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">
           {saving ? "Saving..." : isEdit ? "Update Employee" : "Invite Employee"}
         </motion.button>
-        <button type="button" onClick={() => router.push("/employees")} className="btn btn-secondary flex-1">Cancel</button>
+        <button type="button" onClick={() => router.push("/organization")} className="btn btn-secondary flex-1">Cancel</button>
       </div>
     </form>
   );

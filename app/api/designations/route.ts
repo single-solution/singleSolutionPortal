@@ -1,8 +1,35 @@
 import { connectDB } from "@/lib/db";
-import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
+import Designation, { PERMISSION_KEYS, makeDefaultPermissions, type IPermissions } from "@/lib/models/Designation";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
 import mongoose from "mongoose";
+
+const SEED_DESIGNATIONS: { name: string; color: string; preset: "employee" | "teamLead" | "manager" | "admin" }[] = [
+  { name: "Employee", color: "#6b7280", preset: "employee" },
+  { name: "Developer", color: "#06b6d4", preset: "employee" },
+  { name: "Senior Developer", color: "#0891b2", preset: "employee" },
+  { name: "Business Developer", color: "#f59e0b", preset: "employee" },
+  { name: "Team Lead", color: "#3b82f6", preset: "teamLead" },
+  { name: "Manager", color: "#8b5cf6", preset: "manager" },
+  { name: "Admin", color: "#ef4444", preset: "admin" },
+  { name: "Intern", color: "#a1a1aa", preset: "employee" },
+  { name: "HR", color: "#ec4899", preset: "manager" },
+];
+
+async function ensureSeedDesignations() {
+  const count = await Designation.countDocuments();
+  if (count > 0) return;
+  for (const sd of SEED_DESIGNATIONS) {
+    await Designation.create({
+      name: sd.name,
+      description: `Default ${sd.name.toLowerCase()} designation`,
+      color: sd.color,
+      isSystem: true,
+      isActive: true,
+      defaultPermissions: makeDefaultPermissions(sd.preset),
+    }).catch(() => {});
+  }
+}
 
 function buildPermissionsFromInput(input: unknown): IPermissions | undefined {
   if (input === undefined) return undefined;
@@ -23,6 +50,10 @@ export async function GET() {
   if (!actor) return unauthorized();
 
   await connectDB();
+
+  if (isSuperAdmin(actor)) {
+    await ensureSeedDesignations();
+  }
 
   const filter = isSuperAdmin(actor) ? {} : { isActive: true };
 
