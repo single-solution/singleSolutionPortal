@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     let visibleUserIds: string[] = [];
 
     if (isManager(actor) && !actor.crossDepartmentAccess) {
-      const deptFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+      const deptFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
       if (actor.managedDepartments.length > 0) {
         deptFilter.department = { $in: actor.managedDepartments };
       } else if (actor.department) {

@@ -11,6 +11,7 @@ declare module "next-auth" {
   interface User {
     id: string;
     role: UserRole;
+    isSuperAdmin: boolean;
     firstName: string;
     lastName: string;
     username: string;
@@ -22,6 +23,7 @@ declare module "next-auth" {
       id: string;
       email: string;
       role: UserRole;
+      isSuperAdmin: boolean;
       firstName: string;
       lastName: string;
       username: string;
@@ -82,6 +84,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user._id.toString(),
           email: user.email,
           role: user.userRole,
+          isSuperAdmin: user.isSuperAdmin === true || user.userRole === "superadmin",
           firstName: user.about.firstName,
           lastName: user.about.lastName ?? "",
           username: user.username,
@@ -97,6 +100,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id!;
         token.role = user.role;
+        token.isSuperAdmin = user.isSuperAdmin ?? false;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
         token.username = user.username;
@@ -115,6 +119,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       session.user.id = token.id as string;
       session.user.role = token.role as UserRole;
+      session.user.isSuperAdmin = (token.isSuperAdmin as boolean) ?? false;
       session.user.firstName = token.firstName as string;
       session.user.lastName = token.lastName as string;
       session.user.username = token.username as string;

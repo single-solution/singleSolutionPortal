@@ -828,6 +828,21 @@ export default function AttendancePage() {
                                       {sess.ipAddress && (
                                         <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>IP {sess.ipAddress}</p>
                                       )}
+                                      {sess.location.latitude != null && sess.location.longitude != null && (
+                                        <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                                          <a
+                                            href={`https://www.google.com/maps?q=${sess.location.latitude},${sess.location.longitude}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 hover:underline"
+                                            style={{ color: "var(--primary)" }}
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            {sess.location.latitude.toFixed(5)}, {sess.location.longitude.toFixed(5)}
+                                          </a>
+                                        </p>
+                                      )}
                                       {sess.officeSegments && sess.officeSegments.length > 0 && (
                                         <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "color-mix(in srgb, var(--border) 60%, transparent)" }}>
                                           <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Office Segments</p>

@@ -24,7 +24,7 @@ export const dashboardTour: TourStep[] = [
   {
     target: "dock-nav",
     title: "Navigation Dock",
-    description: "The bottom dock is your main navigation. Jump between Overview, Employees, Campaigns, Tasks, and Attendance. The active page is highlighted.",
+    description: "The bottom dock is your main navigation. Jump between Overview, Organization, Workspace, Insights, and Settings. The active page is highlighted.",
     placement: "top",
   },
 ];
@@ -127,6 +127,56 @@ export const attendanceTour: TourStep[] = [
     title: "Employee Overview",
     description: "In aggregate mode, this grid shows each employee's monthly summary — attendance percentage, present days, total hours, and on-time rate. Click any card to drill into their details.",
     placement: "top",
+  },
+];
+
+export const organizationTour: TourStep[] = [
+  {
+    target: "org-header",
+    title: "Organization Hub",
+    description: "Manage your entire organizational structure from one place — employees, departments, and teams. Use the search bar and view toggles to navigate.",
+  },
+  {
+    target: "org-tree",
+    title: "Org Tree",
+    description: "The sidebar shows your organizational hierarchy — departments, teams, and unassigned employees. Click any node to focus the main view on that group.",
+  },
+  {
+    target: "org-context",
+    title: "Context View",
+    description: "The main panel shows details for the selected department, team, or all employees. View employee cards, manage memberships, and assign roles from here.",
+  },
+  {
+    target: "dock-nav",
+    title: "Navigation",
+    description: "Use the bottom dock to switch between Overview, Organization, Workspace, Insights, and Settings.",
+    placement: "top",
+  },
+];
+
+export const workspaceTour: TourStep[] = [
+  {
+    target: "workspace-tabs",
+    title: "Workspace Hub",
+    description: "Your unified workspace brings together Campaigns, Tasks, and Updates. Switch between tabs to manage different aspects of your work.",
+  },
+  {
+    target: "workspace-content",
+    title: "Content Area",
+    description: "Each tab shows its own view — campaign cards with status filters, task lists with priority and grouping options, or a live activity feed of recent updates.",
+  },
+];
+
+export const insightsDeskTour: TourStep[] = [
+  {
+    target: "insights-tabs",
+    title: "Insights Desk",
+    description: "Your analytics hub for attendance, calendar, leave management, and payroll. Switch between tabs to access different insight areas.",
+  },
+  {
+    target: "insights-content",
+    title: "Data & Reports",
+    description: "Each section provides detailed reports and analytics — attendance tracking with calendars, leave approval workflows, and payroll calculations.",
   },
 ];
 

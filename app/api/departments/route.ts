@@ -57,7 +57,7 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean(),
     User.aggregate([
-      { $match: { isActive: true, department: { $ne: null }, userRole: { $ne: "superadmin" } } },
+      { $match: { isActive: true, department: { $ne: null }, isSuperAdmin: { $ne: true } } },
       { $group: { _id: "$department", count: { $sum: 1 } } },
     ]),
     Team.aggregate([

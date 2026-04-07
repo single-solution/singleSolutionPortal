@@ -6,7 +6,7 @@ import { AnimatePresence } from "framer-motion";
 import { WelcomeGuide } from "@/app/(dashboard)/components/WelcomeGuide";
 import { SpotlightTour, type TourStep } from "@/app/(dashboard)/components/SpotlightTour";
 
-type TourName = "welcome" | "dashboard" | "employees" | "departments" | "campaigns" | "tasks" | "attendance" | "settings";
+type TourName = "welcome" | "dashboard" | "organization" | "workspace" | "insights-desk" | "settings" | "employees" | "departments" | "campaigns" | "tasks" | "attendance";
 
 interface GuideContextValue {
   startTour: (name: TourName) => void;
@@ -30,10 +30,9 @@ export function useGuide() {
 
 const PATH_TO_TOUR: Record<string, TourName> = {
   "/": "dashboard",
-  "/employees": "employees",
-  "/departments": "departments",
-  "/campaigns": "campaigns",
-  "/tasks": "tasks",
+  "/organization": "organization",
+  "/workspace": "workspace",
+  "/insights-desk": "insights-desk",
   "/attendance": "attendance",
   "/settings": "settings",
 };

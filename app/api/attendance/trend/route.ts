@@ -28,7 +28,7 @@ export async function GET() {
   const settings = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
   const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
 
-  let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+  let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (isManager(actor) && !actor.crossDepartmentAccess) {
     if (actor.managedDepartments.length > 0) {
       empFilter.department = { $in: actor.managedDepartments };

@@ -30,7 +30,7 @@ export async function GET() {
   const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
   const today = startOfDay(new Date(), tz);
 
-  let empFilter: Record<string, unknown> = { isActive: true, userRole: { $ne: "superadmin" } };
+  let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (isManager(actor) && !actor.crossDepartmentAccess) {
     if (actor.managedDepartments.length > 0) {
       empFilter.department = { $in: actor.managedDepartments };
@@ -57,7 +57,7 @@ export async function GET() {
   const activeSessions = await ActivitySession.find({
     sessionDate: today,
     status: "active",
-  }).lean();
+  }).sort({ lastActivity: 1 }).lean();
 
   const dailyRecords = await DailyAttendance.find({
     date: today,

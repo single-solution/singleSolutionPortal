@@ -2,7 +2,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import { getSession, unauthorized, ok, badRequest } from "@/lib/helpers";
 
-const VALID_TOURS = ["welcome", "dashboard", "employees", "departments", "campaigns", "tasks", "attendance", "settings"] as const;
+const VALID_TOURS = ["welcome", "dashboard", "organization", "workspace", "insights-desk", "employees", "departments", "campaigns", "tasks", "attendance", "settings"] as const;
 
 export async function GET() {
   const session = await getSession();

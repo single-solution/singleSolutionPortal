@@ -251,3 +251,98 @@ export const smoothPage: Variants = {
     transition: { duration: 0.2 },
   },
 };
+
+// --- Attendance page (inline variants → progressive loading) ---
+
+/** Session timeline list — `app/(dashboard)/attendance/page.tsx` */
+export const timelineStagger: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+  },
+};
+
+export const timelineItem: Variants = {
+  hidden: { opacity: 0, x: -12 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.32, ease },
+  },
+};
+
+/** Office segments under a session row */
+export const officeSegmentStagger: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+};
+
+export const officeSegmentItem: Variants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: { opacity: 1, x: 0 },
+};
+
+/** Monthly insights stat chips grid */
+export const monthlyInsightsStagger: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+};
+
+export const monthlyInsightChipItem: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.25 },
+  },
+};
+
+/** Aggregate employee overview cards grid */
+export const employeeOverviewStagger: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.04 },
+  },
+};
+
+export const employeeOverviewCardItem: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.25 },
+  },
+};
+
+// --- Settings page — collapsible confirm-password block (`initial`/`animate`/`exit` equivalent) ---
+
+export const settingsCollapsibleSection: Variants = {
+  hidden: { opacity: 0, height: 0 },
+  visible: { opacity: 1, height: "auto" },
+};
+
+// --- Campaigns create/edit modal (`initial`/`animate`/`exit` equivalent; panel spring differs from `modalContent`) ---
+
+export const campaignModalBackdrop: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
+export const campaignModalPanel: Variants = {
+  hidden: { scale: 0.95, opacity: 0 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 400, damping: 30 },
+  },
+  exit: { scale: 0.95, opacity: 0 },
+};

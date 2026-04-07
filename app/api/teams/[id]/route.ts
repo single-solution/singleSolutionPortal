@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const members = await User.find({
     teams: id,
     isActive: true,
-    userRole: { $ne: "superadmin" },
+    isSuperAdmin: { $ne: true },
   })
     .select("about email userRole department")
     .populate("department", "title")

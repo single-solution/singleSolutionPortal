@@ -47,7 +47,7 @@ export async function GET() {
 
   const teamIds = teams.map((t) => t._id.toString());
   const memberCounts = await User.aggregate([
-    { $match: { isActive: true, userRole: { $ne: "superadmin" }, teams: { $in: teams.map((t) => t._id) } } },
+    { $match: { isActive: true, isSuperAdmin: { $ne: true }, teams: { $in: teams.map((t) => t._id) } } },
     { $unwind: "$teams" },
     { $group: { _id: "$teams", count: { $sum: 1 } } },
   ]);

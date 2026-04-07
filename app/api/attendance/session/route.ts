@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (actor.role === "superadmin") {
+  if (actor.isSuperAdmin) {
     return ok({ activeSession: null, todayMinutes: 0, isStale: false });
   }
 
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (actor.role === "superadmin") return ok({ message: "Superadmin is exempt from attendance tracking" });
+  if (actor.isSuperAdmin) return ok({ message: "Superadmin is exempt from attendance tracking" });
 
   await connectDB();
 
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (actor.role === "superadmin") return ok({ status: "exempt" });
+  if (actor.isSuperAdmin) return ok({ status: "exempt" });
 
   await connectDB();
 

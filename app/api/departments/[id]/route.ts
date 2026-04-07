@@ -7,7 +7,7 @@ import { logActivity } from "@/lib/activityLogger";
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin") return forbidden();
+  if (!session.user.isSuperAdmin && session.user.role !== "superadmin") return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -53,7 +53,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (session.user.role !== "superadmin") return forbidden();
+  if (!session.user.isSuperAdmin && session.user.role !== "superadmin") return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");

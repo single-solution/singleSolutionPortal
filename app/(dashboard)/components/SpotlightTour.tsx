@@ -60,6 +60,42 @@ export function SpotlightTour({ steps, tourKey, onComplete, onSkip }: SpotlightT
   const tooltipRef = useRef<HTMLDivElement>(null);
   const step = steps[currentStep];
 
+  const positionTooltip = useCallback((el: Element, step: TourStep) => {
+    const r = getRect(el);
+    setRect(r);
+
+    const placement = bestPlacement(r, step.placement);
+    const tw = Math.min(340, window.innerWidth - 32);
+    const th = 160;
+
+    let top = 0;
+    let left = 0;
+
+    switch (placement) {
+      case "bottom":
+        top = r.top + r.height + TOOLTIP_GAP;
+        left = r.left + r.width / 2 - tw / 2;
+        break;
+      case "top":
+        top = r.top - TOOLTIP_GAP - th;
+        left = r.left + r.width / 2 - tw / 2;
+        break;
+      case "right":
+        top = r.top + r.height / 2 - th / 2;
+        left = r.left + r.width + TOOLTIP_GAP;
+        break;
+      case "left":
+        top = r.top + r.height / 2 - th / 2;
+        left = r.left - TOOLTIP_GAP - tw;
+        break;
+    }
+
+    left = Math.max(12, Math.min(left, window.innerWidth - tw - 12));
+    top = Math.max(12, Math.min(top, window.innerHeight - th - 12));
+
+    setTooltipPos({ top, left, placement });
+  }, []);
+
   const measure = useCallback(() => {
     if (!step) return;
     const el = document.querySelector(`[data-tour="${step.target}"]`);
@@ -72,50 +108,34 @@ export function SpotlightTour({ steps, tourKey, onComplete, onSkip }: SpotlightT
       return;
     }
 
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const elRect = el.getBoundingClientRect();
+    const inView =
+      elRect.top >= 0 &&
+      elRect.bottom <= window.innerHeight;
 
-    requestAnimationFrame(() => {
-      const r = getRect(el);
-      setRect(r);
-
-      const placement = bestPlacement(r, step.placement);
-      const tw = Math.min(340, window.innerWidth - 32);
-      const th = 160;
-
-      let top = 0;
-      let left = 0;
-
-      switch (placement) {
-        case "bottom":
-          top = r.top + r.height + TOOLTIP_GAP;
-          left = r.left + r.width / 2 - tw / 2;
-          break;
-        case "top":
-          top = r.top - TOOLTIP_GAP - th;
-          left = r.left + r.width / 2 - tw / 2;
-          break;
-        case "right":
-          top = r.top + r.height / 2 - th / 2;
-          left = r.left + r.width + TOOLTIP_GAP;
-          break;
-        case "left":
-          top = r.top + r.height / 2 - th / 2;
-          left = r.left - TOOLTIP_GAP - tw;
-          break;
-      }
-
-      left = Math.max(12, Math.min(left, window.innerWidth - tw - 12));
-      top = Math.max(12, Math.min(top, window.innerHeight - th - 12));
-
-      setTooltipPos({ top, left, placement });
-    });
-  }, [step, currentStep, steps.length, onComplete]);
+    if (inView) {
+      positionTooltip(el, step);
+    } else {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => positionTooltip(el, step), 450);
+    }
+  }, [step, currentStep, steps.length, onComplete, positionTooltip]);
 
   useEffect(() => {
     const t = setTimeout(measure, 300);
+    const reposition = () => {
+      if (!step) return;
+      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      if (el) positionTooltip(el, step);
+    };
     window.addEventListener("resize", measure);
-    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
-  }, [measure]);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [measure, step, positionTooltip]);
 
   const next = useCallback(() => {
     if (currentStep < steps.length - 1) {

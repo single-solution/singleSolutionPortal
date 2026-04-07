@@ -26,7 +26,7 @@ export async function GET() {
       const teamIds = await User.find({
         department: actor.department,
         isActive: true,
-        userRole: { $ne: "superadmin" },
+        isSuperAdmin: { $ne: true },
       }).distinct("_id");
       filter.assignedTo = { $in: teamIds };
     } else {

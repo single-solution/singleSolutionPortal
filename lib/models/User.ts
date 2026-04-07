@@ -11,15 +11,20 @@ export interface IUser extends Document {
   email: string;
   username: string;
   password: string;
+  isSuperAdmin: boolean;
   about: {
     firstName: string;
     lastName: string;
     phone?: string;
     profileImage?: string;
   };
+  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
   department?: Types.ObjectId;
+  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
   teams: Types.ObjectId[];
+  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
   reportsTo?: Types.ObjectId;
+  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
   userRole: UserRole;
   workShift: {
     type: ShiftType;
@@ -62,6 +67,9 @@ export interface IUser extends Document {
   guideTours: {
     welcome: boolean;
     dashboard: boolean;
+    organization: boolean;
+    workspace: boolean;
+    "insights-desk": boolean;
     employees: boolean;
     departments: boolean;
     campaigns: boolean;
@@ -72,6 +80,8 @@ export interface IUser extends Document {
   crossDepartmentAccess: boolean;
   teamStatsVisible: boolean;
   isActive: boolean;
+  /** Monthly gross salary for payroll (optional). */
+  salary?: number;
   isVerified: boolean;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -87,6 +97,7 @@ const userSchema = new Schema<IUser>(
     email: { type: String, required: true, lowercase: true, trim: true },
     username: { type: String, required: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
+    isSuperAdmin: { type: Boolean, default: false },
     about: {
       firstName: { type: String, required: true, trim: true },
       lastName: { type: String, default: "", trim: true },
@@ -152,6 +163,9 @@ const userSchema = new Schema<IUser>(
     guideTours: {
       welcome: { type: Boolean, default: false },
       dashboard: { type: Boolean, default: false },
+      organization: { type: Boolean, default: false },
+      workspace: { type: Boolean, default: false },
+      "insights-desk": { type: Boolean, default: false },
       employees: { type: Boolean, default: false },
       departments: { type: Boolean, default: false },
       campaigns: { type: Boolean, default: false },
@@ -162,6 +176,7 @@ const userSchema = new Schema<IUser>(
     crossDepartmentAccess: { type: Boolean, default: false },
     teamStatsVisible: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
+    salary: { type: Number, min: 0 },
     isVerified: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
@@ -175,6 +190,7 @@ const userSchema = new Schema<IUser>(
 
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ username: 1 }, { unique: true });
+userSchema.index({ isSuperAdmin: 1 });
 userSchema.index({ userRole: 1 });
 userSchema.index({ department: 1 });
 

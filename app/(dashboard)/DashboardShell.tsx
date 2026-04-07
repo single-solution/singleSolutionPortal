@@ -19,11 +19,10 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
-  { href: "/employees", label: "Employees", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", roles: ["superadmin", "manager", "teamLead"] },
-  { href: "/departments", label: "Depts", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", roles: ["superadmin"] },
-  { href: "/campaigns", label: "Campaigns", icon: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" },
-  { href: "/tasks", label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
-  { href: "/attendance", label: "Attendance", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
+  { href: "/workspace", label: "Workspace", icon: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" },
+  { href: "/organization", label: "Organization", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", roles: ["superadmin", "manager", "teamLead"] },
+  { href: "/insights-desk", label: "Insights Desk", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
+  { href: "/designations", label: "Roles", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", roles: ["superadmin"] },
 ];
 
 const THEME_OPTIONS = [
@@ -76,28 +75,40 @@ const ENTITY_COLORS: Record<string, string> = {
 
 function getEntityHref(entity: string, entityId?: string): string | null {
   switch (entity) {
-    case "employee": return entityId ? `/employees/${entityId}/edit` : "/employees";
-    case "department": return "/departments";
-    case "team": return "/campaigns";
-    case "campaign": return "/campaigns";
-    case "task": return "/tasks";
-    case "attendance": return "/attendance";
+    case "employee": return entityId ? `/employee/${entityId}/edit` : "/organization";
+    case "department": return "/organization";
+    case "team": return "/organization";
+    case "campaign": return "/workspace";
+    case "task": return "/workspace";
+    case "attendance": return "/insights-desk";
     case "settings": return "/settings";
-    case "security": return "/employees";
+    case "security": return "/organization";
     default: return null;
   }
 }
 
 function getEntityPageHref(entity: string): string | null {
   switch (entity) {
-    case "employee": return "/employees";
-    case "department": return "/departments";
-    case "team": return "/campaigns";
-    case "campaign": return "/campaigns";
-    case "task": return "/tasks";
-    case "attendance": return "/attendance";
+    case "employee": return "/organization";
+    case "department": return "/organization";
+    case "team": return "/organization";
+    case "campaign": return "/workspace";
+    case "task": return "/workspace";
+    case "attendance": return "/insights-desk";
     case "settings": return "/settings";
     default: return null;
+  }
+}
+
+async function checkoutSession(): Promise<Response | undefined> {
+  try {
+    return await fetch("/api/attendance/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "checkout" }),
+    });
+  } catch {
+    return undefined;
   }
 }
 
@@ -144,11 +155,9 @@ interface DashboardShellProps {
 
 const PATH_TO_TOUR_NAME: Record<string, string> = {
   "/": "Dashboard",
-  "/employees": "Employees",
-  "/departments": "Departments",
-  "/campaigns": "Campaigns",
-  "/tasks": "Tasks",
-  "/attendance": "Attendance",
+  "/organization": "Organization",
+  "/workspace": "Workspace",
+  "/insights-desk": "Insights Desk",
   "/settings": "Settings",
 };
 
@@ -165,8 +174,8 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const [logsLoaded, setLogsLoaded] = useState(false);
   const [unseenCount, setUnseenCount] = useState(0);
   const lastSeenRef = useRef<string | null>(null);
-  const [installDismissed, setInstallDismissed] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installHidden, setInstallHidden] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const themeRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -220,14 +229,25 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
   useEffect(() => {
+    const isStandalone =
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone;
+    if (isStandalone) return;
+
+    async function checkInstalled() {
+      try {
+        const related = await (navigator as unknown as { getInstalledRelatedApps?: () => Promise<unknown[]> }).getInstalledRelatedApps?.();
+        if (related && related.length > 0) return;
+      } catch {}
+      setInstallHidden(false);
+    }
+    checkInstalled();
+
     function handleBIP(e: Event) {
       e.preventDefault();
       setInstallPrompt(e as BeforeInstallPromptEvent);
     }
     window.addEventListener("beforeinstallprompt", handleBIP);
-    if ((window.matchMedia?.("(display-mode: standalone)").matches) || (navigator as unknown as { standalone?: boolean }).standalone) {
-      setInstallDismissed(true);
-    }
     return () => window.removeEventListener("beforeinstallprompt", handleBIP);
   }, []);
 
@@ -293,56 +313,30 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       {/* ── Floating Install App pill ── */}
       <AnimatePresence>
-        {!installDismissed && (
+        {!installHidden && installPrompt && (
           <motion.div
             initial={{ y: -60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -60, opacity: 0 }}
-            transition={{
-              delay: 2,
-              type: "spring",
-              stiffness: 200,
-              damping: 22,
-            }}
+            transition={{ delay: 2, type: "spring", stiffness: 200, damping: 22 }}
             className="fixed z-50 flex items-center gap-1.5"
             style={{ top: "0.75rem", right: "0.75rem" }}
           >
             <motion.button
               type="button"
               className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-lg"
-              style={{
-                background: "linear-gradient(135deg, #2d9cff, #0055cc)",
-              }}
+              style={{ background: "linear-gradient(135deg, #2d9cff, #0055cc)" }}
               whileTap={{ scale: 0.9 }}
               onClick={async () => {
-                if (installPrompt) {
-                  await installPrompt.prompt();
-                  const { outcome } = await installPrompt.userChoice;
-                  if (outcome === "accepted") setInstallDismissed(true);
-                  setInstallPrompt(null);
-                }
+                await installPrompt.prompt();
+                const { outcome } = await installPrompt.userChoice;
+                if (outcome === "accepted") setInstallHidden(true);
+                setInstallPrompt(null);
               }}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 5v14M5 12l7 7 7-7" />
-                <rect
-                  x="3"
-                  y="20"
-                  width="18"
-                  height="2"
-                  rx="1"
-                  fill="currentColor"
-                  stroke="none"
-                />
+                <rect x="3" y="20" width="18" height="2" rx="1" fill="currentColor" stroke="none" />
               </svg>
               Install App
             </motion.button>
@@ -352,7 +346,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
               style={{ background: "rgba(0,0,0,0.35)", color: "white" }}
               whileTap={{ scale: 0.8 }}
               title="Dismiss"
-              onClick={() => setInstallDismissed(true)}
+              onClick={() => setInstallHidden(true)}
             >
               ✕
             </motion.button>
@@ -782,7 +776,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
               type="button"
               onClick={async () => {
                 if (user.role !== "superadmin") {
-                try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+                  await checkoutSession();
                 }
                 signOut({ callbackUrl: "/login" });
               }}
@@ -822,7 +816,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
               {/* Profile */}
               <Link
-                href={`/employees/${user.username}`}
+                href={`/employee/${user.username}`}
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 transition-colors"
                 style={{ borderBottom: "1px solid var(--border)" }}
@@ -934,7 +928,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                   onClick={async () => {
                     setMobileMenuOpen(false);
                     if (user.role !== "superadmin") {
-                      try { await fetch("/api/attendance/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkout" }) }); } catch { /* best effort */ }
+                      await checkoutSession();
                     }
                     signOut({ callbackUrl: "/login" });
                   }}

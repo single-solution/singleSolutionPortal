@@ -1,6 +1,6 @@
 # Single Solution Sync
 
-Automatic employee presence and attendance tracking system. Detects when employees arrive at the office, when they leave, and how much time they spend — all without manual check-in/check-out.
+Automatic employee presence, attendance, leave, and payroll management system. Detects when employees arrive at the office, when they leave, and how much time they spend — all without manual check-in/check-out.
 
 ## Tech Stack
 
@@ -13,25 +13,55 @@ Automatic employee presence and attendance tracking system. Detects when employe
 - **PWA**: Installable, offline-first service worker
 - **Deployment**: Vercel (serverless) or self-hosted Node.js
 
-## Roles
+---
 
-5-level role hierarchy:
+## Authorization Model
 
-```
-superadmin → manager → teamLead → businessDeveloper / developer
-```
+The platform uses a **dynamic, permission-based** authorization system instead of fixed roles.
 
-| Role | Access |
-|------|--------|
-| **SuperAdmin** | Full access to everything. Manages employees, departments, campaigns, tasks, system settings. No personal attendance — purely oversight. |
-| **Manager** | Multi-department scoped. Manages employees, teams, tasks, and attendance across assigned departments. No access to Departments page. |
-| **Team Lead** | Sees employees who report to them + members of teams they lead. Can manage tasks and view attendance for their scope. No access to Departments page. |
-| **Business Developer** | Job pipeline tracking (17 BD-specific fields), personal attendance. |
-| **Developer** | Personal attendance, task status updates, profile management. |
+### Core Concepts
 
-Employees can belong to multiple teams simultaneously. Managers can manage multiple departments. Team Leads manage the teams they're assigned to lead.
+**Designations** are named titles (e.g., "Manager", "QA Lead", "Developer") with 50 configurable default permission toggles across 10 categories: Employees, Members, Departments, Teams, Tasks, Campaigns, Attendance, Leaves, Payroll, and System.
 
-**Campaigns** replace the old standalone Teams page — use them to label initiatives that span one or more departments and specific people.
+**Memberships** link a User to a Department and optional Team with a Designation. Permissions are copied from the Designation defaults but are fully customizable per assignment — two "QA Leads" in different departments can have completely different permissions.
+
+**Reporting Chain** — each Membership has a `reportsTo` field defining who manages whom in each context. Write actions (edit, delete, toggle) are blocked against anyone above you in the chain.
+
+**SuperAdmin** — a system-wide boolean flag (`isSuperAdmin`) that bypasses all permission and reporting chain checks. Multiple users can be SuperAdmin.
+
+### Pre-seeded Designations
+
+| Designation | Access Level |
+|-------------|-------------|
+| **Employee** | All 50 permissions OFF. Personal access only (own profile, attendance, tasks, leave requests, payslips). |
+| **Team Lead** | View employees, teams, tasks, campaigns, attendance. Create/edit/reassign tasks. |
+| **Manager** | All of Team Lead plus: create/edit employees, manage teams, approve leaves, view payroll, export attendance. |
+| **Admin** | All 50 permissions ON within assigned scope (still bound by reporting chain for write actions). |
+
+SuperAdmins can create additional designations with any combination of defaults from the Designations management page.
+
+### Two-Check Security
+
+Every action uses server-side enforcement:
+1. **Permission check** — Does the user have the relevant permission toggled ON in their Membership?
+2. **Reporting chain check** (write actions only) — Is the target below the user in the `reportsTo` chain?
+
+SuperAdmin bypasses both checks. The client never decides access — it only reflects what the API allows.
+
+---
+
+## Navigation
+
+| Page | Description |
+|------|-------------|
+| **Overview** (`/`) | Real-time dashboard with team status, campaigns, tasks |
+| **Workspace** (`/workspace`) | Unified Campaigns + Tasks + Updates hub |
+| **Organization** (`/organization`) | Unified Employees + Departments + Teams management |
+| **Insights Desk** (`/insights-desk`) | Attendance + Calendar + Leave Management + Payroll |
+| **Settings** (`/settings`) | Profile, security, system configuration |
+| **Roles** (`/designations`) | Designation management (SuperAdmin only) |
+
+Employee detail pages use singular routes: `/employee/[slug]` with tabbed sections for Overview, Attendance, Profile, Activity, Leaves, and Payroll.
 
 ---
 
@@ -39,118 +69,120 @@ Employees can belong to multiple teams simultaneously. Managers can manage multi
 
 ### Automatic Attendance Tracking
 
-The core feature. Uses a **heartbeat model** — no manual check-in/check-out required.
+Uses a **heartbeat model** — no manual check-in/check-out required.
 
-- Employee opens the app on desktop → session starts automatically
+- Employee opens the app on desktop — session starts automatically
 - A heartbeat pings the server every 30 seconds with GPS coordinates
-- If the heartbeat stops for 3+ minutes (laptop closed, crash, etc.), the session is auto-closed
+- If the heartbeat stops for 3+ minutes (laptop closed, crash), the session auto-closes
 - Mobile devices are read-only — they display synced data but never create sessions
-- Only one active session per user at any time (prevents hour inflation)
-- Sleep/wake is handled gracefully — old session closes at last heartbeat, new session starts fresh
+- Only one active session per user at any time
+- Sleep/wake handled gracefully — old session closes at last heartbeat, new session starts fresh
 - Idle detection: 1hr of inactivity triggers nudge toasts, then pauses the timer with an overlay
 
 **Office Detection:**
 - GPS coordinates compared against configurable office geofence (Haversine formula)
 - Tracks office vs remote time separately with entry/exit segments
-- Works with Wi-Fi triangulation on laptops (not phone GPS)
-- Best-effort: if geo is denied, the session still works
+- Coordinates displayed in detailed attendance view with Google Maps links
 
 **Anti-Spoofing (4 layers):**
 1. Accuracy zero detection (fake GPS extensions)
 2. Teleportation detection (impossible movement speed between heartbeats)
 3. Round coordinate detection (crude manual entries)
-4. Zero variance (disabled — incompatible with Wi-Fi positioning)
-- When flagged: timer pauses, employee sees a warning with "Re-check Location" option
-- Two-tier severity: Warning (≤2 flags/30d) vs Violation (>2 flags, pauses timer)
-- Does not lock out employees — lets them self-correct
+4. Two-tier severity: Warning (≤2 flags/30d) vs Violation (>2 flags, pauses timer)
+
+**Dual Lateness Tracking:**
+- "Late to work" — when the employee first started any session vs shift deadline
+- "Late to office" — when the employee physically arrived at the office vs shift deadline
+- Tracked independently so remote-on-time but office-late employees show both statuses
 
 **Day Boundary:**
 - Attendance day starts at 6 AM, not midnight
 - Work done between midnight–6 AM counts toward the previous day
 - All date math is timezone-aware (configurable, defaults to Asia/Karachi)
 
-**Dual Lateness Tracking:**
-- "Late to work" — when the employee first started any session (office or remote) vs shift deadline
-- "Late to office" — when the employee physically arrived at the office vs shift deadline
-- These are tracked independently, so a remote-on-time but office-late employee shows both statuses
-
-**Timer Pill:**
-- Floating pill at the bottom of the screen showing live elapsed time and today's total
-- Color-coded: green (office), blue (remote), red (flagged), gray (offline)
-
 ### Dashboard
 
-Real-time overview for each role:
+Real-time overview for each authorization level:
 
-- **SuperAdmin/Manager/Team Lead**: Welcome greeting with live status counts (In Office, Remote, Late, Absent) → Team Status grid with employee cards showing clock in/out, hours, shift progress, office/remote breakdown → Active Campaigns → Task Checklist
-- **Developer/BD**: Personal overview with clock in/out times, office/remote split, shift progress bar → Weekly strip → Monthly summary
+- **Admin/Manager/Team Lead**: Welcome greeting with live status counts (In Office, Remote, Late, Absent) → Team Status grid with employee cards → Active Campaigns → Task Checklist
+- **Employee/BD**: Personal overview with clock in/out times, office/remote split, shift progress bar → Weekly strip → Monthly summary
 
-Each section loads independently with its own skeleton — no global loading gate. Manual refresh buttons on each section; Socket.IO pushes updates when enabled.
+Each section loads independently with its own skeleton. Department scope filter and group-by toggles (Flat / By Manager / By Department) for admin roles.
 
-**Scope Strip**: SuperAdmin and Manager see a department filter strip on Dashboard, Employees, and Attendance — only if they have access to 2+ departments.
+### Organization Management
 
-**View Groups**: "Group by" toggle (Flat / By Manager / By Department) on Dashboard and Employees page.
+Unified page for managing employees, departments, and teams:
 
-### Employee Management
+- **Org tree sidebar** with department → team → employee hierarchy
+- **Context views** that change based on selection (department overview, team members, unassigned employees)
+- Employee cards with live status, designation badges, reporting chain
+- Assignment modal for adding employees to departments/teams with designation and custom permissions
+- Search, view mode toggles (Tree / Flat / Card Grid)
 
-- Full CRUD with role-based access control
-- Employee cards with live status, hours, shift progress, tasks/campaigns
-- Click any card → rich detail page with profile, today's KPIs, activity timeline, weekly/monthly stats
-- Multi-department manager assignment via toggle chips
-- Shift configuration per employee (type, hours, working days, break, grace period)
-- Business Developer fields (17 additional pipeline fields)
-- Quick active/inactive toggle with optimistic UI (deactivated cards stay visible but dimmed)
-- Profile image upload, welcome email on creation
-- Self-edit prevented server-side — employees manage their own profile under Settings only
+### Workspace
 
-### Department Management (SuperAdmin Only)
+Unified page for campaigns, tasks, and activity:
 
-- Department CRUD with parent hierarchy support
-- Inline add/edit within cards
-- Manager assignment per department
-- Employee and team count display
+- **Campaigns**: Grid of campaign cards with status lifecycle (Active → Paused → Completed / Cancelled), tagged entities, task progress bars. Status filter pills and search.
+- **Tasks**: Task list with priority (Low/Medium/High/Urgent), status, deadline. Filter by status/priority, group by Campaign/Assignee/Status.
+- **Updates**: Activity feed with user avatars, action descriptions, timestamps. Auto-refresh on visibility.
 
-### Campaign / Project Tracking
+### Insights Desk
 
-- Track initiatives across departments and people
-- Lifecycle statuses: Active → Paused → Completed / Cancelled
-- Tag employees, departments, and teams to any campaign
-- Filter by status, search across names and tagged entities
+Analytics hub with four tabs:
 
-### Task Management
+- **Attendance**: Aggregate team mode and individual employee mode with calendar, session timeline, monthly stats, employee overview grid. Department scope filter and group-by toggles.
+- **Calendar**: Combined view showing attendance + leaves + holidays (coming soon).
+- **Leaves**: Leave request form, approval queue, balance tracking. Employees request future-only leaves; managers approve/reject; SuperAdmin can correct past records.
+- **Payroll**: Payroll configuration, holiday management, payslip generation, and payslip table with finalize/pay actions (SuperAdmin). Employees see only their own payslips.
 
-- Priority-based assignment (Low / Medium / High / Urgent) with deadlines
-- Admins create and reassign; assignees update status only
-- Status flow: Pending → In Progress → Completed / Cancelled
+### Leave Management
 
-### Attendance Page
+- Leave types: Annual, Sick, Casual, Unpaid, Maternity, Paternity, Bereavement, Other
+- Per-employee annual balance allocation (configurable per year)
+- Balance auto-deducted on approval, restored on rejection/cancellation
+- Past-date leave corrections are SuperAdmin-only
+- Manager+ approval workflow with review notes
 
-- **Aggregate mode**: Select "All Employees" to see team-wide monthly stats, pick a date to see everyone's status for that day
-- **Individual mode**: Click an employee pill to see their calendar with color-coded dots, click a day for detailed breakdown (times, sessions, timeline)
-- **Employee Overview**: Grid of monthly summary cards per employee (attendance %, hours, late days, on-time %)
-- Month navigation, department scope filter, group-by toggles
-- Self-exclusion enforced server-side — "My Attendance" pill for self-view
+### Payroll System
+
+- Configurable payroll settings: working days/month, late threshold, penalties, overtime multiplier, currency, pay day
+- Holiday calendar management
+- Auto-generation of monthly payslips from attendance data
+- Calculations: base salary + allowances + overtime − absence deductions − late penalties = net pay
+- Three-stage status: Draft → Finalized → Paid
+- Per-employee salary field on the User model
+
+### Employee Detail Page
+
+Comprehensive employee hub at `/employee/[slug]` with tabbed sections:
+
+- **Overview**: Today's attendance summary, active tasks/campaigns, memberships
+- **Attendance**: Monthly calendar with color-coded dots, monthly stats
+- **Profile**: Personal details, department/team info, shift configuration
+- **Activity**: Recent activity log, task list
+- **Leaves**: Leave balance and history (placeholder)
+- **Payroll**: Salary and payslip info (placeholder)
 
 ### Hierarchy Ping System
 
 Peer-to-peer messaging within reporting chains:
-- SuperAdmin can ping anyone; Manager pings their department; Team Lead pings reports + manager; Employee pings manager/lead + teammates
+- SuperAdmin can ping anyone; Manager pings their department; Team Lead pings reports + manager
 - Signal-wave icon in header with unread badge and dropdown inbox
 - Quick-ping button on dashboard employee cards
-- Non-admin roles see their manager's live status with a one-tap ping button
 
 ### Learning Guide (Onboarding)
 
 - **Welcome modal**: 4-slide overview shown on first login (replayable anytime)
-- **Page tours**: Each major page has a spotlight tour that highlights key UI elements with explanations — auto-triggers on first visit
-- **Help button**: Question-mark icon in header to replay the welcome tour or current page guide
+- **Page tours**: Each page has a spotlight tour that highlights key UI elements with explanations — auto-triggers on first visit. Tours for: Dashboard, Organization, Workspace, Insights Desk, Attendance, Settings
+- **Help button**: Question-mark icon in header to replay tours
 - Progress tracked in database — syncs across devices
 
 ### Activity Log & Notifications
 
-- Every CRUD action is logged with role-hierarchical visibility
-- SuperAdmin sees all; Manager sees their department scope; Team Lead sees their teams; Employees see logs where they're targeted
+- Every CRUD action is logged with scope-based visibility
 - Bell icon with unread badge, "Mark all read", cross-device sync
+- Security events with severity badges (Warning / Violation) and location links
 - Clickable entries navigate to relevant pages
 
 ### Settings & Configuration
@@ -166,22 +198,19 @@ Peer-to-peer messaging within reporting chains:
 - bcryptjs password hashing
 - Token-based password reset (SHA-256, 1hr expiry)
 - Rate limiting (5 attempts / 15 min)
-- IDOR protection (role + department scoping on all APIs)
-- Server-side route guards in middleware
+- Zero-trust: all permission checks are server-side via `getVerifiedSession()` + `hasPermission()` / `canActOn()`
+- Membership-scoped MongoDB queries — APIs only return data the user is authorized to see
 - Self-edit prevention on employee API
+- Server-side route guards in middleware with legacy URL redirects
 
-### PWA & Offline
+### PWA & Mobile
 
 - Installable as a native app (manifest + service worker)
 - `sendBeacon` for best-effort check-out on tab close
 - Cache-first + stale-while-revalidate strategy
-
-### Mobile UX
-
 - App-sized fonts and spacing on mobile
 - Hamburger menu with profile, theme, pings, notifications, settings
-- Bottom dock as primary navigation
-- All content visible (no hidden-on-mobile patterns)
+- Bottom dock as primary navigation with frosted glass effect
 
 ---
 
@@ -198,9 +227,9 @@ npm run dev
 npm run dev:next
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and log in with your admin account. Create employees, departments, and tasks from the dashboard — all accounts are managed through the app itself (no seeding required).
+Open [http://localhost:3000](http://localhost:3000) and log in with your admin account. Create employees, departments, and tasks from the dashboard.
 
-**SuperAdmin can create other SuperAdmins** — requires confirming the requesting admin's own password for security.
+**First-time setup**: Run the auth migration at `POST /api/migrate/auth` to create default designations and convert existing user roles to the new Membership model.
 
 ### Environment Variables
 
@@ -227,97 +256,91 @@ SMTP_FROM=your-email@gmail.com
 
 ```
 app/
-  layout.tsx               Root layout
-  globals.css              Global styles and design tokens
-  login/                   Login page
-  forgot-password/         Password reset request
-  reset-password/          Reset password with strength meter
-  preview/                 Public demo/preview
-  (dashboard)/             Route group — authenticated pages
-    layout.tsx             Dashboard layout wrapper
-    Providers.tsx          Client providers (SessionProvider)
-    page.tsx               Dashboard entry point
-    DashboardHome.tsx      Real-time dashboard
-    DashboardShell.tsx     Header, dock nav, theme, notifications
-    SessionTracker.tsx     Heartbeat attendance tracker
-    employees/
-      page.tsx             Employee list
-      loading.tsx          Skeleton loader
-      EmployeeForm.tsx     Create/edit form
-      new/page.tsx         Create employee
-      [slug]/page.tsx      Employee detail (by username or ID)
-      [slug]/edit/page.tsx Edit employee
-    departments/
-      page.tsx             Department management
-      loading.tsx          Skeleton loader
-    teams/
-      page.tsx             Team management
-      loading.tsx          Skeleton loader
-    campaigns/
-      page.tsx             Campaign tracking
-      loading.tsx          Skeleton loader
-    tasks/
-      page.tsx             Task board
-      loading.tsx          Skeleton loader
-    attendance/page.tsx    Calendar + detail + team overview
-    settings/
-      page.tsx             Profile, security, system config
-      loading.tsx          Skeleton loader
+  (dashboard)/
+    page.tsx                Dashboard entry point
+    DashboardHome.tsx       Real-time dashboard (decomposed into sub-components)
+    DashboardShell.tsx      Header, dock nav, theme, notifications
+    SessionTracker.tsx      Heartbeat attendance tracker
+    organization/           Unified employees + departments + teams management
+    workspace/              Unified campaigns + tasks + updates
+    insights-desk/          Attendance + calendar + leaves + payroll tabs
+      LeavesTab.tsx         Leave management UI
+      PayrollTab.tsx        Payroll management UI
+    employee/[slug]/        Employee detail hub (singular route)
+      EmployeeDetailHub.tsx Tabbed employee profile
+    attendance/             Attendance tracking page
+    settings/               Profile, security, system config
+      SettingsProfile.tsx   Profile sub-component
+      SettingsSecurity.tsx  Security sub-component
+      SettingsSystem.tsx    System settings sub-component
+    designations/           Designation management (SuperAdmin)
     components/
-      SpotlightTour.tsx    Guided page tour overlay
-      WelcomeGuide.tsx     First-login welcome modal
-      ConfirmDialog.tsx    Reusable confirm/danger dialog
-      DataTable.tsx        Sortable data table + StatusToggle
-      EmployeeCard.tsx     Unified employee card component
-      ScopeStrip.tsx       Department scope filter
-      Portal.tsx           React Portal for modals
+      EmployeeCard.tsx      Unified employee card component
+      SpotlightTour.tsx     Guided page tour overlay
+      WelcomeGuide.tsx      First-login welcome modal
+      ScopeStrip.tsx        Department scope filter
+      CardSkeleton.tsx      Generic card loading skeleton
+      GridSkeleton.tsx      Grid of card skeletons
+      StatSkeleton.tsx      Stat card loading skeleton
+      Overlay.tsx           Shared fullscreen overlay
   api/
-    auth/                  NextAuth + password reset
-    employees/             Employee CRUD + dropdown
-    departments/           Department CRUD (SuperAdmin write)
-    teams/                 Team CRUD
-    campaigns/             Campaign CRUD + entity tagging
-    tasks/                 Task CRUD
-    attendance/            Daily/monthly records + session + presence
-    guide/                 Onboarding tour progress
-    ping/                  Peer-to-peer pings
-    activity-logs/         Activity log entries
-    settings/              System settings (SuperAdmin)
-    user/last-seen/        Notification read sync
-    profile/               Self profile + password
-    test-email/            SMTP testing
+    employees/              Employee CRUD + dropdown
+    departments/            Department CRUD
+    teams/                  Team CRUD
+    campaigns/              Campaign CRUD + entity tagging
+    tasks/                  Task CRUD
+    attendance/             Daily/monthly records + session + presence
+    designations/           Designation CRUD (SuperAdmin)
+    memberships/            Membership CRUD (user-department-team assignments)
+    leaves/                 Leave request CRUD + balance
+    payroll/                Config, holidays, generate, payslips
+    migrate/auth/           Migration from old roles to new authorization model
+    guide/                  Onboarding tour progress
+    ping/                   Peer-to-peer pings
+    activity-logs/          Activity log entries
+    settings/               System settings
+    profile/                Self profile + password
 lib/
-  auth.ts                  NextAuth config
-  auth.config.ts           Middleware route guards
-  permissions.ts           Role verification + scoping helpers
-  db.ts                    MongoDB connection
-  helpers.ts               Response utilities
-  mail.ts                  Email templates + sending
-  useQuery.ts              Client-side cache (stale-while-revalidate)
-  useGuide.tsx             Onboarding tour provider
-  tourConfigs.ts           Tour step definitions
-  socket.ts                Server-side Socket.IO emitter
-  useSocket.ts             Client-side Socket.IO hook
-  activityLogger.ts        Activity logging utility
-  geo.ts                   Geofence + anti-spoofing
-  tz.ts                    Timezone-aware date math
-  dayBoundary.ts           6 AM day boundary logic
-  rateLimit.ts             Rate limiter
-  motion.ts                Animation presets
+  auth.ts                   NextAuth config (JWT + isSuperAdmin)
+  auth.config.ts            Middleware route guards + legacy redirects
+  permissions.ts            Permission checking (hasPermission, canActOn, isAboveInChain)
+  clientPermissions.ts      Client-side role helpers
+  types.ts                  Shared TypeScript interfaces
+  motion.ts                 Centralized Framer Motion variants
+  useQuery.ts               Client-side cache (stale-while-revalidate)
+  useGuide.tsx              Onboarding tour provider
+  tourConfigs.ts            Tour step definitions for all pages
+  payrollUtils.ts           Payroll calculation helpers
+  db.ts                     MongoDB connection
+  helpers.ts                Response utilities
+  mail.ts                   Email templates + sending
+  socket.ts                 Server-side Socket.IO emitter
+  useSocket.ts              Client-side Socket.IO hook
+  activityLogger.ts         Activity logging utility
+  geo.ts                    Geofence + anti-spoofing
+  tz.ts                     Timezone-aware date math
+  dayBoundary.ts            6 AM day boundary logic
+  rateLimit.ts              Rate limiter
   models/
-    User.ts                User (5 roles, shifts, teams, reportsTo)
-    Department.ts          Department with manager + parent hierarchy
-    Team.ts                Team (department, lead)
-    Campaign.ts            Campaign (status lifecycle, tagged entities)
-    Ping.ts                Ping messages
-    ActivitySession.ts     Work session with office segments + fraud detection
-    ActivityTask.ts        Task (priority, deadline, status)
-    DailyAttendance.ts     Daily attendance rollup
+    User.ts                 User (isSuperAdmin, salary, guideTours)
+    Designation.ts          Permission template (50 toggles, 10 categories)
+    Membership.ts           User-department-team assignment with custom permissions
+    Department.ts           Department with parent hierarchy
+    Team.ts                 Team within a department
+    Campaign.ts             Campaign (status lifecycle, tagged entities)
+    ActivityTask.ts         Task (priority, deadline, status)
+    Leave.ts                Leave request (type, status, review)
+    LeaveBalance.ts         Per-user annual leave allocations
+    PayrollConfig.ts        Payroll system configuration
+    Holiday.ts              Holiday calendar entries
+    Payslip.ts              Monthly payslip records
+    Ping.ts                 Ping messages
+    ActivitySession.ts      Work session with office segments + fraud detection
+    DailyAttendance.ts      Daily attendance rollup
     MonthlyAttendanceStats.ts Monthly aggregate stats
-    ActivityLog.ts         Activity log entries
-    SystemSettings.ts      Global config
-server.ts                  Custom server with Socket.IO
-middleware.ts              Auth + route protection
+    ActivityLog.ts          Activity log entries
+    SystemSettings.ts       Global config
+middleware.ts               Auth + route protection + legacy redirects
 ```
 
 ## License

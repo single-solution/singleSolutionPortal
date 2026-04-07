@@ -17,7 +17,7 @@ export async function GET() {
   await connectDB();
 
   let filter: Record<string, unknown> = {
-    userRole: { $ne: "superadmin" },
+    isSuperAdmin: { $ne: true },
   };
 
   if (!isSuperAdmin(actor)) filter.isActive = true;

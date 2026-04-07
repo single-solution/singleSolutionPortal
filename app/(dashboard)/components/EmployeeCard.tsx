@@ -298,7 +298,7 @@ export function EmployeeCard({
   const inner = (
     <>
       <Link
-        href={`/employees/${emp.username ?? emp._id}`}
+        href={`/employee/${emp.username ?? emp._id}`}
         className={`absolute inset-0 z-0 ${embedded ? "" : "rounded-[var(--radius)]"}`}
         aria-label={`View ${emp.firstName} ${emp.lastName}`}
       />
