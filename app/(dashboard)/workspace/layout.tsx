@@ -31,7 +31,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   useEffect(() => { registerTour("workspace", workspaceTour); }, [registerTour]);
 
   return (
-    <div className="flex flex-col gap-0 pb-24">
+    <div className="mx-auto max-w-[1600px] flex flex-col gap-0 pb-24">
       <div className="mb-4">
         <h1 className="text-title">Workspace</h1>
         <p className="text-subhead" style={{ color: "var(--fg-secondary)" }}>

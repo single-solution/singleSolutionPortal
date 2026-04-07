@@ -116,13 +116,13 @@ Each section loads independently with its own skeleton. Department scope filter 
 
 Unified page for managing employees, departments, and teams:
 
-- **Org tree sidebar** with department → team hierarchy; "All Employees" as default overview
+- **Org tree sidebar** with department → team hierarchy; "All Employees" with inline count as default overview
 - **Designations panel** in sidebar (SuperAdmin only) — create, edit, toggle designations as simple titles
-- **Overview mode** shows all employees with sort (Name / Email / Role) and group (All / Department / Team) controls
+- **Default Tree view** — visual org chart showing Department → Team → Employee hierarchy with connecting lines and avatar pills. Switch between Tree / Cards / Flat views via toggle above the search bar
+- **Controls row** above search: view toggle (left) + sort (Name / Email / Role) + group (All / Dept / Team) on the right. Search bar with inline "Add Employee" button
 - **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
-- Search, view mode toggles (Tree / Flat / Card Grid)
-- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, role, shift config. Edit modal adds: department, team, designation (with inline creation), reports-to, managed departments, password change
+- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, designation (with inline creation), shift config. Edit modal adds: department, team, reports-to, managed departments, password change. No fixed role field — authorization is entirely designation-based
 
 ### Workspace
 

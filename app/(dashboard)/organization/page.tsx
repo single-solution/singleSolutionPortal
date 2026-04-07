@@ -179,7 +179,7 @@ export default function OrganizationPage() {
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(() => new Set());
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = useState<ViewMode>("tree");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
 
@@ -546,7 +546,10 @@ export default function OrganizationPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
         </span>
-        All Employees
+        <span className="flex-1 text-left">All Employees</span>
+        <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+          {empList.length}
+        </span>
       </button>
 
       {visibleDepts.map((dept) => {
@@ -695,48 +698,16 @@ export default function OrganizationPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {sessionStatus !== "loading" && canManage && (
-            <motion.button
-              type="button"
-              onClick={openCreateEmployee}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="btn btn-primary btn-sm"
-            >
-              Add Employee
-            </motion.button>
-          )}
-        </div>
+        <div className="flex flex-wrap items-center gap-2" />
       </div>
 
-      {/* Top bar */}
-      <div className="card-xl mb-4 flex flex-col gap-3 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-md">
-            <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search people, departments, teams…"
-              className="input w-full"
-              style={{ paddingLeft: "40px" }}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>View</span>
-            {(["cards", "flat", "tree"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setViewMode(mode)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-all ${viewMode === mode ? "shadow-sm" : ""}`}
-                style={viewMode === mode ? { background: "var(--primary)", color: "white" } : { background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}
-              >
+      {/* Controls row: view (left) + sort/group (right) */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>View</span>
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--border-strong)", background: "var(--bg)" }}>
+            {(["tree", "cards", "flat"] as const).map((mode) => (
+              <button key={mode} type="button" onClick={() => setViewMode(mode)} className={`px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${viewMode === mode ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
                 {mode}
               </button>
             ))}
@@ -745,35 +716,43 @@ export default function OrganizationPage() {
 
         {selection.kind === "none" && (
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>Sort</span>
-              {(["name", "email", "role"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSortKey(s)}
-                  className="rounded-lg px-2 py-1 text-[11px] font-medium capitalize transition-all"
-                  style={sortKey === s ? { background: "color-mix(in srgb, var(--primary) 14%, transparent)", color: "var(--primary)" } : { color: "var(--fg-secondary)" }}
-                >
-                  {s}
-                </button>
-              ))}
+              <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--border-strong)", background: "var(--bg)" }}>
+                {(["name", "email", "role"] as const).map((s) => (
+                  <button key={s} type="button" onClick={() => setSortKey(s)} className={`px-2 py-1 rounded-md text-[11px] font-medium capitalize transition-all ${sortKey === s ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>Group</span>
-              {([["none", "All"], ["department", "Dept"], ["team", "Team"]] as const).map(([g, label]) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setGroupBy(g as GroupBy)}
-                  className="rounded-lg px-2 py-1 text-[11px] font-medium transition-all"
-                  style={groupBy === g ? { background: "color-mix(in srgb, var(--teal) 14%, transparent)", color: "var(--teal)" } : { color: "var(--fg-secondary)" }}
-                >
-                  {label}
-                </button>
-              ))}
+              <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--border-strong)", background: "var(--bg)" }}>
+                {([["none", "All"], ["department", "Dept"], ["team", "Team"]] as const).map(([g, label]) => (
+                  <button key={g} type="button" onClick={() => setGroupBy(g as GroupBy)} className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all ${groupBy === g ? "bg-[var(--teal)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Search bar */}
+      <div className="card-xl mb-4 flex items-center gap-3 p-4">
+        <div className="relative w-full flex-1">
+          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, departments, teams…" className="input w-full" style={{ paddingLeft: "40px" }} />
+        </div>
+        {sessionStatus !== "loading" && canManage && (
+          <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            Add Employee
+          </motion.button>
         )}
       </div>
 
@@ -809,33 +788,110 @@ export default function OrganizationPage() {
                 transition={{ duration: 0.25 }}
                 className="space-y-4"
               >
-                {/* Stats row */}
-                <motion.div
-                  className="grid gap-3 sm:grid-cols-3"
-                  variants={staggerContainerFast}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  {[
-                    { label: "Employees", value: loading ? "—" : empList.length, sub: "total people" },
-                    { label: "Departments", value: loading ? "—" : deptList.length, sub: "active org units" },
-                    { label: "Teams", value: loading ? "—" : teamList.length, sub: "across departments" },
-                  ].map((stat, i) => (
-                    <motion.div
-                      key={stat.label}
-                      variants={cardVariants}
-                      custom={i}
-                      className="card-xl rounded-xl p-4"
-                    >
-                      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>{stat.label}</p>
-                      <p className="mt-1 text-2xl font-bold tabular-nums" style={{ color: "var(--fg)" }}>{stat.value}</p>
-                      <p className="mt-0.5 text-[11px]" style={{ color: "var(--fg-secondary)" }}>{stat.sub}</p>
-                    </motion.div>
-                  ))}
-                </motion.div>
-
-                {/* Grouped or flat employee list */}
-                {groupedEmployees ? (
+                {/* Overview content */}
+                {viewMode === "tree" ? (
+                  <div className="space-y-6">
+                    {deptList.length === 0 && !loading ? (
+                      <p className="p-6 text-sm" style={{ color: "var(--fg-secondary)" }}>No departments yet. Create one to start.</p>
+                    ) : (
+                      deptList.map((dept) => {
+                        const dTeams = teamsByDept.get(dept._id) ?? [];
+                        const deptEmps = empList.filter((e) => idStr(e.department?._id) === dept._id);
+                        return (
+                          <div key={dept._id} className="card-xl overflow-hidden">
+                            <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--primary) 5%, transparent)" }}>
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--primary)", color: "white" }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{dept.title}</p>
+                                <p className="text-[11px] tabular-nums" style={{ color: "var(--fg-secondary)" }}>{dept.employeeCount} people · {dTeams.length} teams</p>
+                              </div>
+                            </div>
+                            <div className="p-4">
+                              {dTeams.length > 0 ? (
+                                <div className="space-y-3">
+                                  {dTeams.map((team) => {
+                                    const tMembers = deptEmps.filter((e) => (e.teams ?? []).some((t) => idStr(t._id) === team._id));
+                                    return (
+                                      <div key={team._id} className="relative ml-4 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--bg-grouped)" }}>
+                                        <div className="absolute -left-4 top-4 w-4 border-b border-l rounded-bl-md" style={{ borderColor: "var(--border)", height: "1px" }} />
+                                        <p className="text-xs font-semibold flex items-center gap-2" style={{ color: "var(--fg)" }}>
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                          {team.name}
+                                          <span className="text-[10px] font-normal tabular-nums" style={{ color: "var(--fg-tertiary)" }}>({tMembers.length})</span>
+                                        </p>
+                                        {tMembers.length > 0 && (
+                                          <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {tMembers.map((emp) => (
+                                              <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--primary)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>
+                                                <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--primary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
+                                                {emp.about.firstName} {emp.about.lastName}
+                                              </Link>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                  {(() => {
+                                    const teamIds = new Set(dTeams.map((t) => t._id));
+                                    const noTeam = deptEmps.filter((e) => !(e.teams ?? []).some((t) => teamIds.has(idStr(t._id))));
+                                    if (noTeam.length === 0) return null;
+                                    return (
+                                      <div className="ml-4 rounded-lg border border-dashed p-3" style={{ borderColor: "var(--border)" }}>
+                                        <p className="text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>No team ({noTeam.length})</p>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                          {noTeam.map((emp) => (
+                                            <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--primary)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
+                                              <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--fg-tertiary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
+                                              {emp.about.firstName} {emp.about.lastName}
+                                            </Link>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {deptEmps.map((emp) => (
+                                    <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--primary)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>
+                                      <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--primary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
+                                      {emp.about.firstName} {emp.about.lastName}
+                                    </Link>
+                                  ))}
+                                  {deptEmps.length === 0 && <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No employees</p>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                    {unassignedCount > 0 && (
+                      <div className="card-xl overflow-hidden">
+                        <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--amber) 5%, transparent)" }}>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--amber)", color: "white" }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>Unassigned</p>
+                            <p className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>{unassignedCount} people without a department</p>
+                          </div>
+                        </div>
+                        <div className="p-4 flex flex-wrap gap-1.5">
+                          {unassignedEmployees.map((emp) => (
+                            <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--amber)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
+                              <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--fg-tertiary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
+                              {emp.about.firstName} {emp.about.lastName}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : groupedEmployees ? (
                   <div className="space-y-4">
                     {groupedEmployees.map((g) => (
                       <div key={g.key}>
@@ -981,10 +1037,26 @@ export default function OrganizationPage() {
                     <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Email</label><input type="email" value={empForm.email} onChange={(e) => setEmpForm((f) => ({ ...f, email: e.target.value }))} className="input w-full" required disabled={isEditEmp} /></div>
                   </div>
 
-                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Role</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ROLES.map((r) => (<button key={r.value} type="button" onClick={() => setEmpForm((f) => ({ ...f, userRole: r.value }))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.userRole === r.value ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.userRole === r.value ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{r.label}</button>))}
+                  <div>
+                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation</label>
+                    <div className="flex items-center gap-2">
+                      <select value={empDesignation} onChange={(e) => setEmpDesignation(e.target.value)} className="input flex-1">
+                        <option value="">Select or create…</option>
+                        {activeDesignations.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                      </select>
+                      <button type="button" onClick={() => setShowNewDesig(!showNewDesig)} className="btn btn-secondary btn-sm shrink-0 text-xs" style={{ padding: "4px 8px" }}>+ New</button>
                     </div>
+                    {showNewDesig && (
+                      <div className="mt-2 rounded-lg p-2 space-y-1.5" style={{ background: "var(--bg-grouped)" }}>
+                        <input type="text" value={newDesigName} onChange={(e) => setNewDesigName(e.target.value)} placeholder="e.g. Senior Developer" className="input w-full text-xs" />
+                        <div className="flex items-center gap-1.5">
+                          {["#6366f1","#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#06b6d4","#ec4899"].map((c) => (
+                            <button key={c} type="button" onClick={() => setNewDesigColor(c)} className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c, borderColor: newDesigColor === c ? "var(--fg)" : "transparent" }} />
+                          ))}
+                          <motion.button type="button" onClick={createDesignationInline} disabled={creatingDesig || !newDesigName.trim()} whileTap={{ scale: 0.97 }} className="btn btn-primary btn-sm ml-auto text-[10px]" style={{ padding: "2px 8px" }}>{creatingDesig ? "…" : "Create"}</motion.button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {isEditEmp && (
@@ -998,27 +1070,6 @@ export default function OrganizationPage() {
                           <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">{(teams ?? []).filter((t) => !empForm.department || idStr(t.department?._id ?? t.department) === empForm.department).map((t) => (<button key={t._id} type="button" onClick={() => toggleEmpTeam(t._id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.teams.includes(t._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.teams.includes(t._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{t.name}</button>))}</div>
                         </div>
                       )}
-                      <div>
-                        <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation</label>
-                        <div className="flex items-center gap-2">
-                          <select value={empDesignation} onChange={(e) => setEmpDesignation(e.target.value)} className="input flex-1">
-                            <option value="">None</option>
-                            {activeDesignations.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
-                          </select>
-                          <button type="button" onClick={() => setShowNewDesig(!showNewDesig)} className="btn btn-secondary btn-sm shrink-0 text-xs" style={{ padding: "4px 8px" }}>+ New</button>
-                        </div>
-                        {showNewDesig && (
-                          <div className="mt-2 rounded-lg p-2 space-y-1.5" style={{ background: "var(--bg-grouped)" }}>
-                            <input type="text" value={newDesigName} onChange={(e) => setNewDesigName(e.target.value)} placeholder="e.g. Senior Developer" className="input w-full text-xs" />
-                            <div className="flex items-center gap-1.5">
-                              {["#6366f1","#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#06b6d4","#ec4899"].map((c) => (
-                                <button key={c} type="button" onClick={() => setNewDesigColor(c)} className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c, borderColor: newDesigColor === c ? "var(--fg)" : "transparent" }} />
-                              ))}
-                              <motion.button type="button" onClick={createDesignationInline} disabled={creatingDesig || !newDesigName.trim()} whileTap={{ scale: 0.97 }} className="btn btn-primary btn-sm ml-auto text-[10px]" style={{ padding: "2px 8px" }}>{creatingDesig ? "…" : "Create"}</motion.button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
                       {(empForm.userRole === "manager" || empForm.userRole === "teamLead") && (departments ?? []).length > 0 && (
                         <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Managed Departments</label>
                           <div className="flex flex-wrap gap-1.5">{(departments ?? []).map((d) => (<button key={d._id} type="button" onClick={() => toggleEmpManagedDept(d._id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.managedDepartments.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.managedDepartments.includes(d._id) ? { background: "var(--teal)" } : { background: "var(--bg-grouped)" }}>{d.title}</button>))}</div>
