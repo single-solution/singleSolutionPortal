@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMemo, useState, useCallback, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cardHover, cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
+import { Portal } from "../../components/Portal";
 
 /* ─── types ─── */
 
@@ -68,10 +68,55 @@ function NavPill({ active, onClick, children, badge }: { active: boolean; onClic
 
 /* ─── main ─── */
 
+interface SelectOption { _id: string; label: string }
+
 export default function CampaignsPage() {
   const { status: sessionStatus } = useSession();
-  const { data: campaigns, loading: campaignsLoading } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
+  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
   const { data: tasks } = useQuery<Task[]>("/api/tasks", "workspace-tasks");
+  const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "ws-emp-dropdown");
+  const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "ws-dept-dropdown");
+
+  const allEmployees: SelectOption[] = useMemo(() => (employeesRaw ?? []).map((e) => ({ _id: e._id as string, label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}` })), [employeesRaw]);
+  const allDepartments: SelectOption[] = useMemo(() => (deptsRaw ?? []).map((d) => ({ _id: d._id as string, label: d.title as string })), [deptsRaw]);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formDesc, setFormDesc] = useState("");
+  const [formStatus, setFormStatus] = useState<CampaignStatus>("active");
+  const [formStart, setFormStart] = useState("");
+  const [formEnd, setFormEnd] = useState("");
+  const [formBudget, setFormBudget] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+  const [formTagEmployees, setFormTagEmployees] = useState<string[]>([]);
+  const [formTagDepts, setFormTagDepts] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  function openCreate() {
+    setEditingCampaign(null); setFormName(""); setFormDesc(""); setFormStatus("active");
+    setFormStart(""); setFormEnd(""); setFormBudget(""); setFormNotes("");
+    setFormTagEmployees([]); setFormTagDepts([]); setModalOpen(true);
+  }
+  function openEdit(c: Campaign) {
+    setEditingCampaign(c); setFormName(c.name); setFormDesc(c.description ?? ""); setFormStatus(c.status);
+    setFormStart(c.startDate ? c.startDate.slice(0, 10) : ""); setFormEnd(c.endDate ? c.endDate.slice(0, 10) : "");
+    setFormBudget(c.budget ?? ""); setFormNotes(c.notes ?? "");
+    setFormTagEmployees(c.tags.employees.map((e) => e._id)); setFormTagDepts(c.tags.departments.map((d) => d._id));
+    setModalOpen(true);
+  }
+  async function handleSaveCampaign() {
+    if (!formName.trim()) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = { name: formName.trim(), description: formDesc, status: formStatus, startDate: formStart || null, endDate: formEnd || null, budget: formBudget, notes: formNotes, tagEmployees: formTagEmployees, tagDepartments: formTagDepts, tagTeams: editingCampaign ? editingCampaign.tags.teams.map((t) => t._id) : [] };
+      if (editingCampaign) await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      else await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      setModalOpen(false); await refetchCampaigns();
+    } catch { /* ignore */ }
+    setSaving(false);
+  }
+  function toggleArr(arr: string[], item: string): string[] { return arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item]; }
   const campaignList = useMemo(() => campaigns ?? [], [campaigns]);
   const taskList = useMemo(() => tasks ?? [], [tasks]);
 
@@ -188,10 +233,10 @@ export default function CampaignsPage() {
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search campaigns..." className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
         {sessionStatus !== "loading" && (
-          <Link href="/campaigns" className="btn btn-primary btn-sm shrink-0 justify-center sm:justify-start">
+          <button type="button" onClick={openCreate} className="btn btn-primary btn-sm shrink-0 justify-center sm:justify-start">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             New Campaign
-          </Link>
+          </button>
         )}
       </div>
 
@@ -214,7 +259,7 @@ export default function CampaignsPage() {
           <AnimatePresence mode="wait">
             {selectedCampaign ? (
               <motion.div key={`detail-${selectedCampaign._id}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-                <CampaignDetail c={selectedCampaign} taskList={taskList} onBack={() => setSelection({ kind: "status", status: selectedCampaign.status })} />
+                <CampaignDetail c={selectedCampaign} taskList={taskList} onBack={() => setSelection({ kind: "status", status: selectedCampaign.status })} onEdit={() => openEdit(selectedCampaign)} />
               </motion.div>
             ) : (
               <motion.div key="grid" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
@@ -240,6 +285,44 @@ export default function CampaignsPage() {
           </AnimatePresence>
         </div>
       </div>
+
+      <Portal>
+        <AnimatePresence>
+          {modalOpen && (
+            <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
+              <motion.div
+                className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-headline text-lg mb-4">{editingCampaign ? "Edit Campaign" : "New Campaign"}</h2>
+                <div className="space-y-3">
+                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Name</label><input type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Q2 Marketing Push" className="input w-full" autoFocus /></div>
+                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Description</label><textarea value={formDesc} onChange={(e) => setFormDesc(e.target.value)} rows={2} className="input w-full" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Status</label><select value={formStatus} onChange={(e) => setFormStatus(e.target.value as CampaignStatus)} className="input w-full"><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Budget</label><input type="text" value={formBudget} onChange={(e) => setFormBudget(e.target.value)} className="input w-full" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Start</label><input type="date" value={formStart} onChange={(e) => setFormStart(e.target.value)} className="input w-full" /></div>
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>End</label><input type="date" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="input w-full" /></div>
+                  </div>
+                  {allDepartments.length > 0 && (<div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => setFormTagDepts(toggleArr(formTagDepts, d._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${formTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={formTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>)}
+                  {allEmployees.length > 0 && (<div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Employees</label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{allEmployees.map((e) => (<button key={e._id} type="button" onClick={() => setFormTagEmployees(toggleArr(formTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${formTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={formTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>)}
+                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Notes</label><textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={2} className="input w-full" /></div>
+                </div>
+                <div className="flex gap-2 mt-5">
+                  <motion.button type="button" onClick={handleSaveCampaign} disabled={saving || !formName.trim()} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{saving ? "Saving…" : editingCampaign ? "Update" : "Create"}</motion.button>
+                  <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Portal>
     </div>
   );
 }
@@ -282,17 +365,23 @@ function CampaignCard({ c, i, taskList, onSelect }: { c: Campaign; i: number; ta
 
 /* ─── campaign detail ─── */
 
-function CampaignDetail({ c, taskList, onBack }: { c: Campaign; taskList: Task[]; onBack: () => void }) {
+function CampaignDetail({ c, taskList, onBack, onEdit }: { c: Campaign; taskList: Task[]; onBack: () => void; onEdit?: () => void }) {
   const sc = STATUS_CONFIG[c.status];
   const linked = tasksLinkedToCampaign(c, taskList);
   const { done, total, pct } = campaignProgress(c, taskList);
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-3">
       <button type="button" onClick={onBack} className="flex items-center gap-1 text-xs font-medium transition-colors hover:underline" style={{ color: "var(--primary)" }}>
         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         Back to campaigns
       </button>
+      {onEdit && <button type="button" onClick={onEdit} className="flex items-center gap-1 text-xs font-medium transition-colors hover:underline" style={{ color: "var(--fg-secondary)" }}>
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+        Edit
+      </button>}
+      </div>
 
       <div className="card-xl p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-2">

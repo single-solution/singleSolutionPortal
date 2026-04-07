@@ -29,17 +29,11 @@ The platform uses a **dynamic, permission-based** authorization system instead o
 
 **SuperAdmin** — a system-wide boolean flag (`isSuperAdmin`) that bypasses all permission and reporting chain checks. Multiple users can be SuperAdmin.
 
-### Pre-seeded Designations
+### Designations
 
-| Designation | Access Level |
-|-------------|-------------|
-| **Employee** | Personal access only (own profile, attendance, tasks, leave requests, payslips). |
-| **Developer** / **Senior Developer** / **Business Developer** / **Intern** | Same as Employee base access. |
-| **Team Lead** | View employees, teams, tasks, campaigns, attendance. Create/edit/reassign tasks. |
-| **Manager** / **HR** | All of Team Lead plus: create/edit employees, manage teams, approve leaves, view payroll, export attendance. |
-| **Admin** | All permissions ON within assigned scope (still bound by reporting chain for write actions). |
+Designations are created **on-demand** — there are no pre-seeded roles. When assigning an employee to a department or team, you can select from existing designations or create a new one inline (just a name and color). The designation is saved on the Membership, not on the employee directly.
 
-These are auto-seeded on first access. SuperAdmins can create, rename, or deactivate designations from the Organization page sidebar.
+SuperAdmins can also manage designations from the Organization page sidebar (create, edit, toggle active, delete).
 
 ### Two-Check Security
 
@@ -128,14 +122,14 @@ Unified page for managing employees, departments, and teams:
 - **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
 - Search, view mode toggles (Tree / Flat / Card Grid)
-- Simplified employee creation — only name, email, designation, and shift. Department/team/reporting assigned later from Organization page
+- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, role, shift config. Edit modal adds: department, team, designation (with inline creation), reports-to, managed departments, password change
 
 ### Workspace
 
 Three sub-pages under `/workspace/`, each with a persistent tab bar:
 
-- **Campaigns** (`/workspace/campaigns`): Sidebar tree grouped by status (Active / Paused / Completed / Cancelled) with individual campaign names. Click a campaign to open its detail view with stats, progress bar, tags, and a linked tasks table. Card grid for browsing. Mobile uses horizontal pills.
-- **Tasks** (`/workspace/tasks`): Sidebar with grouping modes (All Tasks, By Status, By Assignee, By Campaign, By Priority) and status filter with counts. Clean task table with priority/status/deadline columns.
+- **Campaigns** (`/workspace/campaigns`): Sidebar tree grouped by status (Active / Paused / Completed / Cancelled) with individual campaign names. Click a campaign to open its detail view with stats, progress bar, tags, and a linked tasks table. Card grid for browsing. Mobile uses horizontal pills. Create/edit campaigns via center modal — no page navigation required.
+- **Tasks** (`/workspace/tasks`): Sidebar with grouping modes (All Tasks, By Status, By Assignee, By Campaign, By Priority) and status filter with counts. Clean task table with priority/status/deadline columns. Create/edit tasks via center modal — no page navigation required.
 - **Updates** (`/workspace/updates`): Activity timeline with user avatars, action descriptions, timestamps. Auto-refresh on tab/page visibility.
 
 ### Insights Desk
@@ -240,7 +234,7 @@ npm run dev:next
 
 Open [http://localhost:3000](http://localhost:3000) and log in with your admin account. Create employees, departments, and tasks from the dashboard.
 
-**First-time setup**: Default designations (Employee, Developer, Team Lead, Manager, Admin, HR, etc.) are auto-seeded when a SuperAdmin first opens the Organization page. Optionally run `POST /api/migrate/auth` to convert existing user roles to the new Membership model.
+**First-time setup**: Create your first employee from the Organization page. Designations are created on-demand when assigning team members — no pre-seeded data required. Optionally run `POST /api/migrate/auth` to convert existing user roles to the new Membership model.
 
 ### Environment Variables
 

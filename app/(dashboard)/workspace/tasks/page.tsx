@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMemo, useState, useCallback, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery } from "@/lib/useQuery";
+import { Portal } from "../../components/Portal";
 
 /* ─── types ─── */
 
@@ -58,14 +58,44 @@ export default function TasksPage() {
   const role = session?.user?.role;
   const isAdmin = role === "superadmin" || role === "manager" || role === "teamLead";
 
-  const { data: tasks, loading } = useQuery<Task[]>("/api/tasks", "workspace-tasks");
+  const { data: tasks, loading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "workspace-tasks");
   const { data: campaigns } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
+  const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "ws-task-emp");
   const taskList = useMemo(() => tasks ?? [], [tasks]);
   const campaignList = useMemo(() => campaigns ?? [], [campaigns]);
+  const assigneeOptions = useMemo(() => (employeesRaw ?? []).filter((e) => (e as { userRole?: string }).userRole !== "superadmin").map((e) => ({ _id: e._id as string, label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}` })), [employeesRaw]);
 
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
+
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [fTitle, setFTitle] = useState("");
+  const [fDesc, setFDesc] = useState("");
+  const [fAssignee, setFAssignee] = useState("");
+  const [fPriority, setFPriority] = useState("medium");
+  const [fDeadline, setFDeadline] = useState("");
+  const [fStatus, setFStatus] = useState("pending");
+  const [taskSaving, setTaskSaving] = useState(false);
+
+  function openCreateTask() {
+    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignee(""); setFPriority("medium"); setFDeadline(""); setFStatus("pending"); setTaskModalOpen(true);
+  }
+  function openEditTask(t: Task) {
+    setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignee(t.assignedTo?._id ?? ""); setFPriority(t.priority); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : ""); setFStatus(t.status); setTaskModalOpen(true);
+  }
+  async function handleSaveTask() {
+    if (!fTitle.trim()) return;
+    setTaskSaving(true);
+    try {
+      const payload: Record<string, unknown> = { title: fTitle.trim(), description: fDesc, priority: fPriority, status: fStatus, assignedTo: fAssignee || undefined, deadline: fDeadline || undefined };
+      if (editingTask) await fetch(`/api/tasks/${editingTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      else await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      setTaskModalOpen(false); await refetchTasks();
+    } catch { /* ignore */ }
+    setTaskSaving(false);
+  }
 
   const filtered = useMemo(() => {
     let list = taskList;
@@ -146,10 +176,10 @@ export default function TasksPage() {
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
         {sessionStatus !== "loading" && isAdmin && (
-          <Link href="/tasks" className="btn btn-primary btn-sm shrink-0 justify-center sm:justify-start">
+          <button type="button" onClick={openCreateTask} className="btn btn-primary btn-sm shrink-0 justify-center sm:justify-start">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             New Task
-          </Link>
+          </button>
         )}
       </div>
 
@@ -196,7 +226,10 @@ export default function TasksPage() {
                             background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
                             color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
                           }}>{TASK_STATUS_LABELS[task.status] ?? task.status}</span></div>
-                          <div className="tabular-nums text-[12px]" style={{ color: "var(--fg-tertiary)" }}><span className="sm:hidden text-[10px] font-semibold uppercase">Deadline · </span>{task.deadline ? formatDate(task.deadline) : "—"}</div>
+                          <div className="tabular-nums text-[12px] flex items-center gap-2" style={{ color: "var(--fg-tertiary)" }}>
+                            <span className="sm:hidden text-[10px] font-semibold uppercase">Deadline · </span>{task.deadline ? formatDate(task.deadline) : "—"}
+                            {isAdmin && <button type="button" onClick={() => openEditTask(task)} className="ml-auto shrink-0 opacity-50 hover:opacity-100 transition-opacity" title="Edit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg></button>}
+                          </div>
                         </div>
                       );
                     })}
@@ -207,6 +240,43 @@ export default function TasksPage() {
           </div>
         </div>
       </div>
+
+      <Portal>
+        <AnimatePresence>
+          {taskModalOpen && (
+            <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setTaskModalOpen(false)} />
+              <motion.div
+                className="relative w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-headline text-lg mb-4">{editingTask ? "Edit Task" : "New Task"}</h2>
+                <div className="space-y-3">
+                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Title</label><input type="text" value={fTitle} onChange={(e) => setFTitle(e.target.value)} className="input w-full" autoFocus required /></div>
+                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Description</label><textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)} rows={2} className="input w-full" /></div>
+                  {isAdmin && assigneeOptions.length > 0 && (
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Assign To</label><select value={fAssignee} onChange={(e) => setFAssignee(e.target.value)} className="input w-full" required><option value="">Select…</option>{assigneeOptions.map((o) => <option key={o._id} value={o._id}>{o.label}</option>)}</select></div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Priority</label><select value={fPriority} onChange={(e) => setFPriority(e.target.value)} className="input w-full"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Deadline</label><input type="date" value={fDeadline} onChange={(e) => setFDeadline(e.target.value)} className="input w-full" /></div>
+                  </div>
+                  {editingTask && (
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Status</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="input w-full"><option value="pending">Pending</option><option value="inProgress">In Progress</option><option value="completed">Completed</option></select></div>
+                  )}
+                </div>
+                <div className="flex gap-2 mt-5">
+                  <motion.button type="button" onClick={handleSaveTask} disabled={taskSaving || !fTitle.trim()} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{taskSaving ? "Saving…" : editingTask ? "Update" : "Create"}</motion.button>
+                  <button type="button" onClick={() => setTaskModalOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Portal>
     </div>
   );
 }

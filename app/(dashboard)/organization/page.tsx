@@ -11,6 +11,8 @@ import { EmployeeCard } from "../components/EmployeeCard";
 import { useGuide } from "@/lib/useGuide";
 import { organizationTour } from "@/lib/tourConfigs";
 import { DesignationsPanel } from "./DesignationsPanel";
+import { Portal } from "../components/Portal";
+import toast from "react-hot-toast";
 
 type ViewMode = "tree" | "flat" | "cards";
 type SortKey = "name" | "email" | "role";
@@ -167,10 +169,12 @@ export default function OrganizationPage() {
   const isManager = role === "manager";
   const canManage = isSuperAdmin || isManager;
 
-  const { data: departments, loading: deptsLoading } = useQuery<Department[]>("/api/departments", "org-departments");
-  const { data: teams, loading: teamsLoading } = useQuery<TeamRow[]>("/api/teams", "org-teams");
-  const { data: employees, loading: employeesLoading } = useQuery<Employee[]>("/api/employees", "org-employees");
+  const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
+  const { data: teams, loading: teamsLoading, refetch: refetchTeams } = useQuery<TeamRow[]>("/api/teams", "org-teams");
+  const { data: employees, loading: employeesLoading, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
   const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "org-presence");
+  const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>("/api/designations", "org-designations");
+  const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
 
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(() => new Set());
@@ -178,6 +182,90 @@ export default function OrganizationPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
+
+  const ROLES = [
+    { value: "developer", label: "Developer" },
+    { value: "businessDeveloper", label: "Business Developer" },
+    { value: "teamLead", label: "Team Lead" },
+    { value: "manager", label: "Manager" },
+  ];
+  const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const [empModalOpen, setEmpModalOpen] = useState(false);
+  const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
+  const [empForm, setEmpForm] = useState({
+    fullName: "", email: "", password: "", userRole: "developer",
+    department: "", reportsTo: "", teams: [] as string[], managedDepartments: [] as string[],
+    shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
+    workingDays: ["mon", "tue", "wed", "thu", "fri"], breakTime: 60,
+  });
+  const [empSaving, setEmpSaving] = useState(false);
+  const isEditEmp = !!editingEmpId;
+  const [empDesignation, setEmpDesignation] = useState("");
+  const [showNewDesig, setShowNewDesig] = useState(false);
+  const [newDesigName, setNewDesigName] = useState("");
+  const [newDesigColor, setNewDesigColor] = useState("#6366f1");
+  const [creatingDesig, setCreatingDesig] = useState(false);
+
+  async function createDesignationInline() {
+    if (!newDesigName.trim()) return;
+    setCreatingDesig(true);
+    try {
+      const res = await fetch("/api/designations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newDesigName.trim(), color: newDesigColor }) });
+      if (res.ok) {
+        const created = await res.json();
+        await refetchDesignations();
+        setEmpDesignation(created._id);
+        setShowNewDesig(false); setNewDesigName(""); setNewDesigColor("#6366f1");
+      }
+    } catch { /* ignore */ }
+    setCreatingDesig(false);
+  }
+
+  function openCreateEmployee() {
+    setEditingEmpId(null);
+    setEmpForm({ fullName: "", email: "", password: "", userRole: "developer", department: "", reportsTo: "", teams: [], managedDepartments: [], shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00", workingDays: ["mon", "tue", "wed", "thu", "fri"], breakTime: 60 });
+    setEmpDesignation(""); setShowNewDesig(false);
+    setEmpModalOpen(true);
+  }
+  async function openEditEmployee(emp: Employee) {
+    const managed = (departments ?? [])
+      .filter((d) => { const raw = d as unknown as Record<string, unknown>; const mId = typeof raw.manager === "object" && raw.manager ? (raw.manager as { _id: string })._id : raw.manager; return mId === emp._id; })
+      .map((d) => d._id);
+    setEditingEmpId(emp.username || emp._id);
+    setEmpForm({
+      fullName: `${emp.about.firstName} ${emp.about.lastName}`.trim(),
+      email: emp.email, password: "", userRole: emp.userRole,
+      department: emp.department?._id ?? "", reportsTo: "",
+      teams: (emp.teams ?? []).map((t) => t._id), managedDepartments: managed,
+      shiftType: emp.workShift?.type ?? "fullTime", shiftStart: emp.workShift?.shift?.start ?? "10:00", shiftEnd: emp.workShift?.shift?.end ?? "19:00",
+      workingDays: emp.workShift?.workingDays ?? ["mon", "tue", "wed", "thu", "fri"], breakTime: emp.workShift?.breakTime ?? 60,
+    });
+    setEmpModalOpen(true);
+  }
+  async function handleSaveEmployee() {
+    if (!empForm.fullName.trim() || (!isEditEmp && !empForm.email.trim())) return;
+    setEmpSaving(true);
+    try {
+      const workShift = { type: empForm.shiftType, shift: { start: empForm.shiftStart, end: empForm.shiftEnd }, workingDays: empForm.workingDays, breakTime: empForm.breakTime };
+      if (isEditEmp) {
+        const body: Record<string, unknown> = { fullName: empForm.fullName, userRole: empForm.userRole, department: empForm.department || null, reportsTo: empForm.reportsTo || null, teams: empForm.teams, managedDepartments: (empForm.userRole === "manager" || empForm.userRole === "teamLead") ? empForm.managedDepartments : [], workShift };
+        if (empForm.password) body.password = empForm.password;
+        const res = await fetch(`/api/employees/${editingEmpId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (res.ok) { toast.success("Employee updated"); setEmpModalOpen(false); await refetchEmployees(); }
+        else { const data = await res.json(); toast.error(data.error || "Failed to update"); }
+      } else {
+        const res = await fetch("/api/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: empForm.email, fullName: empForm.fullName, userRole: empForm.userRole, workShift }) });
+        if (res.ok) { toast.success("Employee invited"); setEmpModalOpen(false); await refetchEmployees(); }
+        else { const data = await res.json(); toast.error(data.error || "Failed to create"); }
+      }
+    } catch { toast.error("Something went wrong"); }
+    setEmpSaving(false);
+  }
+  function toggleEmpWorkingDay(day: string) { setEmpForm((f) => ({ ...f, workingDays: f.workingDays.includes(day) ? f.workingDays.filter((d) => d !== day) : [...f.workingDays, day] })); }
+  function toggleEmpTeam(id: string) { setEmpForm((f) => ({ ...f, teams: f.teams.includes(id) ? f.teams.filter((t) => t !== id) : [...f.teams, id] })); }
+  function toggleEmpManagedDept(id: string) { setEmpForm((f) => ({ ...f, managedDepartments: f.managedDepartments.includes(id) ? f.managedDepartments.filter((d) => d !== id) : [...f.managedDepartments, id] })); }
 
   const deptList = useMemo(() => departments ?? [], [departments]);
   const teamList = useMemo(() => teams ?? [], [teams]);
@@ -332,7 +420,7 @@ export default function OrganizationPage() {
             idx={i}
             showRoleDepartmentTeams
             showActions={canManage}
-            onEdit={canManage ? () => router.push(`/employee/${emp.username}/edit`) : undefined}
+            onEdit={canManage ? () => openEditEmployee(emp) : undefined}
             emp={{
               _id: emp._id,
               username: emp.username,
@@ -611,7 +699,7 @@ export default function OrganizationPage() {
           {sessionStatus !== "loading" && canManage && (
             <motion.button
               type="button"
-              onClick={() => router.push("/employee/new")}
+              onClick={openCreateEmployee}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="btn btn-primary btn-sm"
@@ -873,6 +961,102 @@ export default function OrganizationPage() {
           </AnimatePresence>
         </main>
       </div>
+
+      <Portal>
+        <AnimatePresence>
+          {empModalOpen && (
+            <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setEmpModalOpen(false)} />
+              <motion.div
+                className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-headline text-lg mb-4">{isEditEmp ? "Edit Employee" : "Invite Employee"}</h2>
+                <form onSubmit={(e) => { e.preventDefault(); handleSaveEmployee(); }} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Full Name</label><input type="text" value={empForm.fullName} onChange={(e) => setEmpForm((f) => ({ ...f, fullName: e.target.value }))} className="input w-full" required autoFocus /></div>
+                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Email</label><input type="email" value={empForm.email} onChange={(e) => setEmpForm((f) => ({ ...f, email: e.target.value }))} className="input w-full" required disabled={isEditEmp} /></div>
+                  </div>
+
+                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Role</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ROLES.map((r) => (<button key={r.value} type="button" onClick={() => setEmpForm((f) => ({ ...f, userRole: r.value }))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.userRole === r.value ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.userRole === r.value ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{r.label}</button>))}
+                    </div>
+                  </div>
+
+                  {isEditEmp && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Department</label><select value={empForm.department} onChange={(e) => setEmpForm((f) => ({ ...f, department: e.target.value }))} className="input w-full"><option value="">None</option>{(departments ?? []).map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}</select></div>
+                        <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Reports To</label><select value={empForm.reportsTo} onChange={(e) => setEmpForm((f) => ({ ...f, reportsTo: e.target.value }))} className="input w-full"><option value="">None</option>{(employees ?? []).filter((e) => (e.userRole === "manager" || e.userRole === "teamLead") && e._id !== editingEmpId).map((e) => <option key={e._id} value={e._id}>{empFullName(e)}</option>)}</select></div>
+                      </div>
+                      {(teams ?? []).length > 0 && (
+                        <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Teams</label>
+                          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">{(teams ?? []).filter((t) => !empForm.department || idStr(t.department?._id ?? t.department) === empForm.department).map((t) => (<button key={t._id} type="button" onClick={() => toggleEmpTeam(t._id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.teams.includes(t._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.teams.includes(t._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{t.name}</button>))}</div>
+                        </div>
+                      )}
+                      <div>
+                        <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation</label>
+                        <div className="flex items-center gap-2">
+                          <select value={empDesignation} onChange={(e) => setEmpDesignation(e.target.value)} className="input flex-1">
+                            <option value="">None</option>
+                            {activeDesignations.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                          </select>
+                          <button type="button" onClick={() => setShowNewDesig(!showNewDesig)} className="btn btn-secondary btn-sm shrink-0 text-xs" style={{ padding: "4px 8px" }}>+ New</button>
+                        </div>
+                        {showNewDesig && (
+                          <div className="mt-2 rounded-lg p-2 space-y-1.5" style={{ background: "var(--bg-grouped)" }}>
+                            <input type="text" value={newDesigName} onChange={(e) => setNewDesigName(e.target.value)} placeholder="e.g. Senior Developer" className="input w-full text-xs" />
+                            <div className="flex items-center gap-1.5">
+                              {["#6366f1","#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#06b6d4","#ec4899"].map((c) => (
+                                <button key={c} type="button" onClick={() => setNewDesigColor(c)} className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c, borderColor: newDesigColor === c ? "var(--fg)" : "transparent" }} />
+                              ))}
+                              <motion.button type="button" onClick={createDesignationInline} disabled={creatingDesig || !newDesigName.trim()} whileTap={{ scale: 0.97 }} className="btn btn-primary btn-sm ml-auto text-[10px]" style={{ padding: "2px 8px" }}>{creatingDesig ? "…" : "Create"}</motion.button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {(empForm.userRole === "manager" || empForm.userRole === "teamLead") && (departments ?? []).length > 0 && (
+                        <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Managed Departments</label>
+                          <div className="flex flex-wrap gap-1.5">{(departments ?? []).map((d) => (<button key={d._id} type="button" onClick={() => toggleEmpManagedDept(d._id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.managedDepartments.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.managedDepartments.includes(d._id) ? { background: "var(--teal)" } : { background: "var(--bg-grouped)" }}>{d.title}</button>))}</div>
+                        </div>
+                      )}
+                      <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>New Password (optional)</label><input type="password" value={empForm.password} onChange={(e) => setEmpForm((f) => ({ ...f, password: e.target.value }))} className="input w-full" placeholder="Leave blank to keep current" /></div>
+                    </>
+                  )}
+
+                  <div className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-footnote font-medium mb-2" style={{ color: "var(--fg-secondary)" }}>Shift Configuration</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option><option value="intern">Intern</option></select></div>
+                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Start</label><input type="time" value={empForm.shiftStart} onChange={(e) => setEmpForm((f) => ({ ...f, shiftStart: e.target.value }))} className="input w-full text-xs" /></div>
+                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>End</label><input type="time" value={empForm.shiftEnd} onChange={(e) => setEmpForm((f) => ({ ...f, shiftEnd: e.target.value }))} className="input w-full text-xs" /></div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      {WEEKDAY_KEYS.map((d, i) => (<button key={d} type="button" onClick={() => toggleEmpWorkingDay(d)} className={`h-7 w-7 rounded-md text-[10px] font-bold transition-all ${empForm.workingDays.includes(d) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.workingDays.includes(d) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{WEEKDAY_LABELS[i]}</button>))}
+                      <div className="ml-auto flex items-center gap-1"><label className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Break</label><input type="number" value={empForm.breakTime} onChange={(e) => setEmpForm((f) => ({ ...f, breakTime: Number(e.target.value) || 0 }))} className="input w-14 text-xs text-center" min={0} /><span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>min</span></div>
+                    </div>
+                  </div>
+
+                  {!isEditEmp && (
+                    <p className="text-[11px] rounded-lg p-2" style={{ color: "var(--fg-tertiary)", background: "var(--bg-grouped)" }}>
+                      Department, team, and reporting assignments can be configured after the employee is added, by editing from this page.
+                    </p>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <motion.button type="submit" disabled={empSaving || !empForm.fullName.trim() || (!isEditEmp && !empForm.email.trim())} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{empSaving ? "Saving…" : isEditEmp ? "Update" : "Send Invite"}</motion.button>
+                    <button type="button" onClick={() => setEmpModalOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Portal>
     </div>
   );
 }
