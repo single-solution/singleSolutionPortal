@@ -13,7 +13,7 @@ import {
   PERMISSION_KEYS,
   VIEW_ONLY_PERMISSIONS,
   type IPermissions,
-} from "@/lib/models/Designation";
+} from "@/lib/permissions.shared";
 
 interface Designation {
   _id: string;
