@@ -845,7 +845,7 @@ function AdminDashboard({
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
               <RefreshBtn onRefresh={onRefreshFull} />
             </div>
-            <Link href="/workspace"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
+            <Link href="/workspace/campaigns"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {dataLoading ? (
@@ -917,7 +917,7 @@ function AdminDashboard({
               );
             })}
           </div>
-          <Link href="/workspace" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
+          <Link href="/workspace/tasks" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
         </motion.section>
       </div>
 

@@ -78,9 +78,9 @@ function getEntityHref(entity: string, entityId?: string): string | null {
     case "employee": return entityId ? `/employee/${entityId}/edit` : "/organization";
     case "department": return "/organization";
     case "team": return "/organization";
-    case "campaign": return "/workspace";
-    case "task": return "/workspace";
-    case "attendance": return "/insights-desk";
+    case "campaign": return "/workspace/campaigns";
+    case "task": return "/workspace/tasks";
+    case "attendance": return "/insights-desk/attendance";
     case "settings": return "/settings";
     case "security": return "/organization";
     default: return null;
@@ -92,9 +92,9 @@ function getEntityPageHref(entity: string): string | null {
     case "employee": return "/organization";
     case "department": return "/organization";
     case "team": return "/organization";
-    case "campaign": return "/workspace";
-    case "task": return "/workspace";
-    case "attendance": return "/insights-desk";
+    case "campaign": return "/workspace/campaigns";
+    case "task": return "/workspace/tasks";
+    case "attendance": return "/insights-desk/attendance";
     case "settings": return "/settings";
     default: return null;
   }
@@ -157,7 +157,14 @@ const PATH_TO_TOUR_NAME: Record<string, string> = {
   "/": "Dashboard",
   "/organization": "Organization",
   "/workspace": "Workspace",
+  "/workspace/campaigns": "Workspace",
+  "/workspace/tasks": "Workspace",
+  "/workspace/updates": "Workspace",
   "/insights-desk": "Insights Desk",
+  "/insights-desk/attendance": "Attendance",
+  "/insights-desk/calendar": "Insights Desk",
+  "/insights-desk/leaves": "Insights Desk",
+  "/insights-desk/payroll": "Insights Desk",
   "/settings": "Settings",
 };
 
@@ -745,7 +752,19 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                     {PATH_TO_TOUR_NAME[pathname] && (
                       <button
                         type="button"
-                        onClick={() => { setHelpOpen(false); startTour(pathname === "/" ? "dashboard" : pathname.slice(1) as Parameters<typeof startTour>[0]); }}
+                        onClick={() => {
+                          setHelpOpen(false);
+                          const tourKey = pathname === "/"
+                            ? "dashboard"
+                            : pathname === "/insights-desk/attendance"
+                              ? "attendance"
+                              : pathname.startsWith("/insights-desk")
+                                ? "insights-desk"
+                                : pathname.startsWith("/workspace")
+                                  ? "workspace"
+                                  : pathname.slice(1);
+                          startTour(tourKey as Parameters<typeof startTour>[0]);
+                        }}
                         className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)]"
                       >
                         <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

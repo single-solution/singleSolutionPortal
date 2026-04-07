@@ -63,8 +63,9 @@ export const authConfig: NextAuthConfig = {
       if (pathname === "/employees") return Response.redirect(new URL("/organization", nextUrl));
       if (pathname.startsWith("/departments")) return Response.redirect(new URL("/organization", nextUrl));
       if (pathname === "/teams" || pathname.startsWith("/teams/")) return Response.redirect(new URL("/organization", nextUrl));
-      if (pathname === "/campaigns") return Response.redirect(new URL("/workspace", nextUrl));
-      if (pathname === "/tasks") return Response.redirect(new URL("/workspace", nextUrl));
+      if (pathname === "/campaigns") return Response.redirect(new URL("/workspace/campaigns", nextUrl));
+      if (pathname === "/tasks") return Response.redirect(new URL("/workspace/tasks", nextUrl));
+      if (pathname === "/attendance") return Response.redirect(new URL("/insights-desk/attendance", nextUrl));
 
       const role = (auth?.user as Record<string, unknown>)?.role as string | undefined;
 

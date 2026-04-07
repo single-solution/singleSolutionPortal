@@ -52,16 +52,25 @@ SuperAdmin bypasses both checks. The client never decides access — it only ref
 
 ## Navigation
 
-| Page | Description |
-|------|-------------|
-| **Overview** (`/`) | Real-time dashboard with team status, campaigns, tasks |
-| **Workspace** (`/workspace`) | Unified Campaigns + Tasks + Updates hub |
-| **Organization** (`/organization`) | Unified Employees + Departments + Teams management |
-| **Insights Desk** (`/insights-desk`) | Attendance + Calendar + Leave Management + Payroll |
-| **Settings** (`/settings`) | Profile, security, system configuration |
-| **Roles** (`/designations`) | Designation management (SuperAdmin only) |
+| Page | Route | Description |
+|------|-------|-------------|
+| **Overview** | `/` | Real-time dashboard with team status, campaigns, tasks |
+| **Workspace** | `/workspace/` | Unified hub for campaigns, tasks, and activity |
+| — Campaigns | `/workspace/campaigns` | Campaign cards with sidebar tree grouped by status, detail view with linked tasks |
+| — Tasks | `/workspace/tasks` | Task list with sidebar for grouping (by status/assignee/campaign/priority) and filtering |
+| — Updates | `/workspace/updates` | Activity feed with timeline, auto-refresh |
+| **Organization** | `/organization` | Unified Employees + Departments + Teams management with org tree sidebar |
+| **Insights Desk** | `/insights-desk/` | Analytics hub for attendance, calendar, leaves, and payroll |
+| — Attendance | `/insights-desk/attendance` | Team/employee attendance with calendar, session timelines, monthly stats |
+| — Calendar | `/insights-desk/calendar` | Monthly calendar with color-coded attendance, leaves, and holidays |
+| — Leaves | `/insights-desk/leaves` | Leave request form, approval queue, balance tracking |
+| — Payroll | `/insights-desk/payroll` | Payroll configuration, holidays, payslip generation |
+| **Settings** | `/settings` | Profile, security, system configuration |
+| **Roles** | `/designations` | Designation management (SuperAdmin only) |
 
 Employee detail pages use singular routes: `/employee/[slug]` with tabbed sections for Overview, Attendance, Profile, Activity, Leaves, and Payroll.
+
+Legacy routes (`/employees`, `/departments`, `/teams`, `/campaigns`, `/tasks`, `/attendance`) are automatically redirected to their new locations via middleware.
 
 ---
 
@@ -121,20 +130,20 @@ Unified page for managing employees, departments, and teams:
 
 ### Workspace
 
-Unified page for campaigns, tasks, and activity:
+Three sub-pages under `/workspace/`, each with a persistent tab bar:
 
-- **Campaigns**: Grid of campaign cards with status lifecycle (Active → Paused → Completed / Cancelled), tagged entities, task progress bars. Status filter pills and search.
-- **Tasks**: Task list with priority (Low/Medium/High/Urgent), status, deadline. Filter by status/priority, group by Campaign/Assignee/Status.
-- **Updates**: Activity feed with user avatars, action descriptions, timestamps. Auto-refresh on visibility.
+- **Campaigns** (`/workspace/campaigns`): Sidebar tree grouped by status (Active / Paused / Completed / Cancelled) with individual campaign names. Click a campaign to open its detail view with stats, progress bar, tags, and a linked tasks table. Card grid for browsing. Mobile uses horizontal pills.
+- **Tasks** (`/workspace/tasks`): Sidebar with grouping modes (All Tasks, By Status, By Assignee, By Campaign, By Priority) and status filter with counts. Clean task table with priority/status/deadline columns.
+- **Updates** (`/workspace/updates`): Activity timeline with user avatars, action descriptions, timestamps. Auto-refresh on tab/page visibility.
 
 ### Insights Desk
 
-Analytics hub with four tabs:
+Four sub-pages under `/insights-desk/`, each with a persistent tab bar:
 
-- **Attendance**: Aggregate team mode and individual employee mode with calendar, session timeline, monthly stats, employee overview grid. Department scope filter and group-by toggles.
-- **Calendar**: Combined view showing attendance + leaves + holidays (coming soon).
-- **Leaves**: Leave request form, approval queue, balance tracking. Employees request future-only leaves; managers approve/reject; SuperAdmin can correct past records.
-- **Payroll**: Payroll configuration, holiday management, payslip generation, and payslip table with finalize/pay actions (SuperAdmin). Employees see only their own payslips.
+- **Attendance** (`/insights-desk/attendance`): Aggregate team mode and individual employee mode with calendar, session timeline, monthly stats, employee overview grid. Department scope filter and group-by toggles (Flat, By Manager, By Department).
+- **Calendar** (`/insights-desk/calendar`): Full monthly calendar grid with color-coded day indicators — green (present), amber (late), red (absent), blue (holiday), purple (leave). Click any day to expand a detail panel showing attendance stats (clock in/out, office/remote time, lateness), holiday info, and leave details. Monthly summary cards with present/late/absent counts, total hours, and approved leave days. Month navigation with "Today" button.
+- **Leaves** (`/insights-desk/leaves`): Leave request form, approval queue, balance tracking. Employees request future-only leaves; managers approve/reject; SuperAdmin can correct past records.
+- **Payroll** (`/insights-desk/payroll`): Payroll configuration, holiday management, payslip generation, and payslip table with finalize/pay actions (SuperAdmin). Employees see only their own payslips.
 
 ### Leave Management
 
@@ -262,13 +271,22 @@ app/
     DashboardShell.tsx      Header, dock nav, theme, notifications
     SessionTracker.tsx      Heartbeat attendance tracker
     organization/           Unified employees + departments + teams management
-    workspace/              Unified campaigns + tasks + updates
-    insights-desk/          Attendance + calendar + leaves + payroll tabs
-      LeavesTab.tsx         Leave management UI
-      PayrollTab.tsx        Payroll management UI
+    workspace/
+      layout.tsx            Shared header + tab bar for workspace sub-pages
+      campaigns/            Campaign management with sidebar tree + detail view
+      tasks/                Task list with sidebar grouping + filters
+      updates/              Activity feed timeline
+    insights-desk/
+      layout.tsx            Shared header + tab bar for insights sub-pages
+      attendance/           Full attendance tracking page
+      calendar/             Monthly calendar with attendance/leaves/holidays
+      leaves/               Leave management (imports LeavesTab)
+      payroll/              Payroll management (imports PayrollTab)
+      LeavesTab.tsx         Leave management UI component
+      PayrollTab.tsx        Payroll management UI component
     employee/[slug]/        Employee detail hub (singular route)
       EmployeeDetailHub.tsx Tabbed employee profile
-    attendance/             Attendance tracking page
+    attendance/             Legacy redirect → /insights-desk/attendance
     settings/               Profile, security, system config
       SettingsProfile.tsx   Profile sub-component
       SettingsSecurity.tsx  Security sub-component

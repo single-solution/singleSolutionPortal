@@ -514,7 +514,7 @@ export default function OrganizationPage() {
             <>
               <motion.button
                 type="button"
-                onClick={() => router.push("/departments")}
+                onClick={() => router.push("/organization")}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="btn btn-secondary btn-sm"
@@ -523,7 +523,7 @@ export default function OrganizationPage() {
               </motion.button>
               <motion.button
                 type="button"
-                onClick={() => router.push("/employees/new")}
+                onClick={() => router.push("/employee/new")}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="btn btn-primary btn-sm"
