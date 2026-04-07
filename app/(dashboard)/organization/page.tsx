@@ -13,6 +13,11 @@ import { organizationTour } from "@/lib/tourConfigs";
 import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import toast from "react-hot-toast";
+import dynamic from "next/dynamic";
+import { PERMISSION_CATEGORIES, PERMISSION_KEYS } from "@/lib/permissions.shared";
+import type { IPermissions } from "@/lib/permissions.shared";
+
+const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer" style={{ height: "calc(100vh - 280px)", minHeight: 400 }} /> });
 
 type ViewMode = "tree" | "flat" | "cards";
 type SortKey = "name" | "email" | "role";
@@ -208,6 +213,17 @@ export default function OrganizationPage() {
   const [newDesigColor, setNewDesigColor] = useState("#6366f1");
   const [creatingDesig, setCreatingDesig] = useState(false);
 
+  const [showNewTeam, setShowNewTeam] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [creatingTeam, setCreatingTeam] = useState(false);
+
+  const [empPermissions, setEmpPermissions] = useState<Record<string, boolean>>(() => {
+    const p: Record<string, boolean> = {};
+    for (const k of PERMISSION_KEYS) p[k] = false;
+    return p;
+  });
+  const [showPermissions, setShowPermissions] = useState(false);
+
   async function createDesignationInline() {
     if (!newDesigName.trim()) return;
     setCreatingDesig(true);
@@ -223,10 +239,26 @@ export default function OrganizationPage() {
     setCreatingDesig(false);
   }
 
+  async function createTeamInline() {
+    if (!newTeamName.trim() || !empForm.department) return;
+    setCreatingTeam(true);
+    try {
+      const res = await fetch("/api/teams", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newTeamName.trim(), department: empForm.department }) });
+      if (res.ok) {
+        const created = await res.json();
+        await refetchTeams();
+        setEmpForm((f) => ({ ...f, teams: [...f.teams, created._id] }));
+        setShowNewTeam(false); setNewTeamName("");
+      }
+    } catch { /* ignore */ }
+    setCreatingTeam(false);
+  }
+
   function openCreateEmployee() {
     setEditingEmpId(null);
     setEmpForm({ fullName: "", email: "", password: "", userRole: "developer", department: "", reportsTo: "", teams: [], managedDepartments: [], shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00", workingDays: ["mon", "tue", "wed", "thu", "fri"], breakTime: 60 });
-    setEmpDesignation(""); setShowNewDesig(false);
+    setEmpDesignation(""); setShowNewDesig(false); setShowNewTeam(false); setShowPermissions(false);
+    setEmpPermissions(() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; return p; });
     setEmpModalOpen(true);
   }
   async function openEditEmployee(emp: Employee) {
@@ -242,6 +274,13 @@ export default function OrganizationPage() {
       shiftType: emp.workShift?.type ?? "fullTime", shiftStart: emp.workShift?.shift?.start ?? "10:00", shiftEnd: emp.workShift?.shift?.end ?? "19:00",
       workingDays: emp.workShift?.workingDays ?? ["mon", "tue", "wed", "thu", "fri"], breakTime: emp.workShift?.breakTime ?? 60,
     });
+    const empAny = emp as unknown as Record<string, unknown>;
+    setEmpDesignation(typeof empAny.designation === "string" ? empAny.designation : typeof empAny.designation === "object" && empAny.designation ? (empAny.designation as { _id: string })._id : "");
+    const existingPerms = (empAny.permissions ?? {}) as Record<string, boolean>;
+    const p: Record<string, boolean> = {};
+    for (const k of PERMISSION_KEYS) p[k] = !!existingPerms[k];
+    setEmpPermissions(p);
+    setShowNewDesig(false); setShowNewTeam(false); setShowPermissions(false);
     setEmpModalOpen(true);
   }
   async function handleSaveEmployee() {
@@ -252,11 +291,16 @@ export default function OrganizationPage() {
       if (isEditEmp) {
         const body: Record<string, unknown> = { fullName: empForm.fullName, userRole: empForm.userRole, department: empForm.department || null, reportsTo: empForm.reportsTo || null, teams: empForm.teams, managedDepartments: (empForm.userRole === "manager" || empForm.userRole === "teamLead") ? empForm.managedDepartments : [], workShift };
         if (empForm.password) body.password = empForm.password;
+        if (empDesignation) body.designation = empDesignation;
+        body.permissions = empPermissions;
         const res = await fetch(`/api/employees/${editingEmpId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (res.ok) { toast.success("Employee updated"); setEmpModalOpen(false); await refetchEmployees(); }
         else { const data = await res.json(); toast.error(data.error || "Failed to update"); }
       } else {
-        const res = await fetch("/api/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: empForm.email, fullName: empForm.fullName, userRole: empForm.userRole, workShift }) });
+        const body: Record<string, unknown> = { email: empForm.email, fullName: empForm.fullName, userRole: empForm.userRole, workShift };
+        if (empDesignation) body.designation = empDesignation;
+        body.permissions = empPermissions;
+        const res = await fetch("/api/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (res.ok) { toast.success("Employee invited"); setEmpModalOpen(false); await refetchEmployees(); }
         else { const data = await res.json(); toast.error(data.error || "Failed to create"); }
       }
@@ -688,36 +732,24 @@ export default function OrganizationPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] px-4 pb-10 pt-6">
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>
-            Organization
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--fg-secondary)" }}>
-            Departments, teams, and people in one place.
-          </p>
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="shrink-0">
+          <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
+          <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments, teams, and people.</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2" />
-      </div>
-
-      {/* Controls row: view (left) + sort/group (right) */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>View</span>
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--border-strong)", background: "var(--bg)" }}>
             {(["tree", "cards", "flat"] as const).map((mode) => (
               <button key={mode} type="button" onClick={() => setViewMode(mode)} className={`px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${viewMode === mode ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
-                {mode}
+                {mode === "tree" ? "Flow" : mode}
               </button>
             ))}
           </div>
-        </div>
 
-        {selection.kind === "none" && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>Sort</span>
+          {selection.kind === "none" && viewMode !== "tree" && (
+            <>
+              <div className="h-4 w-px" style={{ background: "var(--border)" }} />
               <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--border-strong)", background: "var(--bg)" }}>
                 {(["name", "email", "role"] as const).map((s) => (
                   <button key={s} type="button" onClick={() => setSortKey(s)} className={`px-2 py-1 rounded-md text-[11px] font-medium capitalize transition-all ${sortKey === s ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}>
@@ -725,9 +757,6 @@ export default function OrganizationPage() {
                   </button>
                 ))}
               </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>Group</span>
               <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--border-strong)", background: "var(--bg)" }}>
                 {([["none", "All"], ["department", "Dept"], ["team", "Team"]] as const).map(([g, label]) => (
                   <button key={g} type="button" onClick={() => setGroupBy(g as GroupBy)} className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all ${groupBy === g ? "bg-[var(--teal)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}>
@@ -735,9 +764,9 @@ export default function OrganizationPage() {
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Search bar */}
@@ -790,107 +819,7 @@ export default function OrganizationPage() {
               >
                 {/* Overview content */}
                 {viewMode === "tree" ? (
-                  <div className="space-y-6">
-                    {deptList.length === 0 && !loading ? (
-                      <p className="p-6 text-sm" style={{ color: "var(--fg-secondary)" }}>No departments yet. Create one to start.</p>
-                    ) : (
-                      deptList.map((dept) => {
-                        const dTeams = teamsByDept.get(dept._id) ?? [];
-                        const deptEmps = empList.filter((e) => idStr(e.department?._id) === dept._id);
-                        return (
-                          <div key={dept._id} className="card-xl overflow-hidden">
-                            <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--primary) 5%, transparent)" }}>
-                              <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--primary)", color: "white" }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{dept.title}</p>
-                                <p className="text-[11px] tabular-nums" style={{ color: "var(--fg-secondary)" }}>{dept.employeeCount} people · {dTeams.length} teams</p>
-                              </div>
-                            </div>
-                            <div className="p-4">
-                              {dTeams.length > 0 ? (
-                                <div className="space-y-3">
-                                  {dTeams.map((team) => {
-                                    const tMembers = deptEmps.filter((e) => (e.teams ?? []).some((t) => idStr(t._id) === team._id));
-                                    return (
-                                      <div key={team._id} className="relative ml-4 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--bg-grouped)" }}>
-                                        <div className="absolute -left-4 top-4 w-4 border-b border-l rounded-bl-md" style={{ borderColor: "var(--border)", height: "1px" }} />
-                                        <p className="text-xs font-semibold flex items-center gap-2" style={{ color: "var(--fg)" }}>
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                          {team.name}
-                                          <span className="text-[10px] font-normal tabular-nums" style={{ color: "var(--fg-tertiary)" }}>({tMembers.length})</span>
-                                        </p>
-                                        {tMembers.length > 0 && (
-                                          <div className="mt-2 flex flex-wrap gap-1.5">
-                                            {tMembers.map((emp) => (
-                                              <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--primary)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>
-                                                <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--primary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
-                                                {emp.about.firstName} {emp.about.lastName}
-                                              </Link>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                  {(() => {
-                                    const teamIds = new Set(dTeams.map((t) => t._id));
-                                    const noTeam = deptEmps.filter((e) => !(e.teams ?? []).some((t) => teamIds.has(idStr(t._id))));
-                                    if (noTeam.length === 0) return null;
-                                    return (
-                                      <div className="ml-4 rounded-lg border border-dashed p-3" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>No team ({noTeam.length})</p>
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                          {noTeam.map((emp) => (
-                                            <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--primary)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
-                                              <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--fg-tertiary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
-                                              {emp.about.firstName} {emp.about.lastName}
-                                            </Link>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              ) : (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {deptEmps.map((emp) => (
-                                    <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--primary)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>
-                                      <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--primary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
-                                      {emp.about.firstName} {emp.about.lastName}
-                                    </Link>
-                                  ))}
-                                  {deptEmps.length === 0 && <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No employees</p>}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                    {unassignedCount > 0 && (
-                      <div className="card-xl overflow-hidden">
-                        <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--amber) 5%, transparent)" }}>
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--amber)", color: "white" }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>Unassigned</p>
-                            <p className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>{unassignedCount} people without a department</p>
-                          </div>
-                        </div>
-                        <div className="p-4 flex flex-wrap gap-1.5">
-                          {unassignedEmployees.map((emp) => (
-                            <Link key={emp._id} href={`/employee/${emp.username}`} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-[var(--amber)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
-                              <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white" style={{ background: "var(--fg-tertiary)" }}>{(emp.about.firstName?.[0] ?? "")}{(emp.about.lastName?.[0] ?? "")}</span>
-                              {emp.about.firstName} {emp.about.lastName}
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <OrgFlowTree departments={deptList} teams={teamList} employees={empList} teamsByDept={teamsByDept} />
                 ) : groupedEmployees ? (
                   <div className="space-y-4">
                     {groupedEmployees.map((g) => (
@@ -1065,11 +994,18 @@ export default function OrganizationPage() {
                         <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Department</label><select value={empForm.department} onChange={(e) => setEmpForm((f) => ({ ...f, department: e.target.value }))} className="input w-full"><option value="">None</option>{(departments ?? []).map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}</select></div>
                         <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Reports To</label><select value={empForm.reportsTo} onChange={(e) => setEmpForm((f) => ({ ...f, reportsTo: e.target.value }))} className="input w-full"><option value="">None</option>{(employees ?? []).filter((e) => (e.userRole === "manager" || e.userRole === "teamLead") && e._id !== editingEmpId).map((e) => <option key={e._id} value={e._id}>{empFullName(e)}</option>)}</select></div>
                       </div>
-                      {(teams ?? []).length > 0 && (
-                        <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Teams</label>
-                          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">{(teams ?? []).filter((t) => !empForm.department || idStr(t.department?._id ?? t.department) === empForm.department).map((t) => (<button key={t._id} type="button" onClick={() => toggleEmpTeam(t._id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.teams.includes(t._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.teams.includes(t._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{t.name}</button>))}</div>
+                      <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Teams</label>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                          {(teams ?? []).filter((t) => !empForm.department || idStr(t.department?._id ?? t.department) === empForm.department).map((t) => (<button key={t._id} type="button" onClick={() => toggleEmpTeam(t._id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.teams.includes(t._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.teams.includes(t._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{t.name}</button>))}
+                          {empForm.department && <button type="button" onClick={() => setShowNewTeam(!showNewTeam)} className="px-2.5 py-1 rounded-lg text-[11px] font-medium border border-dashed transition-all" style={{ borderColor: "var(--border)", color: "var(--fg-tertiary)" }}>+ New</button>}
                         </div>
-                      )}
+                        {showNewTeam && empForm.department && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <input type="text" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} placeholder="Team name…" className="input flex-1 text-xs" />
+                            <motion.button type="button" onClick={createTeamInline} disabled={creatingTeam || !newTeamName.trim()} whileTap={{ scale: 0.97 }} className="btn btn-primary btn-sm text-[10px]" style={{ padding: "4px 8px" }}>{creatingTeam ? "…" : "Create"}</motion.button>
+                          </div>
+                        )}
+                      </div>
                       {(empForm.userRole === "manager" || empForm.userRole === "teamLead") && (departments ?? []).length > 0 && (
                         <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Managed Departments</label>
                           <div className="flex flex-wrap gap-1.5">{(departments ?? []).map((d) => (<button key={d._id} type="button" onClick={() => toggleEmpManagedDept(d._id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${empForm.managedDepartments.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.managedDepartments.includes(d._id) ? { background: "var(--teal)" } : { background: "var(--bg-grouped)" }}>{d.title}</button>))}</div>
@@ -1097,6 +1033,38 @@ export default function OrganizationPage() {
                       Department, team, and reporting assignments can be configured after the employee is added, by editing from this page.
                     </p>
                   )}
+
+                  {/* Privileges accordion */}
+                  <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                    <button type="button" onClick={() => setShowPermissions(!showPermissions)} className="flex w-full items-center justify-between px-3 py-2.5 text-xs font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg)" }}>
+                      <span className="flex items-center gap-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        Privileges / Permissions
+                      </span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${showPermissions ? "rotate-180" : ""}`}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <AnimatePresence>
+                      {showPermissions && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                          <div className="px-3 pb-3 space-y-3 max-h-[280px] overflow-y-auto">
+                            {PERMISSION_CATEGORIES.map((cat) => (
+                              <div key={cat.label}>
+                                <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--fg-tertiary)" }}>{cat.label}</p>
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                                  {cat.keys.map((k) => (
+                                    <label key={k} className="flex items-center gap-1.5 cursor-pointer">
+                                      <input type="checkbox" checked={!!empPermissions[k]} onChange={(e) => setEmpPermissions((p) => ({ ...p, [k]: e.target.checked }))} className="h-3.5 w-3.5 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]" />
+                                      <span className="text-[11px] capitalize" style={{ color: "var(--fg-secondary)" }}>{k.split("_").slice(1).join(" ")}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   <div className="flex gap-2 pt-2">
                     <motion.button type="submit" disabled={empSaving || !empForm.fullName.trim() || (!isEditEmp && !empForm.email.trim())} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{empSaving ? "Saving…" : isEditEmp ? "Update" : "Send Invite"}</motion.button>

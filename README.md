@@ -118,11 +118,12 @@ Unified page for managing employees, departments, and teams:
 
 - **Org tree sidebar** with department → team hierarchy; "All Employees" with inline count as default overview
 - **Designations panel** in sidebar (SuperAdmin only) — create, edit, toggle designations as simple titles
-- **Default Tree view** — visual org chart showing Department → Team → Employee hierarchy with connecting lines and avatar pills. Switch between Tree / Cards / Flat views via toggle above the search bar
-- **Controls row** above search: view toggle (left) + sort (Name / Email / Role) + group (All / Dept / Team) on the right. Search bar with inline "Add Employee" button
+- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react) showing Organization → Department → Team → Employee hierarchy with drag-and-drop, pan/zoom, minimap, and controls. Switch between Flow / Cards / Flat views
+- **Title bar controls** — view toggle, sort (Name / Email / Role), and group (All / Dept / Team) are integrated directly into the page title bar on desktop for a clean, compact layout. Sort/group controls auto-hide in Flow view
 - **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
-- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, designation (with inline creation), shift config. Edit modal adds: department, team, reports-to, managed departments, password change. No fixed role field — authorization is entirely designation-based
+- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, designation (with inline creation), shift config. Edit modal adds: department, team (with inline team creation), reports-to, managed departments, password change. No fixed role field — authorization is entirely designation-based
+- **Privileges accordion** in employee modal — expandable permissions panel with all 50+ permission toggles organized by category (Employees, Members, Departments, Teams, Tasks, Campaigns, Attendance, Leaves, Payroll, System). Permissions are loaded from existing data on edit and saved alongside the employee
 
 ### Workspace
 
@@ -267,6 +268,7 @@ app/
     DashboardShell.tsx      Header, dock nav, theme, notifications
     SessionTracker.tsx      Heartbeat attendance tracker
     organization/           Unified employees + departments + teams + designations management
+      OrgFlowTree.tsx      Interactive flow diagram (React Flow) for org hierarchy
       DesignationsPanel.tsx Inline designation management (SuperAdmin, sidebar)
     workspace/
       layout.tsx            Shared header + tab bar for workspace sub-pages
