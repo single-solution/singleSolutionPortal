@@ -251,6 +251,10 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   const [removeLabel, setRemoveLabel] = useState("");
   const [removeDeleting, setRemoveDeleting] = useState(false);
 
+  /* ── Restriction modal ── */
+  const [restrictOpen, setRestrictOpen] = useState(false);
+  const [restrictMsg, setRestrictMsg] = useState("");
+
   const refetchMemberships = useCallback(async () => {
     const res = await fetch("/api/memberships");
     if (res.ok) setMemberships(await res.json());
@@ -277,30 +281,63 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   /* ── Drag-and-drop connection handler ── */
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
+
+    const srcType = connection.source.split("-")[0];
+    const tgtType = connection.target.split("-")[0];
+
+    // Allow: emp↔anything, dept↔team. Block: dept↔dept, team↔team
+    const srcIsEmp = srcType === "emp";
+    const tgtIsEmp = tgtType === "emp";
+    const isDeptTeam = (srcType === "dept" && tgtType === "team") || (srcType === "team" && tgtType === "dept");
+    if (!srcIsEmp && !tgtIsEmp && !isDeptTeam) {
+      const srcLabel = getNodeLabel(connection.source);
+      const tgtLabel = getNodeLabel(connection.target);
+      setRestrictMsg(`Cannot connect ${srcLabel} to ${tgtLabel}. Only employees can be connected to other employees, and teams can be placed under departments.`);
+      setRestrictOpen(true);
+      return;
+    }
+
     setConnSource(connection.source);
     setConnTarget(connection.target);
     setConnSourceLabel(getNodeLabel(connection.source));
     setConnTargetLabel(getNodeLabel(connection.target));
+
+    // Dept ↔ Team: structural link, skip designation/access modal
+    if (isDeptTeam) {
+      setConnDesig("__structural__");
+      setConnOpen(false);
+      // Directly create the structural link
+      const sId = connection.source.slice(srcType.length + 1);
+      const tId = connection.target.slice(tgtType.length + 1);
+      const teamId = srcType === "team" ? sId : tId;
+      const deptId = srcType === "dept" ? sId : tId;
+      const t = teams.find((x) => x._id === teamId);
+      const existDepts = (t?.departments ?? []).map((d) => idStr(d)).filter(Boolean);
+      if (!existDepts.includes(deptId)) {
+        existDepts.push(deptId);
+        fetch(`/api/teams/${teamId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departments: existDepts }) })
+          .then(() => refetchMemberships());
+      }
+      return;
+    }
+
     setConnDesig(designations[0]?._id ?? "");
 
-    const srcType = connection.source.split("-")[0];
-    const tgtType = connection.target.split("-")[0];
     const srcHandle = connection.sourceHandle ?? "";
     const tgtHandle = connection.targetHandle ?? "";
 
     // Employee bottom → Dept/Team top = full access (of that entity category)
     // Dept/Team bottom → Employee top = no access
-    if (srcType === "emp" && (tgtType === "dept" || tgtType === "team")) {
-      const isFull = srcHandle === "bottom" && tgtHandle === "top";
-      setConnFullAccess(isFull);
-      setConnTargetNodeType(tgtType); // permissions scoped to target node type
-    } else if ((srcType === "dept" || srcType === "team") && tgtType === "emp") {
-      const isFull = !(srcHandle === "bottom" && tgtHandle === "top");
-      setConnFullAccess(isFull);
-      setConnTargetNodeType(isFull ? srcType : srcType); // entity whose top was used
-    } else {
-      setConnFullAccess(true);
+    if (srcIsEmp && (tgtType === "dept" || tgtType === "team")) {
+      setConnFullAccess(srcHandle === "bottom" && tgtHandle === "top");
       setConnTargetNodeType(tgtType);
+    } else if ((srcType === "dept" || srcType === "team") && tgtIsEmp) {
+      setConnFullAccess(!(srcHandle === "bottom" && tgtHandle === "top"));
+      setConnTargetNodeType(srcType);
+    } else {
+      // emp ↔ emp
+      setConnFullAccess(srcHandle === "bottom" && tgtHandle === "top");
+      setConnTargetNodeType("emp");
     }
 
     setConnOpen(true);
@@ -494,7 +531,8 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       const srcHandle = isUpward ? "top" : "bottom";
       const tgtHandle = isUpward ? "bottom" : "top";
 
-      edges.push({ id: `mem-${m._id}`, source: deptOrTeam, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "var(--border-strong)", strokeWidth: 2 } });
+      const fallbackColor = m.team ? "#3b82f6" : "#8b5cf6";
+      edges.push({ id: `mem-${m._id}`, source: deptOrTeam, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? fallbackColor, strokeWidth: 2 } });
     });
 
 
@@ -677,6 +715,37 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
                   Cancel
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Restriction Modal (center) ── */}
+      <AnimatePresence>
+        {restrictOpen && (
+          <motion.div className="fixed inset-0 z-[80] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRestrictOpen(false)} />
+            <motion.div className="relative w-full max-w-sm mx-4 rounded-2xl border p-6 shadow-xl"
+              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(245,158,11,0.12)" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86l-8.01 14A2 2 0 004.09 21h15.82a2 2 0 001.81-3.14l-8.01-14a2 2 0 00-3.42 0z" /></svg>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Not Allowed</h2>
+                  <p className="text-xs" style={{ color: "var(--fg-secondary)" }}>Connection restricted</p>
+                </div>
+              </div>
+              <p className="text-sm mb-5 rounded-lg p-3" style={{ color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}>
+                {restrictMsg}
+              </p>
+              <button type="button" onClick={() => setRestrictOpen(false)}
+                className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors"
+                style={{ color: "var(--fg-secondary)", borderColor: "var(--border)" }}>
+                OK
+              </button>
             </motion.div>
           </motion.div>
         )}
