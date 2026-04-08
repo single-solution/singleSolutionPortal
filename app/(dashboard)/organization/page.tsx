@@ -25,7 +25,7 @@ interface Employee {
   workShift?: { type: string; shift: { start: string; end: string }; workingDays: string[]; breakTime: number };
   createdAt: string;
 }
-interface Department { _id: string; title: string; slug: string; employeeCount: number; teamCount: number; isActive: boolean }
+interface Department { _id: string; title: string; slug: string; employeeCount: number; teamCount: number; isActive: boolean; manager?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null }
 interface TeamRow { _id: string; name: string; slug: string; memberCount: number; department: { _id: string; title: string; slug: string }; departments?: { _id: string; title: string; slug: string }[]; isActive?: boolean }
 
 const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -165,7 +165,7 @@ export default function OrganizationPage() {
           {/* Departments card */}
           <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
             {isSuperAdmin ? (
-              <DepartmentsPanel departments={deptList} loading={deptsLoading} refetch={refetchDepts} />
+              <DepartmentsPanel departments={deptList} employees={empList} loading={deptsLoading} refetch={refetchDepts} />
             ) : (
               <div className="flex flex-col gap-1.5">
                 <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Departments</h2>

@@ -47,7 +47,7 @@ interface Employee {
   teams?: { _id: string; name: string }[];
   isActive: boolean;
 }
-interface Department { _id: string; title: string; employeeCount: number; teamCount: number }
+interface Department { _id: string; title: string; employeeCount: number; teamCount: number; manager?: { _id: string; about: { firstName: string; lastName: string } } | null }
 interface TeamRow { _id: string; name: string; memberCount: number; department: { _id: string; title: string; slug: string }; departments?: { _id: string; title: string; slug: string }[] }
 
 function idStr(x: unknown): string {
@@ -377,6 +377,14 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       }
     });
 
+    const managedDeptIds = new Map<string, string[]>();
+    departments.forEach((dept) => {
+      if (!dept.manager?._id) return;
+      const mgrId = idStr(dept.manager._id);
+      if (!managedDeptIds.has(mgrId)) managedDeptIds.set(mgrId, []);
+      managedDeptIds.get(mgrId)!.push(dept._id);
+    });
+
     const empSet = new Set<string>();
     employees.forEach((emp, eIdx) => {
       const eId = `emp-${emp._id}`;
@@ -384,13 +392,37 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       empSet.add(eId);
       const initials = (emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "");
       const empMems = memberships.filter((m) => idStr(m.user?._id) === emp._id);
+      const manages = managedDeptIds.get(emp._id);
       let yGuess = LEVEL * 2; let xGuess = eIdx * EMP_X;
-      if (empMems.length > 0) {
+
+      if (manages && manages.length > 0) {
+        const deptNode = nodes.find((n) => n.id === `dept-${manages[0]}`);
+        if (deptNode) { xGuess = deptNode.position.x; yGuess = deptNode.position.y - LEVEL; }
+      } else if (empMems.length > 0) {
         const first = empMems.find((m) => m.team) ?? empMems[0];
         const n = first?.team ? nodes.find((n) => n.id === `team-${idStr(first.team)}`) : nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
         if (n) { xGuess = n.position.x; yGuess = n.position.y + LEVEL; }
       }
       nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id } });
+    });
+
+    departments.forEach((dept) => {
+      if (!dept.manager?._id) return;
+      const mgrId = idStr(dept.manager._id);
+      const eId = `emp-${mgrId}`;
+      const dId = `dept-${dept._id}`;
+      if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === dId)) return;
+      edges.push({
+        id: `manages-${mgrId}-${dept._id}`,
+        source: eId, target: dId,
+        type: "smoothstep",
+        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12 },
+        style: { stroke: "#f59e0b", strokeWidth: 2.5 },
+        label: "★ Manages",
+        labelStyle: { fontSize: 9, fontWeight: 700, fill: "#f59e0b" },
+        labelBgStyle: { fill: "var(--bg-elevated)", stroke: "#f59e0b", strokeWidth: 0.5, rx: 6, ry: 6 },
+        labelBgPadding: [4, 6] as [number, number],
+      });
     });
 
     const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership } as DesigEdgeData as unknown as Record<string, unknown>);
@@ -457,10 +489,12 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
             className="!bg-[var(--bg-elevated)] !border-[var(--border)] !rounded-xl !shadow-lg" />
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
         </ReactFlow>
-        <div className="absolute left-3 bottom-3 z-10 flex items-center gap-3 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Drag from handle to connect</span>
+        <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Drag to connect</span>
           <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click pill to edit</span>
+          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#f59e0b" }}>★ = Manager</span>
         </div>
       </div>
 

@@ -13,15 +13,23 @@ interface DeptItem {
   isActive: boolean;
   employeeCount: number;
   teamCount: number;
+  manager?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null;
+}
+
+interface EmpOption {
+  _id: string;
+  about: { firstName: string; lastName: string };
+  email: string;
 }
 
 interface DepartmentsPanelProps {
   departments: DeptItem[];
+  employees: EmpOption[];
   loading: boolean;
   refetch: () => Promise<void>;
 }
 
-export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsPanelProps) {
+export function DepartmentsPanel({ departments, employees, loading, refetch }: DepartmentsPanelProps) {
   const list = departments ?? [];
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,6 +37,7 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formManager, setFormManager] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<DeptItem | null>(null);
@@ -39,6 +48,7 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
     setEditingId(null);
     setFormTitle("");
     setFormDescription("");
+    setFormManager("");
     setModalOpen(true);
   }, []);
 
@@ -47,6 +57,7 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
     setEditingId(d._id);
     setFormTitle(d.title);
     setFormDescription(d.description ?? "");
+    setFormManager(d.manager?._id ?? "");
     setModalOpen(true);
   }, []);
 
@@ -60,7 +71,8 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
     if (!formTitle.trim()) return;
     setSaveLoading(true);
     try {
-      const body = { title: formTitle.trim(), description: formDescription };
+      const body: Record<string, unknown> = { title: formTitle.trim(), description: formDescription };
+      body.managerId = formManager || null;
       if (modalMode === "create") {
         const res = await fetch("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (!res.ok) { setSaveLoading(false); return; }
@@ -86,6 +98,11 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
   }
 
   const sorted = useMemo(() => [...list].sort((a, b) => a.title.localeCompare(b.title)), [list]);
+
+  function mgrName(d: DeptItem): string | null {
+    if (!d.manager) return null;
+    return `${d.manager.about.firstName} ${d.manager.about.lastName}`.trim();
+  }
 
   return (
     <>
@@ -124,6 +141,7 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
                       <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{d.title}</p>
                       <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                         {d.employeeCount} people · {d.teamCount} team{d.teamCount !== 1 ? "s" : ""}
+                        {mgrName(d) && <> · <span style={{ color: "var(--amber)" }}>★ {mgrName(d)}</span></>}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -175,6 +193,18 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
                   <div>
                     <label className="mb-1 block text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Description</label>
                     <input type="text" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} className="input w-full" placeholder="Optional short description" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>
+                      Manager
+                      <span className="ml-1 text-[10px] font-normal" style={{ color: "var(--fg-tertiary)" }}>Head of department</span>
+                    </label>
+                    <select value={formManager} onChange={(e) => setFormManager(e.target.value)} className="input w-full">
+                      <option value="">None</option>
+                      {(employees ?? []).map((e) => (
+                        <option key={e._id} value={e._id}>{e.about.firstName} {e.about.lastName} — {e.email}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

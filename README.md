@@ -118,13 +118,14 @@ Unified page with a left sidebar and a full-width interactive flow diagram:
 
 - **Search + Add Employee card** at the top — search people, departments, teams. "Add Employee" button opens a center modal
 - **Left sidebar** with three separate cards, each with full CRUD:
-  - **Departments card** (SuperAdmin: add / edit / delete departments; others: read-only list)
+  - **Departments card** (SuperAdmin: add / edit / delete departments with **manager assignment** — any employee can be set as head of one or more departments; others: read-only list)
   - **Teams card** (SuperAdmin: add / edit / delete teams; teams support **multiple departments** — one team can belong to several departments simultaneously)
   - **Designations card** (SuperAdmin only: create, edit, toggle, delete designations as simple titles with colors)
   - **Summary card** showing total employees and unassigned count
 - **Flow diagram** (right of sidebar) — interactive organizational chart powered by React Flow (@xyflow/react). Fully self-contained management canvas:
   - **Departments** (purple), **Teams** (blue), **Employees** (teal) as distinct draggable node types
   - **Teams with multiple departments** — a single team node shows edges to all its assigned departments (purple dashed lines)
+  - **Manager connections** (gold ★ "Manages" label) — employees assigned as department managers appear above their departments with a gold arrow. One employee can manage multiple departments simultaneously
   - **Drag-and-drop connections**: Drag from any node handle to another to create a connection. Supports all connection types:
     - Employee ↔ Department: assigns employee to department (creates Membership)
     - Employee ↔ Team: assigns employee to team (auto-resolves department)
