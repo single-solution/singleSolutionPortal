@@ -1,9 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 
 const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password", "/setup-password", "/preview"];
-const ADMIN_ONLY = ["/organization", "/workspace"];
-const ADMIN_ROLES = ["superadmin", "manager", "teamLead"];
-const SUPERADMIN_ONLY: string[] = [];
 
 export const authConfig: NextAuthConfig = {
   providers: [],
@@ -21,6 +18,7 @@ export const authConfig: NextAuthConfig = {
         const u = user as any;
         token.id = u.id;
         token.role = u.role;
+        token.isSuperAdmin = u.isSuperAdmin ?? false;
         token.firstName = u.firstName;
         token.lastName = u.lastName;
         token.username = u.username;
@@ -34,6 +32,7 @@ export const authConfig: NextAuthConfig = {
       const u = session.user as any;
       u.id = token.id as string;
       u.role = token.role as string;
+      u.isSuperAdmin = (token.isSuperAdmin as boolean) ?? false;
       u.firstName = token.firstName as string;
       u.lastName = token.lastName as string;
       u.username = token.username as string;
@@ -68,17 +67,12 @@ export const authConfig: NextAuthConfig = {
       if (pathname === "/attendance") return Response.redirect(new URL("/insights-desk/attendance", nextUrl));
       if (pathname === "/designations") return Response.redirect(new URL("/organization", nextUrl));
 
-      const role = (auth?.user as Record<string, unknown>)?.role as string | undefined;
+      // SuperAdmin bypasses all route-level restrictions
+      const userInfo = auth?.user as Record<string, unknown> | undefined;
+      if (userInfo?.isSuperAdmin === true) return true;
 
-      if (SUPERADMIN_ONLY.some((p) => pathname.startsWith(p)) && role !== "superadmin") {
-        return Response.redirect(new URL("/", nextUrl));
-      }
-
-      const isAdminRoute = ADMIN_ONLY.some((p) => pathname.startsWith(p));
-      if (isAdminRoute && role && !ADMIN_ROLES.includes(role)) {
-        return Response.redirect(new URL("/", nextUrl));
-      }
-
+      // Permission-based route access is enforced at the page/API level,
+      // not in middleware. All authenticated users can reach all routes.
       return true;
     },
   },
