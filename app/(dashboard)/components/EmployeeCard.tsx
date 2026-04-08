@@ -54,6 +54,7 @@ export interface EmployeeCardProps {
   onPing?: (id: string, name: string) => void;
   showActions?: boolean;
   onEdit?: (id: string) => void;
+  onManage?: (id: string) => void;
   onDelete?: (id: string) => void;
   selectable?: boolean;
   selected?: boolean;
@@ -270,6 +271,7 @@ export function EmployeeCard({
   onPing,
   showActions,
   onEdit,
+  onManage,
   onDelete,
   selectable,
   selected,
@@ -546,8 +548,26 @@ export function EmployeeCard({
         {(showActions || footerSlot) && (
           <div className="flex items-center justify-between gap-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
             <div className="pointer-events-auto min-w-0 flex-1">{footerSlot}</div>
-            {showActions && (onEdit || onDelete) && (
+            {showActions && (onEdit || onManage || onDelete) && (
               <div className="pointer-events-auto flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                {onManage && (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
+                    className="flex h-7 items-center justify-center gap-1 rounded-lg px-1.5 text-[10px] font-semibold transition-colors"
+                    style={{ color: "var(--teal)" }}
+                    title="Manage assignment"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onManage(emp._id);
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    Manage
+                  </motion.button>
+                )}
                 {onEdit && (
                   <motion.button
                     type="button"

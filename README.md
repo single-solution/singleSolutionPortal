@@ -122,8 +122,8 @@ Unified page for managing employees, departments, and teams:
 - **Title bar controls** — view toggle, sort (Name / Email / Role), and group (All / Dept / Team) are integrated directly into the page title bar on desktop for a clean, compact layout. Sort/group controls auto-hide in Flow view
 - **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
-- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, designation (with inline creation), shift config. Edit modal adds: department, team (with inline team creation), reports-to, managed departments, password change. No fixed role field — authorization is entirely designation-based
-- **Privileges accordion** in employee modal — expandable permissions panel with all 50+ permission toggles organized by category (Employees, Members, Departments, Teams, Tasks, Campaigns, Attendance, Leaves, Payroll, System). Permissions are loaded from existing data on edit and saved alongside the employee
+- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, shift config. Edit modal adds: password change. No department, team, designation, or permission fields — those are managed separately
+- **Manage Assignment modal** — separate modal accessible via "Manage" button on each employee card. Lets you assign department, teams (with inline team creation), reports-to, managed departments, designation (with inline creation), and a full privileges/permissions panel with all 50+ toggles organized by 10 categories. This keeps employee profile editing clean and separates organizational assignment from personal details
 
 ### Workspace
 
