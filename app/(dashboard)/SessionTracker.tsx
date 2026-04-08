@@ -85,7 +85,8 @@ function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null
 }
 
 export default function SessionTracker() {
-  const { data: authSession } = useSession();
+  const { data: authSession, status } = useSession();
+  const sessionLoaded = status !== "loading";
   const isSuperAdmin = authSession?.user?.isSuperAdmin === true;
   const showCoords = authSession?.user?.showCoordinates ?? false;
   const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -318,8 +319,9 @@ export default function SessionTracker() {
     }
   }, []);
 
-  // ─── Init on mount ────────────────────────────────────────────
+  // ─── Init (waits for auth session to load) ──────────────────
   useEffect(() => {
+    if (!sessionLoaded) return;
     if (isSuperAdmin) return;
     isMobileRef.current = detectMobile();
 
@@ -354,7 +356,7 @@ export default function SessionTracker() {
       if (syncRef.current) clearInterval(syncRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessionLoaded, isSuperAdmin]);
 
   // ─── beforeunload: best-effort checkout ───────────────────────
   useEffect(() => {
@@ -571,7 +573,7 @@ export default function SessionTracker() {
   }, [mode, idle, startHeartbeat, clearNudges, scheduleNudge]);
 
   // ─── Render ───────────────────────────────────────────────────
-  if (isSuperAdmin || mode === "booting") return null;
+  if (!sessionLoaded || isSuperAdmin || mode === "booting") return null;
 
   const isActive = session.active && !session.isStale;
   const isReadonly = mode === "readonly";
