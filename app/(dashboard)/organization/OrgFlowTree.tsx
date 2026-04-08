@@ -197,7 +197,10 @@ interface Props {
 }
 
 export function OrgFlowTree({ departments, employees, designations, isSuperAdmin: isSA }: Props) {
+  interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string }
+
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
+  const [empLinks, setEmpLinks] = useState<EmpLink[]>([]);
   const [savedPositions, setSavedPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -213,16 +216,18 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
   const [connFullAccess, setConnFullAccess] = useState(true);
   const [connTargetNodeType, setConnTargetNodeType] = useState("dept");
 
-  /* ── Privileges modal ── */
+  /* ── Privileges modal (shared for memberships & emp links) ── */
   const [privOpen, setPrivOpen] = useState(false);
   const [privMembershipId, setPrivMembershipId] = useState("");
+  const [privLinkIdx, setPrivLinkIdx] = useState(-1); // ≥0 when editing an emp-link
   const [privPerms, setPrivPerms] = useState<Record<string, boolean>>({});
   const [privSaving, setPrivSaving] = useState(false);
   const [privLabel, setPrivLabel] = useState("");
 
-  /* ── Remove modal ── */
+  /* ── Remove modal (shared for memberships & emp links) ── */
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removeMembershipId, setRemoveMembershipId] = useState("");
+  const [removeLinkIdx, setRemoveLinkIdx] = useState(-1);
   const [removeLabel, setRemoveLabel] = useState("");
   const [removeDeleting, setRemoveDeleting] = useState(false);
 
@@ -235,13 +240,26 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     if (res.ok) setMemberships(await res.json());
   }, []);
 
+  const syncHierarchy = useCallback(() => {
+    return fetch("/api/hierarchy-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org" }) });
+  }, []);
+
+  const saveEmpLinks = useCallback(async (newLinks: EmpLink[]) => {
+    setEmpLinks(newLinks);
+    await fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", links: newLinks }) });
+    await syncHierarchy();
+    refetchMemberships();
+  }, [syncHierarchy, refetchMemberships]);
+
   useEffect(() => {
     Promise.all([
       fetch("/api/memberships").then((r) => r.ok ? r.json() : []),
-      fetch("/api/flow-layout?canvasId=org").then((r) => r.ok ? r.json() : {}),
-    ]).then(([mems, pos]) => {
+      fetch("/api/flow-layout?canvasId=org").then((r) => r.ok ? r.json() : { positions: {}, links: [] }),
+    ]).then(([mems, layout]) => {
       setMemberships(Array.isArray(mems) ? mems : []);
-      setSavedPositions(pos && typeof pos === "object" ? pos as Record<string, { x: number; y: number }> : {});
+      const l = layout && typeof layout === "object" ? layout : { positions: {}, links: [] };
+      setSavedPositions(l.positions ?? {});
+      setEmpLinks(Array.isArray(l.links) ? l.links : []);
       setLoaded(true);
     });
   }, []);
@@ -252,6 +270,33 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     return nodeId;
   }
 
+  /**
+   * Cycle detection: would adding an edge from upperNode→lowerNode create a cycle?
+   * "upper" = the node whose bottom handle is used, "lower" = the node whose top handle is used.
+   */
+  const wouldCycle = useCallback((upperNode: string, lowerNode: string, links: EmpLink[]): boolean => {
+    const visited = new Set<string>();
+    const queue = [upperNode];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      if (cur === lowerNode) continue;
+      if (visited.has(cur)) continue;
+      visited.add(cur);
+      for (const l of links) {
+        // Walk upward: who is above `cur`?
+        if (l.target === cur && l.sourceHandle === "bottom" && l.targetHandle === "top") {
+          if (l.source === lowerNode) return true;
+          queue.push(l.source);
+        }
+        if (l.source === cur && l.sourceHandle === "top" && l.targetHandle === "bottom") {
+          if (l.target === lowerNode) return true;
+          queue.push(l.target);
+        }
+      }
+    }
+    return false;
+  }, []);
+
   /* ── Connection handler ── */
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
@@ -260,10 +305,34 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     const srcIsEmp = srcType === "emp";
     const tgtIsEmp = tgtType === "emp";
 
-    // At least one side must be an employee, and no dept↔dept
     if (!srcIsEmp && !tgtIsEmp) {
       setRestrictMsg(`Cannot connect ${getNodeLabel(connection.source)} to ${getNodeLabel(connection.target)}. Only employees can form connections.`);
       setRestrictOpen(true);
+      return;
+    }
+
+    const srcHandle = connection.sourceHandle ?? "";
+    const tgtHandle = connection.targetHandle ?? "";
+
+    if (srcIsEmp && tgtIsEmp) {
+      const linkId = `${connection.source}-${srcHandle}-${connection.target}-${tgtHandle}`;
+      const exists = empLinks.some((l) => `${l.source}-${l.sourceHandle}-${l.target}-${l.targetHandle}` === linkId);
+      if (exists) return;
+
+      // Determine upper/lower based on handles
+      const upperNode = srcHandle === "bottom" ? connection.source : connection.target;
+      const lowerNode = srcHandle === "bottom" ? connection.target : connection.source;
+
+      if (upperNode === lowerNode) return;
+      if (wouldCycle(upperNode, lowerNode, empLinks)) {
+        setRestrictMsg(`Cannot connect ${getNodeLabel(connection.source)} to ${getNodeLabel(connection.target)}. This would create a circular hierarchy.`);
+        setRestrictOpen(true);
+        return;
+      }
+
+      const defaultPerms: Record<string, boolean> = {};
+      for (const k of PERMISSION_KEYS) defaultPerms[k] = k === "employees_view" || k === "employees_viewDetail";
+      saveEmpLinks([...empLinks, { source: connection.source, target: connection.target, sourceHandle: srcHandle, targetHandle: tgtHandle, permissions: defaultPerms, designationId: designations[0]?._id ?? undefined }]);
       return;
     }
 
@@ -273,9 +342,6 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     setConnTargetLabel(getNodeLabel(connection.target));
     setConnDesig(designations[0]?._id ?? "");
 
-    const srcHandle = connection.sourceHandle ?? "";
-    const tgtHandle = connection.targetHandle ?? "";
-
     if (srcIsEmp && tgtType === "dept") {
       setConnFullAccess(srcHandle === "bottom" && tgtHandle === "top");
       setConnTargetNodeType("dept");
@@ -283,13 +349,12 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       setConnFullAccess(!(srcHandle === "bottom" && tgtHandle === "top"));
       setConnTargetNodeType("dept");
     } else {
-      // emp ↔ emp
-      setConnFullAccess(srcHandle === "bottom" && tgtHandle === "top");
-      setConnTargetNodeType("emp");
+      setConnFullAccess(true);
+      setConnTargetNodeType("dept");
     }
 
     setConnOpen(true);
-  }, [departments, employees, designations]);
+  }, [departments, employees, designations, empLinks, saveEmpLinks, wouldCycle]);
 
   const handleCreateConnection = useCallback(async () => {
     if (!connDesig) return;
@@ -308,10 +373,6 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       } else if (srcType === "emp" && tgtType === "dept") {
         body.user = srcId;
         body.department = tgtId;
-      } else if (srcType === "emp" && tgtType === "emp") {
-        body.user = tgtId;
-        body.department = departments[0]?._id;
-        body.reportsTo = srcId;
       } else {
         setConnOpen(false); setConnSaving(false);
         return;
@@ -327,14 +388,17 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
         }
         body.permissions = perms;
         await fetch("/api/memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        // Backfill: if this employee has superiors via emp-to-emp links,
+        // auto-create hierarchy memberships for them in this department.
+        await syncHierarchy();
       }
       await refetchMemberships();
       setConnOpen(false);
     } catch { /* ignore */ }
     setConnSaving(false);
-  }, [connSource, connTarget, connDesig, connFullAccess, connTargetNodeType, departments, refetchMemberships]);
+  }, [connSource, connTarget, connDesig, connFullAccess, connTargetNodeType, departments, refetchMemberships, syncHierarchy]);
 
-  /* ── Edge actions ── */
+  /* ── Edge actions (membership) ── */
   const handleChangeDesignation = useCallback(async (membershipId: string, designationId: string) => {
     try {
       const res = await fetch(`/api/memberships/${membershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ designation: designationId }) });
@@ -342,10 +406,21 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     } catch { /* ignore */ }
   }, [designations]);
 
+  /* ── Edge actions (emp link) ── */
+  const handleChangeLinkDesignation = useCallback((linkIdx: number, designationId: string) => {
+    setEmpLinks((prev) => {
+      const updated = [...prev];
+      updated[linkIdx] = { ...updated[linkIdx], designationId };
+      saveEmpLinks(updated);
+      return updated;
+    });
+  }, [saveEmpLinks]);
+
   const openPrivileges = useCallback(async (membershipId: string) => {
     const mem = memberships.find((m) => m._id === membershipId);
     if (!mem) return;
     setPrivMembershipId(membershipId);
+    setPrivLinkIdx(-1);
     const name = mem.user ? `${mem.user.about?.firstName ?? ""} ${mem.user.about?.lastName ?? ""}`.trim() : "";
     setPrivLabel(`${name} → ${mem.department?.title ?? ""}`);
     try {
@@ -355,29 +430,76 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     setPrivOpen(true);
   }, [memberships]);
 
+  const openLinkPrivileges = useCallback((linkIdx: number) => {
+    const link = empLinks[linkIdx];
+    if (!link) return;
+    setPrivMembershipId("");
+    setPrivLinkIdx(linkIdx);
+    const srcLabel = getNodeLabel(link.source);
+    const tgtLabel = getNodeLabel(link.target);
+    setPrivLabel(`${srcLabel} → ${tgtLabel}`);
+    const p: Record<string, boolean> = {};
+    for (const k of PERMISSION_KEYS) p[k] = !!link.permissions?.[k];
+    setPrivPerms(p);
+    setPrivOpen(true);
+  }, [empLinks, departments, employees]);
+
   const handleSavePrivileges = useCallback(async () => {
-    if (!privMembershipId) return;
     setPrivSaving(true);
-    try { await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) }); setPrivOpen(false); } catch { /* ignore */ }
+    try {
+      if (privLinkIdx >= 0) {
+        // Saving emp-to-emp link privileges
+        setEmpLinks((prev) => {
+          const updated = [...prev];
+          updated[privLinkIdx] = { ...updated[privLinkIdx], permissions: { ...privPerms } };
+          saveEmpLinks(updated);
+          return updated;
+        });
+        setPrivOpen(false);
+      } else if (privMembershipId) {
+        await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) });
+        setPrivOpen(false);
+      }
+    } catch { /* ignore */ }
     setPrivSaving(false);
-  }, [privMembershipId, privPerms]);
+  }, [privMembershipId, privLinkIdx, privPerms, saveEmpLinks]);
 
   const handleDeleteMembership = useCallback((membershipId: string) => {
     const mem = memberships.find((m) => m._id === membershipId);
     if (!mem) return;
     const name = mem.user ? `${mem.user.about?.firstName ?? ""} ${mem.user.about?.lastName ?? ""}`.trim() : "";
     setRemoveMembershipId(membershipId);
+    setRemoveLinkIdx(-1);
     setRemoveLabel(`${name} → ${mem.department?.title ?? ""}`);
     setRemoveOpen(true);
   }, [memberships]);
 
+  const handleDeleteLink = useCallback((linkIdx: number) => {
+    const link = empLinks[linkIdx];
+    if (!link) return;
+    setRemoveMembershipId("");
+    setRemoveLinkIdx(linkIdx);
+    setRemoveLabel(`${getNodeLabel(link.source)} → ${getNodeLabel(link.target)}`);
+    setRemoveOpen(true);
+  }, [empLinks, departments, employees]);
+
   const confirmDelete = useCallback(async () => {
-    if (!removeMembershipId) return;
     setRemoveDeleting(true);
-    try { const res = await fetch(`/api/memberships/${removeMembershipId}`, { method: "DELETE" }); if (res.ok) await refetchMemberships(); } catch { /* ignore */ }
+    try {
+      if (removeLinkIdx >= 0) {
+        const newLinks = empLinks.filter((_, i) => i !== removeLinkIdx);
+        await saveEmpLinks(newLinks);
+      } else if (removeMembershipId) {
+        const res = await fetch(`/api/memberships/${removeMembershipId}`, { method: "DELETE" });
+        if (res.ok) {
+          await syncHierarchy();
+          await refetchMemberships();
+        }
+      }
+    } catch { /* ignore */ }
     setRemoveDeleting(false);
     setRemoveOpen(false);
-  }, [removeMembershipId, refetchMemberships]);
+  }, [removeMembershipId, removeLinkIdx, empLinks, refetchMemberships, syncHierarchy, saveEmpLinks]);
 
   /* ── Build graph ── */
   const { initialNodes, initialEdges } = useMemo(() => {
@@ -425,12 +547,44 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m, isUpward), style: { stroke: m.designation?.color ?? "#8b5cf6", strokeWidth: 2 } });
     });
 
+    // Emp ↔ Emp hierarchy links (with pill for designation + privileges)
+    empLinks.forEach((link, idx) => {
+      if (!nodes.find((n) => n.id === link.source) || !nodes.find((n) => n.id === link.target)) return;
+      const linkDesig = link.designationId ? designations.find((d) => d._id === link.designationId) ?? null : null;
+      const linkIdx = idx;
+      edges.push({
+        id: `link-${idx}`,
+        source: link.source,
+        target: link.target,
+        sourceHandle: link.sourceHandle || "bottom",
+        targetHandle: link.targetHandle || "top",
+        type: "designation",
+        data: {
+          designation: linkDesig, membershipId: `link-${idx}`, designations,
+          onChangeDesignation: (_id: string, dId: string) => handleChangeLinkDesignation(linkIdx, dId),
+          onOpenPrivileges: () => openLinkPrivileges(linkIdx),
+          onDeleteMembership: () => handleDeleteLink(linkIdx),
+        } as DesigEdgeData as unknown as Record<string, unknown>,
+        style: { stroke: linkDesig?.color ?? "var(--teal)", strokeWidth: 1.5, strokeDasharray: "6 3" },
+      });
+    });
+
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, memberships, savedPositions, designations, handleChangeDesignation, openPrivileges, handleDeleteMembership]);
+  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   useEffect(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges, setNodes, setEdges]);
+
+  const handleEdgesChange = useCallback((changes: Parameters<typeof onEdgesChange>[0]) => {
+    const removals = changes.filter((c): c is Extract<typeof c, { type: "remove" }> => c.type === "remove" && "id" in c && (c as { id?: string }).id?.startsWith("link-") === true);
+    if (removals.length > 0) {
+      const removeIds = new Set(removals.map((c) => (c as unknown as { id: string }).id));
+      const newLinks = empLinks.filter((_, idx) => !removeIds.has(`link-${idx}`));
+      saveEmpLinks(newLinks);
+    }
+    onEdgesChange(changes);
+  }, [onEdgesChange, empLinks, saveEmpLinks]);
 
   const savePositions = useCallback((currentNodes: Node[]) => {
     if (!isSA) return;
@@ -455,7 +609,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       <div className="card-xl overflow-hidden relative" style={{ height: "calc(70vh - 154px)", minHeight: 340 }}>
         <ReactFlow
           nodes={nodes} edges={edgesState}
-          onNodesChange={handleNodesChange} onEdgesChange={onEdgesChange}
+          onNodesChange={handleNodesChange} onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
           connectionMode={"loose" as never}
           nodeTypes={nodeTypes} edgeTypes={edgeTypes}
@@ -477,6 +631,11 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
           <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#f43f5e" }}>
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
             Top→Bottom = No access
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
+          <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--teal)" }}>
+            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
+            Reports to
           </span>
           <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click pill to edit</span>

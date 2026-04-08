@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   await connectDB();
   const doc = await FlowLayout.findOne({ canvasId }).lean();
 
-  return ok(doc?.positions ?? {});
+  return ok({ positions: doc?.positions ?? {}, links: doc?.links ?? [] });
 }
 
 export async function PUT(req: Request) {
@@ -29,15 +29,23 @@ export async function PUT(req: Request) {
   }
 
   const canvasId = (body.canvasId as string) ?? "org";
-  const positions = body.positions;
-  if (!positions || typeof positions !== "object") {
-    return badRequest("positions object is required");
+  const update: Record<string, unknown> = {};
+
+  if (body.positions && typeof body.positions === "object") {
+    update.positions = body.positions;
+  }
+  if (Array.isArray(body.links)) {
+    update.links = body.links;
+  }
+
+  if (Object.keys(update).length === 0) {
+    return badRequest("positions or links required");
   }
 
   await connectDB();
   await FlowLayout.findOneAndUpdate(
     { canvasId },
-    { positions },
+    { $set: update },
     { upsert: true, new: true },
   );
 

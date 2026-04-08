@@ -167,6 +167,7 @@ export async function POST(req: Request) {
       : basePerms;
 
   const isPrimary = typeof body.isPrimary === "boolean" ? body.isPrimary : false;
+  const autoSource = body.autoSource === "hierarchy" ? "hierarchy" : null;
 
   try {
     const created = await Membership.create({
@@ -177,6 +178,7 @@ export async function POST(req: Request) {
       reportsTo: reportsTo ?? undefined,
       isPrimary,
       isActive: true,
+      autoSource,
       permissions,
     });
 
