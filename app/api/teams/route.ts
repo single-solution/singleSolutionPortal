@@ -21,26 +21,28 @@ export async function GET() {
 
   let filter: Record<string, unknown> = {};
 
+  const actorDeptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
+  const actorTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+  const primaryDeptId = actor.memberships[0]?.departmentId;
+
   if (isSuperAdmin(actor)) {
     // sees all
   } else if (isManager(actor)) {
-    if (actor.crossDepartmentAccess) {
-      // sees all
-    } else if (actor.managedDepartments.length > 0) {
+    if (actorDeptIds.length > 0) {
       filter.$or = [
-        { department: { $in: actor.managedDepartments } },
-        { departments: { $in: actor.managedDepartments } },
+        { department: { $in: actorDeptIds } },
+        { departments: { $in: actorDeptIds } },
       ];
-    } else if (actor.department) {
+    } else if (primaryDeptId) {
       filter.$or = [
-        { department: actor.department },
-        { departments: actor.department },
+        { department: primaryDeptId },
+        { departments: primaryDeptId },
       ];
     } else {
-      filter._id = { $in: actor.leadOfTeams };
+      filter._id = { $in: actorTeamIds };
     }
   } else if (isTeamLead(actor)) {
-    filter._id = { $in: actor.leadOfTeams };
+    filter._id = { $in: actorTeamIds };
   } else {
     return ok([]);
   }
@@ -92,9 +94,10 @@ export async function POST(req: Request) {
   }
 
   if (isManager(actor) && !isSuperAdmin(actor)) {
+    const managedDeptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
+    const actorPrimaryDept = actor.memberships[0]?.departmentId;
     for (const dId of deptIds) {
-      const canCreateInDept = actor.managedDepartments.includes(dId) ||
-        actor.department === dId;
+      const canCreateInDept = managedDeptIds.includes(dId) || actorPrimaryDept === dId;
       if (!canCreateInDept) {
         return badRequest("Managers can only create teams in their managed departments");
       }
@@ -126,7 +129,7 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created team",
     entity: "team",
     entityId: team._id.toString(),

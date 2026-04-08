@@ -125,7 +125,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "updated employee",
     entity: "employee",
     entityId: id,
@@ -161,7 +161,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deactivated employee",
     entity: "employee",
     entityId: id,

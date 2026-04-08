@@ -35,14 +35,12 @@ export default function DepartmentsPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("departments", departmentsTour); }, [registerTour]);
-  const role = session?.user?.role;
-  const isSuperAdmin = role === "superadmin";
-  const canManageDepts = isSuperAdmin || role === "manager";
+  const canManageDepts = session?.user?.isSuperAdmin === true;
   const { data: departments, loading: deptsLoading, refetch: refetchDepts, mutate: mutateDepts } = useQuery<Department[]>("/api/departments", "departments");
   const { data: managersRaw } = useQuery<Employee[]>("/api/employees/dropdown", "employees");
 
   const deptList = departments ?? [];
-  const managers = useMemo(() => (managersRaw ?? []).filter((e) => e.userRole === "manager"), [managersRaw]);
+  const managers = useMemo(() => managersRaw ?? [], [managersRaw]);
 
   const [saving, setSaving] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("most");

@@ -42,11 +42,8 @@ export default function OrganizationPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("organization", organizationTour); }, [registerTour]);
-  const role = session?.user?.role;
-  const isSuperAdminFlag = session?.user?.isSuperAdmin === true;
-  const isSuperAdmin = role === "superadmin" || isSuperAdminFlag;
-  const isManager = role === "manager";
-  const canManage = isSuperAdmin || isManager;
+  const isSuperAdmin = session?.user?.isSuperAdmin === true;
+  const canManage = isSuperAdmin;
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: teams, loading: teamsLoading, refetch: refetchTeams } = useQuery<TeamRow[]>("/api/teams", "org-teams");

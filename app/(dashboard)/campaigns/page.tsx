@@ -71,8 +71,7 @@ export default function CampaignsPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("campaigns", campaignsTour); }, [registerTour]);
-  const role = session?.user?.role;
-  const canDelete = role === "superadmin" || role === "manager";
+  const canDelete = session?.user?.isSuperAdmin === true;
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");

@@ -27,6 +27,8 @@ export interface SettingsProfileData {
   username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   userRole: string;
+  isSuperAdmin?: boolean;
+  memberships?: Array<{ isPrimary?: boolean; designation?: { name: string } | null }>;
   department?: { title: string };
 }
 
@@ -59,6 +61,18 @@ export function getAvatarGradient(name: string) {
 
 export const SETTINGS_PROFILE_AVATAR_FALLBACK_GRADIENT = AVATAR_GRADIENTS[0];
 
+function profileDesignationLabel(profile: SettingsProfileData | null | undefined): string | null {
+  if (!profile) return null;
+  if (profile.isSuperAdmin) return "System Administrator";
+  const list = profile.memberships;
+  if (list?.length) {
+    const row = list.find((m) => m.isPrimary) ?? list[0];
+    const name = row?.designation && typeof row.designation === "object" && "name" in row.designation ? row.designation.name : undefined;
+    if (name) return name;
+  }
+  return "Employee";
+}
+
 export function SettingsProfile({
   profile,
   fullName,
@@ -73,6 +87,7 @@ export function SettingsProfile({
   onImageSelect,
   avatarGradient,
 }: SettingsProfileProps) {
+  const designationLabel = profileDesignationLabel(profile);
   return (
     <FadeUp delay={0.08} className="card-xl p-6 sm:p-8">
       <div data-tour="settings-profile" />
@@ -124,9 +139,9 @@ export function SettingsProfile({
             {profile?.username && (
               <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>@{profile.username}</span>
             )}
-            {profile?.userRole && (
+            {designationLabel && (
               <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
-                {({ superadmin: "Super Admin", manager: "Manager", teamLead: "Team Lead", businessDeveloper: "Business Dev", developer: "Developer" } as Record<string, string>)[profile.userRole] ?? profile.userRole}
+                {designationLabel}
               </span>
             )}
             {profile?.department?.title && (

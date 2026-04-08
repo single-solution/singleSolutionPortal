@@ -10,6 +10,8 @@ import {
   isTeamLead,
   isEmployee,
   getTeamMemberIds,
+  getDepartmentScope,
+  getTeamScope,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
@@ -26,18 +28,24 @@ export async function GET() {
   if (!isSuperAdmin(actor)) filter.isActive = true;
 
   if (isManager(actor)) {
-    if (actor.crossDepartmentAccess) {
-      // manager with cross-dept access sees all employees
-    } else if (actor.managedDepartments.length > 0) {
-      filter.department = { $in: actor.managedDepartments };
-    } else if (actor.department) {
-      filter.department = actor.department;
+    if (actor.isSuperAdmin) {
+      // superadmin sees all employees (no department filter)
+    } else {
+      const scopedDepts = [...new Set(getDepartmentScope(actor, "employees_view"))];
+      if (scopedDepts.length > 0) {
+        filter.department = { $in: scopedDepts };
+      } else {
+        const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
+        if (deptIds.length > 0) {
+          filter.department = { $in: deptIds };
+        }
+      }
     }
   } else if (isTeamLead(actor)) {
     const orClauses: Record<string, unknown>[] = [
       { reportsTo: actor.id },
     ];
-    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+    const memberIds = await getTeamMemberIds([...new Set(getTeamScope(actor, "employees_view"))]);
     if (memberIds.length > 0) {
       orClauses.push({ _id: { $in: memberIds } });
     }
@@ -160,7 +168,7 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created employee",
     entity: "employee",
     entityId: user._id.toString(),

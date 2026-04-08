@@ -64,7 +64,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         return badRequest("Can only assign tasks to employees in your department");
       }
       if (isTeamLead(actor)) {
-        const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+        const leadTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+        const memberIds = await getTeamMemberIds(leadTeamIds);
         if (!memberIds.includes(body.assignedTo) && body.assignedTo !== actor.id) {
           return badRequest("Can only assign tasks to your team members");
         }
@@ -86,7 +87,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: `updated task${body.status ? ` → ${body.status}` : ""}`,
     entity: "task",
     entityId: id,
@@ -119,7 +120,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 
   if (isTeamLead(actor)) {
-    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+    const leadTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+    const memberIds = await getTeamMemberIds(leadTeamIds);
     const assigneeId = (task.assignedTo as unknown as { _id?: { toString(): string } })?._id?.toString() ?? task.assignedTo.toString();
     if (!memberIds.includes(assigneeId) && assigneeId !== actor.id) {
       return forbidden();
@@ -133,7 +135,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deleted task",
     entity: "task",
     entityId: id,

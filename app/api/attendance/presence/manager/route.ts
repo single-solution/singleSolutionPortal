@@ -23,7 +23,7 @@ export async function GET() {
 
   const managerId = me.reportsTo.toString();
   const manager = await User.findById(managerId)
-    .select("about email userRole department workShift")
+    .select("about email department workShift")
     .populate("department", "title")
     .lean();
 
@@ -97,7 +97,6 @@ export async function GET() {
     firstName: manager.about.firstName,
     lastName: manager.about.lastName,
     email: m.email ?? "",
-    userRole: manager.userRole,
     department: (manager.department as { title?: string })?.title ?? "Unassigned",
     status,
     todayMinutes,

@@ -1,13 +1,14 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
+import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (!session.user.isSuperAdmin && session.user.role !== "superadmin") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!isSuperAdmin(actor)) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -20,7 +21,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (mgr?.userRole === "superadmin") return badRequest("Superadmin cannot be set as department manager");
   }
 
-  const update: Record<string, unknown> = { updatedBy: session.user.id };
+  const update: Record<string, unknown> = { updatedBy: actor.id };
   if (body.title?.trim()) update.title = body.title.trim();
   if (body.description !== undefined) update.description = body.description;
   if (body.managerId !== undefined) update.manager = body.managerId || null;
@@ -35,9 +36,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!dept) return notFound("Department not found");
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
-    userRole: session.user.role ?? "superadmin",
+    userEmail: actor.email,
+    userName: "",
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "updated department",
     entity: "department",
     entityId: id,
@@ -51,9 +52,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (!session.user.isSuperAdmin && session.user.role !== "superadmin") return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!isSuperAdmin(actor)) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -64,9 +65,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!dept) return notFound("Department not found");
 
   logActivity({
-    userEmail: session.user.email!,
-    userName: `${session.user.firstName} ${session.user.lastName}`.trim(),
-    userRole: session.user.role ?? "superadmin",
+    userEmail: actor.email,
+    userName: "",
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deleted department",
     entity: "department",
     entityId: id,

@@ -256,14 +256,6 @@ function ActivityStrip({ emp, todayMinutes, shiftStart, shiftEnd, shiftBreakTime
   );
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  superadmin: "System Administrator",
-  manager: "Team Manager",
-  teamLead: "Team Lead",
-  businessDeveloper: "Business Developer",
-  developer: "Software Developer",
-};
-
 export function EmployeeCard({
   emp,
   idx = 0,
@@ -381,9 +373,9 @@ export function EmployeeCard({
         {showRoleDepartmentTeams && (
           <div className="space-y-1 text-[11px]">
             <div className="flex items-center justify-between gap-2">
-              <span style={{ color: "var(--fg-tertiary)" }}>Role</span>
+              <span style={{ color: "var(--fg-tertiary)" }}>Designation</span>
               <span className="truncate font-medium text-right" style={{ color: "var(--fg)" }}>
-                {emp.userRole ? ROLE_LABELS[emp.userRole] ?? emp.userRole : "—"}
+                {emp.designation?.trim() ? emp.designation : "—"}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">

@@ -21,10 +21,13 @@ export async function GET() {
 
   let filter: Record<string, unknown> = { isActive: true };
 
+  const actorTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+  const primaryDeptId = actor.memberships[0]?.departmentId;
+
   if (isManager(actor)) {
-    if (actor.department) {
+    if (primaryDeptId) {
       const teamIds = await User.find({
-        department: actor.department,
+        department: primaryDeptId,
         isActive: true,
         isSuperAdmin: { $ne: true },
       }).distinct("_id");
@@ -33,7 +36,7 @@ export async function GET() {
       filter.assignedTo = actor.id;
     }
   } else if (isTeamLead(actor)) {
-    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+    const memberIds = await getTeamMemberIds(actorTeamIds);
     if (memberIds.length > 0) {
       filter.assignedTo = { $in: [...memberIds, actor.id] };
     } else {
@@ -92,7 +95,7 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created task",
     entity: "task",
     entityId: task._id.toString(),

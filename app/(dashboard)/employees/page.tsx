@@ -20,6 +20,8 @@ interface Employee {
   username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   userRole: string;
+  isSuperAdmin?: boolean;
+  memberships?: Array<{ isPrimary?: boolean; designation?: { name: string } | null }>;
   department?: { _id: string; title: string };
   teams?: { _id: string; name: string }[];
   reportsTo?: { _id: string; about: { firstName: string; lastName: string }; email: string; userRole: string } | null;
@@ -39,23 +41,6 @@ const SHIFT_TYPE_LABELS: Record<string, string> = {
   partTime: "Part-time",
   contract: "Contract",
   intern: "Intern",
-};
-
-const DESIGNATION_LABELS: Record<string, string> = {
-  superadmin: "System Administrator",
-  manager: "Team Manager",
-  teamLead: "Team Lead",
-  businessDeveloper: "Business Developer",
-  developer: "Software Developer",
-};
-
-type RoleFilter = "all" | "manager" | "teamLead" | "businessDeveloper" | "developer";
-const ROLE_FILTER_LABELS: Record<RoleFilter, string> = {
-  all: "All",
-  manager: "Managers",
-  teamLead: "Leads",
-  businessDeveloper: "BD",
-  developer: "Developers",
 };
 
 type SortMode = "recent" | "name";
@@ -90,6 +75,17 @@ function formatWorkingDays(days: string[]) {
   return sorted.map((d) => DAY_MAP[d] ?? d).join(", ");
 }
 
+function primaryDesignationLabel(emp: Employee): string {
+  if (emp.isSuperAdmin) return "System Administrator";
+  const list = emp.memberships;
+  if (list?.length) {
+    const row = list.find((m) => m.isPrimary) ?? list[0];
+    const name = row?.designation && typeof row.designation === "object" && "name" in row.designation ? row.designation.name : undefined;
+    if (name) return name;
+  }
+  return "Employee";
+}
+
 function shiftSummaryLine(emp: Employee) {
   if (!emp.workShift) return undefined;
   const type = SHIFT_TYPE_LABELS[emp.workShift.type] ?? emp.workShift.type;
@@ -109,10 +105,7 @@ export default function EmployeesPage() {
     if (id === "all") params.delete("dept"); else params.set("dept", id);
     router.replace(`?${params.toString()}`, { scroll: false });
   }
-  const role = session?.user?.role;
-  const isSuperAdmin = role === "superadmin";
-  const isManager = role === "manager";
-  const canManage = isSuperAdmin || isManager;
+  const isSuperAdmin = session?.user?.isSuperAdmin === true;
   const { data: employees, loading: employeesLoading, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>("/api/employees", "employees");
   const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "presence");
 
@@ -122,7 +115,6 @@ export default function EmployeesPage() {
     return map;
   }, [presenceData]);
 
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [groupMode, setGroupMode] = useState<GroupMode>("flat");
@@ -135,21 +127,9 @@ export default function EmployeesPage() {
 
   const empList = employees ?? [];
 
-  const availableRoles = useMemo(() => {
-    const rolesInList = new Set(empList.map((e) => e.userRole));
-    return (Object.keys(ROLE_FILTER_LABELS) as RoleFilter[]).filter(
-      (k) => k === "all" || rolesInList.has(k),
-    );
-  }, [empList]);
-
-  useEffect(() => {
-    if (roleFilter !== "all" && !availableRoles.includes(roleFilter)) setRoleFilter("all");
-  }, [availableRoles, roleFilter]);
-
   const filtered = useMemo(() => {
     let list = empList;
     if (scopeDept !== "all") list = list.filter((e) => e.department?._id === scopeDept);
-    if (roleFilter !== "all") list = list.filter((e) => e.userRole === roleFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((e) => `${e.about.firstName} ${e.about.lastName} ${e.email} ${e.username}`.toLowerCase().includes(q));
@@ -160,7 +140,7 @@ export default function EmployeesPage() {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [empList, scopeDept, roleFilter, search, sortMode]);
+  }, [empList, scopeDept, search, sortMode]);
 
   const grouped = useMemo(() => {
     if (groupMode === "flat") return null;
@@ -374,34 +354,12 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* Role filter */}
-      <div data-tour="employees-filters" className="mb-4 flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {availableRoles.map((k) => {
-            const active = roleFilter === k;
-            return (
-              <motion.button
-                key={k}
-                type="button"
-                onClick={() => setRoleFilter(k)}
-                whileTap={{ scale: 0.97 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                  active
-                    ? "bg-[var(--primary)] text-white shadow-sm"
-                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                }`}
-              >
-                {ROLE_FILTER_LABELS[k]}
-              </motion.button>
-            );
-          })}
-        </div>
-        {(search || roleFilter !== "all") && (
-          <button type="button" onClick={() => { setSearch(""); setRoleFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
-            Clear
+      <div data-tour="employees-filters" className="mb-4 flex min-h-[1.25rem] items-center gap-2 flex-wrap">
+        {search ? (
+          <button type="button" onClick={() => setSearch("")} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
+            Clear search
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Batch Action Bar */}
@@ -463,8 +421,8 @@ export default function EmployeesPage() {
                   selected={isSelected}
                   onSelect={() => toggleSelect(emp._id)}
                   showRoleDepartmentTeams
-                  showActions={canManage || isSuperAdmin}
-                  onEdit={canManage ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
+                  showActions={isSuperAdmin}
+                  onEdit={isSuperAdmin ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
                   onDelete={isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
                   emp={{
                     _id: emp._id,
@@ -472,7 +430,7 @@ export default function EmployeesPage() {
                     firstName: emp.about.firstName,
                     lastName: emp.about.lastName,
                     email: emp.email,
-                    designation: DESIGNATION_LABELS[emp.userRole] ?? emp.userRole,
+                    designation: primaryDesignationLabel(emp),
                     department: emp.department?.title,
                     profileImage: emp.about.profileImage,
                     userRole: emp.userRole,

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (!session.user.isSuperAdmin && session.user.role !== "superadmin") return forbidden();
+  if (!session.user.isSuperAdmin) return forbidden();
 
   const url = new URL(request.url);
   const type = url.searchParams.get("type") ?? "invite";

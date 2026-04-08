@@ -7,10 +7,7 @@ import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isAdmin,
-  canViewTeamStats,
-  isManager,
-  isTeamLead,
-  isEmployee,
+  hasPermission,
   getTeamMemberIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
@@ -20,7 +17,7 @@ export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!isAdmin(actor) && !canViewTeamStats(actor)) {
+  if (!isAdmin(actor) && !hasPermission(actor, "attendance_viewTeam")) {
     return ok([]);
   }
 
@@ -31,21 +28,26 @@ export async function GET() {
   const today = startOfDay(new Date(), tz);
 
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
-  if (isManager(actor) && !actor.crossDepartmentAccess) {
-    if (actor.managedDepartments.length > 0) {
-      empFilter.department = { $in: actor.managedDepartments };
-    } else if (actor.department) {
-      empFilter.department = actor.department;
-    }
-  } else if (isTeamLead(actor)) {
-    const orClauses: Record<string, unknown>[] = [{ _id: actor.id }, { reportsTo: actor.id }];
-    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-    if (memberIds.length > 0) {
-      orClauses.push({ _id: { $in: memberIds } });
-    }
+  if (actor.isSuperAdmin) {
+    // no extra filter — all non–super-admin employees
+  } else if (isAdmin(actor)) {
+    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
+    const teamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+    const memberIds = teamIds.length > 0 ? await getTeamMemberIds(teamIds) : [];
+    const orClauses: Record<string, unknown>[] = [
+      { _id: actor.id },
+      { reportsTo: actor.id },
+    ];
+    if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
+    if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
     empFilter.$or = orClauses;
-  } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
-    empFilter.department = actor.department;
+  } else if (hasPermission(actor, "attendance_viewTeam")) {
+    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
+    if (deptIds.length > 0) {
+      empFilter.department = { $in: deptIds };
+    } else {
+      empFilter._id = actor.id;
+    }
   }
 
   const employees = await User.find(empFilter)

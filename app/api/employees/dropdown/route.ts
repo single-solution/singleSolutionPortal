@@ -8,6 +8,8 @@ import {
   isTeamLead,
   isEmployee,
   getTeamMemberIds,
+  getDepartmentScope,
+  getTeamScope,
 } from "@/lib/permissions";
 
 export async function GET() {
@@ -23,15 +25,19 @@ export async function GET() {
   if (!isSuperAdmin(actor)) filter.isActive = true;
 
   if (isManager(actor)) {
-    if (!actor.crossDepartmentAccess) {
-      if (actor.managedDepartments.length > 0) {
-        filter.department = { $in: actor.managedDepartments };
-      } else if (actor.department) {
-        filter.department = actor.department;
+    if (!actor.isSuperAdmin) {
+      const scopedDepts = [...new Set(getDepartmentScope(actor, "employees_view"))];
+      if (scopedDepts.length > 0) {
+        filter.department = { $in: scopedDepts };
+      } else {
+        const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
+        if (deptIds.length > 0) {
+          filter.department = { $in: deptIds };
+        }
       }
     }
   } else if (isTeamLead(actor)) {
-    const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+    const memberIds = await getTeamMemberIds([...new Set(getTeamScope(actor, "employees_view"))]);
     filter._id = memberIds.length > 0 ? { $in: memberIds } : actor.id;
   } else if (isEmployee(actor)) {
     filter._id = actor.id;

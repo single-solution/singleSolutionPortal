@@ -60,20 +60,23 @@ export async function POST(req: Request) {
   const tagDepartments: string[] = body.tagDepartments ?? [];
   const tagTeams: string[] = body.tagTeams ?? [];
 
+  const actorTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+  const primaryDeptId = actor.memberships[0]?.departmentId;
+
   if (!isSuperAdmin(actor)) {
     if (isManager(actor)) {
-      if (!actor.crossDepartmentAccess && actor.department) {
+      if (primaryDeptId) {
         if (tagDepartments.length > 0) {
-          const valid = tagDepartments.every((d) => d === actor.department);
+          const valid = tagDepartments.every((d) => d === primaryDeptId);
           if (!valid) return badRequest("Can only tag your own department");
         }
         if (tagTeams.length > 0) {
-          const deptTeams = await getDeptTeamIds(actor.department);
+          const deptTeams = await getDeptTeamIds(primaryDeptId);
           const allValid = tagTeams.every((t) => deptTeams.includes(t));
           if (!allValid) return badRequest("Can only tag teams in your department");
         }
         if (tagEmployees.length > 0) {
-          const deptEmps = await getDeptEmployeeIds(actor.department);
+          const deptEmps = await getDeptEmployeeIds(primaryDeptId);
           const allValid = tagEmployees.every((e) => deptEmps.includes(e));
           if (!allValid) return badRequest("Can only tag employees in your department");
         }
@@ -83,11 +86,11 @@ export async function POST(req: Request) {
         return badRequest("Team leads cannot tag departments — tag employees instead");
       }
       if (tagTeams.length > 0) {
-        const allValid = tagTeams.every((t) => actor.leadOfTeams.includes(t));
+        const allValid = tagTeams.every((t) => actorTeamIds.includes(t));
         if (!allValid) return badRequest("Can only tag teams you lead");
       }
       if (tagEmployees.length > 0) {
-        const memberIds = await getTeamMemberIds(actor.leadOfTeams);
+        const memberIds = await getTeamMemberIds(actorTeamIds);
         const selfAndMembers = [...memberIds, actor.id];
         const allValid = tagEmployees.every((e) => selfAndMembers.includes(e));
         if (!allValid) return badRequest("Can only tag members of your teams");
@@ -121,7 +124,7 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created campaign",
     entity: "campaign",
     entityId: campaign._id.toString(),

@@ -55,15 +55,23 @@ function NavPill({ active, onClick, children, badge }: { active: boolean; onClic
 
 export default function TasksPage() {
   const { data: session, status: sessionStatus } = useSession();
-  const role = session?.user?.role;
-  const isAdmin = role === "superadmin" || role === "manager" || role === "teamLead";
+  const isAdmin = session?.user?.isSuperAdmin === true;
 
   const { data: tasks, loading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "workspace-tasks");
   const { data: campaigns } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "ws-task-emp");
   const taskList = useMemo(() => tasks ?? [], [tasks]);
   const campaignList = useMemo(() => campaigns ?? [], [campaigns]);
-  const assigneeOptions = useMemo(() => (employeesRaw ?? []).filter((e) => (e as { userRole?: string }).userRole !== "superadmin").map((e) => ({ _id: e._id as string, label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}` })), [employeesRaw]);
+  const assigneeOptions = useMemo(
+    () =>
+      (employeesRaw ?? [])
+        .filter((e) => (e as { isSuperAdmin?: boolean }).isSuperAdmin !== true)
+        .map((e) => ({
+          _id: e._id as string,
+          label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}`,
+        })),
+    [employeesRaw],
+  );
 
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");

@@ -60,7 +60,7 @@ export async function PUT(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "updated system settings",
     entity: "settings",
     details: changed,

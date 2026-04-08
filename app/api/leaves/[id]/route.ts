@@ -5,7 +5,7 @@ import Leave from "@/lib/models/Leave";
 import LeaveBalance from "@/lib/models/LeaveBalance";
 import Membership from "@/lib/models/Membership";
 import type { LeaveStatus, LeaveType } from "@/lib/models/Leave";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, isAdmin } from "@/lib/permissions";
 import { badRequest, forbidden, notFound, unauthorized, isValidId } from "@/lib/helpers";
 
 const BALANCE_TYPES = new Set<LeaveType>(["annual", "sick", "casual"]);
@@ -55,8 +55,8 @@ async function releaseBalance(leave: {
   await bal.save();
 }
 
-function canApproveReject(actor: { isSuperAdmin: boolean; role: string }): boolean {
-  return actor.isSuperAdmin || actor.role === "manager";
+function canApproveReject(actor: Parameters<typeof isAdmin>[0]): boolean {
+  return isAdmin(actor);
 }
 
 async function canViewLeave(

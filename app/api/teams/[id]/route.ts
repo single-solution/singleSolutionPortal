@@ -5,6 +5,7 @@ import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/
 import {
   getVerifiedSession,
   isSuperAdmin,
+  isAdmin,
   canEditTeam,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
@@ -59,7 +60,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (body.description !== undefined) update.description = body.description;
   if (typeof body.isActive === "boolean") update.isActive = body.isActive;
 
-  if (isSuperAdmin(actor) || actor.role === "manager") {
+  if (isAdmin(actor)) {
     if (body.departments !== undefined) {
       update.departments = body.departments;
       update.department = body.departments[0] ?? null;
@@ -97,7 +98,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "updated team",
     entity: "team",
     entityId: id,
@@ -132,7 +133,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deleted team",
     entity: "team",
     entityId: id,

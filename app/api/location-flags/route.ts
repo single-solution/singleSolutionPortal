@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
-import { getVerifiedSession, isAdmin, isManager, isTeamLead, getTeamMemberIds } from "@/lib/permissions";
+import { getVerifiedSession, isAdmin, getTeamMemberIds } from "@/lib/permissions";
 import { unauthorized, ok } from "@/lib/helpers";
 import User from "@/lib/models/User";
 
@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!isAdmin(actor) && !isManager(actor) && !isTeamLead(actor)) {
+  if (!isAdmin(actor)) {
     return ok({ flags: [], total: 0 });
   }
 
@@ -24,24 +24,21 @@ export async function GET(req: Request) {
 
   if (userId) {
     filter.user = userId;
-  } else if (!isAdmin(actor)) {
-    let visibleUserIds: string[] = [];
-
-    if (isManager(actor) && !actor.crossDepartmentAccess) {
-      const deptFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
-      if (actor.managedDepartments.length > 0) {
-        deptFilter.department = { $in: actor.managedDepartments };
-      } else if (actor.department) {
-        deptFilter.department = actor.department;
-      }
-      const users = await User.find(deptFilter).select("_id").lean();
-      visibleUserIds = users.map((u) => u._id.toString());
-    } else if (isTeamLead(actor)) {
-      const reportees = await User.find({ reportsTo: actor.id, isActive: true }).select("_id").lean();
-      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      const idSet = new Set([...reportees.map((r) => r._id.toString()), ...memberIds]);
-      visibleUserIds = Array.from(idSet);
-    }
+  } else if (!actor.isSuperAdmin) {
+    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
+    const teamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+    const memberIds = teamIds.length > 0 ? await getTeamMemberIds(teamIds) : [];
+    const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
+    if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
+    if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
+    const users = await User.find({
+      isActive: true,
+      isSuperAdmin: { $ne: true },
+      $or: orClauses,
+    })
+      .select("_id")
+      .lean();
+    const visibleUserIds = users.map((u) => u._id.toString());
 
     if (visibleUserIds.length > 0) {
       filter.user = { $in: visibleUserIds };
@@ -68,7 +65,7 @@ export async function PATCH(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!isAdmin(actor) && !isManager(actor) && !isTeamLead(actor)) {
+  if (!isAdmin(actor)) {
     return unauthorized();
   }
 

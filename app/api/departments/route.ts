@@ -9,6 +9,8 @@ import {
   isSuperAdmin,
   isManager,
   isTeamLead,
+  getDepartmentScope,
+  getTeamScope,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -20,31 +22,39 @@ export async function GET() {
 
   let deptFilter: Record<string, unknown> = { isActive: true };
 
+  const primaryDeptId =
+    actor.memberships.find((m) => m.isPrimary)?.departmentId ?? actor.memberships[0]?.departmentId;
+
   if (isSuperAdmin(actor)) {
     // sees all
   } else if (isManager(actor)) {
-    if (!actor.crossDepartmentAccess) {
-      if (actor.managedDepartments.length > 0) {
-        deptFilter._id = { $in: actor.managedDepartments };
-      } else if (actor.department) {
-        deptFilter._id = actor.department;
+    if (!actor.isSuperAdmin) {
+      const scopedDepts = [...new Set(getDepartmentScope(actor, "departments_view"))];
+      if (scopedDepts.length > 0) {
+        deptFilter._id = { $in: scopedDepts };
+      } else {
+        const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
+        if (deptIds.length > 0) {
+          deptFilter._id = { $in: deptIds };
+        }
       }
       // no else — managers with no explicit scope see all departments
     }
   } else if (isTeamLead(actor)) {
-    if (actor.leadOfTeams.length > 0) {
-      const teams = await Team.find({ _id: { $in: actor.leadOfTeams }, isActive: true }).select("department").lean();
+    const leadTeamIds = [...new Set(getTeamScope(actor, "teams_view"))];
+    if (leadTeamIds.length > 0) {
+      const teams = await Team.find({ _id: { $in: leadTeamIds }, isActive: true }).select("department").lean();
       const deptIds = [...new Set(teams.map((t) => t.department.toString()).filter(Boolean))];
-      if (actor.department && !deptIds.includes(actor.department)) deptIds.push(actor.department);
+      if (primaryDeptId && !deptIds.includes(primaryDeptId)) deptIds.push(primaryDeptId);
       deptFilter._id = { $in: deptIds };
-    } else if (actor.department) {
-      deptFilter._id = actor.department;
+    } else if (primaryDeptId) {
+      deptFilter._id = primaryDeptId;
     } else {
       return ok([]);
     }
   } else {
-    if (actor.department) {
-      deptFilter._id = actor.department;
+    if (primaryDeptId) {
+      deptFilter._id = primaryDeptId;
     } else {
       return ok([]);
     }
@@ -112,7 +122,7 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.role,
+    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created department",
     entity: "department",
     entityId: dept._id.toString(),

@@ -1,5 +1,5 @@
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, isAdmin, getTeamMemberIds, type VerifiedUser } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import Ping from "@/lib/models/Ping";
 import User from "@/lib/models/User";
@@ -58,13 +58,10 @@ export async function POST(req: Request) {
 
   const message = typeof body.message === "string" ? body.message.slice(0, 280) : "";
 
-  const target = await User.findById(toId).select("_id userRole department teams reportsTo").lean();
+  const target = await User.findById(toId).select("_id department teams reportsTo").lean();
   if (!target) return badRequest("User not found");
 
-  const actorFull = await User.findById(actor.id).select("userRole department teams reportsTo").lean();
-  if (!actorFull) return unauthorized();
-
-  const allowed = await isInPool(actorFull, target);
+  const allowed = await isInPool(actor, target);
   if (!allowed) return badRequest("Target is not in your hierarchy pool");
 
   const ping = await Ping.create({ from: actor.id, to: toId, message });
@@ -102,30 +99,27 @@ export async function PATCH(req: Request) {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-async function isInPool(actor: any, target: any): Promise<boolean> {
-  const actorRole = actor.userRole;
+async function isInPool(actor: VerifiedUser, target: any): Promise<boolean> {
+  if (actor.isSuperAdmin) return true;
 
-  if (actorRole === "superadmin") return true;
-
-  const actorDept = actor.department ? String(actor.department) : null;
-  const targetDept = target.department ? String(target.department) : null;
-  const actorTeams = (actor.teams ?? []).map(String);
-  const targetTeams = (target.teams ?? []).map(String);
-  const actorReportsTo = actor.reportsTo ? String(actor.reportsTo) : null;
   const targetId = String(target._id);
+  const targetDept = target.department ? String(target.department) : null;
+  const targetTeams = (target.teams ?? []).map(String);
 
-  if (actorRole === "manager") {
-    return actorDept !== null && actorDept === targetDept;
+  if (isAdmin(actor)) {
+    if (targetDept && actor.memberships.some((m) => m.departmentId === targetDept)) {
+      return true;
+    }
+    const teamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+    if (teamIds.length > 0) {
+      const memberIds = await getTeamMemberIds(teamIds);
+      if (memberIds.includes(targetId)) return true;
+    }
+    return false;
   }
 
-  if (actorRole === "teamLead") {
-    if (actorReportsTo === targetId) return true;
-    const sharedTeam = actorTeams.some((t: string) => targetTeams.includes(t));
-    return sharedTeam;
-  }
+  if (actor.memberships.some((m) => m.reportsTo === targetId)) return true;
 
-  if (actorReportsTo === targetId) return true;
-
-  const sharedTeam = actorTeams.some((t: string) => targetTeams.includes(t));
-  return sharedTeam;
+  const actorTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+  return actorTeamIds.some((t) => targetTeams.includes(t));
 }

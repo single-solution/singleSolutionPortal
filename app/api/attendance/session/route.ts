@@ -5,6 +5,7 @@ import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
+import Membership from "@/lib/models/Membership";
 import { getVerifiedSession } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice, validateLocation } from "@/lib/geo";
@@ -39,23 +40,26 @@ export async function GET(req: NextRequest) {
   const targetUserId = url.searchParams.get("userId") ?? actor.id;
 
   if (targetUserId !== actor.id) {
-    if (actor.role === "manager") {
-      const target = await User.findById(targetUserId).select("department").lean();
-      if (
-        !actor.department ||
-        !target?.department ||
-        actor.department !== target.department.toString()
-      ) {
-        return ok({ activeSession: null });
-      }
-    } else if (actor.role === "teamLead") {
-      const target = await User.findById(targetUserId).select("teams").lean();
-      const targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [];
-      const hasOverlap = targetTeams.some((t) => actor.leadOfTeams.includes(t));
-      if (!hasOverlap) {
-        return ok({ activeSession: null });
-      }
-    } else {
+    const targetMemberships = await Membership.find({ user: targetUserId, isActive: true })
+      .select("department team")
+      .lean();
+    const targetDeptIds = new Set(
+      targetMemberships
+        .map((m) => (m as { department?: { toString(): string } }).department?.toString())
+        .filter((d): d is string => Boolean(d)),
+    );
+    const targetTeamIds = new Set(
+      targetMemberships
+        .filter((m) => (m as { team?: unknown }).team)
+        .map((m) => (m as { team: { toString(): string } }).team.toString()),
+    );
+    const actorDeptIds = new Set(actor.memberships.map((m) => m.departmentId));
+    const actorTeamIds = new Set(
+      actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!),
+    );
+    const sameDept = [...targetDeptIds].some((d) => actorDeptIds.has(d));
+    const sameTeam = [...targetTeamIds].some((t) => actorTeamIds.has(t));
+    if (!sameDept && !sameTeam) {
       return ok({ activeSession: null });
     }
   }
@@ -289,7 +293,7 @@ function notifyFlagAsync(
         targetIds.push(employee.reportsTo.toString());
       }
 
-      const superAdmins = await User.find({ userRole: "superadmin", isActive: true }).select("_id").lean();
+      const superAdmins = await User.find({ isSuperAdmin: true, isActive: true }).select("_id").lean();
       for (const sa of superAdmins) {
         const saId = sa._id.toString();
         if (!targetIds.includes(saId)) targetIds.push(saId);

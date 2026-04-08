@@ -17,8 +17,41 @@ import {
   isTeamLead,
   isEmployee,
   getTeamMemberIds,
+  hasPermission,
 } from "@/lib/permissions";
+import type { VerifiedUser } from "@/lib/permissions";
 import { NextRequest } from "next/server";
+
+async function buildTeamStatsEmployeeFilter(actor: VerifiedUser): Promise<Record<string, unknown>> {
+  const empFilter: Record<string, unknown> = {
+    isActive: true,
+    isSuperAdmin: { $ne: true },
+    _id: { $ne: actor.id },
+  };
+  if (actor.isSuperAdmin) return empFilter;
+
+  const actorDeptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
+  const actorTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+
+  if (isManager(actor)) {
+    if (actorDeptIds.length > 1) {
+      empFilter.department = { $in: actorDeptIds };
+    } else if (actorDeptIds.length === 1) {
+      empFilter.department = actorDeptIds[0];
+    } else if (actor.memberships[0]?.departmentId) {
+      empFilter.department = actor.memberships[0].departmentId;
+    }
+  } else if (isTeamLead(actor)) {
+    const memberIds = await getTeamMemberIds(actorTeamIds);
+    const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
+    if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
+    empFilter.$or = orClauses;
+  } else if (isEmployee(actor) && hasPermission(actor, "attendance_viewTeam") && actor.memberships[0]?.departmentId) {
+    empFilter.department = actor.memberships[0].departmentId;
+  }
+
+  return empFilter;
+}
 
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
@@ -38,21 +71,7 @@ export async function GET(req: NextRequest) {
   if (type === "team") {
     if (!canViewTeamStats(actor)) return ok([]);
 
-    let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true }, _id: { $ne: actor.id } };
-    if (isManager(actor) && !actor.crossDepartmentAccess) {
-      if (actor.managedDepartments.length > 0) {
-        empFilter.department = { $in: actor.managedDepartments };
-      } else if (actor.department) {
-        empFilter.department = actor.department;
-      }
-    } else if (isTeamLead(actor)) {
-      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
-      if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
-      empFilter.$or = orClauses;
-    } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
-      empFilter.department = actor.department;
-    }
+    const empFilter = await buildTeamStatsEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
       .select("about userRole department")
@@ -74,21 +93,7 @@ export async function GET(req: NextRequest) {
   if (type === "team-monthly") {
     if (!canViewTeamStats(actor)) return ok([]);
 
-    let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true }, _id: { $ne: actor.id } };
-    if (isManager(actor) && !actor.crossDepartmentAccess) {
-      if (actor.managedDepartments.length > 0) {
-        empFilter.department = { $in: actor.managedDepartments };
-      } else if (actor.department) {
-        empFilter.department = actor.department;
-      }
-    } else if (isTeamLead(actor)) {
-      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
-      if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
-      empFilter.$or = orClauses;
-    } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
-      empFilter.department = actor.department;
-    }
+    const empFilter = await buildTeamStatsEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
       .select("about userRole department reportsTo")
@@ -151,21 +156,7 @@ export async function GET(req: NextRequest) {
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok([]);
 
-    let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true }, _id: { $ne: actor.id } };
-    if (isManager(actor) && !actor.crossDepartmentAccess) {
-      if (actor.managedDepartments.length > 0) {
-        empFilter.department = { $in: actor.managedDepartments };
-      } else if (actor.department) {
-        empFilter.department = actor.department;
-      }
-    } else if (isTeamLead(actor)) {
-      const memberIds = await getTeamMemberIds(actor.leadOfTeams);
-      const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
-      if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
-      empFilter.$or = orClauses;
-    } else if (isEmployee(actor) && actor.teamStatsVisible && actor.department) {
-      empFilter.department = actor.department;
-    }
+    const empFilter = await buildTeamStatsEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
       .select("about userRole department")

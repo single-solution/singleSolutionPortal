@@ -17,9 +17,7 @@ interface ScopeStripProps {
 
 export function ScopeStrip({ value, onChange, className }: ScopeStripProps) {
   const { data: session } = useSession();
-  const role = session?.user?.role;
-
-  const shouldShow = role === "superadmin" || role === "manager";
+  const shouldShow = session?.user?.isSuperAdmin === true;
   const { data: deptsRaw } = useQuery<Dept[]>(shouldShow ? "/api/departments" : null, "scopeDepts");
 
   if (!shouldShow || !deptsRaw || deptsRaw.length < 2) return null;
