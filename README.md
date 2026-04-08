@@ -119,7 +119,7 @@ Unified page for managing employees, departments, and teams:
 - **Org tree sidebar** with department → team hierarchy; "All Employees" with inline count as default overview
 - **Teams panel** in sidebar (SuperAdmin only) — create, edit, delete teams with department assignment; listed alphabetically with member counts
 - **Designations panel** in sidebar (SuperAdmin only) — create, edit, toggle designations as simple titles
-- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react) showing Organization → Department → Team → Employee hierarchy with drag-and-drop, pan/zoom, minimap, and controls. Toggle between Flow and Cards views
+- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react). Shows all Departments, Teams, and Employees as distinct node types with typed edges based on Memberships. Each membership edge has a **designation pill** — click it to see a dropdown and change the designation for that specific connection. Employees can have multiple edges to different teams/departments simultaneously. Drag nodes to rearrange — positions auto-save to the database (FlowLayout model) so the layout persists across sessions. Pan, zoom, minimap, and controls built in. Toggle between Flow and Cards views
 - **Title bar controls** — view toggle, sort (Name / Email / Role), and group (All / Dept / Team) are integrated directly into the page title bar on desktop for a clean, compact layout. Sort/group controls auto-hide in Flow view
 - **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
@@ -310,6 +310,7 @@ app/
     tasks/                  Task CRUD
     attendance/             Daily/monthly records + session + presence
     designations/           Designation CRUD (SuperAdmin)
+    flow-layout/            Flow diagram node position persistence
     memberships/            Membership CRUD (user-department-team assignments)
     leaves/                 Leave request CRUD + balance
     payroll/                Config, holidays, generate, payslips
@@ -344,6 +345,7 @@ lib/
     User.ts                 User (isSuperAdmin, salary, guideTours)
     Designation.ts          Permission template (50 toggles, 10 categories)
     Membership.ts           User-department-team assignment with custom permissions
+    FlowLayout.ts           Persisted node positions for the org flow diagram
     Department.ts           Department with parent hierarchy
     Team.ts                 Team within a department
     Campaign.ts             Campaign (status lifecycle, tagged entities)

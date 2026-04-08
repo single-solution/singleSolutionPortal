@@ -823,7 +823,7 @@ export default function OrganizationPage() {
               >
                 {/* Overview content */}
                 {viewMode === "tree" ? (
-                  <OrgFlowTree departments={deptList} teams={teamList} employees={empList} teamsByDept={teamsByDept} />
+                  <OrgFlowTree departments={deptList} teams={teamList} employees={empList} teamsByDept={teamsByDept} designations={activeDesignations} isSuperAdmin={isSuperAdmin} />
                 ) : groupedEmployees ? (
                   <div className="space-y-4">
                     {groupedEmployees.map((g) => (
