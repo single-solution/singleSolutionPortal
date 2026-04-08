@@ -19,7 +19,6 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   type EdgeProps,
-  MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,9 +29,6 @@ import { PERMISSION_CATEGORIES, PERMISSION_KEYS, type IPermissions } from "@/lib
 const DEPT_PERM_KEYS: Set<keyof IPermissions> = new Set([
   "departments_view", "departments_create", "departments_edit", "departments_delete",
 ]);
-const TEAM_PERM_KEYS: Set<keyof IPermissions> = new Set([
-  "teams_view", "teams_create", "teams_edit", "teams_delete",
-]);
 const EMP_PERM_KEYS: Set<keyof IPermissions> = new Set([
   "employees_view", "employees_viewDetail", "employees_create", "employees_edit",
   "employees_delete", "employees_toggleStatus", "employees_resendInvite",
@@ -40,14 +36,12 @@ const EMP_PERM_KEYS: Set<keyof IPermissions> = new Set([
 
 function permSetForNodeType(nodeType: string): Set<keyof IPermissions> {
   if (nodeType === "dept") return DEPT_PERM_KEYS;
-  if (nodeType === "team") return TEAM_PERM_KEYS;
   if (nodeType === "emp") return EMP_PERM_KEYS;
   return DEPT_PERM_KEYS;
 }
 
 function permSetLabel(nodeType: string): string {
   if (nodeType === "dept") return "Departments";
-  if (nodeType === "team") return "Teams";
   if (nodeType === "emp") return "Employees";
   return "Departments";
 }
@@ -60,7 +54,6 @@ interface MembershipRow {
   _id: string;
   user: { _id: string; about: { firstName: string; lastName: string }; email: string };
   department: { _id: string; title: string };
-  team: { _id: string; name: string } | null;
   designation: { _id: string; name: string; color: string } | null;
   permissions?: Record<string, boolean>;
 }
@@ -68,12 +61,9 @@ interface MembershipRow {
 interface Employee {
   _id: string; email: string; username: string;
   about: { firstName: string; lastName: string; profileImage?: string };
-  department?: { _id: string; title: string };
-  teams?: { _id: string; name: string }[];
   isActive: boolean;
 }
-interface Department { _id: string; title: string; employeeCount: number; teamCount: number }
-interface TeamRow { _id: string; name: string; memberCount: number; department: { _id: string; title: string; slug: string }; departments?: { _id: string; title: string; slug: string }[] }
+interface Department { _id: string; title: string; employeeCount: number }
 
 function idStr(x: unknown): string {
   if (x === null || x === undefined) return "";
@@ -98,24 +88,6 @@ function DeptNode({ data }: NodeProps) {
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
-    </div>
-  );
-}
-
-function TeamNode({ data }: NodeProps) {
-  return (
-    <div className="rounded-2xl border-2 px-4 py-2.5 shadow-md min-w-[150px]" style={{ background: "var(--bg-elevated)", borderColor: "#3b82f6" }}>
-      <Handle type="source" position={Position.Top} id="top" className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
-      <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: "#3b82f6", color: "white" }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-        </div>
-        <div className="min-w-0 text-left">
-          <p className="text-xs font-semibold truncate max-w-[120px]" style={{ color: "var(--fg)" }}>{String(data.label ?? "")}</p>
-          {data.sub ? <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
-        </div>
-      </div>
-      <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -145,6 +117,7 @@ interface DesigEdgeData {
   onChangeDesignation?: (mId: string, dId: string) => void;
   onOpenPrivileges?: (mId: string) => void;
   onDeleteMembership?: (mId: string) => void;
+  hidePill?: boolean;
 }
 
 function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
@@ -160,6 +133,8 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
+
+  if (data?.hidePill) return <BaseEdge path={edgePath} style={style} />;
 
   return (
     <>
@@ -213,21 +188,21 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
 
 /* ────────── Main ────────── */
 
-const nodeTypes = { dept: DeptNode, team: TeamNode, emp: EmpNode };
+const nodeTypes = { dept: DeptNode, emp: EmpNode };
 const edgeTypes = { designation: DesignationEdge };
 
 interface Props {
-  departments: Department[]; teams: TeamRow[]; employees: Employee[];
-  teamsByDept: Map<string, TeamRow[]>; designations: DesigOption[]; isSuperAdmin: boolean;
+  departments: Department[]; employees: Employee[];
+  designations: DesigOption[]; isSuperAdmin: boolean;
 }
 
-export function OrgFlowTree({ departments, teams, employees, teamsByDept, designations, isSuperAdmin: isSA }: Props) {
+export function OrgFlowTree({ departments, employees, designations, isSuperAdmin: isSA }: Props) {
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
   const [savedPositions, setSavedPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ── Connection modal (drag-and-drop result) ── */
+  /* ── Connection modal ── */
   const [connOpen, setConnOpen] = useState(false);
   const [connSource, setConnSource] = useState("");
   const [connTarget, setConnTarget] = useState("");
@@ -238,14 +213,14 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   const [connFullAccess, setConnFullAccess] = useState(true);
   const [connTargetNodeType, setConnTargetNodeType] = useState("dept");
 
-  /* ── Privileges modal (center) ── */
+  /* ── Privileges modal ── */
   const [privOpen, setPrivOpen] = useState(false);
   const [privMembershipId, setPrivMembershipId] = useState("");
   const [privPerms, setPrivPerms] = useState<Record<string, boolean>>({});
   const [privSaving, setPrivSaving] = useState(false);
   const [privLabel, setPrivLabel] = useState("");
 
-  /* ── Remove confirmation modal ── */
+  /* ── Remove modal ── */
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removeMembershipId, setRemoveMembershipId] = useState("");
   const [removeLabel, setRemoveLabel] = useState("");
@@ -273,26 +248,21 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
 
   function getNodeLabel(nodeId: string): string {
     if (nodeId.startsWith("dept-")) { const d = departments.find((x) => x._id === nodeId.slice(5)); return d?.title ?? nodeId; }
-    if (nodeId.startsWith("team-")) { const t = teams.find((x) => x._id === nodeId.slice(5)); return t?.name ?? nodeId; }
     if (nodeId.startsWith("emp-")) { const e = employees.find((x) => x._id === nodeId.slice(4)); return e ? `${e.about.firstName} ${e.about.lastName}` : nodeId; }
     return nodeId;
   }
 
-  /* ── Drag-and-drop connection handler ── */
+  /* ── Connection handler ── */
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
-
     const srcType = connection.source.split("-")[0];
     const tgtType = connection.target.split("-")[0];
-
-    // Allow: emp↔anything, dept↔team. Block: dept↔dept, team↔team
     const srcIsEmp = srcType === "emp";
     const tgtIsEmp = tgtType === "emp";
-    const isDeptTeam = (srcType === "dept" && tgtType === "team") || (srcType === "team" && tgtType === "dept");
-    if (!srcIsEmp && !tgtIsEmp && !isDeptTeam) {
-      const srcLabel = getNodeLabel(connection.source);
-      const tgtLabel = getNodeLabel(connection.target);
-      setRestrictMsg(`Cannot connect ${srcLabel} to ${tgtLabel}. Only employees can be connected to other employees, and teams can be placed under departments.`);
+
+    // At least one side must be an employee, and no dept↔dept
+    if (!srcIsEmp && !tgtIsEmp) {
+      setRestrictMsg(`Cannot connect ${getNodeLabel(connection.source)} to ${getNodeLabel(connection.target)}. Only employees can form connections.`);
       setRestrictOpen(true);
       return;
     }
@@ -301,39 +271,17 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     setConnTarget(connection.target);
     setConnSourceLabel(getNodeLabel(connection.source));
     setConnTargetLabel(getNodeLabel(connection.target));
-
-    // Dept ↔ Team: structural link, skip designation/access modal
-    if (isDeptTeam) {
-      setConnDesig("__structural__");
-      setConnOpen(false);
-      // Directly create the structural link
-      const sId = connection.source.slice(srcType.length + 1);
-      const tId = connection.target.slice(tgtType.length + 1);
-      const teamId = srcType === "team" ? sId : tId;
-      const deptId = srcType === "dept" ? sId : tId;
-      const t = teams.find((x) => x._id === teamId);
-      const existDepts = (t?.departments ?? []).map((d) => idStr(d)).filter(Boolean);
-      if (!existDepts.includes(deptId)) {
-        existDepts.push(deptId);
-        fetch(`/api/teams/${teamId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departments: existDepts }) })
-          .then(() => refetchMemberships());
-      }
-      return;
-    }
-
     setConnDesig(designations[0]?._id ?? "");
 
     const srcHandle = connection.sourceHandle ?? "";
     const tgtHandle = connection.targetHandle ?? "";
 
-    // Employee bottom → Dept/Team top = full access (of that entity category)
-    // Dept/Team bottom → Employee top = no access
-    if (srcIsEmp && (tgtType === "dept" || tgtType === "team")) {
+    if (srcIsEmp && tgtType === "dept") {
       setConnFullAccess(srcHandle === "bottom" && tgtHandle === "top");
-      setConnTargetNodeType(tgtType);
-    } else if ((srcType === "dept" || srcType === "team") && tgtIsEmp) {
+      setConnTargetNodeType("dept");
+    } else if (srcType === "dept" && tgtIsEmp) {
       setConnFullAccess(!(srcHandle === "bottom" && tgtHandle === "top"));
-      setConnTargetNodeType(srcType);
+      setConnTargetNodeType("dept");
     } else {
       // emp ↔ emp
       setConnFullAccess(srcHandle === "bottom" && tgtHandle === "top");
@@ -341,7 +289,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     }
 
     setConnOpen(true);
-  }, [departments, teams, employees, designations]);
+  }, [departments, employees, designations]);
 
   const handleCreateConnection = useCallback(async () => {
     if (!connDesig) return;
@@ -354,50 +302,16 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
 
       const body: Record<string, unknown> = { designation: connDesig };
 
-      const teamDeptId = (t: TeamRow | undefined) => {
-        if (!t) return "";
-        if (t.departments?.length) return idStr(t.departments[0]);
-        return idStr(t.department);
-      };
-
-      if (tgtType === "emp" && (srcType === "dept" || srcType === "team")) {
+      if (tgtType === "emp" && srcType === "dept") {
         body.user = tgtId;
-        if (srcType === "team") {
-          const team = teams.find((t) => t._id === srcId);
-          body.department = teamDeptId(team) || srcId;
-          body.team = srcId;
-        } else {
-          body.department = srcId;
-        }
-      } else if (srcType === "emp" && (tgtType === "dept" || tgtType === "team")) {
+        body.department = srcId;
+      } else if (srcType === "emp" && tgtType === "dept") {
         body.user = srcId;
-        if (tgtType === "team") {
-          const team = teams.find((t) => t._id === tgtId);
-          body.department = teamDeptId(team) || tgtId;
-          body.team = tgtId;
-        } else {
-          body.department = tgtId;
-        }
+        body.department = tgtId;
       } else if (srcType === "emp" && tgtType === "emp") {
         body.user = tgtId;
         body.department = departments[0]?._id;
         body.reportsTo = srcId;
-      } else if (srcType === "team" && tgtType === "dept") {
-        const t = teams.find((x) => x._id === srcId);
-        const existDepts = (t?.departments ?? []).map((d) => idStr(d)).filter(Boolean);
-        if (!existDepts.includes(tgtId)) existDepts.push(tgtId);
-        await fetch(`/api/teams/${srcId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departments: existDepts }) });
-        await refetchMemberships();
-        setConnOpen(false); setConnSaving(false);
-        return;
-      } else if (srcType === "dept" && tgtType === "team") {
-        const t = teams.find((x) => x._id === tgtId);
-        const existDepts = (t?.departments ?? []).map((d) => idStr(d)).filter(Boolean);
-        if (!existDepts.includes(srcId)) existDepts.push(srcId);
-        await fetch(`/api/teams/${tgtId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departments: existDepts }) });
-        await refetchMemberships();
-        setConnOpen(false); setConnSaving(false);
-        return;
       } else {
         setConnOpen(false); setConnSaving(false);
         return;
@@ -418,7 +332,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       setConnOpen(false);
     } catch { /* ignore */ }
     setConnSaving(false);
-  }, [connSource, connTarget, connDesig, connFullAccess, connTargetNodeType, teams, departments, refetchMemberships]);
+  }, [connSource, connTarget, connDesig, connFullAccess, connTargetNodeType, departments, refetchMemberships]);
 
   /* ── Edge actions ── */
   const handleChangeDesignation = useCallback(async (membershipId: string, designationId: string) => {
@@ -433,7 +347,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     if (!mem) return;
     setPrivMembershipId(membershipId);
     const name = mem.user ? `${mem.user.about?.firstName ?? ""} ${mem.user.about?.lastName ?? ""}`.trim() : "";
-    setPrivLabel(`${name} → ${mem.team?.name ?? mem.department?.title ?? ""}`);
+    setPrivLabel(`${name} → ${mem.department?.title ?? ""}`);
     try {
       const res = await fetch(`/api/memberships/${membershipId}`);
       if (res.ok) { const full = await res.json(); const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = !!full.permissions?.[k]; setPrivPerms(p); }
@@ -452,9 +366,8 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     const mem = memberships.find((m) => m._id === membershipId);
     if (!mem) return;
     const name = mem.user ? `${mem.user.about?.firstName ?? ""} ${mem.user.about?.lastName ?? ""}`.trim() : "";
-    const target = mem.team?.name ?? mem.department?.title ?? "";
     setRemoveMembershipId(membershipId);
-    setRemoveLabel(`${name} → ${target}`);
+    setRemoveLabel(`${name} → ${mem.department?.title ?? ""}`);
     setRemoveOpen(true);
   }, [memberships]);
 
@@ -470,30 +383,11 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    const DEPT_X = 340; const TEAM_X = 240; const EMP_X = 190; const LEVEL = 170;
+    const DEPT_X = 340; const EMP_X = 190; const LEVEL = 170;
 
     departments.forEach((dept, dIdx) => {
       const dId = `dept-${dept._id}`;
-      const dTeams = teamsByDept.get(dept._id) ?? [];
-      nodes.push({ id: dId, type: "dept", position: savedPositions[dId] ?? { x: dIdx * DEPT_X, y: 0 }, data: { label: dept.title, sub: `${dept.employeeCount} people · ${dTeams.length} teams` } });
-    });
-
-    const teamNodeSet = new Set<string>();
-    teams.forEach((team, tIdx) => {
-      const tId = `team-${team._id}`;
-      if (teamNodeSet.has(tId)) return;
-      teamNodeSet.add(tId);
-      const allDepts = (team.departments ?? []).map((d) => idStr(d));
-      if (allDepts.length === 0 && team.department) allDepts.push(idStr(team.department));
-      const refDeptNode = allDepts.length > 0 ? nodes.find((n) => n.id === `dept-${allDepts[0]}`) : null;
-      const baseX = refDeptNode ? refDeptNode.position.x : tIdx * TEAM_X;
-      nodes.push({ id: tId, type: "team", position: savedPositions[tId] ?? { x: baseX + (tIdx % 3 - 1) * TEAM_X, y: LEVEL }, data: { label: team.name, sub: `${team.memberCount} members` } });
-      for (const deptId of allDepts) {
-        const dId = `dept-${deptId}`;
-        if (nodes.find((n) => n.id === dId)) {
-          edges.push({ id: `struct-${dId}-${tId}`, source: dId, target: tId, type: "smoothstep", markerEnd: { type: MarkerType.ArrowClosed, width: 10, height: 10 }, style: { stroke: "#8b5cf6", strokeWidth: 1.5, strokeDasharray: "6 3" } });
-        }
-      }
+      nodes.push({ id: dId, type: "dept", position: savedPositions[dId] ?? { x: dIdx * DEPT_X, y: 0 }, data: { label: dept.title, sub: `${dept.employeeCount} people` } });
     });
 
     const empSet = new Set<string>();
@@ -503,41 +397,36 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       empSet.add(eId);
       const initials = (emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "");
       const empMems = memberships.filter((m) => idStr(m.user?._id) === emp._id);
-      let yGuess = LEVEL * 2; let xGuess = eIdx * EMP_X;
+      let yGuess = LEVEL; let xGuess = eIdx * EMP_X;
       if (empMems.length > 0) {
-        const first = empMems.find((m) => m.team) ?? empMems[0];
-        const n = first?.team ? nodes.find((n) => n.id === `team-${idStr(first.team)}`) : nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
+        const first = empMems[0];
+        const n = nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
         if (n) { xGuess = n.position.x; yGuess = n.position.y + LEVEL; }
       }
       nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id } });
     });
 
-    const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership } as DesigEdgeData as unknown as Record<string, unknown>);
+    const edgeData = (m: MembershipRow, hide: boolean): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: hide } as DesigEdgeData as unknown as Record<string, unknown>);
 
     memberships.forEach((m) => {
       if (!m.user?._id) return;
       const eId = `emp-${idStr(m.user._id)}`;
-      const deptOrTeam = m.team ? `team-${idStr(m.team)}` : `dept-${idStr(m.department)}`;
-      if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === deptOrTeam)) return;
+      const dId = `dept-${idStr(m.department)}`;
+      if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === dId)) return;
 
-      // Determine handle positions from the relevant category's permissions:
-      // If entity-specific privileges are mostly ON → employee reached UP → dept/team top, emp bottom
-      // Otherwise → dept/team pushed DOWN → dept/team bottom, emp top
       const perms = m.permissions ?? {};
-      const relevantKeys = m.team ? TEAM_PERM_KEYS : DEPT_PERM_KEYS;
-      const relevantOn = [...relevantKeys].filter((k) => perms[k]).length;
-      const isUpward = relevantOn > relevantKeys.size / 2;
+      const relevantOn = [...DEPT_PERM_KEYS].filter((k) => perms[k]).length;
+      const isUpward = relevantOn > DEPT_PERM_KEYS.size / 2;
 
+      // source = dept, target = emp
       const srcHandle = isUpward ? "top" : "bottom";
       const tgtHandle = isUpward ? "bottom" : "top";
 
-      const fallbackColor = m.team ? "#3b82f6" : "#8b5cf6";
-      edges.push({ id: `mem-${m._id}`, source: deptOrTeam, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? fallbackColor, strokeWidth: 2 } });
+      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m, isUpward), style: { stroke: m.designation?.color ?? "#8b5cf6", strokeWidth: 2 } });
     });
 
-
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, teamsByDept, memberships, savedPositions, designations, handleChangeDesignation, openPrivileges, handleDeleteMembership]);
+  }, [departments, employees, memberships, savedPositions, designations, handleChangeDesignation, openPrivileges, handleDeleteMembership]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -549,6 +438,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     saveTimer.current = setTimeout(() => {
       const pos: Record<string, { x: number; y: number }> = {};
       for (const n of currentNodes) pos[n.id] = { x: Math.round(n.position.x), y: Math.round(n.position.y) };
+      setSavedPositions(pos);
       fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", positions: pos }) });
     }, 800);
   }, [isSA]);
@@ -593,7 +483,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         </div>
       </div>
 
-      {/* ── New Connection Modal (center) ── */}
+      {/* ── New Connection Modal ── */}
       <AnimatePresence>
         {connOpen && (
           <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -607,7 +497,6 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
                 <span className="font-semibold">{connSourceLabel}</span> → <span className="font-semibold">{connTargetLabel}</span>
               </p>
               <div className="space-y-3">
-                {/* Access level indicator */}
                 <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: connFullAccess ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)", border: `1px solid ${connFullAccess ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}` }}>
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: connFullAccess ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.15)" }}>
                     {connFullAccess
@@ -620,8 +509,8 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
                     </p>
                     <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                       {connFullAccess
-                        ? <>{permSetForNodeType(connTargetNodeType).size} <span className="font-semibold">{permSetLabel(connTargetNodeType).toLowerCase()}</span> privileges will be enabled</>
-                        : "All privileges will be disabled — edit later via pill"}
+                        ? <>{permSetForNodeType(connTargetNodeType).size} <span className="font-semibold">{permSetLabel(connTargetNodeType).toLowerCase()}</span> privileges enabled</>
+                        : "All privileges disabled — edit later via pill"}
                     </p>
                   </div>
                   <button type="button" onClick={() => setConnFullAccess(!connFullAccess)}
@@ -647,7 +536,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         )}
       </AnimatePresence>
 
-      {/* ── Privileges Modal (center) ── */}
+      {/* ── Privileges Modal ── */}
       <AnimatePresence>
         {privOpen && (
           <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -682,7 +571,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         )}
       </AnimatePresence>
 
-      {/* ── Remove Confirmation Modal (center) ── */}
+      {/* ── Remove Confirmation Modal ── */}
       <AnimatePresence>
         {removeOpen && (
           <motion.div className="fixed inset-0 z-[80] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -720,7 +609,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         )}
       </AnimatePresence>
 
-      {/* ── Restriction Modal (center) ── */}
+      {/* ── Restriction Modal ── */}
       <AnimatePresence>
         {restrictOpen && (
           <motion.div className="fixed inset-0 z-[80] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

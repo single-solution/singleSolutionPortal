@@ -7,7 +7,6 @@ import { useQuery } from "@/lib/useQuery";
 import { useGuide } from "@/lib/useGuide";
 import { organizationTour } from "@/lib/tourConfigs";
 import { DepartmentsPanel } from "./DepartmentsPanel";
-import { TeamsPanel } from "./TeamsPanel";
 import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import toast from "react-hot-toast";
@@ -25,17 +24,9 @@ interface Employee {
   createdAt: string;
 }
 interface Department { _id: string; title: string; slug: string; employeeCount: number; teamCount: number; isActive: boolean; manager?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null }
-interface TeamRow { _id: string; name: string; slug: string; memberCount: number; department: { _id: string; title: string; slug: string }; departments?: { _id: string; title: string; slug: string }[]; isActive?: boolean }
 
 const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function idStr(x: unknown): string {
-  if (x === null || x === undefined) return "";
-  if (typeof x === "string") return x;
-  if (typeof x === "object" && x !== null && "_id" in x) return idStr((x as { _id: unknown })._id);
-  return String(x);
-}
 
 export default function OrganizationPage() {
   const { data: session, status: sessionStatus } = useSession();
@@ -45,8 +36,7 @@ export default function OrganizationPage() {
   const canManage = isSuperAdmin;
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
-  const { data: teams, loading: teamsLoading, refetch: refetchTeams } = useQuery<TeamRow[]>("/api/teams", "org-teams");
-  const { data: employees, loading: employeesLoading, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
+  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
   const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>("/api/designations", "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
 
@@ -64,23 +54,7 @@ export default function OrganizationPage() {
   const isEditEmp = !!editingEmpId;
 
   const deptList = useMemo(() => departments ?? [], [departments]);
-  const teamList = useMemo(() => teams ?? [], [teams]);
   const empList = useMemo(() => employees ?? [], [employees]);
-
-  const teamsByDept = useMemo(() => {
-    const m = new Map<string, TeamRow[]>();
-    for (const t of teamList) {
-      const deptIds = (t.departments ?? []).map((d) => idStr(d));
-      if (deptIds.length === 0 && t.department) deptIds.push(idStr(t.department));
-      for (const did of deptIds) {
-        if (!did) continue;
-        if (!m.has(did)) m.set(did, []);
-        m.get(did)!.push(t);
-      }
-    }
-    for (const arr of m.values()) arr.sort((a, b) => a.name.localeCompare(b.name));
-    return m;
-  }, [teamList]);
 
   function openCreateEmployee() {
     setEditingEmpId(null);
@@ -134,7 +108,7 @@ export default function OrganizationPage() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="shrink-0">
           <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
-          <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments, teams, and people.</p>
+          <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments and people.</p>
         </div>
       </div>
 
@@ -144,7 +118,7 @@ export default function OrganizationPage() {
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, departments, teams…" className="input w-full" style={{ paddingLeft: "40px" }} />
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, departments…" className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
         {sessionStatus !== "loading" && canManage && (
           <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
@@ -186,34 +160,6 @@ export default function OrganizationPage() {
             )}
           </div>
 
-          {/* Teams card */}
-          <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
-            {isSuperAdmin ? (
-              <TeamsPanel teams={teamList as any} departments={deptList} loading={teamsLoading} refetch={refetchTeams} />
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Teams</h2>
-                {teamsLoading && teamList.length === 0 ? (
-                  <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-8 rounded-lg" />)}</div>
-                ) : teamList.length === 0 ? (
-                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No teams.</p>
-                ) : (
-                  teamList.map((t) => (
-                    <div key={t._id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#3b82f6", color: "white" }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{t.name}</p>
-                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{t.department?.title ?? "No dept"} · {t.memberCount} members</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Designations card */}
           {isSuperAdmin && (
             <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
@@ -238,7 +184,7 @@ export default function OrganizationPage() {
 
         {/* Flow diagram */}
         <main className="min-w-0 flex-1">
-          <OrgFlowTree departments={deptList} teams={teamList} employees={filteredEmps} teamsByDept={teamsByDept} designations={activeDesignations} isSuperAdmin={isSuperAdmin} />
+          <OrgFlowTree departments={deptList} employees={filteredEmps} designations={activeDesignations} isSuperAdmin={isSuperAdmin} />
         </main>
       </div>
 
@@ -281,7 +227,7 @@ export default function OrganizationPage() {
 
                   {!isEditEmp && (
                     <p className="text-[11px] rounded-lg p-2" style={{ color: "var(--fg-tertiary)", background: "var(--bg-grouped)" }}>
-                      After adding, drag from their node on the flow to a department or team to assign them.
+                      After adding, drag from their node on the flow to a department to assign them.
                     </p>
                   )}
 
