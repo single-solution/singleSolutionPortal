@@ -12,7 +12,6 @@ import {
   type NodeProps,
   useNodesState,
   useEdgesState,
-  MiniMap,
   Controls,
   Background,
   BackgroundVariant,
@@ -484,9 +483,6 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         >
           <Controls position="top-right" showInteractive={false}
             className="!bg-[var(--bg-elevated)] !border-[var(--border)] !shadow-lg !rounded-xl [&>button]:!bg-[var(--bg-elevated)] [&>button]:!border-[var(--border)] [&>button]:!fill-[var(--fg-secondary)] [&>button:hover]:!bg-[var(--bg-grouped)]" />
-          <MiniMap position="bottom-right" nodeColor={(n) => n.type === "dept" ? "#8b5cf6" : n.type === "team" ? "#3b82f6" : "var(--teal)"}
-            maskColor="color-mix(in srgb, var(--bg) 70%, transparent)"
-            className="!bg-[var(--bg-elevated)] !border-[var(--border)] !rounded-xl !shadow-lg" />
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
         </ReactFlow>
         <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
