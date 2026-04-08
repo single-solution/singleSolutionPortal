@@ -165,7 +165,7 @@ export default function OrganizationPage() {
           {/* Departments card */}
           <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
             {isSuperAdmin ? (
-              <DepartmentsPanel departments={deptList} employees={empList} loading={deptsLoading} refetch={refetchDepts} />
+              <DepartmentsPanel departments={deptList} loading={deptsLoading} refetch={refetchDepts} />
             ) : (
               <div className="flex flex-col gap-1.5">
                 <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Departments</h2>
