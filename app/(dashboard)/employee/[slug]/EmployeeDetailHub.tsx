@@ -12,7 +12,7 @@ import {
   getTodaySchedule,
   resolveWeeklySchedule,
   type WeeklySchedule,
-} from "@/lib/models/User";
+} from "@/lib/schedule";
 
 type TabId = "overview" | "attendance" | "profile" | "activity" | "leaves" | "payroll";
 

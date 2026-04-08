@@ -20,7 +20,7 @@ import {
   type Weekday,
   type DaySchedule,
   type WeeklySchedule,
-} from "@/lib/models/User";
+} from "@/lib/schedule";
 
 const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer" style={{ height: "calc(100vh - 280px)", minHeight: 400 }} /> });
 

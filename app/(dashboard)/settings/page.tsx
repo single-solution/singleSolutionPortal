@@ -313,7 +313,7 @@ export default function SettingsPage() {
             sys={sys}
             defaultSysSettings={DEFAULT_SYS_SETTINGS}
           />
-        </div>
+          </div>
       )}
     </div>
   );
@@ -368,7 +368,7 @@ function PreferencesSection() {
             />
           </button>
         </div>
-      </div>
+        </div>
     </FadeUp>
   );
 }

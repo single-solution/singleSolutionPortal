@@ -18,7 +18,7 @@ import {
   getTodaySchedule,
   resolveWeeklySchedule,
   type WeeklySchedule,
-} from "@/lib/models/User";
+} from "@/lib/schedule";
 
 interface Employee {
   _id: string;
@@ -256,8 +256,8 @@ export default function EmployeesPage() {
     );
     try {
       const res = await fetch(`/api/employees/${emp._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: newStatus }),
       });
       if (!res.ok) {
@@ -309,26 +309,26 @@ export default function EmployeesPage() {
                 {g === "flat" ? "Flat" : g === "manager" ? "By Manager" : "By Dept"}
               </motion.button>
             ))}
-          </div>
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            {(["recent", "name"] as SortMode[]).map((s) => (
-              <motion.button
-                key={s}
-                type="button"
-                onClick={() => setSortMode(s)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.92 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                  sortMode === s
-                    ? "bg-[var(--primary)] text-white shadow-sm"
-                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                }`}
-              >
-                {s === "recent" ? "Latest" : "A – Z"}
-              </motion.button>
-            ))}
-          </div>
+        </div>
+        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
+          {(["recent", "name"] as SortMode[]).map((s) => (
+            <motion.button
+              key={s}
+              type="button"
+              onClick={() => setSortMode(s)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                sortMode === s
+                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+              }`}
+            >
+              {s === "recent" ? "Latest" : "A – Z"}
+            </motion.button>
+          ))}
+        </div>
         </div>
       </div>
 
@@ -357,7 +357,7 @@ export default function EmployeesPage() {
           Add Employee
         </motion.button>
         )}
-      </div>
+        </div>
 
       <div data-tour="employees-filters" className="mb-4 flex min-h-[1.25rem] items-center gap-2 flex-wrap">
         {search ? (
@@ -415,9 +415,9 @@ export default function EmployeesPage() {
       {(() => {
         function renderCard(emp: Employee, i: number) {
           const p = presenceById.get(emp._id);
-          const isSelected = selected.has(emp._id);
+              const isSelected = selected.has(emp._id);
           const todaySch = getTodaySchedule(emp as unknown as Record<string, unknown>, "Asia/Karachi");
-          return (
+              return (
             <motion.div key={emp._id} variants={cardVariants} custom={i} layout layoutId={emp._id} whileHover={cardHover} className="h-full" exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }} transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}>
               <div className={`card group relative flex h-full flex-col overflow-visible transition-opacity duration-300 ${!emp.isActive ? "opacity-50 grayscale" : ""}`}>
                 <EmployeeCard
@@ -459,25 +459,25 @@ export default function EmployeesPage() {
                   }}
                   footerSlot={
                     <div className="flex flex-wrap items-center gap-2">
-                      {isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
-                      <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                        Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                      </span>
-                      {isSuperAdmin && emp.isVerified === false && (
-                        <>
+                        {isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
+                        <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                          Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                        </span>
+                        {isSuperAdmin && emp.isVerified === false && (
+                          <>
                           <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} disabled={resendingId === emp._id} onClick={() => resendInvite(emp)} className="flex h-7 items-center gap-1 px-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50" style={{ color: "var(--teal)", background: "color-mix(in srgb, var(--teal) 10%, transparent)" }} title="Send invite email">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-                            {resendingId === emp._id ? "Sending…" : "Invite"}
-                          </motion.button>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                              {resendingId === emp._id ? "Sending…" : "Invite"}
+                            </motion.button>
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={copyingId === emp._id} onClick={() => copyInviteLink(emp)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-50" style={{ color: "var(--fg-secondary)" }} title="Copy invite link">
-                            {copyingId === emp._id ? (
+                              {copyingId === emp._id ? (
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                            ) : (
+                              ) : (
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
-                            )}
-                          </motion.button>
-                        </>
-                      )}
+                              )}
+                            </motion.button>
+                          </>
+                        )}
                     </div>
                   }
                 />
@@ -549,7 +549,7 @@ export default function EmployeesPage() {
           <motion.div data-tour="employees-grid" className="grid gap-3 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
             <AnimatePresence mode="popLayout">
               {filtered.map((emp, i) => renderCard(emp, i))}
-            </AnimatePresence>
+        </AnimatePresence>
           </motion.div>
         );
       })()}

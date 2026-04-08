@@ -24,7 +24,7 @@ import {
   resolveGraceMinutes,
   resolveWeeklySchedule,
   type WeeklySchedule,
-} from "@/lib/models/User";
+} from "@/lib/schedule";
 
 /* ──────────────────────── TYPES ──────────────────────── */
 

@@ -22,7 +22,7 @@ import {
   type Weekday,
   type DaySchedule,
   type WeeklySchedule,
-} from "@/lib/models/User";
+} from "@/lib/schedule";
 
 const WEEKDAY_SHORT: Record<Weekday, string> = {
   mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
@@ -365,7 +365,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           <div className="space-y-4">
             {isEdit && (
               <>
-                <div>
+              <div>
                   <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Reports To</label>
                   <select className="input" value={form.reportsTo} onChange={(e) => setForm({ ...form, reportsTo: e.target.value })}>
                     <option value="">None</option>
@@ -374,11 +374,11 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                         {s.fullName}
                       </option>
                     ))}
-                  </select>
-                </div>
+                </select>
+              </div>
 
                 {departments.length > 0 && (
-                  <div>
+              <div>
                     <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">
                       {isLeadOrManager ? "Departments" : "Department"}
                     </label>
@@ -451,45 +451,45 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                           Use single department only
                         </button>
                       )}
-                    </div>
-                  </div>
+              </div>
+            </div>
                 )}
 
-                <AnimatePresence>
-                  {filteredTeams.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3, ease }}
-                    >
-                      <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Teams</label>
-                      <div className="flex flex-wrap gap-2">
-                        {filteredTeams.map((t) => {
-                          const active = form.teams.includes(t._id);
-                          return (
-                            <motion.button
-                              key={t._id}
-                              type="button"
-                              onClick={() => toggleTeam(t._id)}
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.92 }}
-                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                active
-                                  ? "bg-[var(--teal)] text-white shadow-sm"
-                                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                              }`}
+            <AnimatePresence>
+              {filteredTeams.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease }}
+                >
+                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Teams</label>
+                  <div className="flex flex-wrap gap-2">
+                    {filteredTeams.map((t) => {
+                      const active = form.teams.includes(t._id);
+                      return (
+                        <motion.button
+                          key={t._id}
+                          type="button"
+                          onClick={() => toggleTeam(t._id)}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.92 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            active
+                              ? "bg-[var(--teal)] text-white shadow-sm"
+                              : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
+                          }`}
                               style={!active ? { background: "var(--bg-grouped)" } : undefined}
-                            >
-                              {t.name}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        >
+                          {t.name}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
               </>
             )}
 
@@ -638,14 +638,14 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
 
         {/* Shift type + Grace minutes row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
-          <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Shift Type</label>
-            <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
-              <option value="fullTime">Full Time</option>
-              <option value="partTime">Part Time</option>
-              <option value="contract">Contract</option>
-            </select>
-          </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Shift Type</label>
+              <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
+                <option value="fullTime">Full Time</option>
+                <option value="partTime">Part Time</option>
+                <option value="contract">Contract</option>
+              </select>
+            </div>
           <div>
             <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Grace Minutes</label>
             <input className="input" type="number" min={0} value={form.graceMinutes} onChange={(e) => setForm({ ...form, graceMinutes: Number(e.target.value) || 0 })} />
