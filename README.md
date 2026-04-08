@@ -7,7 +7,7 @@ Automatic employee presence, attendance, leave, and payroll management system. D
 - **Framework**: Next.js 16 (App Router, TypeScript)
 - **Styling**: Tailwind CSS 4, Framer Motion animations
 - **Database**: MongoDB Atlas (Mongoose ODM)
-- **Auth**: NextAuth.js v5 (JWT)
+- **Auth**: NextAuth.js v5 (JWT + DB verification)
 - **Email**: Nodemailer (SMTP)
 - **Real-time**: Socket.IO (optional — dormant on Vercel, active on self-hosted)
 - **PWA**: Installable, offline-first service worker
@@ -17,31 +17,62 @@ Automatic employee presence, attendance, leave, and payroll management system. D
 
 ## Authorization Model
 
-The platform uses a **dynamic, permission-based** authorization system instead of fixed roles.
+There are **no roles**. Every user is equal — just a user. The system has exactly two concepts for access control:
 
-### Core Concepts
+### 1. SuperAdmin Flag
 
-**Designations** are named titles (e.g., "Manager", "QA Lead", "Developer") managed from the Organization page sidebar (SuperAdmin only). They are simple labels with a color — permissions are configured at the Membership level, not on the designation itself.
+A single boolean field (`isSuperAdmin`) on the User document. That's it.
 
-**Memberships** link a User to a Department and optional Team with a Designation. Permissions are fully customizable per assignment — two "QA Leads" in different departments can have completely different permissions.
+- **Verified from the database on every API request** — the JWT token carries a hint for UI rendering, but the server always reads the flag fresh from MongoDB via `getVerifiedSession()`. Even if someone tampers with their JWT, they cannot gain SuperAdmin access.
+- **Cannot be set through any API endpoint** — only direct database access can grant or revoke SuperAdmin. There is no UI toggle, no endpoint, no form field for it.
+- **SuperAdmin bypasses everything** — all permission checks, all reporting chain checks, all scoping. Zero restrictions.
+- **Protected accounts** — non-SuperAdmin users (even with full privileges) cannot edit, delete, or modify a SuperAdmin account.
 
-**Reporting Chain** — each Membership has a `reportsTo` field defining who manages whom in each context. Write actions (edit, delete, toggle) are blocked against anyone above you in the chain.
+### 2. Membership Permissions
 
-**SuperAdmin** — a system-wide boolean flag (`isSuperAdmin`) that bypasses all permission and reporting chain checks. Multiple users can be SuperAdmin.
+For everyone who is not SuperAdmin, access is controlled through **Memberships**.
+
+A Membership links a User → Department (+ optional Team) with:
+- A **Designation** (a named title like "Lead", "QA", "Analyst" — just a label with a color, created on-demand)
+- **50+ granular permissions** organized in 10 categories (Employees, Members, Departments, Teams, Tasks, Campaigns, Attendance, Leaves, Payroll, System)
+- An optional **reportsTo** field for reporting chain
+
+Each user can have **multiple memberships** across different departments and teams simultaneously. Permissions are fully independent per membership — the same person can have full access in Engineering and read-only access in Marketing.
+
+### How Access Works
+
+```
+Request comes in
+  → getVerifiedSession() loads isSuperAdmin from DB (not JWT)
+  → If isSuperAdmin === true → allow everything, return all data
+  → If not → check memberships:
+    → hasPermission(actor, "tasks_create") → do they have this toggle ON in any membership?
+    → getDepartmentScope(actor, "employees_view") → which departments can they see employees in?
+    → Data queries are scoped to only return records from their authorized departments/teams
+```
 
 ### Designations
 
-Designations are created **on-demand** — there are no pre-seeded roles. When assigning an employee to a department or team, you can select from existing designations or create a new one inline (just a name and color). The designation is saved on the Membership, not on the employee directly.
+Designations are **not roles**. They are simple name + color labels created on-demand:
+- When assigning an employee to a department/team in the flow diagram, you select or create a designation
+- The designation is stored on the Membership, not on the user
+- Two people with the same designation can have completely different permissions
+- SuperAdmins can manage designations from the Organization sidebar
 
-SuperAdmins can also manage designations from the Organization page sidebar (create, edit, toggle active, delete).
+### Permission Categories
 
-### Two-Check Security
-
-Every action uses server-side enforcement:
-1. **Permission check** — Does the user have the relevant permission toggled ON in their Membership?
-2. **Reporting chain check** (write actions only) — Is the target below the user in the `reportsTo` chain?
-
-SuperAdmin bypasses both checks. The client never decides access — it only reflects what the API allows.
+| Category | Permissions |
+|----------|-------------|
+| **Employees** | View, View Detail, Create, Edit, Delete, Toggle Status, Resend Invite |
+| **Members** | Add to Department/Team, Remove from Department/Team, Assign Designation, Customize Permissions, Set Reporting Chain |
+| **Departments** | View, Create, Edit, Delete |
+| **Teams** | View, Create, Edit, Delete |
+| **Tasks** | View, Create, Edit, Delete, Reassign |
+| **Campaigns** | View, Create, Edit, Delete, Tag Entities |
+| **Attendance** | View Team, View Detail, Edit, Override Past, Export |
+| **Leaves** | View Team, Approve, Edit Past, Manage Bulk |
+| **Payroll** | View Team, Manage Salary, Generate Slips, Finalize Slips, Export |
+| **System** | Designations View/Manage, Holidays View/Manage, Settings View/Manage |
 
 ---
 
@@ -51,20 +82,20 @@ SuperAdmin bypasses both checks. The client never decides access — it only ref
 |------|-------|-------------|
 | **Overview** | `/` | Real-time dashboard with team status, campaigns, tasks |
 | **Workspace** | `/workspace/` | Unified hub for campaigns, tasks, and activity |
-| — Campaigns | `/workspace/campaigns` | Campaign cards with sidebar tree grouped by status, detail view with linked tasks |
-| — Tasks | `/workspace/tasks` | Task list with sidebar for grouping (by status/assignee/campaign/priority) and filtering |
-| — Updates | `/workspace/updates` | Activity feed with timeline, auto-refresh |
-| **Organization** | `/organization` | Unified Employees + Departments + Teams + Designations with interactive flow diagram |
+| — Campaigns | `/workspace/campaigns` | Campaign cards with sidebar tree grouped by status |
+| — Tasks | `/workspace/tasks` | Task list with sidebar grouping and filtering |
+| — Updates | `/workspace/updates` | Activity feed with timeline |
+| **Organization** | `/organization` | Employees + Departments + Teams + Designations + interactive flow diagram |
 | **Insights Desk** | `/insights-desk/` | Analytics hub for attendance, calendar, leaves, and payroll |
-| — Attendance | `/insights-desk/attendance` | Team/employee attendance with calendar, session timelines, monthly stats |
-| — Calendar | `/insights-desk/calendar` | Monthly calendar with color-coded attendance, leaves, and holidays |
+| — Attendance | `/insights-desk/attendance` | Team/employee attendance with calendar, session timelines |
+| — Calendar | `/insights-desk/calendar` | Monthly calendar with color-coded attendance/leaves/holidays |
 | — Leaves | `/insights-desk/leaves` | Leave request form, approval queue, balance tracking |
 | — Payroll | `/insights-desk/payroll` | Payroll configuration, holidays, payslip generation |
 | **Settings** | `/settings` | Profile, security, system configuration |
 
-Employee detail pages use singular routes: `/employee/[slug]` with tabbed sections for Overview, Attendance, Profile, Activity, Leaves, and Payroll.
+Employee detail pages: `/employee/[slug]` with tabbed sections for Overview, Attendance, Profile, Activity, Leaves, and Payroll.
 
-Legacy routes (`/employees`, `/departments`, `/teams`, `/campaigns`, `/tasks`, `/attendance`) are automatically redirected to their new locations via middleware.
+Legacy routes (`/employees`, `/departments`, `/teams`, `/campaigns`, `/tasks`, `/attendance`) are automatically redirected via middleware.
 
 ---
 
@@ -76,16 +107,17 @@ Uses a **heartbeat model** — no manual check-in/check-out required.
 
 - Employee opens the app on desktop — session starts automatically
 - A heartbeat pings the server every 30 seconds with GPS coordinates
-- If the heartbeat stops for 3+ minutes (laptop closed, crash), the session auto-closes
+- If the heartbeat stops for 3+ minutes, the session auto-closes
 - Mobile devices are read-only — they display synced data but never create sessions
 - Only one active session per user at any time
-- Sleep/wake handled gracefully — old session closes at last heartbeat, new session starts fresh
+- Sleep/wake handled gracefully — old session closes at last heartbeat, new one starts fresh
 - Idle detection: 1hr of inactivity triggers nudge toasts, then pauses the timer with an overlay
+- **SuperAdmin is excluded** from attendance tracking entirely — no sessions, no heartbeats
 
 **Office Detection:**
 - GPS coordinates compared against configurable office geofence (Haversine formula)
 - Tracks office vs remote time separately with entry/exit segments
-- Coordinates displayed in detailed attendance view with Google Maps links
+- Coordinates displayed in attendance detail view with Google Maps links
 
 **Anti-Spoofing (4 layers):**
 1. Accuracy zero detection (fake GPS extensions)
@@ -94,116 +126,111 @@ Uses a **heartbeat model** — no manual check-in/check-out required.
 4. Two-tier severity: Warning (≤2 flags/30d) vs Violation (>2 flags, pauses timer)
 
 **Dual Lateness Tracking:**
-- "Late to work" — when the employee first started any session vs shift deadline
-- "Late to office" — when the employee physically arrived at the office vs shift deadline
-- Tracked independently so remote-on-time but office-late employees show both statuses
+- "Late to work" — first session start vs shift deadline
+- "Late to office" — first physical office arrival vs shift deadline
+- Tracked independently
 
 **Day Boundary:**
 - Attendance day starts at 6 AM, not midnight
 - Work done between midnight–6 AM counts toward the previous day
-- All date math is timezone-aware (configurable, defaults to Asia/Karachi)
+- Timezone-aware (configurable, defaults to Asia/Karachi)
 
 ### Dashboard
 
-Real-time overview for each authorization level:
+Real-time overview that adapts to the user's access level:
 
-- **Admin/Manager/Team Lead**: Welcome greeting with live status counts (In Office, Remote, Late, Absent) → Team Status grid with employee cards → Active Campaigns → Task Checklist
-- **Employee/BD**: Personal overview with clock in/out times, office/remote split, shift progress bar → Weekly strip → Monthly summary
+- **SuperAdmin / Users with attendance permissions**: Welcome greeting with live status counts (In Office, Remote, Late, Absent) → Team Status grid with employee cards → Active Campaigns → Task Checklist
+- **Users without team visibility**: Personal overview with clock in/out times, office/remote split, shift progress bar → Weekly strip → Monthly summary
 
-Each section loads independently with its own skeleton. Department scope filter and group-by toggles (Flat / By Manager / By Department) for admin roles.
+Each section loads independently with its own skeleton. Department scope filter and group-by toggles for users with team visibility.
 
 ### Organization Management
 
 Unified page with a left sidebar and a full-width interactive flow diagram:
 
-- **Search + Add Employee card** at the top — search people, departments, teams. "Add Employee" button opens a center modal
-- **Left sidebar** with three separate cards, each with full CRUD:
-  - **Departments card** (SuperAdmin: add / edit / delete departments with **manager assignment** — any employee can be set as head of one or more departments; others: read-only list)
-  - **Teams card** (SuperAdmin: add / edit / delete teams; teams support **multiple departments** — one team can belong to several departments simultaneously)
-  - **Designations card** (SuperAdmin only: create, edit, toggle, delete designations as simple titles with colors)
-  - **Summary card** showing total employees and unassigned count
-- **Flow diagram** (right of sidebar) — interactive organizational chart powered by React Flow (@xyflow/react). Fully self-contained management canvas:
-  - **Departments** (purple), **Teams** (blue), **Employees** (teal) as distinct draggable node types
-  - **Teams with multiple departments** — a single team node shows edges to all its assigned departments (purple dashed lines)
-  - **Positional hierarchy** — hierarchy is determined by vertical position, not hardcoded labels. Place a node above another to establish reporting: whoever is above reports to is the superior, whoever is below is the report. For example, an employee placed above a department is that department's lead; an employee below a team is a member reporting into it
-  - **Drag-and-drop connections**: Drag from any node handle to another to create a connection. Supports all connection types:
-    - Employee ↔ Department: assigns employee to department (creates Membership)
-    - Employee ↔ Team: assigns employee to team (auto-resolves department)
+- **Search + Add Employee card** at the top — search people, departments, teams. "Add Employee" opens a center modal
+- **Left sidebar** with three separate cards, each with full CRUD (SuperAdmin):
+  - **Departments** — add/edit/delete departments
+  - **Teams** — add/edit/delete teams (a team can belong to **multiple departments** simultaneously)
+  - **Designations** — create/edit/toggle/delete named titles with colors
+  - **Summary** — total employees and unassigned count
+- **Flow diagram** — interactive organizational chart powered by React Flow (@xyflow/react):
+  - **Node types**: Departments (purple), Teams (blue), Employees (teal) — all draggable
+  - **Positional hierarchy** — hierarchy is determined by vertical position, not labels. Node above = superior; node below = reports to
+  - **Drag-and-drop connections**: Drag from any node handle to create:
+    - Employee ↔ Department: creates a Membership
+    - Employee ↔ Team: creates a Membership (auto-resolves department)
     - Employee → Employee: creates a reporting relationship
-    - Team ↔ Department: adds the department to the team's department list (multi-department)
-  - When a connection is created via drag-and-drop, a **center modal** opens to select a designation for the new connection
-  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (center modal with all 50+ permission toggles organized by category), and **Remove Assignment** (opens a confirmation dialog before deleting the membership)
-  - Employees can have **multiple connections** to different teams/departments simultaneously — one per membership, each with its own designation and permissions
-  - Drag nodes to rearrange — positions auto-save to FlowLayout model in MongoDB so the layout persists across sessions
-  - Legacy (non-membership) connections shown as dashed fallback lines
-  - Pan, zoom, minimap, controls, and a legend hint built in
-- **All modals are center modals** — no side slide-overs anywhere. Privileges editing, connection creation, department/team/designation forms, and employee forms all use centered modals with backdrop blur
-- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, shift config. Edit modal adds: password change. After adding, drag from the employee's node to a department/team to assign them
+    - Team ↔ Department: adds the department to the team's multi-department list
+  - **Designation pill** on each connection line — click to open context menu: change designation, edit privileges (50+ toggles), or remove assignment (with confirmation)
+  - **Multiple memberships** — one employee can connect to multiple teams/departments, each with independent permissions
+  - **Auto-save positions** — drag to rearrange, positions persist to FlowLayout model in MongoDB
+- **All forms use center modals** — employee creation, editing, designation assignment, privilege management. No page navigation required
 
 ### Workspace
 
-Three sub-pages under `/workspace/`, each with a persistent tab bar:
+Three sub-pages under `/workspace/` with a persistent tab bar:
 
-- **Campaigns** (`/workspace/campaigns`): Sidebar tree grouped by status (Active / Paused / Completed / Cancelled) with individual campaign names. Click a campaign to open its detail view with stats, progress bar, tags, and a linked tasks table. Card grid for browsing. Mobile uses horizontal pills. Create/edit campaigns via center modal — no page navigation required.
-- **Tasks** (`/workspace/tasks`): Sidebar with grouping modes (All Tasks, By Status, By Assignee, By Campaign, By Priority) and status filter with counts. Clean task table with priority/status/deadline columns. Create/edit tasks via center modal — no page navigation required.
-- **Updates** (`/workspace/updates`): Activity timeline with user avatars, action descriptions, timestamps. Auto-refresh on tab/page visibility.
+- **Campaigns**: Sidebar tree grouped by status. Card grid for browsing. Create/edit via center modal
+- **Tasks**: Sidebar with grouping modes (status, assignee, campaign, priority). Clean task table. Create/edit via center modal
+- **Updates**: Activity timeline with avatars, descriptions, timestamps. Auto-refresh on visibility
 
 ### Insights Desk
 
-Four sub-pages under `/insights-desk/`, each with a persistent tab bar:
+Four sub-pages under `/insights-desk/` with a persistent tab bar:
 
-- **Attendance** (`/insights-desk/attendance`): Aggregate team mode and individual employee mode with calendar, session timeline, monthly stats, employee overview grid. Department scope filter and group-by toggles (Flat, By Manager, By Department).
-- **Calendar** (`/insights-desk/calendar`): Full monthly calendar grid with color-coded day indicators — green (present), amber (late), red (absent), blue (holiday), purple (leave). Click any day to expand a detail panel showing attendance stats (clock in/out, office/remote time, lateness), holiday info, and leave details. Monthly summary cards with present/late/absent counts, total hours, and approved leave days. Month navigation with "Today" button.
-- **Leaves** (`/insights-desk/leaves`): Leave request form, approval queue, balance tracking. Employees request future-only leaves; managers approve/reject; SuperAdmin can correct past records.
-- **Payroll** (`/insights-desk/payroll`): Payroll configuration, holiday management, payslip generation, and payslip table with finalize/pay actions (SuperAdmin). Employees see only their own payslips.
+- **Attendance**: Aggregate team mode and individual mode with calendar, session timeline, monthly stats
+- **Calendar**: Full monthly grid with color-coded days (present, late, absent, holiday, leave). Click any day for detail panel
+- **Leaves**: Leave request form, approval queue, balance tracking
+- **Payroll**: Configuration, holiday management, payslip generation, finalize/pay actions
 
 ### Leave Management
 
 - Leave types: Annual, Sick, Casual, Unpaid, Maternity, Paternity, Bereavement, Other
 - Per-employee annual balance allocation (configurable per year)
 - Balance auto-deducted on approval, restored on rejection/cancellation
-- Past-date leave corrections are SuperAdmin-only
-- Manager+ approval workflow with review notes
+- Past-date corrections require appropriate permissions
+- Approval workflow with review notes
 
 ### Payroll System
 
-- Configurable payroll settings: working days/month, late threshold, penalties, overtime multiplier, currency, pay day
+- Configurable: working days/month, late threshold, penalties, overtime multiplier, currency, pay day
 - Holiday calendar management
 - Auto-generation of monthly payslips from attendance data
 - Calculations: base salary + allowances + overtime − absence deductions − late penalties = net pay
 - Three-stage status: Draft → Finalized → Paid
-- Per-employee salary field on the User model
+- Per-employee salary field
 
 ### Employee Detail Page
 
-Comprehensive employee hub at `/employee/[slug]` with tabbed sections:
+Comprehensive hub at `/employee/[slug]` with tabbed sections:
 
-- **Overview**: Today's attendance summary, active tasks/campaigns, memberships
-- **Attendance**: Monthly calendar with color-coded dots, monthly stats
-- **Profile**: Personal details, department/team info, shift configuration
+- **Overview**: Today's attendance, active tasks/campaigns, memberships
+- **Attendance**: Monthly calendar with color-coded dots, stats
+- **Profile**: Personal details, shift configuration
 - **Activity**: Recent activity log, task list
-- **Leaves**: Leave balance and history (placeholder)
-- **Payroll**: Salary and payslip info (placeholder)
+- **Leaves**: Leave balance and history
+- **Payroll**: Salary and payslip info
 
-### Hierarchy Ping System
+### Ping System
 
-Peer-to-peer messaging within reporting chains:
-- SuperAdmin can ping anyone; Manager pings their department; Team Lead pings reports + manager
+Peer-to-peer messaging scoped by organizational relationships:
+- SuperAdmin can ping anyone; others can ping within their department/team scope
 - Signal-wave icon in header with unread badge and dropdown inbox
 - Quick-ping button on dashboard employee cards
 
 ### Learning Guide (Onboarding)
 
-- **Welcome modal**: 4-slide overview shown on first login (replayable anytime)
-- **Page tours**: Each page has a spotlight tour that highlights key UI elements with explanations — auto-triggers on first visit. Tours for: Dashboard, Organization, Workspace, Insights Desk, Attendance, Settings
+- **Welcome modal**: 4-slide overview on first login (replayable)
+- **Page tours**: Spotlight tours highlighting key UI elements — auto-triggers on first visit
 - **Help button**: Question-mark icon in header to replay tours
-- Progress tracked in database — syncs across devices
+- Progress tracked in database, syncs across devices
 
 ### Activity Log & Notifications
 
 - Every CRUD action is logged with scope-based visibility
 - Bell icon with unread badge, "Mark all read", cross-device sync
-- Security events with severity badges (Warning / Violation) and location links
+- Security events with severity badges and location links
 - Clickable entries navigate to relevant pages
 
 ### Settings & Configuration
@@ -211,25 +238,31 @@ Peer-to-peer messaging within reporting chains:
 - Profile management (name, phone, image upload)
 - Email change (requires current password, 24hr cooldown)
 - Password change with strength meter
-- System Settings (SuperAdmin): company name, timezone, office geofence, shift defaults, live updates toggle
+- System Settings (SuperAdmin): company name, timezone, office geofence, shift defaults
 - Dark / Light / System theme toggle
 
-### Security
+---
 
-- bcryptjs password hashing
-- Token-based password reset (SHA-256, 1hr expiry)
-- Rate limiting (5 attempts / 15 min)
-- Zero-trust: all permission checks are server-side via `getVerifiedSession()` + `hasPermission()` / `canActOn()`
-- Membership-scoped MongoDB queries — APIs only return data the user is authorized to see
-- Self-edit prevention on employee API
-- Server-side route guards in middleware with legacy URL redirects
+## Security
+
+- **DB-verified SuperAdmin** — `getVerifiedSession()` reads `isSuperAdmin` from MongoDB on every request, never trusts the JWT alone
+- **JWT tamper-proof** — even a forged `isSuperAdmin: true` token is overridden by the DB check
+- **SuperAdmin accounts are protected** — cannot be edited or deleted by non-SuperAdmin users, even if they have full permissions
+- **`isSuperAdmin` cannot be set via any API** — only direct database access can grant/revoke it
+- **Membership-scoped queries** — APIs only return data the user is authorized to see based on their membership department/team scope
+- **Two-check enforcement** for write actions: permission toggle + reporting chain position
+- **bcryptjs** password hashing
+- **Token-based password reset** (SHA-256, 1hr expiry)
+- **Rate limiting** (5 attempts / 15 min)
+- **Self-edit prevention** on employee API
+- **Server-side route guards** in middleware with legacy URL redirects
 
 ### PWA & Mobile
 
 - Installable as a native app (manifest + service worker)
 - `sendBeacon` for best-effort check-out on tab close
 - Cache-first + stale-while-revalidate strategy
-- App-sized fonts and spacing on mobile
+- Mobile-optimized fonts and spacing
 - Hamburger menu with profile, theme, pings, notifications, settings
 - Bottom dock as primary navigation with frosted glass effect
 
@@ -248,9 +281,9 @@ npm run dev
 npm run dev:next
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and log in with your admin account. Create employees, departments, and tasks from the dashboard.
+Open [http://localhost:3000](http://localhost:3000) and log in with your admin account.
 
-**First-time setup**: Create your first employee from the Organization page. Designations are created on-demand when assigning team members — no pre-seeded data required. Optionally run `POST /api/migrate/auth` to convert existing user roles to the new Membership model.
+**First-time setup**: The initial user must have `isSuperAdmin: true` set directly in the database. From there, create employees from the Organization page, drag connections in the flow diagram to assign them to departments/teams, and configure their permissions on each connection's designation pill. Designations are created on-demand — no pre-seeded data required.
 
 ### Environment Variables
 
@@ -279,58 +312,44 @@ SMTP_FROM=your-email@gmail.com
 app/
   (dashboard)/
     page.tsx                Dashboard entry point
-    DashboardHome.tsx       Real-time dashboard (decomposed into sub-components)
+    DashboardHome.tsx       Real-time dashboard
     DashboardShell.tsx      Header, dock nav, theme, notifications
-    SessionTracker.tsx      Heartbeat attendance tracker
-    organization/           Unified employees + departments + teams + designations management
-      OrgFlowTree.tsx      Interactive flow diagram (React Flow) with drag-and-drop connections
-      DepartmentsPanel.tsx Departments CRUD panel (SuperAdmin, sidebar card)
-      TeamsPanel.tsx       Teams CRUD panel (SuperAdmin, sidebar card, multi-department)
-      DesignationsPanel.tsx Designation management (SuperAdmin, sidebar card)
+    SessionTracker.tsx      Heartbeat attendance tracker (skipped for SuperAdmin)
+    organization/           Employees + departments + teams + designations
+      OrgFlowTree.tsx       Interactive flow diagram (React Flow)
+      DepartmentsPanel.tsx  Departments CRUD (sidebar card)
+      TeamsPanel.tsx        Teams CRUD (sidebar card, multi-department)
+      DesignationsPanel.tsx Designation management (sidebar card)
     workspace/
-      layout.tsx            Shared header + tab bar for workspace sub-pages
-      campaigns/            Campaign management with sidebar tree + detail view
-      tasks/                Task list with sidebar grouping + filters
+      layout.tsx            Shared tab bar
+      campaigns/            Campaign management
+      tasks/                Task list with grouping + filters
       updates/              Activity feed timeline
     insights-desk/
-      layout.tsx            Shared header + tab bar for insights sub-pages
-      attendance/           Full attendance tracking page
-      calendar/             Monthly calendar with attendance/leaves/holidays
-      leaves/               Leave management (imports LeavesTab)
-      payroll/              Payroll management (imports PayrollTab)
-      LeavesTab.tsx         Leave management UI component
-      PayrollTab.tsx        Payroll management UI component
-    employee/[slug]/        Employee detail hub (singular route)
-      EmployeeDetailHub.tsx Tabbed employee profile
-    attendance/             Legacy redirect → /insights-desk/attendance
+      layout.tsx            Shared tab bar
+      attendance/           Attendance tracking
+      calendar/             Monthly calendar
+      leaves/               Leave management
+      payroll/              Payroll management
+    employee/[slug]/        Employee detail hub
     settings/               Profile, security, system config
-      SettingsProfile.tsx   Profile sub-component
-      SettingsSecurity.tsx  Security sub-component
-      SettingsSystem.tsx    System settings sub-component
-    designations/           Legacy redirect → /organization
     components/
-      EmployeeCard.tsx      Unified employee card component
-      SpotlightTour.tsx     Guided page tour overlay
-      WelcomeGuide.tsx      First-login welcome modal
+      EmployeeCard.tsx      Unified employee card
+      SpotlightTour.tsx     Guided page tour
+      WelcomeGuide.tsx      First-login welcome
       ScopeStrip.tsx        Department scope filter
-      CardSkeleton.tsx      Generic card loading skeleton
-      GridSkeleton.tsx      Grid of card skeletons
-      StatSkeleton.tsx      Stat card loading skeleton
-      Overlay.tsx           Shared fullscreen overlay
   api/
     employees/              Employee CRUD + dropdown
     departments/            Department CRUD
-    teams/                  Team CRUD
+    teams/                  Team CRUD (multi-department)
     campaigns/              Campaign CRUD + entity tagging
     tasks/                  Task CRUD
     attendance/             Daily/monthly records + session + presence
-    designations/           Designation CRUD (SuperAdmin)
-    flow-layout/            Flow diagram node position persistence
-    memberships/            Membership CRUD (user-department-team assignments)
-    leaves/                 Leave request CRUD + balance
+    designations/           Designation CRUD
+    flow-layout/            Flow diagram position persistence
+    memberships/            Membership CRUD (user-dept-team-designation-permissions)
+    leaves/                 Leave CRUD + balance
     payroll/                Config, holidays, generate, payslips
-    migrate/auth/           Migration from old roles to new authorization model
-    guide/                  Onboarding tour progress
     ping/                   Peer-to-peer pings
     activity-logs/          Activity log entries
     settings/               System settings
@@ -338,45 +357,44 @@ app/
 lib/
   auth.ts                   NextAuth config (JWT + isSuperAdmin)
   auth.config.ts            Middleware route guards + legacy redirects
-  permissions.ts            Permission checking (hasPermission, canActOn, isAboveInChain)
-  clientPermissions.ts      Client-side role helpers
+  permissions.ts            Server-side permission system
+  permissions.shared.ts     Permission key definitions (shared between server and client)
+  clientPermissions.ts      Client-side permission helpers
   types.ts                  Shared TypeScript interfaces
-  motion.ts                 Centralized Framer Motion variants
+  motion.ts                 Framer Motion variants
   useQuery.ts               Client-side cache (stale-while-revalidate)
   useGuide.tsx              Onboarding tour provider
-  tourConfigs.ts            Tour step definitions for all pages
-  payrollUtils.ts           Payroll calculation helpers
+  tourConfigs.ts            Tour step definitions
+  payrollUtils.ts           Payroll calculations
   db.ts                     MongoDB connection
   helpers.ts                Response utilities
-  mail.ts                   Email templates + sending
-  socket.ts                 Server-side Socket.IO emitter
-  useSocket.ts              Client-side Socket.IO hook
-  activityLogger.ts         Activity logging utility
+  mail.ts                   Email sending
+  activityLogger.ts         Activity logging
   geo.ts                    Geofence + anti-spoofing
-  tz.ts                     Timezone-aware date math
+  tz.ts                     Timezone math
   dayBoundary.ts            6 AM day boundary logic
   rateLimit.ts              Rate limiter
   models/
-    User.ts                 User (isSuperAdmin, salary, guideTours)
-    Designation.ts          Permission template (50 toggles, 10 categories)
+    User.ts                 User (isSuperAdmin flag, salary, shifts)
+    Designation.ts          Named title + default permission template
     Membership.ts           User-department-team assignment with custom permissions
-    FlowLayout.ts           Persisted node positions for the org flow diagram
-    Department.ts           Department with parent hierarchy
-    Team.ts                 Team within a department
+    FlowLayout.ts           Persisted org chart node positions
+    Department.ts           Department
+    Team.ts                 Team (multi-department)
     Campaign.ts             Campaign (status lifecycle, tagged entities)
     ActivityTask.ts         Task (priority, deadline, status)
-    Leave.ts                Leave request (type, status, review)
+    Leave.ts                Leave request
     LeaveBalance.ts         Per-user annual leave allocations
-    PayrollConfig.ts        Payroll system configuration
-    Holiday.ts              Holiday calendar entries
-    Payslip.ts              Monthly payslip records
+    PayrollConfig.ts        Payroll configuration
+    Holiday.ts              Holiday calendar
+    Payslip.ts              Monthly payslip
     Ping.ts                 Ping messages
-    ActivitySession.ts      Work session with office segments + fraud detection
+    ActivitySession.ts      Work session + fraud detection
     DailyAttendance.ts      Daily attendance rollup
     MonthlyAttendanceStats.ts Monthly aggregate stats
     ActivityLog.ts          Activity log entries
     SystemSettings.ts       Global config
-middleware.ts               Auth + route protection + legacy redirects
+middleware.ts               Auth + legacy redirects
 ```
 
 ## License
