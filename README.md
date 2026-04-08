@@ -119,7 +119,14 @@ Unified page for managing employees, departments, and teams:
 - **Org tree sidebar** with department → team hierarchy; "All Employees" with inline count as default overview
 - **Teams panel** in sidebar (SuperAdmin only) — create, edit, delete teams with department assignment; listed alphabetically with member counts
 - **Designations panel** in sidebar (SuperAdmin only) — create, edit, toggle designations as simple titles
-- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react). Shows all Departments, Teams, and Employees as distinct node types with typed edges based on Memberships. Each membership edge has a **designation pill** — click it to see a dropdown and change the designation for that specific connection. Employees can have multiple edges to different teams/departments simultaneously. Drag nodes to rearrange — positions auto-save to the database (FlowLayout model) so the layout persists across sessions. Pan, zoom, minimap, and controls built in. Toggle between Flow and Cards views
+- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react). Fully self-contained management canvas:
+  - **Departments** (purple), **Teams** (blue), **Employees** (teal) as distinct draggable node types
+  - **Click any employee node** to open the Assign modal — pick department, team, and designation to create a new Membership (connection)
+  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (opens slide-over panel with all 50+ permission toggles by category), and **Remove Assignment** (delete the membership)
+  - Employees can have multiple edges to different teams/departments simultaneously — one per membership, each with its own designation and permissions
+  - Drag nodes to rearrange — positions auto-save to FlowLayout model in MongoDB so the layout persists across sessions
+  - Legacy (non-membership) connections shown as dashed fallback lines
+  - Pan, zoom, minimap, controls, and a legend hint built in. Toggle between Flow and Cards views
 - **Title bar controls** — view toggle, sort (Name / Email / Role), and group (All / Dept / Team) are integrated directly into the page title bar on desktop for a clean, compact layout. Sort/group controls auto-hide in Flow view
 - **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
