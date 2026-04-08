@@ -528,7 +528,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id } });
     });
 
-    const edgeData = (m: MembershipRow, hide: boolean): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: hide } as DesigEdgeData as unknown as Record<string, unknown>);
+    const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: false } as DesigEdgeData as unknown as Record<string, unknown>);
 
     memberships.forEach((m) => {
       if (!m.user?._id) return;
@@ -544,7 +544,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       const srcHandle = isUpward ? "top" : "bottom";
       const tgtHandle = isUpward ? "bottom" : "top";
 
-      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m, isUpward), style: { stroke: m.designation?.color ?? "#8b5cf6", strokeWidth: 2 } });
+      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "#8b5cf6", strokeWidth: 2 } });
     });
 
     // Emp ↔ Emp hierarchy links (with pill for designation + privileges)
