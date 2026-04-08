@@ -23,7 +23,34 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { PERMISSION_CATEGORIES, PERMISSION_KEYS } from "@/lib/permissions.shared";
+import { PERMISSION_CATEGORIES, PERMISSION_KEYS, type IPermissions } from "@/lib/permissions.shared";
+
+/* ────────── Permission sets per node type ────────── */
+
+const DEPT_PERM_KEYS: Set<keyof IPermissions> = new Set([
+  "departments_view", "departments_create", "departments_edit", "departments_delete",
+]);
+const TEAM_PERM_KEYS: Set<keyof IPermissions> = new Set([
+  "teams_view", "teams_create", "teams_edit", "teams_delete",
+]);
+const EMP_PERM_KEYS: Set<keyof IPermissions> = new Set([
+  "employees_view", "employees_viewDetail", "employees_create", "employees_edit",
+  "employees_delete", "employees_toggleStatus", "employees_resendInvite",
+]);
+
+function permSetForNodeType(nodeType: string): Set<keyof IPermissions> {
+  if (nodeType === "dept") return DEPT_PERM_KEYS;
+  if (nodeType === "team") return TEAM_PERM_KEYS;
+  if (nodeType === "emp") return EMP_PERM_KEYS;
+  return DEPT_PERM_KEYS;
+}
+
+function permSetLabel(nodeType: string): string {
+  if (nodeType === "dept") return "Departments";
+  if (nodeType === "team") return "Teams";
+  if (nodeType === "emp") return "Employees";
+  return "Departments";
+}
 
 /* ────────── Types ────────── */
 
@@ -208,6 +235,8 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   const [connTargetLabel, setConnTargetLabel] = useState("");
   const [connDesig, setConnDesig] = useState("");
   const [connSaving, setConnSaving] = useState(false);
+  const [connFullAccess, setConnFullAccess] = useState(true);
+  const [connTargetNodeType, setConnTargetNodeType] = useState("dept");
 
   /* ── Privileges modal (center) ── */
   const [privOpen, setPrivOpen] = useState(false);
@@ -253,6 +282,27 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     setConnSourceLabel(getNodeLabel(connection.source));
     setConnTargetLabel(getNodeLabel(connection.target));
     setConnDesig(designations[0]?._id ?? "");
+
+    const srcType = connection.source.split("-")[0];
+    const tgtType = connection.target.split("-")[0];
+    const srcHandle = connection.sourceHandle ?? "";
+    const tgtHandle = connection.targetHandle ?? "";
+
+    // Employee bottom → Dept/Team top = full access (of that entity category)
+    // Dept/Team bottom → Employee top = no access
+    if (srcType === "emp" && (tgtType === "dept" || tgtType === "team")) {
+      const isFull = srcHandle === "bottom" && tgtHandle === "top";
+      setConnFullAccess(isFull);
+      setConnTargetNodeType(tgtType); // permissions scoped to target node type
+    } else if ((srcType === "dept" || srcType === "team") && tgtType === "emp") {
+      const isFull = !(srcHandle === "bottom" && tgtHandle === "top");
+      setConnFullAccess(isFull);
+      setConnTargetNodeType(isFull ? srcType : srcType); // entity whose top was used
+    } else {
+      setConnFullAccess(true);
+      setConnTargetNodeType(tgtType);
+    }
+
     setConnOpen(true);
   }, [departments, teams, employees, designations]);
 
@@ -317,13 +367,21 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       }
 
       if (body.user && body.department) {
+        const perms: Record<string, boolean> = {};
+        if (connFullAccess) {
+          const enableSet = permSetForNodeType(connTargetNodeType);
+          for (const k of PERMISSION_KEYS) perms[k] = enableSet.has(k);
+        } else {
+          for (const k of PERMISSION_KEYS) perms[k] = false;
+        }
+        body.permissions = perms;
         await fetch("/api/memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       }
       await refetchMemberships();
       setConnOpen(false);
     } catch { /* ignore */ }
     setConnSaving(false);
-  }, [connSource, connTarget, connDesig, teams, departments, refetchMemberships]);
+  }, [connSource, connTarget, connDesig, connFullAccess, connTargetNodeType, teams, departments, refetchMemberships]);
 
   /* ── Edge actions ── */
   const handleChangeDesignation = useCallback(async (membershipId: string, designationId: string) => {
@@ -422,9 +480,21 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     memberships.forEach((m) => {
       if (!m.user?._id) return;
       const eId = `emp-${idStr(m.user._id)}`;
-      const target = m.team ? `team-${idStr(m.team)}` : `dept-${idStr(m.department)}`;
-      if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === target)) return;
-      edges.push({ id: `mem-${m._id}`, source: target, target: eId, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "var(--border-strong)", strokeWidth: 2 } });
+      const deptOrTeam = m.team ? `team-${idStr(m.team)}` : `dept-${idStr(m.department)}`;
+      if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === deptOrTeam)) return;
+
+      // Determine handle positions from the relevant category's permissions:
+      // If entity-specific privileges are mostly ON → employee reached UP → dept/team top, emp bottom
+      // Otherwise → dept/team pushed DOWN → dept/team bottom, emp top
+      const perms = m.permissions ?? {};
+      const relevantKeys = m.team ? TEAM_PERM_KEYS : DEPT_PERM_KEYS;
+      const relevantOn = [...relevantKeys].filter((k) => perms[k]).length;
+      const isUpward = relevantOn > relevantKeys.size / 2;
+
+      const srcHandle = isUpward ? "top" : "bottom";
+      const tgtHandle = isUpward ? "bottom" : "top";
+
+      edges.push({ id: `mem-${m._id}`, source: deptOrTeam, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "var(--border-strong)", strokeWidth: 2 } });
     });
 
 
@@ -470,12 +540,18 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
             className="!bg-[var(--bg-elevated)] !border-[var(--border)] !shadow-lg !rounded-xl [&>button]:!bg-[var(--bg-elevated)] [&>button]:!border-[var(--border)] [&>button]:!fill-[var(--fg-secondary)] [&>button:hover]:!bg-[var(--bg-grouped)]" />
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
         </ReactFlow>
-        <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Drag to connect</span>
+        <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+          <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#10b981" }}>
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+            Bottom→Top = Full access
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
+          <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#f43f5e" }}>
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+            Top→Bottom = No access
+          </span>
           <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click pill to edit</span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Above = Reports to</span>
         </div>
       </div>
 
@@ -493,6 +569,30 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
                 <span className="font-semibold">{connSourceLabel}</span> → <span className="font-semibold">{connTargetLabel}</span>
               </p>
               <div className="space-y-3">
+                {/* Access level indicator */}
+                <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: connFullAccess ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)", border: `1px solid ${connFullAccess ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}` }}>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: connFullAccess ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.15)" }}>
+                    {connFullAccess
+                      ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
+                      : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold" style={{ color: connFullAccess ? "#10b981" : "#f43f5e" }}>
+                      {connFullAccess ? `${permSetLabel(connTargetNodeType)} Access` : "No Access"}
+                    </p>
+                    <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                      {connFullAccess
+                        ? <>{permSetForNodeType(connTargetNodeType).size} <span className="font-semibold">{permSetLabel(connTargetNodeType).toLowerCase()}</span> privileges will be enabled</>
+                        : "All privileges will be disabled — edit later via pill"}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setConnFullAccess(!connFullAccess)}
+                    className="text-[10px] font-semibold rounded-lg px-2.5 py-1 border transition-colors"
+                    style={{ color: "var(--fg-secondary)", borderColor: "var(--border)" }}>
+                    Switch
+                  </button>
+                </div>
+
                 <div>
                   <label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation *</label>
                   <select value={connDesig} onChange={(e) => setConnDesig(e.target.value)} className="input w-full">
