@@ -184,6 +184,9 @@ export default function EmployeeDetailHub({
 }) {
   const { data: session } = useSession();
   const id = empId(employee);
+  const isOwnProfile = session?.user?.id === id;
+  const isSuperAdmin = session?.user?.isSuperAdmin === true;
+  const canEditProfile = isOwnProfile || isSuperAdmin;
   const firstName = employee.about?.firstName ?? "Employee";
   const lastName = employee.about?.lastName ?? "";
   const displaySlug = employee.username || id.slice(-6);
@@ -367,6 +370,7 @@ export default function EmployeeDetailHub({
                 </div>
               </div>
             </div>
+            {canEditProfile && (
             <Link href={`/employee/${routeSlug}/edit`} className="shrink-0 self-center sm:self-start">
               <motion.button
                 type="button"
@@ -378,6 +382,7 @@ export default function EmployeeDetailHub({
                 Edit profile
               </motion.button>
             </Link>
+            )}
           </div>
         </motion.header>
 
@@ -679,7 +684,7 @@ export default function EmployeeDetailHub({
               <section className="card-static space-y-6 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-section-header">Profile</h2>
-                  <Link href={`/employee/${routeSlug}/edit`}>
+                  {canEditProfile && <Link href={`/employee/${routeSlug}/edit`}>
                     <motion.button
                       type="button"
                       whileHover={{ scale: 1.03 }}
@@ -689,7 +694,7 @@ export default function EmployeeDetailHub({
                     >
                       Edit
                     </motion.button>
-                  </Link>
+                  </Link>}
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-3 rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>

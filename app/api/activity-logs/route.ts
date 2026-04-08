@@ -7,6 +7,7 @@ import { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "activityLogs_view")) return ok({ logs: [] });
 
   await connectDB();
 

@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import SystemSettings from "@/lib/models/SystemSettings";
 import { unauthorized, forbidden, ok } from "@/lib/helpers";
-import { getVerifiedSession, canManageSettings } from "@/lib/permissions";
+import { getVerifiedSession, canManageSettings, hasPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 async function getOrCreateSettings() {
@@ -16,6 +16,7 @@ async function getOrCreateSettings() {
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "settings_view")) return forbidden();
 
   await connectDB();
   const settings = await getOrCreateSettings();

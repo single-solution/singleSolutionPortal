@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import Holiday from "@/lib/models/Holiday";
 import { utcDateKey } from "@/lib/payrollUtils";
 import { isValidId } from "@/lib/helpers";
@@ -33,6 +33,7 @@ function holidayToCalendarRow(h: {
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasPermission(actor, "holidays_view")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const yearParam = req.nextUrl.searchParams.get("year");
   if (yearParam === null || yearParam === "") {
@@ -72,7 +73,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!actor.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "holidays_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await connectDB();
 
@@ -115,7 +116,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!actor.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "holidays_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Query parameter id is required" }, { status: 400 });

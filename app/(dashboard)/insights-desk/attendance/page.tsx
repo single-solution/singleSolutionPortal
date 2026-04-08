@@ -150,7 +150,7 @@ export default function AttendancePage() {
   useEffect(() => { registerTour("attendance", attendanceTour); }, [registerTour]);
   const sessionReady = sessionStatus !== "loading";
   const isSuperAdmin = authSession?.user?.isSuperAdmin === true;
-  const isAdmin = isSuperAdmin;
+  const hasTeamAccess = isSuperAdmin;
 
   /* ── Team overview state ── */
   const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
@@ -176,48 +176,48 @@ export default function AttendancePage() {
 
   const userIdParam = viewingUserId || "";
   const hasSelectedEmployee = !!viewingUserId;
-  const isAggregateMode = isAdmin && !hasSelectedEmployee;
+  const isAggregateMode = hasTeamAccess && !hasSelectedEmployee;
 
   /* ── Data loaders ── */
 
   const loadTeamSummary = useCallback(async () => {
     if (!sessionReady) return;
-    if (!isAdmin) { setTeamLoading(false); return; }
+    if (!hasTeamAccess) { setTeamLoading(false); return; }
     setTeamLoading(true);
     try {
       const res = await fetch(`/api/attendance?type=team-monthly&year=${year}&month=${month}`).then((r) => r.json());
       setTeamSummary(Array.isArray(res) ? res : []);
     } catch { setTeamSummary([]); }
     setTeamLoading(false);
-  }, [sessionReady, isAdmin, year, month]);
+  }, [sessionReady, hasTeamAccess, year, month]);
 
   const loadRecords = useCallback(async () => {
     if (!sessionReady) return;
-    if (!userIdParam && isAdmin) return;
+    if (!userIdParam && hasTeamAccess) return;
     setLoading(true);
     const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
     setRecords(Array.isArray(res) ? res : []);
     setLoading(false);
-  }, [sessionReady, year, month, userIdParam, isAdmin]);
+  }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
 
   const loadMonthlyStats = useCallback(async () => {
     if (!sessionReady) return;
-    if (!userIdParam && isAdmin) return;
+    if (!userIdParam && hasTeamAccess) return;
     const qs = `type=monthly&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     try {
       const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
       setMonthlyStats(res ?? null);
     } catch { setMonthlyStats(null); }
-  }, [sessionReady, year, month, userIdParam, isAdmin]);
+  }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
 
   const loadSelfMonthlyStats = useCallback(async () => {
-    if (!sessionReady || !isAdmin || isSuperAdmin) return;
+    if (!sessionReady || !hasTeamAccess || isSuperAdmin) return;
     try {
       const res = await fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`).then((r) => r.json());
       setSelfMonthlyStats(res ?? null);
     } catch { setSelfMonthlyStats(null); }
-  }, [sessionReady, isAdmin, isSuperAdmin, year, month]);
+  }, [sessionReady, hasTeamAccess, isSuperAdmin, year, month]);
 
   const loadDetail = useCallback(async (day: number) => {
     setDetailLoading(true);
@@ -231,7 +231,7 @@ export default function AttendancePage() {
   }, [year, month, userIdParam]);
 
   const loadTeamDate = useCallback(async (day: number) => {
-    if (!isAdmin) return;
+    if (!hasTeamAccess) return;
     setTeamDateLoading(true);
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     try {
@@ -239,7 +239,7 @@ export default function AttendancePage() {
       setTeamDateData(Array.isArray(res) ? res : []);
     } catch { setTeamDateData([]); }
     setTeamDateLoading(false);
-  }, [isAdmin, year, month]);
+  }, [hasTeamAccess, year, month]);
 
   /* ── Effects ── */
 
@@ -341,20 +341,20 @@ export default function AttendancePage() {
       {/* Header */}
       <div data-tour="attendance-header" className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-title">{sessionReady && isAdmin ? "Team Attendance" : "Attendance"}</h1>
+          <h1 className="text-title">{sessionReady && hasTeamAccess ? "Team Attendance" : "Attendance"}</h1>
           {pillsLoading ? (
             <span className="shimmer mt-1 block h-4 w-28 rounded" />
           ) : (
             <p className="text-subhead">
-              {isAdmin
+              {hasTeamAccess
                 ? (hasSelectedEmployee && viewingMember ? viewingMember.name : `${filteredSummary.length} employee${filteredSummary.length !== 1 ? "s" : ""}`)
                 : `${MONTH_NAMES[month - 1]} ${year}`}
             </p>
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {sessionReady && isAdmin && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
-          {sessionReady && isAdmin && (
+          {sessionReady && hasTeamAccess && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
+          {sessionReady && hasTeamAccess && (
             <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
               {(["flat", "manager", "department"] as GroupMode[]).map((g) => (
                 <motion.button
@@ -398,11 +398,11 @@ export default function AttendancePage() {
             </div>
           ))}
         </div>
-      ) : isAdmin && filteredSummary.length === 0 ? (
+      ) : hasTeamAccess && filteredSummary.length === 0 ? (
         <div className="card p-8 text-center">
           <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
         </div>
-      ) : isAdmin ? (
+      ) : hasTeamAccess ? (
         <div className="space-y-3">
             {grouped.map((group) => (
               <div key={group.key}>

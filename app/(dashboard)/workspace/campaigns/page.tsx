@@ -71,7 +71,8 @@ function NavPill({ active, onClick, children, badge }: { active: boolean; onClic
 interface SelectOption { _id: string; label: string }
 
 export default function CampaignsPage() {
-  const { status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
+  const canManageCampaigns = session?.user?.isSuperAdmin === true;
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
   const { data: tasks } = useQuery<Task[]>("/api/tasks", "workspace-tasks");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "ws-emp-dropdown");
@@ -232,7 +233,7 @@ export default function CampaignsPage() {
           </svg>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search campaigns..." className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
-        {sessionStatus !== "loading" && (
+        {canManageCampaigns && sessionStatus !== "loading" && (
           <button type="button" onClick={openCreate} className="btn btn-primary btn-sm shrink-0 justify-center sm:justify-start">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             New Campaign
@@ -259,7 +260,7 @@ export default function CampaignsPage() {
           <AnimatePresence mode="wait">
             {selectedCampaign ? (
               <motion.div key={`detail-${selectedCampaign._id}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-                <CampaignDetail c={selectedCampaign} taskList={taskList} onBack={() => setSelection({ kind: "status", status: selectedCampaign.status })} onEdit={() => openEdit(selectedCampaign)} />
+                <CampaignDetail c={selectedCampaign} taskList={taskList} onBack={() => setSelection({ kind: "status", status: selectedCampaign.status })} onEdit={canManageCampaigns ? () => openEdit(selectedCampaign) : undefined} />
               </motion.div>
             ) : (
               <motion.div key="grid" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>

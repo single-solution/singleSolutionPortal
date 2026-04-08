@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import Payslip from "@/lib/models/Payslip";
 import { isValidId } from "@/lib/helpers";
 
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const filter: Record<string, unknown> = {};
 
-  if (actor.isSuperAdmin) {
+  if (hasPermission(actor, "payroll_viewTeam")) {
     const userId = sp.get("userId");
     if (userId) {
       if (!isValidId(userId)) return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!actor.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "payroll_finalizeSlips")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let body: { id?: string; status?: string };
   try {

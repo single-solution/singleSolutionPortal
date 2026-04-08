@@ -1208,7 +1208,6 @@ export default function DashboardHome({ user }: { user: User }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const isSuperAdmin = user.isSuperAdmin === true;
-  const isAdminRole = isSuperAdmin;
   const initialDone = useRef(false);
 
   /* ── Helper: parse presence array ── */
@@ -1284,7 +1283,7 @@ export default function DashboardHome({ user }: { user: User }) {
   /* ── FAST POLL: presence + today's detail ── */
   const fetchLive = useCallback(async () => {
     try {
-      if (isAdminRole) {
+      if (isSuperAdmin) {
         const res = await fetch("/api/attendance/presence");
         if (res.ok) {
           const presRes = await res.json();
@@ -1293,7 +1292,7 @@ export default function DashboardHome({ user }: { user: User }) {
       }
       if (!isSuperAdmin) await fetchTodayDetail();
     } catch { /* silent */ }
-  }, [isAdminRole, isSuperAdmin, parsePresence, fetchTodayDetail]);
+  }, [isSuperAdmin, isSuperAdmin, parsePresence, fetchTodayDetail]);
 
   /* ── Helper: fetch all personal data (monthly + weekly + profile) in one pass ── */
   const fetchPersonalData = useCallback(async () => {
@@ -1399,7 +1398,7 @@ export default function DashboardHome({ user }: { user: User }) {
         fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
         isSuperAdmin ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
       ];
-      if (isAdminRole) {
+      if (isSuperAdmin) {
         fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
         fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
       }
@@ -1413,12 +1412,12 @@ export default function DashboardHome({ user }: { user: User }) {
 
       if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [isSuperAdmin, isAdminRole, fetchPersonalData]);
+  }, [isSuperAdmin, isSuperAdmin, fetchPersonalData]);
 
   /* ── Initial load ── */
   useEffect(() => {
     Promise.all([fetchFull(), fetchLive()]).then(() => {
-      if (isAdminRole && !realPresence) {
+      if (isSuperAdmin && !realPresence) {
         setTimeout(fetchLive, 1500);
       }
     }).finally(() => {
@@ -1428,7 +1427,7 @@ export default function DashboardHome({ user }: { user: User }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const presenceLoading = realPresence === null && isAdminRole;
+  const presenceLoading = realPresence === null && isSuperAdmin;
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;
     return employees.map((e) => ({

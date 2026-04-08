@@ -55,7 +55,7 @@ function NavPill({ active, onClick, children, badge }: { active: boolean; onClic
 
 export default function TasksPage() {
   const { data: session, status: sessionStatus } = useSession();
-  const isAdmin = session?.user?.isSuperAdmin === true;
+  const isSuperAdmin = session?.user?.isSuperAdmin === true;
 
   const { data: tasks, loading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "workspace-tasks");
   const { data: campaigns } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
@@ -183,7 +183,7 @@ export default function TasksPage() {
           </svg>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
-        {sessionStatus !== "loading" && isAdmin && (
+        {sessionStatus !== "loading" && isSuperAdmin && (
           <button type="button" onClick={openCreateTask} className="btn btn-primary btn-sm shrink-0 justify-center sm:justify-start">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             New Task
@@ -236,7 +236,7 @@ export default function TasksPage() {
                           }}>{TASK_STATUS_LABELS[task.status] ?? task.status}</span></div>
                           <div className="tabular-nums text-[12px] flex items-center gap-2" style={{ color: "var(--fg-tertiary)" }}>
                             <span className="sm:hidden text-[10px] font-semibold uppercase">Deadline · </span>{task.deadline ? formatDate(task.deadline) : "—"}
-                            {isAdmin && <button type="button" onClick={() => openEditTask(task)} className="ml-auto shrink-0 opacity-50 hover:opacity-100 transition-opacity" title="Edit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg></button>}
+                            {isSuperAdmin && <button type="button" onClick={() => openEditTask(task)} className="ml-auto shrink-0 opacity-50 hover:opacity-100 transition-opacity" title="Edit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg></button>}
                           </div>
                         </div>
                       );
@@ -265,7 +265,7 @@ export default function TasksPage() {
                 <div className="space-y-3">
                   <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Title</label><input type="text" value={fTitle} onChange={(e) => setFTitle(e.target.value)} className="input w-full" autoFocus required /></div>
                   <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Description</label><textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)} rows={2} className="input w-full" /></div>
-                  {isAdmin && assigneeOptions.length > 0 && (
+                  {isSuperAdmin && assigneeOptions.length > 0 && (
                     <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Assign To</label><select value={fAssignee} onChange={(e) => setFAssignee(e.target.value)} className="input w-full" required><option value="">Select…</option>{assigneeOptions.map((o) => <option key={o._id} value={o._id}>{o.label}</option>)}</select></div>
                   )}
                   <div className="grid grid-cols-2 gap-3">

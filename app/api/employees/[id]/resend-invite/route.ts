@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, badRequest, notFound, ok } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import { sendMail, getBaseUrl } from "@/lib/mail";
 import { logActivity } from "@/lib/activityLogger";
 import { isValidId } from "@/lib/helpers";
@@ -40,7 +40,7 @@ export async function POST(
 ) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "employees_resendInvite")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid employee ID");

@@ -2,13 +2,13 @@ import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "departments_edit")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -53,7 +53,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "departments_delete")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");

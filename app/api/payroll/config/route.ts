@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import PayrollConfig from "@/lib/models/PayrollConfig";
 
 const ALLOWED_FIELDS = [
@@ -16,6 +16,7 @@ const ALLOWED_FIELDS = [
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasPermission(actor, "payroll_viewTeam")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await connectDB();
 
@@ -31,7 +32,7 @@ export async function GET() {
 export async function PUT(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!actor.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "settings_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await connectDB();
 

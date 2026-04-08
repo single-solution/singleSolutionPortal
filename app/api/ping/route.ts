@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession, isAdmin, getTeamMemberIds, type VerifiedUser } from "@/lib/permissions";
-import { unauthorized, badRequest, ok } from "@/lib/helpers";
+import { getVerifiedSession, isAdmin, hasPermission, getTeamMemberIds, type VerifiedUser } from "@/lib/permissions";
+import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import Ping from "@/lib/models/Ping";
 import User from "@/lib/models/User";
 import { emitSocket } from "@/lib/socket";
@@ -47,6 +47,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "ping_send")) return forbidden();
 
   await connectDB();
 

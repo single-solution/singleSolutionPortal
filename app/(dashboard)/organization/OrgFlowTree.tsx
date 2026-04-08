@@ -118,6 +118,7 @@ interface DesigEdgeData {
   onOpenPrivileges?: (mId: string) => void;
   onDeleteMembership?: (mId: string) => void;
   hidePill?: boolean;
+  readOnly?: boolean;
 }
 
 function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
@@ -140,12 +141,12 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
     <>
       <BaseEdge path={edgePath} style={style} />
       <EdgeLabelRenderer>
-        <div ref={ref} style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all" }} className="nodrag nopan">
-          <button type="button" onClick={() => setOpen(!open)}
+        <div ref={ref} style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all", zIndex: open ? 100 : 1 }} className="nodrag nopan">
+          <button type="button" onClick={() => { if (!data?.readOnly) setOpen(!open); }}
             className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold shadow-sm transition-all hover:shadow-md"
-            style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)" }}>
+            style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)", cursor: data?.readOnly ? "default" : "pointer" }}>
             {desig?.name ?? "Assign"}
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            {!data?.readOnly && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
           </button>
           <AnimatePresence>
             {open && data?.membershipId && (
@@ -196,7 +197,7 @@ interface Props {
   designations: DesigOption[]; isSuperAdmin: boolean;
 }
 
-export function OrgFlowTree({ departments, employees, designations, isSuperAdmin: isSA }: Props) {
+export function OrgFlowTree({ departments, employees, designations, isSuperAdmin }: Props) {
   interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string }
 
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
@@ -299,6 +300,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
 
   /* ── Connection handler ── */
   const onConnect = useCallback((connection: Connection) => {
+    if (!isSuperAdmin) return;
     if (!connection.source || !connection.target) return;
     const srcType = connection.source.split("-")[0];
     const tgtType = connection.target.split("-")[0];
@@ -354,7 +356,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     }
 
     setConnOpen(true);
-  }, [departments, employees, designations, empLinks, saveEmpLinks, wouldCycle]);
+  }, [isSuperAdmin, departments, employees, designations, empLinks, saveEmpLinks, wouldCycle]);
 
   const handleCreateConnection = useCallback(async () => {
     if (!connDesig) return;
@@ -528,7 +530,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id } });
     });
 
-    const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: false } as DesigEdgeData as unknown as Record<string, unknown>);
+    const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: false, readOnly: !isSuperAdmin } as DesigEdgeData as unknown as Record<string, unknown>);
 
     memberships.forEach((m) => {
       if (!m.user?._id) return;
@@ -564,6 +566,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
           onChangeDesignation: (_id: string, dId: string) => handleChangeLinkDesignation(linkIdx, dId),
           onOpenPrivileges: () => openLinkPrivileges(linkIdx),
           onDeleteMembership: () => handleDeleteLink(linkIdx),
+          readOnly: !isSuperAdmin,
         } as DesigEdgeData as unknown as Record<string, unknown>,
         style: { stroke: linkDesig?.color ?? "var(--teal)", strokeWidth: 1.5, strokeDasharray: "6 3" },
       });
@@ -577,6 +580,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
   useEffect(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   const handleEdgesChange = useCallback((changes: Parameters<typeof onEdgesChange>[0]) => {
+    if (!isSuperAdmin) { onEdgesChange(changes.filter((c) => c.type !== "remove")); return; }
     const removals = changes.filter((c): c is Extract<typeof c, { type: "remove" }> => c.type === "remove" && "id" in c && (c as { id?: string }).id?.startsWith("link-") === true);
     if (removals.length > 0) {
       const removeIds = new Set(removals.map((c) => (c as unknown as { id: string }).id));
@@ -584,10 +588,10 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       saveEmpLinks(newLinks);
     }
     onEdgesChange(changes);
-  }, [onEdgesChange, empLinks, saveEmpLinks]);
+  }, [isSuperAdmin, onEdgesChange, empLinks, saveEmpLinks]);
 
   const savePositions = useCallback((currentNodes: Node[]) => {
-    if (!isSA) return;
+    if (!isSuperAdmin) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const pos: Record<string, { x: number; y: number }> = {};
@@ -595,7 +599,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       setSavedPositions(pos);
       fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", positions: pos }) });
     }, 800);
-  }, [isSA]);
+  }, [isSuperAdmin]);
 
   const handleNodesChange: OnNodesChange = useCallback((changes) => {
     onNodesChange(changes);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import User from "@/lib/models/User";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import Leave from "@/lib/models/Leave";
@@ -40,7 +40,7 @@ function expectedWorkingMinutes(u: {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!actor.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "payroll_generateSlips")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let body: { month?: number; year?: number; baseSalary?: number; salaries?: Record<string, number> };
   try {

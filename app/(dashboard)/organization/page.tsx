@@ -33,7 +33,7 @@ export default function OrganizationPage() {
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("organization", organizationTour); }, [registerTour]);
   const isSuperAdmin = session?.user?.isSuperAdmin === true;
-  const canManage = isSuperAdmin;
+  const canManageOrganization = isSuperAdmin;
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
@@ -120,7 +120,7 @@ export default function OrganizationPage() {
           </svg>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, departments…" className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
-        {sessionStatus !== "loading" && canManage && (
+        {sessionStatus !== "loading" && canManageOrganization && (
           <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Add Employee

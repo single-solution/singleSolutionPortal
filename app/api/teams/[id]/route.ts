@@ -7,12 +7,14 @@ import {
   isSuperAdmin,
   isAdmin,
   canEditTeam,
+  hasPermission,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "teams_view")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -114,7 +116,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "teams_delete")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");

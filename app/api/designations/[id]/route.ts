@@ -1,12 +1,13 @@
 import { connectDB } from "@/lib/db";
 import Designation, { PERMISSION_KEYS } from "@/lib/models/Designation";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 import mongoose from "mongoose";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "designations_view")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -28,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "designations_manage")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -97,7 +98,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "designations_manage")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");

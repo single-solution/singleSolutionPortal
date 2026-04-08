@@ -1,11 +1,12 @@
 import { connectDB } from "@/lib/db";
 import FlowLayout from "@/lib/models/FlowLayout";
 import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "organization_view")) return forbidden();
 
   const { searchParams } = new URL(req.url);
   const canvasId = searchParams.get("canvasId") ?? "org";
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "organization_manageLinks")) return forbidden();
 
   let body: Record<string, unknown>;
   try {

@@ -9,6 +9,7 @@ import {
   isManager,
   isTeamLead,
   isEmployee,
+  hasPermission,
   getTeamMemberIds,
   getDepartmentScope,
   getTeamScope,
@@ -71,7 +72,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "employees_create")) return forbidden();
 
   await connectDB();
 

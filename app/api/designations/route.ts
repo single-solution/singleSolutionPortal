@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 import mongoose from "mongoose";
 
 function buildPermissionsFromInput(input: unknown): IPermissions | undefined {
@@ -21,6 +21,7 @@ function buildPermissionsFromInput(input: unknown): IPermissions | undefined {
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "designations_view")) return forbidden();
 
   await connectDB();
 
@@ -37,7 +38,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "designations_manage")) return forbidden();
 
   await connectDB();
 

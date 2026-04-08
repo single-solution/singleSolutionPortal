@@ -5,7 +5,7 @@ import Leave from "@/lib/models/Leave";
 import LeaveBalance from "@/lib/models/LeaveBalance";
 import Membership from "@/lib/models/Membership";
 import type { LeaveStatus, LeaveType } from "@/lib/models/Leave";
-import { getVerifiedSession, isAdmin } from "@/lib/permissions";
+import { getVerifiedSession, isAdmin, hasPermission } from "@/lib/permissions";
 import { badRequest, forbidden, notFound, unauthorized, isValidId } from "@/lib/helpers";
 
 const BALANCE_TYPES = new Set<LeaveType>(["annual", "sick", "casual"]);
@@ -209,8 +209,8 @@ export async function DELETE(_req: NextRequest, context: RouteCtx) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!actor.isSuperAdmin) {
-    return forbidden("Only a SuperAdmin can delete leave records.");
+  if (!hasPermission(actor, "leaves_editPast")) {
+    return forbidden("You don't have permission to delete leave records.");
   }
 
   const { id } = await context.params;

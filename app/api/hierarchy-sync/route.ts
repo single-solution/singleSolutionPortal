@@ -3,7 +3,7 @@ import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS } from "@/lib/models/Designation";
 import FlowLayout from "@/lib/models/FlowLayout";
 import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 
 interface EmpLink {
   source: string;
@@ -72,7 +72,7 @@ function getSubordinatesWithPerms(employeeNodeId: string, links: EmpLink[]): { n
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!hasPermission(actor, "organization_manageLinks")) return forbidden();
 
   let body: Record<string, unknown> = {};
   try {

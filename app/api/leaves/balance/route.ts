@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import LeaveBalance from "@/lib/models/LeaveBalance";
 import Membership from "@/lib/models/Membership";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import { badRequest, forbidden, unauthorized, isValidId } from "@/lib/helpers";
 
 async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number) {
@@ -70,8 +70,8 @@ export async function PUT(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!actor.isSuperAdmin) {
-    return forbidden("Only a SuperAdmin can update leave allocations.");
+  if (!hasPermission(actor, "leaves_manageBulk")) {
+    return forbidden("You don't have permission to update leave allocations.");
   }
 
   let body: Record<string, unknown>;

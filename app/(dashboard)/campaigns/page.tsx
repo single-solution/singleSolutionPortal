@@ -70,7 +70,7 @@ export default function CampaignsPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("campaigns", campaignsTour); }, [registerTour]);
-  const canDelete = session?.user?.isSuperAdmin === true;
+  const canManageCampaigns = session?.user?.isSuperAdmin === true;
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");
@@ -301,7 +301,7 @@ export default function CampaignsPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
-        {sessionStatus !== "loading" && (
+        {canManageCampaigns && sessionStatus !== "loading" && (
         <motion.button
           type="button"
           onClick={openCreateModal}
@@ -458,8 +458,7 @@ export default function CampaignsPage() {
                         )}
                       </div>
 
-                      {/* Quick status actions */}
-                      {c.status === "active" && (
+                      {canManageCampaigns && c.status === "active" && (
                         <div className="mt-1.5 flex gap-1">
                           <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "paused")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.paused.bg, color: STATUS_CONFIG.paused.color }}>
                             Pause
@@ -469,7 +468,7 @@ export default function CampaignsPage() {
                           </motion.button>
                         </div>
                       )}
-                      {c.status === "paused" && (
+                      {canManageCampaigns && c.status === "paused" && (
                         <div className="mt-1.5 flex gap-1">
                           <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "active")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.active.bg, color: STATUS_CONFIG.active.color }}>
                             Resume
@@ -484,23 +483,23 @@ export default function CampaignsPage() {
                     {/* Footer */}
                     <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
                       <div className="flex items-center gap-2">
-                        <StatusToggle active={c.isActive !== false} onChange={() => toggleActive(c)} />
+                        {canManageCampaigns && <StatusToggle active={c.isActive !== false} onChange={() => toggleActive(c)} />}
                         <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                           {c.updatedAt && c.updatedAt !== c.createdAt
                             ? `Updated ${new Date(c.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                             : `Created ${new Date(c.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`}
                         </span>
                       </div>
+                      {canManageCampaigns && (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => openEditModal(c)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                         </motion.button>
-                        {canDelete && (
-                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => setDeleteTarget(c)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                          </motion.button>
-                        )}
+                        <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => setDeleteTarget(c)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--rose)" }} title="Delete">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                        </motion.button>
                       </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
