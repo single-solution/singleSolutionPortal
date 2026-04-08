@@ -428,15 +428,6 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       edges.push({ id: `mem-${m._id}`, source: target, target: eId, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "var(--border-strong)", strokeWidth: 2 } });
     });
 
-    const memEmpIds = new Set(memberships.map((m) => idStr(m.user?._id)));
-    employees.forEach((emp) => {
-      if (memEmpIds.has(emp._id)) return;
-      const eId = `emp-${emp._id}`;
-      if (!nodes.find((n) => n.id === eId)) return;
-      const et = emp.teams ?? [];
-      if (et.length > 0) et.forEach((t) => { const tId = `team-${idStr(t._id)}`; if (nodes.find((n) => n.id === tId)) edges.push({ id: `legacy-${eId}-${tId}`, source: tId, target: eId, type: "smoothstep", style: { stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "4 4" } }); });
-      else if (emp.department?._id) { const dId = `dept-${emp.department._id}`; if (nodes.find((n) => n.id === dId)) edges.push({ id: `legacy-${eId}-${dId}`, source: dId, target: eId, type: "smoothstep", style: { stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "4 4" } }); }
-    });
 
     return { initialNodes: nodes, initialEdges: edges };
   }, [departments, employees, teamsByDept, memberships, savedPositions, designations, handleChangeDesignation, openPrivileges, handleDeleteMembership]);
