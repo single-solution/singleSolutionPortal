@@ -54,7 +54,7 @@ SuperAdmin bypasses both checks. The client never decides access — it only ref
 | — Campaigns | `/workspace/campaigns` | Campaign cards with sidebar tree grouped by status, detail view with linked tasks |
 | — Tasks | `/workspace/tasks` | Task list with sidebar for grouping (by status/assignee/campaign/priority) and filtering |
 | — Updates | `/workspace/updates` | Activity feed with timeline, auto-refresh |
-| **Organization** | `/organization` | Unified Employees + Departments + Teams management with org tree sidebar + designations panel |
+| **Organization** | `/organization` | Unified Employees + Departments + Teams + Designations with interactive flow diagram |
 | **Insights Desk** | `/insights-desk/` | Analytics hub for attendance, calendar, leaves, and payroll |
 | — Attendance | `/insights-desk/attendance` | Team/employee attendance with calendar, session timelines, monthly stats |
 | — Calendar | `/insights-desk/calendar` | Monthly calendar with color-coded attendance, leaves, and holidays |
@@ -114,24 +114,28 @@ Each section loads independently with its own skeleton. Department scope filter 
 
 ### Organization Management
 
-Unified page for managing employees, departments, and teams:
+Unified page for managing employees, departments, teams, and designations — all driven by an interactive flow diagram:
 
-- **Org tree sidebar** with department → team hierarchy; "All Employees" with inline count as default overview
-- **Teams panel** in sidebar (SuperAdmin only) — create, edit, delete teams with department assignment; listed alphabetically with member counts
-- **Designations panel** in sidebar (SuperAdmin only) — create, edit, toggle designations as simple titles
-- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react). Fully self-contained management canvas:
+- **Summary cards row** — four clickable cards (Departments, Teams, Employees, Designations) showing counts. Clicking Departments / Teams / Designations toggles an expandable panel below with CRUD management
+- **Departments panel** — collapsible grid showing all departments with employee/team counts plus an "Unassigned" indicator
+- **Teams panel** (SuperAdmin only) — collapsible panel for creating, editing, deleting teams with department assignment
+- **Designations panel** (SuperAdmin only) — collapsible panel for creating, editing, toggling designations as simple titles with colors
+- **Full-width Flow diagram** — interactive organizational chart powered by React Flow (@xyflow/react). This is the primary and only view (no cards/flat view toggle). Fully self-contained management canvas:
   - **Departments** (purple), **Teams** (blue), **Employees** (teal) as distinct draggable node types
-  - **Click any employee node** to open the Assign modal — pick department, team, and designation to create a new Membership (connection)
-  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (opens slide-over panel with all 50+ permission toggles by category), and **Remove Assignment** (delete the membership)
-  - Employees can have multiple edges to different teams/departments simultaneously — one per membership, each with its own designation and permissions
+  - **Drag-and-drop connections**: Drag from any node handle to another to create a connection. Supports all connection types:
+    - Employee → Department: assigns employee to department
+    - Employee → Team: assigns employee to team (auto-resolves department)
+    - Department/Team → Employee: same as above, reversed direction
+    - Employee → Employee: creates a reporting relationship
+    - Team → Department: reassigns team to a different department
+  - When a connection is created via drag-and-drop, a **center modal** opens to select a designation for the new connection
+  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (opens a center modal with all 50+ permission toggles organized by category), and **Remove Assignment** (delete the membership)
+  - Employees can have **multiple connections** to different teams/departments simultaneously — one per membership, each with its own designation and permissions
   - Drag nodes to rearrange — positions auto-save to FlowLayout model in MongoDB so the layout persists across sessions
   - Legacy (non-membership) connections shown as dashed fallback lines
-  - Pan, zoom, minimap, controls, and a legend hint built in. Toggle between Flow and Cards views
-- **Title bar controls** — view toggle, sort (Name / Email / Role), and group (All / Dept / Team) are integrated directly into the page title bar on desktop for a clean, compact layout. Sort/group controls auto-hide in Flow view
-- **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
-- Employee cards with live status, designation badges, reporting chain
-- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, shift config. Edit modal adds: password change. No department, team, designation, or permission fields — those are managed separately
-- **Manage Assignment modal** — separate modal accessible via "Manage" button on each employee card. Lets you assign department, teams (with inline team creation), reports-to, managed departments, designation (with inline creation), and a full privileges/permissions panel with all 50+ toggles organized by 10 categories. This keeps employee profile editing clean and separates organizational assignment from personal details
+  - Pan, zoom, minimap, controls, and a legend hint built in
+- **All modals are center modals** — no side slide-overs anywhere. Privileges editing, connection creation, and employee forms all use centered modals with backdrop blur
+- **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, shift config. Edit modal adds: password change. After adding, drag from the employee's node to a department/team to assign them
 
 ### Workspace
 
@@ -276,9 +280,9 @@ app/
     DashboardShell.tsx      Header, dock nav, theme, notifications
     SessionTracker.tsx      Heartbeat attendance tracker
     organization/           Unified employees + departments + teams + designations management
-      OrgFlowTree.tsx      Interactive flow diagram (React Flow) for org hierarchy
-      TeamsPanel.tsx       Teams CRUD panel (SuperAdmin, sidebar)
-      DesignationsPanel.tsx Inline designation management (SuperAdmin, sidebar)
+      OrgFlowTree.tsx      Interactive flow diagram (React Flow) with drag-and-drop connections
+      TeamsPanel.tsx       Teams CRUD panel (SuperAdmin, collapsible card)
+      DesignationsPanel.tsx Designation management (SuperAdmin, collapsible card)
     workspace/
       layout.tsx            Shared header + tab bar for workspace sub-pages
       campaigns/            Campaign management with sidebar tree + detail view

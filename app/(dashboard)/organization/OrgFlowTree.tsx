@@ -6,6 +6,7 @@ import {
   type Node,
   type Edge,
   type OnNodesChange,
+  type Connection,
   Position,
   Handle,
   type NodeProps,
@@ -61,7 +62,7 @@ function idStr(x: unknown): string {
 function DeptNode({ data }: NodeProps) {
   return (
     <div className="rounded-2xl border-2 px-5 py-3 shadow-lg min-w-[180px]" style={{ background: "var(--bg-elevated)", borderColor: "#8b5cf6" }}>
-      <Handle type="target" position={Position.Top} className="!bg-[#8b5cf6] !w-2.5 !h-2.5 !border-0" />
+      <Handle type="target" position={Position.Top} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "#8b5cf6", color: "white" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
@@ -71,7 +72,7 @@ function DeptNode({ data }: NodeProps) {
           {data.sub ? <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-[#8b5cf6] !w-2.5 !h-2.5 !border-0" />
+      <Handle type="source" position={Position.Bottom} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -79,7 +80,7 @@ function DeptNode({ data }: NodeProps) {
 function TeamNode({ data }: NodeProps) {
   return (
     <div className="rounded-2xl border-2 px-4 py-2.5 shadow-md min-w-[150px]" style={{ background: "var(--bg-elevated)", borderColor: "#3b82f6" }}>
-      <Handle type="target" position={Position.Top} className="!bg-[#3b82f6] !w-2 !h-2 !border-0" />
+      <Handle type="target" position={Position.Top} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: "#3b82f6", color: "white" }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -89,7 +90,7 @@ function TeamNode({ data }: NodeProps) {
           {data.sub ? <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-[#3b82f6] !w-2 !h-2 !border-0" />
+      <Handle type="source" position={Position.Bottom} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -97,24 +98,17 @@ function TeamNode({ data }: NodeProps) {
 function EmpNode({ data }: NodeProps) {
   const initials = String(data.initials ?? "");
   const isActive = data.active !== false;
-  const onClickNode = data.onClickNode as ((empId: string) => void) | undefined;
   return (
-    <div
-      className={`rounded-xl border px-3 py-2 shadow-sm min-w-[140px] cursor-pointer transition-shadow hover:shadow-md ${isActive ? "" : "opacity-50 grayscale"}`}
-      style={{ background: "var(--bg-elevated)", borderColor: "var(--border-strong)" }}
-      onClick={() => onClickNode?.(String(data.empId ?? ""))}
-    >
-      <Handle type="target" position={Position.Top} className="!bg-[var(--teal)] !w-2 !h-2 !border-0" />
+    <div className={`rounded-xl border px-3 py-2 shadow-sm min-w-[140px] ${isActive ? "" : "opacity-50 grayscale"}`} style={{ background: "var(--bg-elevated)", borderColor: "var(--border-strong)" }}>
+      <Handle type="target" position={Position.Top} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: isActive ? "var(--teal)" : "var(--fg-tertiary)" }}>
-          {initials}
-        </span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: isActive ? "var(--teal)" : "var(--fg-tertiary)" }}>{initials}</span>
         <div className="min-w-0 text-left">
           <p className="text-xs font-semibold truncate max-w-[100px]" style={{ color: "var(--fg)" }}>{String(data.label ?? "")}</p>
           <p className="text-[9px] truncate max-w-[100px]" style={{ color: "var(--fg-tertiary)" }}>{String(data.email ?? "")}</p>
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-[var(--teal)] !w-2 !h-2 !border-0" />
+      <Handle type="source" position={Position.Bottom} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -122,9 +116,7 @@ function EmpNode({ data }: NodeProps) {
 /* ────────── Custom Edge ────────── */
 
 interface DesigEdgeData {
-  designation?: DesigOption | null;
-  membershipId?: string;
-  designations?: DesigOption[];
+  designation?: DesigOption | null; membershipId?: string; designations?: DesigOption[];
   onChangeDesignation?: (mId: string, dId: string) => void;
   onOpenPrivileges?: (mId: string) => void;
   onDeleteMembership?: (mId: string) => void;
@@ -152,7 +144,7 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
           <button type="button" onClick={() => setOpen(!open)}
             className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold shadow-sm transition-all hover:shadow-md"
             style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)" }}>
-            {desig?.name ?? "Assign designation"}
+            {desig?.name ?? "Assign"}
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
           </button>
           <AnimatePresence>
@@ -160,7 +152,6 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
               <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.12 }}
                 className="absolute left-1/2 top-full mt-1 -translate-x-1/2 z-50 rounded-xl border shadow-xl overflow-hidden min-w-[160px]"
                 style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-                {/* Designation list */}
                 <div className="p-1 max-h-36 overflow-y-auto border-b" style={{ borderColor: "var(--border)" }}>
                   <p className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
                   {(data.designations ?? []).map((d) => (
@@ -174,21 +165,16 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
                     </button>
                   ))}
                 </div>
-                {/* Actions */}
                 <div className="p-1">
-                  <button type="button"
-                    onClick={() => { data.onOpenPrivileges?.(data.membershipId!); setOpen(false); }}
-                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]"
-                    style={{ color: "var(--primary)" }}>
+                  <button type="button" onClick={() => { data.onOpenPrivileges?.(data.membershipId!); setOpen(false); }}
+                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     Edit Privileges
                   </button>
-                  <button type="button"
-                    onClick={() => { if (confirm("Remove this assignment?")) { data.onDeleteMembership?.(data.membershipId!); } setOpen(false); }}
-                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]"
-                    style={{ color: "var(--rose)" }}>
+                  <button type="button" onClick={() => { if (confirm("Remove this assignment?")) data.onDeleteMembership?.(data.membershipId!); setOpen(false); }}
+                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--rose)" }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                    Remove Assignment
+                    Remove
                   </button>
                 </div>
               </motion.div>
@@ -216,16 +202,16 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ── Assign modal state ── */
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignEmpId, setAssignEmpId] = useState("");
-  const [assignEmpName, setAssignEmpName] = useState("");
-  const [assignDept, setAssignDept] = useState("");
-  const [assignTeam, setAssignTeam] = useState("");
-  const [assignDesig, setAssignDesig] = useState("");
-  const [assignSaving, setAssignSaving] = useState(false);
+  /* ── Connection modal (drag-and-drop result) ── */
+  const [connOpen, setConnOpen] = useState(false);
+  const [connSource, setConnSource] = useState("");
+  const [connTarget, setConnTarget] = useState("");
+  const [connSourceLabel, setConnSourceLabel] = useState("");
+  const [connTargetLabel, setConnTargetLabel] = useState("");
+  const [connDesig, setConnDesig] = useState("");
+  const [connSaving, setConnSaving] = useState(false);
 
-  /* ── Privileges panel state ── */
+  /* ── Privileges modal (center) ── */
   const [privOpen, setPrivOpen] = useState(false);
   const [privMembershipId, setPrivMembershipId] = useState("");
   const [privPerms, setPrivPerms] = useState<Record<string, boolean>>({});
@@ -248,30 +234,82 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     });
   }, []);
 
-  /* ── Handlers ── */
-  const openAssign = useCallback((empId: string) => {
-    const emp = employees.find((e) => e._id === empId);
-    if (!emp) return;
-    setAssignEmpId(empId);
-    setAssignEmpName(`${emp.about.firstName} ${emp.about.lastName}`);
-    setAssignDept(departments[0]?._id ?? "");
-    setAssignTeam("");
-    setAssignDesig(designations[0]?._id ?? "");
-    setAssignOpen(true);
-  }, [employees, departments, designations]);
+  function getNodeLabel(nodeId: string): string {
+    if (nodeId.startsWith("dept-")) { const d = departments.find((x) => x._id === nodeId.slice(5)); return d?.title ?? nodeId; }
+    if (nodeId.startsWith("team-")) { const t = teams.find((x) => x._id === nodeId.slice(5)); return t?.name ?? nodeId; }
+    if (nodeId.startsWith("emp-")) { const e = employees.find((x) => x._id === nodeId.slice(4)); return e ? `${e.about.firstName} ${e.about.lastName}` : nodeId; }
+    return nodeId;
+  }
 
-  const handleAssign = useCallback(async () => {
-    if (!assignEmpId || !assignDept || !assignDesig) return;
-    setAssignSaving(true);
+  /* ── Drag-and-drop connection handler ── */
+  const onConnect = useCallback((connection: Connection) => {
+    if (!connection.source || !connection.target) return;
+    setConnSource(connection.source);
+    setConnTarget(connection.target);
+    setConnSourceLabel(getNodeLabel(connection.source));
+    setConnTargetLabel(getNodeLabel(connection.target));
+    setConnDesig(designations[0]?._id ?? "");
+    setConnOpen(true);
+  }, [departments, teams, employees, designations]);
+
+  const handleCreateConnection = useCallback(async () => {
+    if (!connDesig) return;
+    setConnSaving(true);
     try {
-      const body: Record<string, unknown> = { user: assignEmpId, department: assignDept, designation: assignDesig };
-      if (assignTeam) body.team = assignTeam;
-      const res = await fetch("/api/memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (res.ok) { await refetchMemberships(); setAssignOpen(false); }
-    } catch { /* ignore */ }
-    setAssignSaving(false);
-  }, [assignEmpId, assignDept, assignTeam, assignDesig, refetchMemberships]);
+      const srcType = connSource.split("-")[0];
+      const srcId = connSource.slice(srcType.length + 1);
+      const tgtType = connTarget.split("-")[0];
+      const tgtId = connTarget.slice(tgtType.length + 1);
 
+      const body: Record<string, unknown> = { designation: connDesig };
+
+      if (tgtType === "emp" && (srcType === "dept" || srcType === "team")) {
+        body.user = tgtId;
+        if (srcType === "team") {
+          const team = teams.find((t) => t._id === srcId);
+          body.department = team ? idStr(team.department) : srcId;
+          body.team = srcId;
+        } else {
+          body.department = srcId;
+        }
+      } else if (srcType === "emp" && (tgtType === "dept" || tgtType === "team")) {
+        body.user = srcId;
+        if (tgtType === "team") {
+          const team = teams.find((t) => t._id === tgtId);
+          body.department = team ? idStr(team.department) : tgtId;
+          body.team = tgtId;
+        } else {
+          body.department = tgtId;
+        }
+      } else if (srcType === "emp" && tgtType === "emp") {
+        body.user = tgtId;
+        body.department = departments[0]?._id;
+        body.reportsTo = srcId;
+      } else if (srcType === "team" && tgtType === "dept") {
+        await fetch(`/api/teams/${srcId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department: tgtId }) });
+        await refetchMemberships();
+        setConnOpen(false); setConnSaving(false);
+        return;
+      } else if (srcType === "dept" && tgtType === "team") {
+        await fetch(`/api/teams/${tgtId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department: srcId }) });
+        await refetchMemberships();
+        setConnOpen(false); setConnSaving(false);
+        return;
+      } else {
+        setConnOpen(false); setConnSaving(false);
+        return;
+      }
+
+      if (body.user && body.department) {
+        await fetch("/api/memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      }
+      await refetchMemberships();
+      setConnOpen(false);
+    } catch { /* ignore */ }
+    setConnSaving(false);
+  }, [connSource, connTarget, connDesig, teams, departments, refetchMemberships]);
+
+  /* ── Edge actions ── */
   const handleChangeDesignation = useCallback(async (membershipId: string, designationId: string) => {
     try {
       const res = await fetch(`/api/memberships/${membershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ designation: designationId }) });
@@ -283,18 +321,11 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     const mem = memberships.find((m) => m._id === membershipId);
     if (!mem) return;
     setPrivMembershipId(membershipId);
-    const userName = mem.user ? `${mem.user.about?.firstName ?? ""} ${mem.user.about?.lastName ?? ""}`.trim() : "";
-    const teamName = mem.team?.name ?? "";
-    const deptName = mem.department?.title ?? "";
-    setPrivLabel(`${userName} → ${teamName || deptName}`);
+    const name = mem.user ? `${mem.user.about?.firstName ?? ""} ${mem.user.about?.lastName ?? ""}`.trim() : "";
+    setPrivLabel(`${name} → ${mem.team?.name ?? mem.department?.title ?? ""}`);
     try {
       const res = await fetch(`/api/memberships/${membershipId}`);
-      if (res.ok) {
-        const full = await res.json();
-        const p: Record<string, boolean> = {};
-        for (const k of PERMISSION_KEYS) p[k] = !!full.permissions?.[k];
-        setPrivPerms(p);
-      }
+      if (res.ok) { const full = await res.json(); const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = !!full.permissions?.[k]; setPrivPerms(p); }
     } catch { /* ignore */ }
     setPrivOpen(true);
   }, [memberships]);
@@ -302,25 +333,19 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   const handleSavePrivileges = useCallback(async () => {
     if (!privMembershipId) return;
     setPrivSaving(true);
-    try {
-      await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) });
-      setPrivOpen(false);
-    } catch { /* ignore */ }
+    try { await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) }); setPrivOpen(false); } catch { /* ignore */ }
     setPrivSaving(false);
   }, [privMembershipId, privPerms]);
 
   const handleDeleteMembership = useCallback(async (membershipId: string) => {
-    try {
-      const res = await fetch(`/api/memberships/${membershipId}`, { method: "DELETE" });
-      if (res.ok) await refetchMemberships();
-    } catch { /* ignore */ }
+    try { const res = await fetch(`/api/memberships/${membershipId}`, { method: "DELETE" }); if (res.ok) await refetchMemberships(); } catch { /* ignore */ }
   }, [refetchMemberships]);
 
   /* ── Build graph ── */
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    const DEPT_X = 300; const TEAM_X = 220; const EMP_X = 180; const LEVEL = 160;
+    const DEPT_X = 340; const TEAM_X = 240; const EMP_X = 190; const LEVEL = 170;
 
     departments.forEach((dept, dIdx) => {
       const dId = `dept-${dept._id}`;
@@ -343,22 +368,20 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       let yGuess = LEVEL * 2; let xGuess = eIdx * EMP_X;
       if (empMems.length > 0) {
         const first = empMems.find((m) => m.team) ?? empMems[0];
-        const ref = first?.team ? nodes.find((n) => n.id === `team-${idStr(first.team)}`) : nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
-        if (ref) { xGuess = ref.position.x; yGuess = ref.position.y + LEVEL; }
+        const n = first?.team ? nodes.find((n) => n.id === `team-${idStr(first.team)}`) : nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
+        if (n) { xGuess = n.position.x; yGuess = n.position.y + LEVEL; }
       }
-      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id, onClickNode: openAssign } });
+      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id } });
     });
+
+    const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership } as DesigEdgeData as unknown as Record<string, unknown>);
 
     memberships.forEach((m) => {
       if (!m.user?._id) return;
       const eId = `emp-${idStr(m.user._id)}`;
       const target = m.team ? `team-${idStr(m.team)}` : `dept-${idStr(m.department)}`;
       if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === target)) return;
-      edges.push({
-        id: `mem-${m._id}`, source: target, target: eId, type: "designation",
-        data: { designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership } as DesigEdgeData as unknown as Record<string, unknown>,
-        style: { stroke: m.designation?.color ?? "var(--border-strong)", strokeWidth: 2 },
-      });
+      edges.push({ id: `mem-${m._id}`, source: target, target: eId, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "var(--border-strong)", strokeWidth: 2 } });
     });
 
     const memEmpIds = new Set(memberships.map((m) => idStr(m.user?._id)));
@@ -367,12 +390,12 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       const eId = `emp-${emp._id}`;
       if (!nodes.find((n) => n.id === eId)) return;
       const et = emp.teams ?? [];
-      if (et.length > 0) { et.forEach((t) => { const tId = `team-${idStr(t._id)}`; if (nodes.find((n) => n.id === tId)) edges.push({ id: `legacy-${eId}-${tId}`, source: tId, target: eId, type: "smoothstep", style: { stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "4 4" } }); }); }
+      if (et.length > 0) et.forEach((t) => { const tId = `team-${idStr(t._id)}`; if (nodes.find((n) => n.id === tId)) edges.push({ id: `legacy-${eId}-${tId}`, source: tId, target: eId, type: "smoothstep", style: { stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "4 4" } }); });
       else if (emp.department?._id) { const dId = `dept-${emp.department._id}`; if (nodes.find((n) => n.id === dId)) edges.push({ id: `legacy-${eId}-${dId}`, source: dId, target: eId, type: "smoothstep", style: { stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "4 4" } }); }
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, teamsByDept, memberships, savedPositions, designations, openAssign, handleChangeDesignation, openPrivileges, handleDeleteMembership]);
+  }, [departments, employees, teamsByDept, memberships, savedPositions, designations, handleChangeDesignation, openPrivileges, handleDeleteMembership]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -393,19 +416,20 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     if (changes.some((c) => c.type === "position" && c.dragging === false)) setNodes((cur) => { savePositions(cur); return cur; });
   }, [onNodesChange, savePositions, setNodes]);
 
-  const teamsInDept = useMemo(() => (teams ?? []).filter((t) => !assignDept || idStr(t.department?._id ?? t.department) === assignDept), [teams, assignDept]);
-
-  if (!loaded) return <div className="card-xl shimmer" style={{ height: "calc(100vh - 280px)", minHeight: 400 }} />;
+  if (!loaded) return <div className="card-xl shimmer" style={{ height: "calc(100vh - 220px)", minHeight: 500 }} />;
 
   return (
     <>
-      <div className="card-xl overflow-hidden relative" style={{ height: "calc(100vh - 280px)", minHeight: 400 }}>
+      <div className="card-xl overflow-hidden relative" style={{ height: "calc(100vh - 220px)", minHeight: 500 }}>
         <ReactFlow
           nodes={nodes} edges={edgesState}
           onNodesChange={handleNodesChange} onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
           nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-          fitView fitViewOptions={{ padding: 0.3 }} minZoom={0.15} maxZoom={2.5}
-          proOptions={{ hideAttribution: true }} defaultEdgeOptions={{ type: "designation" }}
+          fitView fitViewOptions={{ padding: 0.3 }} minZoom={0.1} maxZoom={3}
+          proOptions={{ hideAttribution: true }}
+          defaultEdgeOptions={{ type: "designation" }}
+          connectionLineStyle={{ stroke: "var(--primary)", strokeWidth: 2, strokeDasharray: "6 3" }}
         >
           <Controls position="top-right" showInteractive={false}
             className="!bg-[var(--bg-elevated)] !border-[var(--border)] !shadow-lg !rounded-xl [&>button]:!bg-[var(--bg-elevated)] [&>button]:!border-[var(--border)] [&>button]:!fill-[var(--fg-secondary)] [&>button:hover]:!bg-[var(--bg-grouped)]" />
@@ -414,48 +438,36 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
             className="!bg-[var(--bg-elevated)] !border-[var(--border)] !rounded-xl !shadow-lg" />
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
         </ReactFlow>
-
-        {/* Legend */}
         <div className="absolute left-3 bottom-3 z-10 flex items-center gap-3 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click employee to assign</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Drag from handle to connect</span>
           <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click pill to edit</span>
         </div>
       </div>
 
-      {/* ── Assign Modal ── */}
+      {/* ── New Connection Modal (center) ── */}
       <AnimatePresence>
-        {assignOpen && (
+        {connOpen && (
           <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAssignOpen(false)} />
-            <motion.div className="relative w-full max-w-md mx-4 rounded-2xl border p-6 shadow-xl" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setConnOpen(false)} />
+            <motion.div className="relative w-full max-w-md mx-4 rounded-2xl border p-6 shadow-xl"
+              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-bold mb-1" style={{ color: "var(--fg)" }}>Assign to Team / Department</h2>
-              <p className="text-xs mb-4" style={{ color: "var(--fg-secondary)" }}>{assignEmpName}</p>
+              <h2 className="text-lg font-bold mb-1" style={{ color: "var(--fg)" }}>New Connection</h2>
+              <p className="text-xs mb-4" style={{ color: "var(--fg-secondary)" }}>
+                <span className="font-semibold">{connSourceLabel}</span> → <span className="font-semibold">{connTargetLabel}</span>
+              </p>
               <div className="space-y-3">
                 <div>
-                  <label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Department *</label>
-                  <select value={assignDept} onChange={(e) => { setAssignDept(e.target.value); setAssignTeam(""); }} className="input w-full">
-                    {departments.map((d) => <option key={d._id} value={d._id}>{d.title}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Team (optional)</label>
-                  <select value={assignTeam} onChange={(e) => setAssignTeam(e.target.value)} className="input w-full">
-                    <option value="">Department only</option>
-                    {teamsInDept.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
-                  </select>
-                </div>
-                <div>
                   <label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation *</label>
-                  <select value={assignDesig} onChange={(e) => setAssignDesig(e.target.value)} className="input w-full">
+                  <select value={connDesig} onChange={(e) => setConnDesig(e.target.value)} className="input w-full">
                     {designations.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <motion.button type="button" onClick={handleAssign} disabled={assignSaving || !assignDept || !assignDesig} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{assignSaving ? "Saving…" : "Assign"}</motion.button>
-                  <button type="button" onClick={() => setAssignOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
+                  <motion.button type="button" onClick={handleCreateConnection} disabled={connSaving || !connDesig} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{connSaving ? "Saving…" : "Create Connection"}</motion.button>
+                  <button type="button" onClick={() => setConnOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
                 </div>
               </div>
             </motion.div>
@@ -463,26 +475,17 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         )}
       </AnimatePresence>
 
-      {/* ── Privileges Slide-over ── */}
+      {/* ── Privileges Modal (center) ── */}
       <AnimatePresence>
         {privOpen && (
-          <motion.div className="fixed inset-0 z-[70] flex justify-end" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setPrivOpen(false)} />
-            <motion.div
-              className="relative w-full max-w-md h-full overflow-y-auto border-l shadow-xl p-6"
+          <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPrivOpen(false)} />
+            <motion.div className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Privileges</h2>
-                  <p className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
-                </div>
-                <button type="button" onClick={() => setPrivOpen(false)} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
-                </button>
-              </div>
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-bold mb-1" style={{ color: "var(--fg)" }}>Edit Privileges</h2>
+              <p className="text-xs mb-4" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
               <div className="space-y-4">
                 {PERMISSION_CATEGORIES.map((cat) => (
                   <div key={cat.label}>
@@ -498,8 +501,9 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
                   </div>
                 ))}
               </div>
-              <div className="sticky bottom-0 pt-4 pb-2" style={{ background: "var(--bg-elevated)" }}>
-                <motion.button type="button" onClick={handleSavePrivileges} disabled={privSaving} whileTap={{ scale: 0.98 }} className="btn btn-primary w-full">{privSaving ? "Saving…" : "Save Privileges"}</motion.button>
+              <div className="flex gap-2 pt-4">
+                <motion.button type="button" onClick={handleSavePrivileges} disabled={privSaving} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{privSaving ? "Saving…" : "Save Privileges"}</motion.button>
+                <button type="button" onClick={() => setPrivOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
               </div>
             </motion.div>
           </motion.div>
