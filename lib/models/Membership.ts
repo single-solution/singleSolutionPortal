@@ -36,8 +36,7 @@ const membershipSchema = new Schema<IMembership>(
 
 membershipSchema.index({ user: 1, isActive: 1 });
 membershipSchema.index({ department: 1, isActive: 1 });
-membershipSchema.index({ team: 1, isActive: 1 });
-membershipSchema.index({ user: 1, department: 1, team: 1 }, { unique: true });
+membershipSchema.index({ user: 1, department: 1, team: 1 }, { unique: true, partialFilterExpression: { isActive: true } });
 
 const Membership =
   mongoose.models.Membership ||

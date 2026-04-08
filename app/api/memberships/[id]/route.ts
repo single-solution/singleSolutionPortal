@@ -158,10 +158,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return forbidden();
   }
 
-  membership.isActive = false;
-  await membership.save();
+  await membership.deleteOne();
 
-  const populated = await populateMembership(Membership.findById(id)).lean();
-
-  return ok(populated);
+  return ok({ deleted: true });
 }
