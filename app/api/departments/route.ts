@@ -61,8 +61,10 @@ export async function GET() {
       { $group: { _id: "$department", count: { $sum: 1 } } },
     ]),
     Team.aggregate([
-      { $match: { isActive: true, department: { $ne: null } } },
-      { $group: { _id: "$department", count: { $sum: 1 } } },
+      { $match: { isActive: true } },
+      { $project: { allDepts: { $concatArrays: [{ $ifNull: ["$departments", []] }, { $cond: [{ $ifNull: ["$department", false] }, ["$department"], []] }] } } },
+      { $unwind: "$allDepts" },
+      { $group: { _id: "$allDepts", count: { $sum: 1 } } },
     ]),
   ]);
 

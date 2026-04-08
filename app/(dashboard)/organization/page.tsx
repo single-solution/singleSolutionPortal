@@ -1,21 +1,19 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect, type ReactNode } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@/lib/useQuery";
 import { useGuide } from "@/lib/useGuide";
 import { organizationTour } from "@/lib/tourConfigs";
-import { DesignationsPanel } from "./DesignationsPanel";
+import { DepartmentsPanel } from "./DepartmentsPanel";
 import { TeamsPanel } from "./TeamsPanel";
+import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import toast from "react-hot-toast";
 import dynamic from "next/dynamic";
-import { PERMISSION_CATEGORIES, PERMISSION_KEYS } from "@/lib/permissions.shared";
 
-const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer" style={{ height: "calc(100vh - 320px)", minHeight: 400 }} /> });
+const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer" style={{ height: "calc(100vh - 280px)", minHeight: 400 }} /> });
 
 interface Employee {
   _id: string; email: string; username: string;
@@ -28,7 +26,7 @@ interface Employee {
   createdAt: string;
 }
 interface Department { _id: string; title: string; slug: string; employeeCount: number; teamCount: number; isActive: boolean }
-interface TeamRow { _id: string; name: string; slug: string; memberCount: number; department: { _id: string; title: string; slug: string }; isActive?: boolean }
+interface TeamRow { _id: string; name: string; slug: string; memberCount: number; department: { _id: string; title: string; slug: string }; departments?: { _id: string; title: string; slug: string }[]; isActive?: boolean }
 
 const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -41,7 +39,6 @@ function idStr(x: unknown): string {
 }
 
 export default function OrganizationPage() {
-  const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("organization", organizationTour); }, [registerTour]);
@@ -58,11 +55,6 @@ export default function OrganizationPage() {
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
 
   const [search, setSearch] = useState("");
-
-  /* ── Collapse state for sidebar cards ── */
-  const [showDepts, setShowDepts] = useState(true);
-  const [showTeamsCard, setShowTeamsCard] = useState(false);
-  const [showDesigCard, setShowDesigCard] = useState(false);
 
   /* ── Employee modal ── */
   const [empModalOpen, setEmpModalOpen] = useState(false);
@@ -82,16 +74,17 @@ export default function OrganizationPage() {
   const teamsByDept = useMemo(() => {
     const m = new Map<string, TeamRow[]>();
     for (const t of teamList) {
-      const did = idStr(t.department?._id ?? t.department);
-      if (!did) continue;
-      if (!m.has(did)) m.set(did, []);
-      m.get(did)!.push(t);
+      const deptIds = (t.departments ?? []).map((d) => idStr(d));
+      if (deptIds.length === 0 && t.department) deptIds.push(idStr(t.department));
+      for (const did of deptIds) {
+        if (!did) continue;
+        if (!m.has(did)) m.set(did, []);
+        m.get(did)!.push(t);
+      }
     }
     for (const arr of m.values()) arr.sort((a, b) => a.name.localeCompare(b.name));
     return m;
   }, [teamList]);
-
-  const unassignedCount = useMemo(() => empList.filter((e) => !e.department?._id).length, [empList]);
 
   function openCreateEmployee() {
     setEditingEmpId(null);
@@ -133,7 +126,6 @@ export default function OrganizationPage() {
 
   function toggleEmpWorkingDay(day: string) { setEmpForm((f) => ({ ...f, workingDays: f.workingDays.includes(day) ? f.workingDays.filter((d) => d !== day) : [...f.workingDays, day] })); }
 
-  /* ── Filtered employees for search ── */
   const filteredEmps = useMemo(() => {
     if (!search.trim()) return empList;
     const q = search.toLowerCase();
@@ -148,144 +140,111 @@ export default function OrganizationPage() {
           <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
           <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments, teams, and people.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:w-64">
-            <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" className="input w-full text-sm" style={{ paddingLeft: "36px" }} />
-          </div>
-          {sessionStatus !== "loading" && canManage && (
-            <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              Add
-            </motion.button>
-          )}
-        </div>
       </div>
 
-      {/* ── Summary cards row ── */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {/* Departments card */}
-        <button type="button" onClick={() => setShowDepts(!showDepts)}
-          className="card-xl flex items-center gap-3 p-4 text-left transition-all hover:shadow-md"
-          style={{ borderColor: showDepts ? "#8b5cf6" : "var(--border)" }}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "#8b5cf6", color: "white" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--fg)" }}>{deptList.length}</p>
-            <p className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>Departments</p>
-          </div>
-        </button>
-
-        {/* Teams card */}
-        <button type="button" onClick={() => setShowTeamsCard(!showTeamsCard)}
-          className="card-xl flex items-center gap-3 p-4 text-left transition-all hover:shadow-md"
-          style={{ borderColor: showTeamsCard ? "#3b82f6" : "var(--border)" }}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "#3b82f6", color: "white" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--fg)" }}>{teamList.length}</p>
-            <p className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>Teams</p>
-          </div>
-        </button>
-
-        {/* Employees card */}
-        <div className="card-xl flex items-center gap-3 p-4" style={{ borderColor: "var(--border)" }}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--teal)", color: "white" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--fg)" }}>{empList.length}</p>
-            <p className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>Employees</p>
-          </div>
+      {/* ── Search + Add Employee card ── */}
+      <div className="card-xl mb-4 flex items-center gap-3 p-4">
+        <div className="relative w-full flex-1">
+          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, departments, teams…" className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
-
-        {/* Designations card */}
-        <button type="button" onClick={() => setShowDesigCard(!showDesigCard)}
-          className="card-xl flex items-center gap-3 p-4 text-left transition-all hover:shadow-md"
-          style={{ borderColor: showDesigCard ? "#f59e0b" : "var(--border)" }}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "#f59e0b", color: "white" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--fg)" }}>{activeDesignations.length}</p>
-            <p className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>Designations</p>
-          </div>
-        </button>
+        {sessionStatus !== "loading" && canManage && (
+          <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            Add Employee
+          </motion.button>
+        )}
       </div>
 
-      {/* ── Expandable panels ── */}
-      <AnimatePresence>
-        {showDepts && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden mb-4">
-            <div className="card-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold" style={{ color: "#8b5cf6" }}>Departments</h3>
-                <button type="button" onClick={() => setShowDepts(false)} className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Collapse</button>
-              </div>
-              {deptsLoading && deptList.length === 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-16 rounded-xl" />)}
-                </div>
-              ) : deptList.length === 0 ? (
-                <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>No departments yet.</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {deptList.map((dept) => {
-                    const dTeams = teamsByDept.get(dept._id) ?? [];
-                    return (
-                      <div key={dept._id} className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--bg-grouped)" }}>
-                        <p className="text-sm font-semibold truncate" style={{ color: "var(--fg)" }}>{dept.title}</p>
-                        <p className="text-[10px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{dept.employeeCount} people · {dTeams.length} teams</p>
+      {/* ── Main layout: sidebar + flow ── */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        {/* Left sidebar: separate cards */}
+        <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[280px]">
+          {/* Departments card */}
+          <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
+            {isSuperAdmin ? (
+              <DepartmentsPanel departments={deptList} loading={deptsLoading} refetch={refetchDepts} />
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Departments</h2>
+                {deptsLoading && deptList.length === 0 ? (
+                  <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-8 rounded-lg" />)}</div>
+                ) : deptList.length === 0 ? (
+                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No departments.</p>
+                ) : (
+                  deptList.map((d) => (
+                    <div key={d._id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#8b5cf6", color: "white" }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{d.title}</p>
+                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{d.employeeCount} people · {d.teamCount} teams</p>
                       </div>
-                    );
-                  })}
-                  {unassignedCount > 0 && (
-                    <div className="rounded-xl border border-dashed p-3" style={{ borderColor: "var(--amber)", background: "color-mix(in srgb, var(--amber) 6%, transparent)" }}>
-                      <p className="text-sm font-semibold" style={{ color: "var(--amber)" }}>Unassigned</p>
-                      <p className="text-[10px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{unassignedCount} people</p>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showTeamsCard && isSuperAdmin && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden mb-4">
-            <div className="card-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold" style={{ color: "#3b82f6" }}>Teams Management</h3>
-                <button type="button" onClick={() => setShowTeamsCard(false)} className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Collapse</button>
+                  ))
+                )}
               </div>
+            )}
+          </div>
+
+          {/* Teams card */}
+          <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
+            {isSuperAdmin ? (
               <TeamsPanel teams={teamList as any} departments={deptList} loading={teamsLoading} refetch={refetchTeams} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showDesigCard && isSuperAdmin && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden mb-4">
-            <div className="card-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold" style={{ color: "#f59e0b" }}>Designations Management</h3>
-                <button type="button" onClick={() => setShowDesigCard(false)} className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Collapse</button>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Teams</h2>
+                {teamsLoading && teamList.length === 0 ? (
+                  <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-8 rounded-lg" />)}</div>
+                ) : teamList.length === 0 ? (
+                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No teams.</p>
+                ) : (
+                  teamList.map((t) => (
+                    <div key={t._id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#3b82f6", color: "white" }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{t.name}</p>
+                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{t.department?.title ?? "No dept"} · {t.memberCount} members</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
+            )}
+          </div>
+
+          {/* Designations card */}
+          {isSuperAdmin && (
+            <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
               <DesignationsPanel />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
 
-      {/* ── Flow diagram (full width) ── */}
-      <OrgFlowTree departments={deptList} teams={teamList} employees={filteredEmps} teamsByDept={teamsByDept} designations={activeDesignations} isSuperAdmin={isSuperAdmin} />
+          {/* Summary */}
+          <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-lg p-2" style={{ background: "var(--bg-grouped)" }}>
+                <p className="text-lg font-bold tabular-nums" style={{ color: "var(--fg)" }}>{empList.length}</p>
+                <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Employees</p>
+              </div>
+              <div className="rounded-lg p-2" style={{ background: "var(--bg-grouped)" }}>
+                <p className="text-lg font-bold tabular-nums" style={{ color: "var(--amber)" }}>{empList.filter((e) => !e.department?._id).length}</p>
+                <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Unassigned</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Flow diagram */}
+        <main className="min-w-0 flex-1">
+          <OrgFlowTree departments={deptList} teams={teamList} employees={filteredEmps} teamsByDept={teamsByDept} designations={activeDesignations} isSuperAdmin={isSuperAdmin} />
+        </main>
+      </div>
 
       {/* ── Employee Add/Edit Modal ── */}
       <Portal>

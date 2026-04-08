@@ -27,9 +27,15 @@ export async function GET() {
     if (actor.crossDepartmentAccess) {
       // sees all
     } else if (actor.managedDepartments.length > 0) {
-      filter.department = { $in: actor.managedDepartments };
+      filter.$or = [
+        { department: { $in: actor.managedDepartments } },
+        { departments: { $in: actor.managedDepartments } },
+      ];
     } else if (actor.department) {
-      filter.department = actor.department;
+      filter.$or = [
+        { department: actor.department },
+        { departments: actor.department },
+      ];
     } else {
       filter._id = { $in: actor.leadOfTeams };
     }
@@ -41,6 +47,7 @@ export async function GET() {
 
   const teams = await Team.find(filter)
     .populate("department", "title slug")
+    .populate("departments", "title slug")
     .populate("lead", "about.firstName about.lastName email userRole")
     .sort({ createdAt: -1 })
     .lean();
@@ -69,18 +76,28 @@ export async function POST(req: Request) {
   await connectDB();
   const body = await req.json();
 
-  if (!body.name?.trim() || !body.department) {
-    return badRequest("Team name and department are required");
+  if (!body.name?.trim()) return badRequest("Team name is required");
+
+  const deptIds: string[] = body.departments?.length
+    ? body.departments
+    : body.department
+      ? [body.department]
+      : [];
+
+  if (deptIds.length === 0) return badRequest("At least one department is required");
+
+  for (const dId of deptIds) {
+    const dept = await Department.findById(dId).lean();
+    if (!dept) return badRequest(`Department ${dId} not found`);
   }
 
-  const dept = await Department.findById(body.department).lean();
-  if (!dept) return badRequest("Department not found");
-
   if (isManager(actor) && !isSuperAdmin(actor)) {
-    const canCreateInDept = actor.managedDepartments.includes(body.department) ||
-      actor.department === body.department;
-    if (!canCreateInDept) {
-      return badRequest("Managers can only create teams in their managed departments");
+    for (const dId of deptIds) {
+      const canCreateInDept = actor.managedDepartments.includes(dId) ||
+        actor.department === dId;
+      if (!canCreateInDept) {
+        return badRequest("Managers can only create teams in their managed departments");
+      }
     }
   }
 
@@ -92,7 +109,8 @@ export async function POST(req: Request) {
 
   const team = await Team.create({
     name: body.name.trim(),
-    department: body.department,
+    departments: deptIds,
+    department: deptIds[0],
     lead: body.lead || undefined,
     description: body.description ?? "",
     isActive: true,
@@ -101,6 +119,7 @@ export async function POST(req: Request) {
 
   const populated = await Team.findById(team._id)
     .populate("department", "title slug")
+    .populate("departments", "title slug")
     .populate("lead", "about.firstName about.lastName email userRole")
     .lean();
 
@@ -113,7 +132,7 @@ export async function POST(req: Request) {
     entityId: team._id.toString(),
     details: body.name.trim(),
     targetTeamIds: [team._id.toString()],
-    targetDepartmentId: body.department,
+    targetDepartmentId: deptIds[0],
     targetUserIds: body.lead ? [body.lead] : [],
     visibility: "targeted",
   });

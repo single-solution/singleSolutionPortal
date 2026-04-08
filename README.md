@@ -114,27 +114,29 @@ Each section loads independently with its own skeleton. Department scope filter 
 
 ### Organization Management
 
-Unified page for managing employees, departments, teams, and designations — all driven by an interactive flow diagram:
+Unified page with a left sidebar and a full-width interactive flow diagram:
 
-- **Summary cards row** — four clickable cards (Departments, Teams, Employees, Designations) showing counts. Clicking Departments / Teams / Designations toggles an expandable panel below with CRUD management
-- **Departments panel** — collapsible grid showing all departments with employee/team counts plus an "Unassigned" indicator
-- **Teams panel** (SuperAdmin only) — collapsible panel for creating, editing, deleting teams with department assignment
-- **Designations panel** (SuperAdmin only) — collapsible panel for creating, editing, toggling designations as simple titles with colors
-- **Full-width Flow diagram** — interactive organizational chart powered by React Flow (@xyflow/react). This is the primary and only view (no cards/flat view toggle). Fully self-contained management canvas:
+- **Search + Add Employee card** at the top — search people, departments, teams. "Add Employee" button opens a center modal
+- **Left sidebar** with three separate cards, each with full CRUD:
+  - **Departments card** (SuperAdmin: add / edit / delete departments; others: read-only list)
+  - **Teams card** (SuperAdmin: add / edit / delete teams; teams support **multiple departments** — one team can belong to several departments simultaneously)
+  - **Designations card** (SuperAdmin only: create, edit, toggle, delete designations as simple titles with colors)
+  - **Summary card** showing total employees and unassigned count
+- **Flow diagram** (right of sidebar) — interactive organizational chart powered by React Flow (@xyflow/react). Fully self-contained management canvas:
   - **Departments** (purple), **Teams** (blue), **Employees** (teal) as distinct draggable node types
+  - **Teams with multiple departments** — a single team node shows edges to all its assigned departments (purple dashed lines)
   - **Drag-and-drop connections**: Drag from any node handle to another to create a connection. Supports all connection types:
-    - Employee → Department: assigns employee to department
-    - Employee → Team: assigns employee to team (auto-resolves department)
-    - Department/Team → Employee: same as above, reversed direction
+    - Employee ↔ Department: assigns employee to department (creates Membership)
+    - Employee ↔ Team: assigns employee to team (auto-resolves department)
     - Employee → Employee: creates a reporting relationship
-    - Team → Department: reassigns team to a different department
+    - Team ↔ Department: adds the department to the team's department list (multi-department)
   - When a connection is created via drag-and-drop, a **center modal** opens to select a designation for the new connection
-  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (opens a center modal with all 50+ permission toggles organized by category), and **Remove Assignment** (delete the membership)
+  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (center modal with all 50+ permission toggles organized by category), and **Remove Assignment** (delete the membership)
   - Employees can have **multiple connections** to different teams/departments simultaneously — one per membership, each with its own designation and permissions
   - Drag nodes to rearrange — positions auto-save to FlowLayout model in MongoDB so the layout persists across sessions
   - Legacy (non-membership) connections shown as dashed fallback lines
   - Pan, zoom, minimap, controls, and a legend hint built in
-- **All modals are center modals** — no side slide-overs anywhere. Privileges editing, connection creation, and employee forms all use centered modals with backdrop blur
+- **All modals are center modals** — no side slide-overs anywhere. Privileges editing, connection creation, department/team/designation forms, and employee forms all use centered modals with backdrop blur
 - **Center modal forms** for creating and editing employees — no page navigation required. Create modal: name, email, shift config. Edit modal adds: password change. After adding, drag from the employee's node to a department/team to assign them
 
 ### Workspace
@@ -281,8 +283,9 @@ app/
     SessionTracker.tsx      Heartbeat attendance tracker
     organization/           Unified employees + departments + teams + designations management
       OrgFlowTree.tsx      Interactive flow diagram (React Flow) with drag-and-drop connections
-      TeamsPanel.tsx       Teams CRUD panel (SuperAdmin, collapsible card)
-      DesignationsPanel.tsx Designation management (SuperAdmin, collapsible card)
+      DepartmentsPanel.tsx Departments CRUD panel (SuperAdmin, sidebar card)
+      TeamsPanel.tsx       Teams CRUD panel (SuperAdmin, sidebar card, multi-department)
+      DesignationsPanel.tsx Designation management (SuperAdmin, sidebar card)
     workspace/
       layout.tsx            Shared header + tab bar for workspace sub-pages
       campaigns/            Campaign management with sidebar tree + detail view

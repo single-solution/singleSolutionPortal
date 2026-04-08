@@ -48,7 +48,7 @@ interface Employee {
   isActive: boolean;
 }
 interface Department { _id: string; title: string; employeeCount: number; teamCount: number }
-interface TeamRow { _id: string; name: string; memberCount: number; department: { _id: string; title: string; slug: string } }
+interface TeamRow { _id: string; name: string; memberCount: number; department: { _id: string; title: string; slug: string }; departments?: { _id: string; title: string; slug: string }[] }
 
 function idStr(x: unknown): string {
   if (x === null || x === undefined) return "";
@@ -286,12 +286,18 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         body.department = departments[0]?._id;
         body.reportsTo = srcId;
       } else if (srcType === "team" && tgtType === "dept") {
-        await fetch(`/api/teams/${srcId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department: tgtId }) });
+        const t = teams.find((x) => x._id === srcId);
+        const existDepts = (t?.departments ?? []).map((d) => idStr(d)).filter(Boolean);
+        if (!existDepts.includes(tgtId)) existDepts.push(tgtId);
+        await fetch(`/api/teams/${srcId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departments: existDepts }) });
         await refetchMemberships();
         setConnOpen(false); setConnSaving(false);
         return;
       } else if (srcType === "dept" && tgtType === "team") {
-        await fetch(`/api/teams/${tgtId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department: srcId }) });
+        const t = teams.find((x) => x._id === tgtId);
+        const existDepts = (t?.departments ?? []).map((d) => idStr(d)).filter(Boolean);
+        if (!existDepts.includes(srcId)) existDepts.push(srcId);
+        await fetch(`/api/teams/${tgtId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departments: existDepts }) });
         await refetchMemberships();
         setConnOpen(false); setConnSaving(false);
         return;
@@ -351,11 +357,24 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       const dId = `dept-${dept._id}`;
       const dTeams = teamsByDept.get(dept._id) ?? [];
       nodes.push({ id: dId, type: "dept", position: savedPositions[dId] ?? { x: dIdx * DEPT_X, y: 0 }, data: { label: dept.title, sub: `${dept.employeeCount} people · ${dTeams.length} teams` } });
-      dTeams.forEach((team, tIdx) => {
-        const tId = `team-${team._id}`;
-        nodes.push({ id: tId, type: "team", position: savedPositions[tId] ?? { x: dIdx * DEPT_X + (tIdx - (dTeams.length - 1) / 2) * TEAM_X, y: LEVEL }, data: { label: team.name, sub: `${team.memberCount} members` } });
-        edges.push({ id: `struct-${dId}-${tId}`, source: dId, target: tId, type: "smoothstep", markerEnd: { type: MarkerType.ArrowClosed, width: 10, height: 10 }, style: { stroke: "#8b5cf6", strokeWidth: 1.5, strokeDasharray: "6 3" } });
-      });
+    });
+
+    const teamNodeSet = new Set<string>();
+    teams.forEach((team, tIdx) => {
+      const tId = `team-${team._id}`;
+      if (teamNodeSet.has(tId)) return;
+      teamNodeSet.add(tId);
+      const allDepts = (team.departments ?? []).map((d) => idStr(d));
+      if (allDepts.length === 0 && team.department) allDepts.push(idStr(team.department));
+      const refDeptNode = allDepts.length > 0 ? nodes.find((n) => n.id === `dept-${allDepts[0]}`) : null;
+      const baseX = refDeptNode ? refDeptNode.position.x : tIdx * TEAM_X;
+      nodes.push({ id: tId, type: "team", position: savedPositions[tId] ?? { x: baseX + (tIdx % 3 - 1) * TEAM_X, y: LEVEL }, data: { label: team.name, sub: `${team.memberCount} members` } });
+      for (const deptId of allDepts) {
+        const dId = `dept-${deptId}`;
+        if (nodes.find((n) => n.id === dId)) {
+          edges.push({ id: `struct-${dId}-${tId}`, source: dId, target: tId, type: "smoothstep", markerEnd: { type: MarkerType.ArrowClosed, width: 10, height: 10 }, style: { stroke: "#8b5cf6", strokeWidth: 1.5, strokeDasharray: "6 3" } });
+        }
+      }
     });
 
     const empSet = new Set<string>();

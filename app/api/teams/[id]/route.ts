@@ -20,6 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const team = await Team.findById(id)
     .populate("department", "title slug")
+    .populate("departments", "title slug")
     .populate("lead", "about.firstName about.lastName email userRole")
     .lean();
 
@@ -49,7 +50,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const team = await Team.findById(id);
   if (!team) return notFound("Team not found");
 
-  if (!canEditTeam(actor, team.department.toString(), id)) return forbidden();
+  if (!canEditTeam(actor, team.department?.toString() ?? "", id)) return forbidden();
 
   const body = await req.json();
   const update: Record<string, unknown> = { updatedBy: actor.id };
@@ -59,7 +60,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (typeof body.isActive === "boolean") update.isActive = body.isActive;
 
   if (isSuperAdmin(actor) || actor.role === "manager") {
-    if (body.department !== undefined) update.department = body.department;
+    if (body.departments !== undefined) {
+      update.departments = body.departments;
+      update.department = body.departments[0] ?? null;
+    } else if (body.department !== undefined) {
+      update.department = body.department;
+      const currentDepts = (team.departments ?? []).map((d: unknown) => String(d));
+      if (!currentDepts.includes(body.department)) {
+        update.departments = [...currentDepts, body.department];
+      }
+    }
     if (body.lead !== undefined) {
       if (body.lead) {
         const leadUser = await User.findById(body.lead).select("userRole").lean();
@@ -79,6 +89,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const populated = await Team.findById(id)
     .populate("department", "title slug")
+    .populate("departments", "title slug")
     .populate("lead", "about.firstName about.lastName email userRole")
     .lean();
 
@@ -92,7 +103,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     entityId: id,
     details: team.name,
     targetTeamIds: [id],
-    targetDepartmentId: team.department.toString(),
+    targetDepartmentId: team.department?.toString() ?? "",
     targetUserIds: leadId ? [leadId] : [],
     visibility: "targeted",
   });
@@ -127,7 +138,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     entityId: id,
     details: team.name,
     targetTeamIds: [id],
-    targetDepartmentId: team.department.toString(),
+    targetDepartmentId: team.department?.toString() ?? "",
     visibility: "targeted",
   });
 

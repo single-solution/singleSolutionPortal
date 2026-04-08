@@ -6,59 +6,47 @@ import { staggerContainerFast, cardVariants } from "@/lib/motion";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 
-interface TeamItem {
-  _id: string;
-  name: string;
-  description?: string;
-  isActive: boolean;
-  department: { _id: string; title: string } | null;
-  departments?: { _id: string; title: string }[];
-  memberCount: number;
-}
-
-interface Dept {
+interface DeptItem {
   _id: string;
   title: string;
+  description?: string;
+  isActive: boolean;
+  employeeCount: number;
+  teamCount: number;
 }
 
-interface TeamsPanelProps {
-  teams: TeamItem[];
-  departments: Dept[];
+interface DepartmentsPanelProps {
+  departments: DeptItem[];
   loading: boolean;
   refetch: () => Promise<void>;
 }
 
-export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelProps) {
-  const list = teams ?? [];
+export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsPanelProps) {
+  const list = departments ?? [];
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formName, setFormName] = useState("");
+  const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formDepartments, setFormDepartments] = useState<string[]>([]);
   const [saveLoading, setSaveLoading] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState<TeamItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeptItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const openCreate = useCallback(() => {
     setModalMode("create");
     setEditingId(null);
-    setFormName("");
+    setFormTitle("");
     setFormDescription("");
-    setFormDepartments(departments[0]?._id ? [departments[0]._id] : []);
     setModalOpen(true);
-  }, [departments]);
+  }, []);
 
-  const openEdit = useCallback((t: TeamItem) => {
+  const openEdit = useCallback((d: DeptItem) => {
     setModalMode("edit");
-    setEditingId(t._id);
-    setFormName(t.name);
-    setFormDescription(t.description ?? "");
-    const depts = (t.departments ?? []).map((d) => d._id);
-    if (depts.length === 0 && t.department?._id) depts.push(t.department._id);
-    setFormDepartments(depts);
+    setEditingId(d._id);
+    setFormTitle(d.title);
+    setFormDescription(d.description ?? "");
     setModalOpen(true);
   }, []);
 
@@ -68,20 +56,16 @@ export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelP
     setSaveLoading(false);
   }, []);
 
-  function toggleDept(id: string) {
-    setFormDepartments((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
-  }
-
   async function submitModal() {
-    if (!formName.trim() || formDepartments.length === 0) return;
+    if (!formTitle.trim()) return;
     setSaveLoading(true);
     try {
-      const body = { name: formName.trim(), description: formDescription, departments: formDepartments };
+      const body = { title: formTitle.trim(), description: formDescription };
       if (modalMode === "create") {
-        const res = await fetch("/api/teams", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const res = await fetch("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (!res.ok) { setSaveLoading(false); return; }
       } else if (editingId) {
-        const res = await fetch(`/api/teams/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const res = await fetch(`/api/departments/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (!res.ok) { setSaveLoading(false); return; }
       }
       closeModal();
@@ -95,34 +79,28 @@ export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelP
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/teams/${deleteTarget._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/departments/${deleteTarget._id}`, { method: "DELETE" });
       if (res.ok) { setDeleteTarget(null); await refetch(); }
     } catch { /* ignore */ }
     setDeleting(false);
   }
 
-  const sorted = useMemo(() => [...list].sort((a, b) => a.name.localeCompare(b.name)), [list]);
-
-  function deptLabels(t: TeamItem): string {
-    const depts = (t.departments ?? []).map((d) => d.title);
-    if (depts.length === 0 && t.department?.title) depts.push(t.department.title);
-    return depts.length > 0 ? depts.join(", ") : "No dept";
-  }
+  const sorted = useMemo(() => [...list].sort((a, b) => a.title.localeCompare(b.title)), [list]);
 
   return (
     <>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Teams</h2>
+            <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Departments</h2>
             <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
-              {loading && list.length === 0 ? "Loading…" : `${sorted.length} team${sorted.length !== 1 ? "s" : ""}`}
+              {loading && list.length === 0 ? "Loading…" : `${sorted.length} department${sorted.length !== 1 ? "s" : ""}`}
             </p>
           </div>
           <motion.button
             type="button" onClick={openCreate} whileTap={{ scale: 0.96 }}
             className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-            style={{ background: "#3b82f6", color: "white" }} title="Add Team">
+            style={{ background: "#8b5cf6", color: "white" }} title="Add Department">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
           </motion.button>
         </div>
@@ -134,25 +112,25 @@ export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelP
                 <motion.div key={`skel-${i}`} variants={cardVariants} custom={i}><div className="flex items-center gap-2 rounded-lg p-2"><div className="shimmer h-3 w-3 rounded-full" /><div className="shimmer h-3 w-24 rounded" /></div></motion.div>
               ))
             ) : sorted.length === 0 ? (
-              <p className="text-[11px] p-2" style={{ color: "var(--fg-tertiary)" }}>No teams yet.</p>
+              <p className="text-[11px] p-2" style={{ color: "var(--fg-tertiary)" }}>No departments yet.</p>
             ) : (
-              sorted.map((t, i) => (
-                <motion.div key={t._id} variants={cardVariants} custom={i} layout layoutId={`team-panel-${t._id}`} exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }} className="group">
-                  <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${!t.isActive ? "opacity-40 grayscale" : ""}`} style={{ background: "var(--bg-grouped)" }}>
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#3b82f6", color: "white" }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              sorted.map((d, i) => (
+                <motion.div key={d._id} variants={cardVariants} custom={i} layout layoutId={`dept-panel-${d._id}`} exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }} className="group">
+                  <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${!d.isActive ? "opacity-40 grayscale" : ""}`} style={{ background: "var(--bg-grouped)" }}>
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#8b5cf6", color: "white" }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{t.name}</p>
+                      <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{d.title}</p>
                       <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                        {deptLabels(t)} · {t.memberCount} member{t.memberCount !== 1 ? "s" : ""}
+                        {d.employeeCount} people · {d.teamCount} team{d.teamCount !== 1 ? "s" : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button type="button" onClick={() => openEdit(t)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--primary)" }} title="Edit">
+                      <button type="button" onClick={() => openEdit(d)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--primary)" }} title="Edit">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                       </button>
-                      <button type="button" onClick={() => setDeleteTarget(t)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--rose)" }} title="Delete">
+                      <button type="button" onClick={() => setDeleteTarget(d)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--rose)" }} title="Delete">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                       </button>
                     </div>
@@ -166,8 +144,8 @@ export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelP
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete team"
-        description={`Remove "${deleteTarget?.name}"? Members will be unassigned from this team.`}
+        title="Delete department"
+        description={`Remove "${deleteTarget?.title}"? Employees and teams in this department will be unaffected but the department will be deactivated.`}
         confirmLabel="Delete" variant="danger" loading={deleting}
         onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)}
       />
@@ -183,7 +161,7 @@ export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelP
                 className="card-xl flex w-full max-w-md flex-col overflow-hidden shadow-2xl"
                 style={{ borderColor: "var(--border-strong)" }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
-                  <h2 className="text-base font-semibold" style={{ color: "var(--fg)" }}>{modalMode === "create" ? "New Team" : "Edit Team"}</h2>
+                  <h2 className="text-base font-semibold" style={{ color: "var(--fg)" }}>{modalMode === "create" ? "New Department" : "Edit Department"}</h2>
                   <button type="button" onClick={closeModal} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }} aria-label="Close">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
                   </button>
@@ -191,23 +169,8 @@ export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelP
 
                 <div className="px-5 py-4 space-y-4">
                   <div>
-                    <label className="mb-1 block text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Name <span style={{ color: "var(--rose)" }}>*</span></label>
-                    <input type="text" value={formName} onChange={(e) => setFormName(e.target.value)} className="input w-full" placeholder="e.g. Engineering Alpha" autoFocus />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>
-                      Departments <span style={{ color: "var(--rose)" }}>*</span>
-                      <span className="ml-1 text-[10px] font-normal" style={{ color: "var(--fg-tertiary)" }}>Select one or more</span>
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {departments.map((d) => (
-                        <button key={d._id} type="button" onClick={() => toggleDept(d._id)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${formDepartments.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
-                          style={formDepartments.includes(d._id) ? { background: "#8b5cf6" } : { background: "var(--bg-grouped)" }}>
-                          {d.title}
-                        </button>
-                      ))}
-                    </div>
+                    <label className="mb-1 block text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Title <span style={{ color: "var(--rose)" }}>*</span></label>
+                    <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className="input w-full" placeholder="e.g. Engineering" autoFocus />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Description</label>
@@ -217,7 +180,7 @@ export function TeamsPanel({ teams, departments, loading, refetch }: TeamsPanelP
 
                 <div className="flex justify-end gap-2 border-t px-5 py-3" style={{ borderColor: "var(--border)" }}>
                   <button type="button" onClick={closeModal} className="btn btn-secondary btn-sm">Cancel</button>
-                  <motion.button type="button" onClick={submitModal} disabled={saveLoading || !formName.trim() || formDepartments.length === 0} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm">
+                  <motion.button type="button" onClick={submitModal} disabled={saveLoading || !formTitle.trim()} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm">
                     {saveLoading ? "Saving…" : modalMode === "create" ? "Create" : "Save"}
                   </motion.button>
                 </div>
