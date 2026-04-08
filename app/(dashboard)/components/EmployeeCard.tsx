@@ -34,7 +34,6 @@ export interface EmployeeCardEmp {
   shiftEnd?: string;
   shiftBreakTime?: number;
   profileImage?: string;
-  userRole?: string;
   teams?: { _id: string; name: string }[];
   workShift?: { type: string; shift: { start: string; end: string }; workingDays?: string[] };
   isVerified?: boolean;

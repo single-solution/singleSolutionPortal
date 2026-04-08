@@ -23,7 +23,6 @@ export interface Employee {
   isVerified?: boolean;
   phone?: string;
   about: EmployeeAbout;
-  userRole: string;
   isSuperAdmin?: boolean;
 }
 
@@ -73,7 +72,7 @@ export interface EmployeeCardEmp {
   shiftEnd?: string;
   shiftBreakTime?: number;
   profileImage?: string;
-  userRole?: string;
+  isSuperAdmin?: boolean;
   teams?: { _id: string; name: string }[];
   teamIds?: string[];
   workShift?: { type: string; shift: { start: string; end: string }; workingDays?: string[] };
@@ -113,7 +112,6 @@ export interface TaggedEmployee {
   _id: string;
   about: { firstName: string; lastName: string };
   email: string;
-  userRole: string;
 }
 
 export interface TaggedDept {
@@ -154,7 +152,6 @@ export interface Task {
     _id: string;
     about?: { firstName: string; lastName: string };
     email?: string;
-    userRole?: string;
     department?: { _id: string; title: string } | string;
   };
   createdAt: string;
@@ -170,12 +167,3 @@ export interface WeeklyDay {
   remoteMinutes: number;
 }
 
-/** Role keys → display labels (UI copy) */
-export const DESIGNATION_LABELS: Record<string, string> = {
-  superadmin: "System Administrator",
-  admin: "Administrator",
-  manager: "Manager",
-  teamLead: "Team Lead",
-  businessDeveloper: "Business Developer",
-  developer: "Developer",
-};

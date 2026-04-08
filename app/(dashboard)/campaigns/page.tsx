@@ -17,7 +17,6 @@ interface TaggedEmployee {
   _id: string;
   about: { firstName: string; lastName: string };
   email: string;
-  userRole: string;
 }
 
 interface TaggedDept {

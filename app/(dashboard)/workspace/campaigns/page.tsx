@@ -10,7 +10,7 @@ import { Portal } from "../../components/Portal";
 /* ─── types ─── */
 
 type CampaignStatus = "active" | "paused" | "completed" | "cancelled";
-interface TaggedEmployee { _id: string; about: { firstName: string; lastName: string }; email: string; userRole: string }
+interface TaggedEmployee { _id: string; about: { firstName: string; lastName: string }; email: string }
 interface TaggedDept { _id: string; title: string }
 interface Campaign {
   _id: string; name: string; slug: string; description?: string; status: CampaignStatus;

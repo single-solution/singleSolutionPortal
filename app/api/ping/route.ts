@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   const pings = await Ping.find(filter)
     .sort({ createdAt: -1 })
     .limit(50)
-    .populate("from", "about.firstName about.lastName userRole")
+    .populate("from", "about.firstName about.lastName")
     .lean();
 
   const unreadCount = unreadOnly

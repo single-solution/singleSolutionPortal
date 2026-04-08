@@ -47,8 +47,8 @@ export async function GET() {
   }
 
   const tasks = await ActivityTask.find(filter)
-    .populate("assignedTo", "about.firstName about.lastName email userRole department teams")
-    .populate("createdBy", "about.firstName about.lastName email userRole")
+    .populate("assignedTo", "about.firstName about.lastName email department teams")
+    .populate("createdBy", "about.firstName about.lastName email")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -67,9 +67,9 @@ export async function POST(req: Request) {
     return badRequest("Title and assignedTo are required");
   }
 
-  const assignee = await User.findById(body.assignedTo).select("userRole department teams").lean();
+  const assignee = await User.findById(body.assignedTo).select("isSuperAdmin department teams").lean();
   if (!assignee) return badRequest("Assignee not found");
-  if (assignee.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
+  if (assignee.isSuperAdmin === true) return badRequest("Cannot assign tasks to superadmin");
 
   const assigneeTeams = (assignee.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [];
 
@@ -89,13 +89,12 @@ export async function POST(req: Request) {
   });
 
   const populated = await ActivityTask.findById(task._id)
-    .populate("assignedTo", "about.firstName about.lastName email userRole")
+    .populate("assignedTo", "about.firstName about.lastName email")
     .lean();
 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created task",
     entity: "task",
     entityId: task._id.toString(),

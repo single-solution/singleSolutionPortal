@@ -27,7 +27,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
-    .populate("reportsTo", "about.firstName about.lastName email userRole")
+    .populate("reportsTo", "about.firstName about.lastName email")
     .lean();
 
   if (!user) return notFound("Employee not found");
@@ -55,7 +55,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!isSuperAdmin(actor) && !isManager(actor) && !isTeamLead(actor)) return forbidden();
 
   await connectDB();
+
+  // Protect superadmin accounts — only another superadmin can edit them
+  const target = await User.findById(id).select("isSuperAdmin").lean();
+  if (target?.isSuperAdmin && !actor.isSuperAdmin) return forbidden("Cannot modify a superadmin account");
+
   const body = await req.json();
+
+  // Never allow setting isSuperAdmin through the API
+  delete body.isSuperAdmin;
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
 
@@ -113,7 +121,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
-    .populate("reportsTo", "about.firstName about.lastName email userRole")
+    .populate("reportsTo", "about.firstName about.lastName email")
     .lean();
 
   if (!user) return notFound("Employee not found");
@@ -125,7 +133,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "updated employee",
     entity: "employee",
     entityId: id,
@@ -161,7 +168,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deactivated employee",
     entity: "employee",
     entityId: id,

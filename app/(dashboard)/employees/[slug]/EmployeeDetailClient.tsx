@@ -12,7 +12,6 @@ interface EmployeeData {
   lastName: string;
   email: string;
   username: string;
-  userRole: string;
   designation: string;
   department: string | null;
   teams: { _id: string; name: string }[];

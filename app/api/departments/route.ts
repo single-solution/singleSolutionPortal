@@ -101,8 +101,8 @@ export async function POST(req: Request) {
   if (!body.title?.trim()) return badRequest("Department title is required");
 
   if (body.managerId) {
-    const mgr = await User.findById(body.managerId).select("userRole").lean();
-    if (mgr?.userRole === "superadmin") return badRequest("Superadmin cannot be set as department manager");
+    const mgr = await User.findById(body.managerId).select("isSuperAdmin").lean();
+    if (mgr?.isSuperAdmin === true) return badRequest("Superadmin cannot be set as department manager");
   }
 
   const dept = await Department.create({
@@ -122,7 +122,6 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created department",
     entity: "department",
     entityId: dept._id.toString(),

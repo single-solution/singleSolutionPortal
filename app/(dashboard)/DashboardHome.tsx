@@ -24,7 +24,6 @@ import { dashboardTour } from "@/lib/tourConfigs";
 interface User {
   id: string;
   email: string;
-  role?: string;
   isSuperAdmin?: boolean;
   firstName: string;
   lastName: string;
@@ -36,7 +35,6 @@ interface ApiEmployee {
   email: string;
   username: string;
   about: { firstName: string; lastName: string };
-  userRole: string;
   isSuperAdmin?: boolean;
   isActive: boolean;
   department?: { _id: string; title: string; slug?: string };
@@ -950,7 +948,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
     firstName: string;
     lastName: string;
     email: string;
-    userRole: string;
     department: string;
     status: PresenceStatus;
     todayMinutes: number;

@@ -52,7 +52,7 @@ export async function GET(req: Request) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("user", "about email username userRole")
+      .populate("user", "about email username")
       .populate("acknowledgedBy", "about email")
       .lean(),
     LocationFlagEvent.countDocuments(filter),

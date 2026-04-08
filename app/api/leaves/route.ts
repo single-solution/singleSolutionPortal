@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
   }
 
   const leaves = await Leave.find(filter)
-    .populate("user", "about email username userRole")
+    .populate("user", "about email username")
     .populate("reviewedBy", "about email username")
     .sort({ startDate: -1 })
     .lean();
@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
   });
 
   const populated = await Leave.findById(leave._id)
-    .populate("user", "about email username userRole")
+    .populate("user", "about email username")
     .populate("reviewedBy", "about email username")
     .lean();
 

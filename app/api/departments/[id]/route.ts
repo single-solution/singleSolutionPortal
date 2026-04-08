@@ -17,8 +17,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const body = await req.json();
 
   if (body.managerId) {
-    const mgr = await User.findById(body.managerId).select("userRole").lean();
-    if (mgr?.userRole === "superadmin") return badRequest("Superadmin cannot be set as department manager");
+    const mgr = await User.findById(body.managerId).select("isSuperAdmin").lean();
+    if (mgr?.isSuperAdmin === true) return badRequest("Superadmin cannot be set as department manager");
   }
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
@@ -38,7 +38,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "updated department",
     entity: "department",
     entityId: id,
@@ -67,7 +66,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deleted department",
     entity: "department",
     entityId: id,

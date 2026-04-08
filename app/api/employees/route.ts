@@ -58,7 +58,7 @@ export async function GET() {
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
-    .populate("reportsTo", "about.firstName about.lastName email userRole")
+    .populate("reportsTo", "about.firstName about.lastName email")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -106,7 +106,6 @@ export async function POST(req: Request) {
     username,
     password: hashed,
     about: { firstName, lastName },
-    userRole: "developer",
     department: department || undefined,
     reportsTo: resolvedReportsTo || undefined,
     teams: teams ?? [],
@@ -135,7 +134,7 @@ export async function POST(req: Request) {
     .select("-password")
     .populate("department", "title slug")
     .populate("teams", "name slug department")
-    .populate("reportsTo", "about.firstName about.lastName email userRole")
+    .populate("reportsTo", "about.firstName about.lastName email")
     .lean();
 
   const rawToken = crypto.randomBytes(32).toString("hex");
@@ -168,7 +167,6 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created employee",
     entity: "employee",
     entityId: user._id.toString(),

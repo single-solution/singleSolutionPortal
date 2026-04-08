@@ -11,14 +11,7 @@ const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 interface Department { _id: string; title: string; manager?: string | { _id: string }; }
 interface TeamOption { _id: string; name: string; department?: { _id: string } | string; }
-interface SupervisorOption { _id: string; fullName: string; userRole: string; departmentId: string; }
-
-const ROLES = [
-  { value: "developer", label: "Developer" },
-  { value: "businessDeveloper", label: "Business Developer" },
-  { value: "teamLead", label: "Team Lead" },
-  { value: "manager", label: "Manager" },
-];
+interface SupervisorOption { _id: string; fullName: string; departmentId: string; }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -31,7 +24,6 @@ interface FormState {
   fullName: string;
   email: string;
   password: string;
-  userRole: string;
   department: string;
   reportsTo: string;
   teams: string[];
@@ -45,7 +37,7 @@ interface FormState {
 
 const INITIAL: FormState = {
   fullName: "", email: "", password: "",
-  userRole: "developer", department: "", reportsTo: "", teams: [],
+  department: "", reportsTo: "", teams: [],
   managedDepartments: [],
   shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
   workingDays: ["mon", "tue", "wed", "thu", "fri"],
@@ -61,8 +53,10 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   const [supervisors, setSupervisors] = useState<SupervisorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** Multi-department management UI (replaces legacy manager/team-lead role). */
+  const [multiDeptUi, setMultiDeptUi] = useState(false);
 
-  const isLeadOrManager = form.userRole === "manager" || form.userRole === "teamLead";
+  const isLeadOrManager = multiDeptUi;
 
   const derivedUsername = useMemo(() => {
     if (!form.email) return "";
@@ -78,14 +72,13 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
     setDepartments(Array.isArray(deptRes) ? deptRes : []);
     setAllTeams(Array.isArray(teamsRes) ? teamsRes : []);
 
-    const empList: Array<{ _id: string; about: { firstName: string; lastName: string }; userRole: string; department?: { _id: string } | string }> = Array.isArray(empListRes) ? empListRes : [];
+    const empList: Array<{ _id: string; about: { firstName: string; lastName: string }; department?: { _id: string } | string }> = Array.isArray(empListRes) ? empListRes : [];
     setSupervisors(
       empList
-        .filter((e) => e.userRole === "manager" || e.userRole === "teamLead")
+        .filter((e) => !employeeId || e._id !== employeeId)
         .map((e) => ({
           _id: e._id,
           fullName: `${e.about.firstName} ${e.about.lastName}`.trim(),
-          userRole: e.userRole,
           departmentId: typeof e.department === "object" && e.department ? e.department._id : String(e.department ?? ""),
         })),
     );
@@ -106,7 +99,6 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           fullName: ln ? `${fn} ${ln}` : fn,
           email: empRes.email ?? "",
           password: "",
-          userRole: empRes.userRole ?? "developer",
           department: empRes.department?._id ?? "",
           reportsTo: empRes.reportsTo?._id ?? "",
           teams: (empRes.teams ?? []).map((t: { _id: string }) => t._id),
@@ -117,7 +109,11 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           workingDays: empRes.workShift?.workingDays ?? ["mon", "tue", "wed", "thu", "fri"],
           breakTime: empRes.workShift?.breakTime ?? 60,
         });
+        setMultiDeptUi(managed.length > 0);
       }
+    } else {
+      setForm({ ...INITIAL });
+      setMultiDeptUi(false);
     }
     setLoading(false);
   }, [employeeId]);
@@ -183,11 +179,10 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       if (isEdit) {
         const body: Record<string, unknown> = {
           fullName: form.fullName,
-          userRole: form.userRole,
           department: form.department || null,
           reportsTo: form.reportsTo || null,
           teams: form.teams,
-          managedDepartments: (form.userRole === "manager" || form.userRole === "teamLead") ? form.managedDepartments : [],
+          managedDepartments: isLeadOrManager ? form.managedDepartments : [],
           workShift,
         };
         if (form.password) body.password = form.password;
@@ -206,11 +201,10 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           body: JSON.stringify({
             email: form.email,
             fullName: form.fullName,
-            userRole: form.userRole,
             department: form.department || undefined,
             reportsTo: form.reportsTo || undefined,
             teams: form.teams,
-            managedDepartments: (form.userRole === "manager" || form.userRole === "teamLead") ? form.managedDepartments : [],
+            managedDepartments: isLeadOrManager ? form.managedDepartments : [],
             workShift,
           }),
         });
@@ -288,7 +282,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         </div>
       </motion.div>
 
-      {/* Top row grid: Personal Info + Role & Department */}
+      {/* Top row grid: Personal Info + Assignment */}
       <motion.div
         className="grid grid-cols-1 gap-5 sm:grid-cols-2 mb-5"
         initial={{ opacity: 0, y: 8 }}
@@ -342,22 +336,15 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           </div>
         </motion.div>
 
-        {/* Role & Assignment card */}
+        {/* Assignment card */}
         <motion.div
           className="card-xl p-6"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.15, ease }}
         >
-          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--fg)" }}>Role & Assignment</h2>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--fg)" }}>Assignment</h2>
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Designation</label>
-              <select className="input" value={form.userRole} onChange={(e) => setForm({ ...form, userRole: e.target.value })}>
-                {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </div>
-
             {isEdit && (
               <>
                 <div>
@@ -366,7 +353,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                     <option value="">None</option>
                     {supervisors.map((s) => (
                       <option key={s._id} value={s._id}>
-                        {s.fullName} ({s.userRole === "teamLead" ? "Team Lead" : "Manager"})
+                        {s.fullName}
                       </option>
                     ))}
                   </select>
@@ -379,7 +366,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                     </label>
                     {isLeadOrManager && (
                       <p className="text-[11px] mb-2" style={{ color: "var(--fg-tertiary)" }}>
-                        Departments this {form.userRole === "manager" ? "manager" : "lead"} can view and manage
+                        Departments they can view and manage
                       </p>
                     )}
                     <div className="flex flex-wrap gap-2">
@@ -412,6 +399,40 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                           </motion.button>
                         );
                       })}
+                    </div>
+                    <div className="pt-1">
+                      {!multiDeptUi ? (
+                        <button
+                          type="button"
+                          className="text-[11px] font-medium hover:underline"
+                          style={{ color: "var(--primary)" }}
+                          onClick={() => {
+                            setMultiDeptUi(true);
+                            setForm((f) => ({
+                              ...f,
+                              managedDepartments: f.department ? [f.department] : f.managedDepartments,
+                            }));
+                          }}
+                        >
+                          Manage multiple departments
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-[11px] font-medium hover:underline"
+                          style={{ color: "var(--fg-secondary)" }}
+                          onClick={() => {
+                            setMultiDeptUi(false);
+                            setForm((f) => ({
+                              ...f,
+                              department: f.department || f.managedDepartments[0] || "",
+                              managedDepartments: [],
+                            }));
+                          }}
+                        >
+                          Use single department only
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

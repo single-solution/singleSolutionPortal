@@ -44,7 +44,7 @@ export async function GET() {
   }
 
   const users = await User.find(filter)
-    .select("_id email about.firstName about.lastName userRole department teams")
+    .select("_id email about.firstName about.lastName department teams")
     .populate("department", "title")
     .populate("teams", "name")
     .sort({ "about.firstName": 1 })

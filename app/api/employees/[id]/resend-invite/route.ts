@@ -67,7 +67,6 @@ export async function POST(
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "resent invite",
     entity: "employee",
     entityId: id,

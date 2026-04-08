@@ -5,7 +5,6 @@ import { emitSocket } from "@/lib/socket";
 interface LogInput {
   userEmail: string;
   userName: string;
-  userRole?: string;
   action: string;
   entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth" | "security";
   entityId?: string;

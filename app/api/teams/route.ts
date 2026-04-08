@@ -50,7 +50,7 @@ export async function GET() {
   const teams = await Team.find(filter)
     .populate("department", "title slug")
     .populate("departments", "title slug")
-    .populate("lead", "about.firstName about.lastName email userRole")
+    .populate("lead", "about.firstName about.lastName email")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -105,9 +105,9 @@ export async function POST(req: Request) {
   }
 
   if (body.lead) {
-    const leadUser = await User.findById(body.lead).select("userRole").lean();
+    const leadUser = await User.findById(body.lead).select("isSuperAdmin").lean();
     if (!leadUser) return badRequest("Lead user not found");
-    if (leadUser.userRole === "superadmin") return badRequest("Superadmin cannot be a team lead");
+    if (leadUser.isSuperAdmin === true) return badRequest("Superadmin cannot be a team lead");
   }
 
   const team = await Team.create({
@@ -123,13 +123,12 @@ export async function POST(req: Request) {
   const populated = await Team.findById(team._id)
     .populate("department", "title slug")
     .populate("departments", "title slug")
-    .populate("lead", "about.firstName about.lastName email userRole")
+    .populate("lead", "about.firstName about.lastName email")
     .lean();
 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created team",
     entity: "team",
     entityId: team._id.toString(),

@@ -18,7 +18,6 @@ const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowT
 interface Employee {
   _id: string; email: string; username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
-  userRole: string;
   department?: { _id: string; title: string };
   teams?: { _id: string; name: string }[];
   isActive: boolean; isVerified?: boolean;

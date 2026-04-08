@@ -3,14 +3,12 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
-import type { UserRole } from "@/lib/models/User";
 import { authConfig } from "@/lib/auth.config";
 import { isLoginBlocked, recordLoginAttempt, clearLoginAttempts } from "@/lib/rateLimit";
 
 declare module "next-auth" {
   interface User {
     id: string;
-    role: UserRole;
     isSuperAdmin: boolean;
     firstName: string;
     lastName: string;
@@ -22,7 +20,6 @@ declare module "next-auth" {
     user: {
       id: string;
       email: string;
-      role: UserRole;
       isSuperAdmin: boolean;
       firstName: string;
       lastName: string;
@@ -83,7 +80,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: user._id.toString(),
           email: user.email,
-          role: user.userRole ?? "developer",
           isSuperAdmin: user.isSuperAdmin === true,
           firstName: user.about.firstName,
           lastName: user.about.lastName ?? "",
@@ -99,7 +95,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id!;
-        token.role = user.role;
         token.isSuperAdmin = user.isSuperAdmin ?? false;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
@@ -118,7 +113,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       session.user.id = token.id as string;
-      session.user.role = token.role as UserRole;
       session.user.isSuperAdmin = (token.isSuperAdmin as boolean) ?? false;
       session.user.firstName = token.firstName as string;
       session.user.lastName = token.lastName as string;

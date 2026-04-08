@@ -19,12 +19,11 @@ interface Employee {
   email: string;
   username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
-  userRole: string;
   isSuperAdmin?: boolean;
   memberships?: Array<{ isPrimary?: boolean; designation?: { name: string } | null }>;
   department?: { _id: string; title: string };
   teams?: { _id: string; name: string }[];
-  reportsTo?: { _id: string; about: { firstName: string; lastName: string }; email: string; userRole: string } | null;
+  reportsTo?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null;
   isActive: boolean;
   isVerified?: boolean;
   workShift?: {
@@ -433,7 +432,6 @@ export default function EmployeesPage() {
                     designation: primaryDesignationLabel(emp),
                     department: emp.department?.title,
                     profileImage: emp.about.profileImage,
-                    userRole: emp.userRole,
                     teams: emp.teams,
                     isVerified: emp.isVerified,
                     isLive: p?.isLive,

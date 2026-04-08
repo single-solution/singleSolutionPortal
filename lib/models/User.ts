@@ -1,6 +1,7 @@
 import mongoose, { Schema, type Document, type Types } from "mongoose";
 
-export type UserRole = "superadmin" | "manager" | "teamLead" | "businessDeveloper" | "developer";
+/** @deprecated No longer used for authorization. Kept only for DB backward compat. */
+export type UserRole = string;
 export type ShiftType = "fullTime" | "partTime" | "contract";
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
@@ -191,8 +192,6 @@ const userSchema = new Schema<IUser>(
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ username: 1 }, { unique: true });
 userSchema.index({ isSuperAdmin: 1 });
-userSchema.index({ userRole: 1 });
-userSchema.index({ department: 1 });
 
 userSchema.virtual("fullName").get(function () {
   const first = this.about?.firstName ?? "";

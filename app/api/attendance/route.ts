@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     const empFilter = await buildTeamStatsEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
-      .select("about userRole department")
+      .select("about department")
       .populate("department", "title")
       .sort({ "about.firstName": 1 })
       .lean();
@@ -82,7 +82,6 @@ export async function GET(req: NextRequest) {
     const team = employees.map((emp) => ({
       _id: emp._id.toString(),
       name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
-      role: emp.userRole,
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
       departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
     }));
@@ -96,7 +95,7 @@ export async function GET(req: NextRequest) {
     const empFilter = await buildTeamStatsEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
-      .select("about userRole department reportsTo")
+      .select("about department reportsTo")
       .populate("department", "title")
       .populate("reportsTo", "about.firstName about.lastName")
       .sort({ "about.firstName": 1 })
@@ -131,7 +130,6 @@ export async function GET(req: NextRequest) {
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
-        role: emp.userRole,
         department: (emp.department as { title?: string })?.title ?? "Unassigned",
         departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
         managerId: mgr?._id ? String(mgr._id) : null,
@@ -159,7 +157,7 @@ export async function GET(req: NextRequest) {
     const empFilter = await buildTeamStatsEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
-      .select("about userRole department")
+      .select("about department")
       .populate("department", "title")
       .sort({ "about.firstName": 1 })
       .lean();
@@ -196,7 +194,6 @@ export async function GET(req: NextRequest) {
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
-        role: emp.userRole,
         department: (emp.department as { title?: string })?.title ?? "Unassigned",
         departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
         isPresent: rec?.isPresent ?? false,

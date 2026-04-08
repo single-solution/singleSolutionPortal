@@ -59,7 +59,7 @@ export async function POST() {
   results.push(`Marked ${superadminResult.modifiedCount} users as isSuperAdmin`);
 
   // Step 3: Create Membership records from existing user data
-  const users = await User.find({ userRole: { $ne: "superadmin" } })
+  const users = await User.find({ isSuperAdmin: { $ne: true } })
     .select("userRole department teams reportsTo")
     .lean();
 

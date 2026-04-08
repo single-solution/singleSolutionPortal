@@ -3,7 +3,6 @@ import mongoose, { Schema, type Document } from "mongoose";
 export interface IActivityLog extends Document {
   userEmail: string;
   userName: string;
-  userRole: string;
   action: string;
   entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth" | "security";
   entityId?: string;
@@ -19,7 +18,6 @@ const activityLogSchema = new Schema<IActivityLog>(
   {
     userEmail: { type: String, required: true, index: true },
     userName: { type: String, default: "" },
-    userRole: { type: String, default: "" },
     action: { type: String, required: true },
     entity: {
       type: String,

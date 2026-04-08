@@ -29,7 +29,7 @@ export async function GET() {
   const filter = await getCampaignScopeFilter(actor);
 
   const campaigns = await Campaign.find(filter)
-    .populate("tags.employees", "about.firstName about.lastName email userRole")
+    .populate("tags.employees", "about.firstName about.lastName email")
     .populate("tags.departments", "title slug")
     .populate("tags.teams", "name slug")
     .populate("createdBy", "about.firstName about.lastName")
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
   });
 
   const populated = await Campaign.findById(campaign._id)
-    .populate("tags.employees", "about.firstName about.lastName email userRole")
+    .populate("tags.employees", "about.firstName about.lastName email")
     .populate("tags.departments", "title slug")
     .populate("tags.teams", "name slug")
     .lean();
@@ -124,7 +124,6 @@ export async function POST(req: Request) {
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "created campaign",
     entity: "campaign",
     entityId: campaign._id.toString(),

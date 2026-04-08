@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const scopeFilter = await getCampaignScopeFilter(actor);
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter })
-    .populate("tags.employees", "about.firstName about.lastName email userRole")
+    .populate("tags.employees", "about.firstName about.lastName email")
     .populate("tags.departments", "title slug")
     .populate("tags.teams", "name slug")
     .populate("createdBy", "about.firstName about.lastName")
@@ -123,7 +123,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   await campaign.save();
 
   const populated = await Campaign.findById(id)
-    .populate("tags.employees", "about.firstName about.lastName email userRole")
+    .populate("tags.employees", "about.firstName about.lastName email")
     .populate("tags.departments", "title slug")
     .populate("tags.teams", "name slug")
     .lean();
@@ -135,7 +135,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: `updated campaign${statusChange}`,
     entity: "campaign",
     entityId: id,
@@ -172,7 +171,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deleted campaign",
     entity: "campaign",
     entityId: id,

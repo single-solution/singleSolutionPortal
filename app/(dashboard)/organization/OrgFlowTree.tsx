@@ -41,7 +41,6 @@ interface MembershipRow {
 interface Employee {
   _id: string; email: string; username: string;
   about: { firstName: string; lastName: string; profileImage?: string };
-  userRole: string;
   department?: { _id: string; title: string };
   teams?: { _id: string; name: string }[];
   isActive: boolean;

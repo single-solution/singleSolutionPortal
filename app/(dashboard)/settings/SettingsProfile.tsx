@@ -26,7 +26,6 @@ export interface SettingsProfileData {
   email: string;
   username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
-  userRole: string;
   isSuperAdmin?: boolean;
   memberships?: Array<{ isPrimary?: boolean; designation?: { name: string } | null }>;
   department?: { title: string };

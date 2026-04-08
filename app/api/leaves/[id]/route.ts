@@ -81,7 +81,7 @@ export async function GET(_req: NextRequest, context: RouteCtx) {
   await connectDB();
 
   const leave = await Leave.findById(id)
-    .populate("user", "about email username userRole")
+    .populate("user", "about email username")
     .populate("reviewedBy", "about email username")
     .lean();
 
@@ -150,7 +150,7 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
     leave.reviewNote = reviewNote;
     await leave.save();
     const populated = await Leave.findById(leave._id)
-      .populate("user", "about email username userRole")
+      .populate("user", "about email username")
       .populate("reviewedBy", "about email username")
       .lean();
     return NextResponse.json(populated);
@@ -170,7 +170,7 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
     await leave.save();
     await consumeBalance(leave);
     const populated = await Leave.findById(leave._id)
-      .populate("user", "about email username userRole")
+      .populate("user", "about email username")
       .populate("reviewedBy", "about email username")
       .lean();
     return NextResponse.json(populated);
@@ -192,7 +192,7 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
     leave.reviewNote = reviewNote;
     await leave.save();
     const populated = await Leave.findById(leave._id)
-      .populate("user", "about email username userRole")
+      .populate("user", "about email username")
       .populate("reviewedBy", "about email username")
       .lean();
     return NextResponse.json(populated);

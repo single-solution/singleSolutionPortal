@@ -17,7 +17,6 @@ export const authConfig: NextAuthConfig = {
         /* eslint-disable @typescript-eslint/no-explicit-any */
         const u = user as any;
         token.id = u.id;
-        token.role = u.role;
         token.isSuperAdmin = u.isSuperAdmin ?? false;
         token.firstName = u.firstName;
         token.lastName = u.lastName;
@@ -31,7 +30,6 @@ export const authConfig: NextAuthConfig = {
       /* eslint-disable @typescript-eslint/no-explicit-any */
       const u = session.user as any;
       u.id = token.id as string;
-      u.role = token.role as string;
       u.isSuperAdmin = (token.isSuperAdmin as boolean) ?? false;
       u.firstName = token.firstName as string;
       u.lastName = token.lastName as string;

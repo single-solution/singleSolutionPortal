@@ -51,7 +51,7 @@ export async function GET() {
   }
 
   const employees = await User.find(empFilter)
-    .select("about email username userRole department teams workShift reportsTo")
+    .select("about email username department teams workShift reportsTo")
     .populate("department", "title")
     .populate("reportsTo", "about.firstName about.lastName")
     .lean();
@@ -135,7 +135,6 @@ export async function GET() {
       firstName: emp.about.firstName,
       lastName: emp.about.lastName,
       email: e.email ?? "",
-      userRole: emp.userRole,
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
       departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
       reportsTo: rt,

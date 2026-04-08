@@ -55,8 +55,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.priority !== undefined) task.priority = body.priority;
     if (body.deadline !== undefined) task.deadline = body.deadline;
     if (body.assignedTo) {
-      const target = await User.findById(body.assignedTo).select("userRole department teams").lean();
-      if (target?.userRole === "superadmin") return badRequest("Cannot assign tasks to superadmin");
+      const target = await User.findById(body.assignedTo).select("isSuperAdmin department teams").lean();
+      if (target?.isSuperAdmin === true) return badRequest("Cannot assign tasks to superadmin");
 
       const targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [];
 
@@ -79,7 +79,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   await task.save();
 
   const populated = await ActivityTask.findById(task._id)
-    .populate("assignedTo", "about.firstName about.lastName email userRole")
+    .populate("assignedTo", "about.firstName about.lastName email")
     .lean();
 
   const changes = Object.keys(body).filter((k) => k !== "assignedTo").join(", ");
@@ -87,7 +87,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: `updated task${body.status ? ` → ${body.status}` : ""}`,
     entity: "task",
     entityId: id,
@@ -135,7 +134,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deleted task",
     entity: "task",
     entityId: id,

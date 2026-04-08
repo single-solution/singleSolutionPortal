@@ -142,7 +142,6 @@ interface DashboardShellProps {
   user: {
     id: string;
     email: string;
-    role?: string;
     isSuperAdmin?: boolean;
     firstName: string;
     lastName: string;
@@ -188,7 +187,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
   /* ── Ping inbox state ── */
   const [pingsOpen, setPingsOpen] = useState(false);
-  const [pings, setPings] = useState<{ _id: string; from: { about: { firstName: string; lastName: string }; userRole?: string }; message: string; read: boolean; createdAt: string }[]>([]);
+  const [pings, setPings] = useState<{ _id: string; from: { about: { firstName: string; lastName: string } }; message: string; read: boolean; createdAt: string }[]>([]);
   const [pingUnread, setPingUnread] = useState(0);
   const [pingsLoaded, setPingsLoaded] = useState(false);
   const pingRef = useRef<HTMLDivElement>(null);

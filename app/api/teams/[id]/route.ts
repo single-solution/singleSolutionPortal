@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const team = await Team.findById(id)
     .populate("department", "title slug")
     .populate("departments", "title slug")
-    .populate("lead", "about.firstName about.lastName email userRole")
+    .populate("lead", "about.firstName about.lastName email")
     .lean();
 
   if (!team) return notFound("Team not found");
@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     isActive: true,
     isSuperAdmin: { $ne: true },
   })
-    .select("about email userRole department")
+    .select("about email department")
     .populate("department", "title")
     .lean();
 
@@ -73,9 +73,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
     if (body.lead !== undefined) {
       if (body.lead) {
-        const leadUser = await User.findById(body.lead).select("userRole").lean();
+        const leadUser = await User.findById(body.lead).select("isSuperAdmin").lean();
         if (!leadUser) return badRequest("Lead user not found");
-        if (leadUser.userRole === "superadmin") return badRequest("Superadmin cannot be a team lead");
+        if (leadUser.isSuperAdmin === true) return badRequest("Superadmin cannot be a team lead");
       }
       update.lead = body.lead || null;
     }
@@ -91,14 +91,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const populated = await Team.findById(id)
     .populate("department", "title slug")
     .populate("departments", "title slug")
-    .populate("lead", "about.firstName about.lastName email userRole")
+    .populate("lead", "about.firstName about.lastName email")
     .lean();
 
   const leadId = team.lead ? (typeof team.lead === "object" && "_id" in team.lead ? (team.lead as { _id: { toString(): string } })._id.toString() : team.lead.toString()) : null;
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "updated team",
     entity: "team",
     entityId: id,
@@ -133,7 +132,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    userRole: actor.isSuperAdmin ? "superadmin" : "employee",
     action: "deleted team",
     entity: "team",
     entityId: id,

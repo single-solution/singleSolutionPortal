@@ -13,7 +13,6 @@ import { departmentsTour } from "@/lib/tourConfigs";
 interface Employee {
   _id: string;
   about: { firstName: string; lastName: string };
-  userRole: string;
 }
 
 interface Department {

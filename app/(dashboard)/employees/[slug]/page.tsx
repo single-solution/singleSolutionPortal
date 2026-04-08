@@ -2,7 +2,6 @@ import { redirect, notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { getVerifiedSession } from "@/lib/permissions";
 import { isValidId } from "@/lib/helpers";
-import type { UserRole } from "@/lib/models/User";
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import EmployeeDetailClient from "./EmployeeDetailClient";
@@ -18,6 +17,18 @@ async function serverFetch(path: string) {
     cache: "no-store",
   });
   return res;
+}
+
+function primaryDesignationFromEmp(emp: Record<string, unknown>): string {
+  if (emp.isSuperAdmin === true) return "System Administrator";
+  const list = emp.memberships as Array<{ isPrimary?: boolean; designation?: { name: string } | null }> | undefined;
+  if (list?.length) {
+    const row = list.find((m) => m.isPrimary) ?? list[0];
+    const des = row?.designation;
+    const name = des && typeof des === "object" && des !== null && "name" in des ? String((des as { name: string }).name) : "";
+    if (name) return name;
+  }
+  return "Employee";
 }
 
 async function resolveUserId(slug: string): Promise<string | null> {
@@ -74,7 +85,6 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   const lastName = about?.lastName ?? "";
   const email = (emp.email as string) ?? "";
   const username = (emp.username as string) ?? "";
-  const userRole = emp.userRole as UserRole | string;
   const dept = emp.department as { title?: string } | undefined;
   const teams = (emp.teams as { _id?: string; name?: string }[] | undefined) ?? [];
   const reportsTo = emp.reportsTo as { about?: { firstName?: string; lastName?: string } } | undefined;
@@ -133,8 +143,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         lastName,
         email,
         username,
-        userRole: userRole as string,
-        designation: "Employee",
+        designation: primaryDesignationFromEmp(emp),
         department: dept?.title ?? null,
         teams: teams.map((t) => ({ _id: String(t._id), name: t.name ?? "" })),
         reportsTo: reportsToName,

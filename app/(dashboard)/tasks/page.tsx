@@ -17,7 +17,7 @@ interface Task {
   priority: string;
   status: string;
   deadline?: string;
-  assignedTo?: { _id: string; about?: { firstName: string; lastName: string }; email?: string; userRole?: string; department?: { _id: string; title: string } | string };
+  assignedTo?: { _id: string; about?: { firstName: string; lastName: string }; email?: string; department?: { _id: string; title: string } | string };
   createdAt: string;
   updatedAt?: string;
 }
@@ -26,7 +26,6 @@ interface Employee {
   _id: string;
   about: { firstName: string; lastName: string };
   email: string;
-  userRole: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained for consistency / future use
@@ -40,10 +39,6 @@ const AVATAR_GRADIENTS = [
   "from-green-500 to-lime-400",
   "from-fuchsia-500 to-purple-400",
 ];
-
-const DESIGNATION_LABELS: Record<string, string> = {
-  manager: "Manager", teamLead: "Team Lead", businessDeveloper: "Business Developer", developer: "Developer",
-};
 
 type PriorityFilter = "all" | "low" | "medium" | "high" | "urgent";
 type SortMode = "recent" | "deadline" | "priority";
@@ -332,10 +327,10 @@ export default function TasksPage() {
                         {assignee?.about && (
                           <div className="flex items-center gap-1 text-[11px]">
                             <span className="font-medium" style={{ color: "var(--fg)" }}>{assignee.about.firstName} {assignee.about.lastName}</span>
-                            {assignee.userRole && (
+                            {assignee.email && (
                               <>
                                 <span style={{ color: "var(--fg-tertiary)" }}>·</span>
-                                <span style={{ color: "var(--fg-tertiary)" }}>{DESIGNATION_LABELS[assignee.userRole] ?? assignee.userRole}</span>
+                                <span className="truncate" style={{ color: "var(--fg-tertiary)" }}>{assignee.email}</span>
                               </>
                             )}
                           </div>
@@ -432,8 +427,8 @@ export default function TasksPage() {
                       <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To</label>
                       <select className="input transition-colors duration-200" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
                         <option value="">Select employee</option>
-                        {employees.filter((e) => e.userRole !== "superadmin").map((e) => (
-                          <option key={e._id} value={e._id}>{e.about.firstName} {e.about.lastName} — {DESIGNATION_LABELS[e.userRole] ?? e.userRole}</option>
+                        {employees.map((e) => (
+                          <option key={e._id} value={e._id}>{e.about.firstName} {e.about.lastName}</option>
                         ))}
                       </select>
                     </div>

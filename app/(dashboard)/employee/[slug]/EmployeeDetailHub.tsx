@@ -13,7 +13,7 @@ interface EmployeeDoc {
   _id: string;
   email: string;
   username: string;
-  userRole: string;
+  isSuperAdmin?: boolean;
   about?: { firstName?: string; lastName?: string; phone?: string; profileImage?: string };
   department?: { _id?: string; title?: string } | null;
   teams?: { _id?: string; name?: string }[];
@@ -152,7 +152,8 @@ function recordDateKey(iso: string | Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
 }
 
-function primaryDesignation(memberships: MembershipRow[] | null, userRole: string): string {
+function primaryDesignation(memberships: MembershipRow[] | null, isSuperAdmin?: boolean): string {
+  if (isSuperAdmin) return "System Administrator";
   if (memberships?.length) {
     const primary = memberships.find((m) => m.isPrimary && m.designation?.name);
     if (primary?.designation?.name) return primary.designation.name;
@@ -218,7 +219,7 @@ export default function EmployeeDetailHub({
     enabled: tab === "activity",
   });
 
-  const designation = useMemo(() => primaryDesignation(memberships ?? null, employee.userRole), [memberships, employee.userRole]);
+  const designation = useMemo(() => primaryDesignation(memberships ?? null, employee.isSuperAdmin), [memberships, employee.isSuperAdmin]);
 
   const dailyList = Array.isArray(dailyRaw) ? dailyRaw : [];
   const dailyByKey = useMemo(() => {
