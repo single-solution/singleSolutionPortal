@@ -80,7 +80,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.reportsTo !== undefined) update.reportsTo = body.reportsTo || null;
     if (body.teams !== undefined) update.teams = body.teams ?? [];
     if (body.isActive !== undefined) update.isActive = body.isActive;
-    if (body.workShift) update.workShift = body.workShift;
+    if (body.weeklySchedule) update.weeklySchedule = body.weeklySchedule;
+    if (typeof body.graceMinutes === "number") update.graceMinutes = body.graceMinutes;
+    if (body.shiftType) update.shiftType = body.shiftType;
     if (typeof body.crossDepartmentAccess === "boolean") update.crossDepartmentAccess = body.crossDepartmentAccess;
     if (typeof body.teamStatsVisible === "boolean") update.teamStatsVisible = body.teamStatsVisible;
 
@@ -102,10 +104,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       update.password = await bcrypt.hash(body.password, 12);
     }
   } else if (isManager(actor)) {
-    if (body.workShift) update.workShift = body.workShift;
+    if (body.weeklySchedule) update.weeklySchedule = body.weeklySchedule;
+    if (typeof body.graceMinutes === "number") update.graceMinutes = body.graceMinutes;
+    if (body.shiftType) update.shiftType = body.shiftType;
     if (body.teams !== undefined) update.teams = body.teams ?? [];
   } else if (isTeamLead(actor)) {
-    if (body.workShift) update.workShift = body.workShift;
+    if (body.weeklySchedule) update.weeklySchedule = body.weeklySchedule;
+    if (typeof body.graceMinutes === "number") update.graceMinutes = body.graceMinutes;
+    if (body.shiftType) update.shiftType = body.shiftType;
   }
 
   if (isSuperAdmin(actor) && Array.isArray(body.managedDepartments)) {

@@ -5,6 +5,59 @@ export type UserRole = string;
 export type ShiftType = "fullTime" | "partTime" | "contract";
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
+export const ALL_WEEKDAYS: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+export const WEEKDAY_LABELS: Record<Weekday, string> = {
+  mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday",
+  fri: "Friday", sat: "Saturday", sun: "Sunday",
+};
+
+export interface DaySchedule {
+  isWorking: boolean;
+  start: string;
+  end: string;
+  breakMinutes: number;
+}
+
+export type WeeklySchedule = Record<Weekday, DaySchedule>;
+
+const DEFAULT_WORKING_DAY: DaySchedule = { isWorking: true, start: "10:00", end: "19:00", breakMinutes: 60 };
+const DEFAULT_OFF_DAY: DaySchedule = { isWorking: false, start: "10:00", end: "19:00", breakMinutes: 60 };
+
+export function makeDefaultWeeklySchedule(): WeeklySchedule {
+  return {
+    mon: { ...DEFAULT_WORKING_DAY },
+    tue: { ...DEFAULT_WORKING_DAY },
+    wed: { ...DEFAULT_WORKING_DAY },
+    thu: { ...DEFAULT_WORKING_DAY },
+    fri: { ...DEFAULT_WORKING_DAY },
+    sat: { ...DEFAULT_OFF_DAY },
+    sun: { ...DEFAULT_OFF_DAY },
+  };
+}
+
+/** Resolve the weekly schedule from a user document, falling back to defaults. */
+export function resolveWeeklySchedule(user: Record<string, unknown>): WeeklySchedule {
+  if (user.weeklySchedule && typeof user.weeklySchedule === "object") {
+    const ws = user.weeklySchedule as Record<string, unknown>;
+    if (ws.mon && typeof ws.mon === "object") return ws as unknown as WeeklySchedule;
+  }
+  return makeDefaultWeeklySchedule();
+}
+
+/** Resolve per-employee grace minutes, falling back to 30. */
+export function resolveGraceMinutes(user: Record<string, unknown>): number {
+  if (typeof user.graceMinutes === "number") return user.graceMinutes;
+  return 30;
+}
+
+/** Get today's day schedule for a user. */
+export function getTodaySchedule(user: Record<string, unknown>, tz?: string): DaySchedule {
+  const schedule = resolveWeeklySchedule(user);
+  const dayIndex = tz ? new Date(new Date().toLocaleString("en-US", { timeZone: tz })).getDay() : new Date().getDay();
+  const dayMap: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  return schedule[dayMap[dayIndex]];
+}
+
 export type ProposalStatus = "pending" | "submitted" | "shortlisted" | "interview" | "hired" | "rejected" | "withdrawn";
 
 export interface IUser extends Document {
@@ -27,12 +80,9 @@ export interface IUser extends Document {
   reportsTo?: Types.ObjectId;
   /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
   userRole: UserRole;
-  workShift: {
-    type: ShiftType;
-    shift: { start: string; end: string };
-    workingDays: Weekday[];
-    breakTime: number;
-  };
+  weeklySchedule: WeeklySchedule;
+  graceMinutes: number;
+  shiftType: ShiftType;
   businessDeveloper?: {
     jobID?: string;
     dateFound?: Date;
@@ -113,21 +163,15 @@ const userSchema = new Schema<IUser>(
       enum: ["superadmin", "manager", "teamLead", "businessDeveloper", "developer"],
       default: "developer",
     },
-    workShift: {
-      type: {
-        type: String,
-        enum: ["fullTime", "partTime", "contract"],
-        default: "fullTime",
-      },
-      shift: {
-        start: { type: String, default: "10:00" },
-        end: { type: String, default: "19:00" },
-      },
-      workingDays: {
-        type: [{ type: String, enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }],
-        default: ["mon", "tue", "wed", "thu", "fri"],
-      },
-      breakTime: { type: Number, default: 60 },
+    weeklySchedule: {
+      type: Schema.Types.Mixed,
+      default: makeDefaultWeeklySchedule,
+    },
+    graceMinutes: { type: Number, default: 30 },
+    shiftType: {
+      type: String,
+      enum: ["fullTime", "partTime", "contract"],
+      default: "fullTime",
     },
     businessDeveloper: {
       jobID: String,
@@ -200,16 +244,25 @@ userSchema.virtual("fullName").get(function () {
 });
 
 userSchema.virtual("totalShiftHours").get(function () {
-  const start = this.workShift?.shift?.start ?? "10:00";
-  const end = this.workShift?.shift?.end ?? "19:00";
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
+  const doc = this.toObject ? this.toObject() : this;
+  const schedule = resolveWeeklySchedule(doc as unknown as Record<string, unknown>);
+  const dayIndex = new Date().getDay();
+  const dayMap: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const today = schedule[dayMap[dayIndex]];
+  if (!today.isWorking) return 0;
+  const [sh, sm] = today.start.split(":").map(Number);
+  const [eh, em] = today.end.split(":").map(Number);
   return (eh * 60 + em - (sh * 60 + sm)) / 60;
 });
 
 userSchema.virtual("workingHours").get(function () {
-  const breakMinutes = this.workShift?.breakTime ?? 60;
-  return this.totalShiftHours - breakMinutes / 60;
+  const doc = this.toObject ? this.toObject() : this;
+  const schedule = resolveWeeklySchedule(doc as unknown as Record<string, unknown>);
+  const dayIndex = new Date().getDay();
+  const dayMap: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const today = schedule[dayMap[dayIndex]];
+  if (!today.isWorking) return 0;
+  return this.totalShiftHours - today.breakMinutes / 60;
 });
 
 const User = mongoose.models.User || mongoose.model<IUser>("User", userSchema);

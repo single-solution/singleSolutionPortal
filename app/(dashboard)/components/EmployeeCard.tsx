@@ -35,7 +35,7 @@ export interface EmployeeCardEmp {
   shiftBreakTime?: number;
   profileImage?: string;
   teams?: { _id: string; name: string }[];
-  workShift?: { type: string; shift: { start: string; end: string }; workingDays?: string[] };
+  weeklySchedule?: Record<string, { isWorking: boolean; start: string; end: string; breakMinutes: number }>;
   isVerified?: boolean;
   pendingTasks?: number;
   inProgressTasks?: number;

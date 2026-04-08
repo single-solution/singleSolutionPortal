@@ -75,7 +75,9 @@ export interface EmployeeCardEmp {
   isSuperAdmin?: boolean;
   teams?: { _id: string; name: string }[];
   teamIds?: string[];
-  workShift?: { type: string; shift: { start: string; end: string }; workingDays?: string[] };
+  weeklySchedule?: Record<string, { isWorking: boolean; start: string; end: string; breakMinutes: number }>;
+  shiftType?: string;
+  graceMinutes?: number;
   isVerified?: boolean;
   isActive?: boolean;
   pendingTasks?: number;

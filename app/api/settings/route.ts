@@ -39,13 +39,6 @@ export async function PUT(req: Request) {
     if (body.office.radiusMeters !== undefined) update["office.radiusMeters"] = body.office.radiusMeters;
   }
 
-  if (body.shiftDefaults) {
-    if (body.shiftDefaults.start !== undefined) update["shiftDefaults.start"] = body.shiftDefaults.start;
-    if (body.shiftDefaults.end !== undefined) update["shiftDefaults.end"] = body.shiftDefaults.end;
-    if (body.shiftDefaults.breakMinutes !== undefined) update["shiftDefaults.breakMinutes"] = body.shiftDefaults.breakMinutes;
-    if (body.shiftDefaults.graceMinutes !== undefined) update["shiftDefaults.graceMinutes"] = body.shiftDefaults.graceMinutes;
-  }
-
   if (body.company) {
     if (body.company.name !== undefined) update["company.name"] = body.company.name;
     if (body.company.timezone !== undefined) update["company.timezone"] = body.company.timezone;

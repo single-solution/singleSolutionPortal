@@ -19,6 +19,12 @@ import { ScopeStrip } from "./components/ScopeStrip";
 import { useGuide } from "@/lib/useGuide";
 import { useLive } from "@/lib/useLive";
 import { dashboardTour } from "@/lib/tourConfigs";
+import {
+  getTodaySchedule,
+  resolveGraceMinutes,
+  resolveWeeklySchedule,
+  type WeeklySchedule,
+} from "@/lib/models/User";
 
 /* ──────────────────────── TYPES ──────────────────────── */
 
@@ -40,12 +46,8 @@ interface ApiEmployee {
   isActive: boolean;
   department?: { _id: string; title: string; slug?: string };
   teams?: { _id: string; name: string }[];
-  workShift?: {
-    type: string;
-    shift: { start: string; end: string };
-    workingDays: string[];
-    breakTime: number;
-  };
+  weeklySchedule?: WeeklySchedule;
+  shiftType?: string;
 }
 
 interface ApiTask {
@@ -170,7 +172,9 @@ interface UserProfile {
   profileImage?: string;
   department?: string;
   designation: string;
-  workShift?: { type: string; start: string; end: string; breakTime: number };
+  weeklySchedule?: WeeklySchedule;
+  shiftType?: string;
+  graceMinutes?: number;
   reportsTo?: { _id: string; about: { firstName: string; lastName: string } } | null;
 }
 
@@ -368,13 +372,13 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
             <p className="text-caption">Local time</p>
             <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{formatClockDate(now)}</span>
           </div>
-          <AnimatePresence mode="wait">
-            <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
-              <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
-      </div>
+              <AnimatePresence mode="wait">
+                <motion.div key={timeKey} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
+                  <span className="text-headline block tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
+                </motion.div>
+              </AnimatePresence>
+          </motion.div>
+        </div>
     </header>
   );
 }
@@ -386,6 +390,16 @@ function SelfOverviewCard({ pa, userProfile, user }: {
   userProfile: UserProfile | null;
   user: User;
 }) {
+  const todayForShift = userProfile?.weeklySchedule
+    ? getTodaySchedule(
+        { weeklySchedule: userProfile.weeklySchedule } as Record<string, unknown>,
+        "Asia/Karachi",
+      )
+    : null;
+  const shiftTarget = todayForShift
+    ? getShiftMinutes(todayForShift.start, todayForShift.end, todayForShift.breakMinutes)
+    : 480;
+
   if (!pa) {
                 return (
       <div className="card p-5 sm:p-6">
@@ -403,14 +417,11 @@ function SelfOverviewCard({ pa, userProfile, user }: {
               <Bone w="w-full" h="h-2.5" />
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
+                    </div>
+    </div>
+  );
+}
   const todayHours = pa.todayMinutes / 60;
-  const shiftTarget = userProfile?.workShift
-    ? getShiftMinutes(userProfile.workShift.start, userProfile.workShift.end, userProfile.workShift.breakTime)
-    : 480;
   const shiftPct = Math.min(100, Math.round((pa.todayMinutes / shiftTarget) * 100));
   const isPresent = pa.todaySessions > 0 || pa.todayMinutes > 0;
   const statusColor = isPresent ? (pa.isOnTime ? "#10b981" : "#f59e0b") : "#f43f5e";
@@ -420,7 +431,7 @@ function SelfOverviewCard({ pa, userProfile, user }: {
   const officePct = pa.officeMinutes + pa.remoteMinutes > 0 ? Math.round((pa.officeMinutes / (pa.officeMinutes + pa.remoteMinutes)) * 100) : 0;
   const remotePct = 100 - officePct;
 
-                return (
+  return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} className="card p-5 sm:p-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
         <div className="flex flex-col items-center gap-3 sm:items-start">
@@ -430,19 +441,19 @@ function SelfOverviewCard({ pa, userProfile, user }: {
             <div className="flex h-20 w-20 items-center justify-center rounded-full text-xl font-semibold text-white shadow-lg sm:h-24 sm:w-24 sm:text-2xl" style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}>{initials(profileName, profileLast)}</div>
           )}
           <span className="badge" style={{ background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}30` }}>{statusLabel}</span>
-                    </div>
+        </div>
         <div className="min-w-0 flex-1 space-y-4">
           <div>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>{profileName} {profileLast}</h2>
             <p className="text-subhead">{userProfile?.department ?? (user.isSuperAdmin ? "System Administrator" : "Employee")}</p>
             <p className="text-caption mt-0.5">{user.email}</p>
-                    </div>
+            </div>
           {/* Clock In / Hours / Clock Out */}
           <div className="grid grid-cols-3 gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
             <div className="card-static rounded-xl p-2.5">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
-            </div>
+          </div>
             <div className="card-static rounded-xl p-2.5 text-center">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
@@ -451,39 +462,39 @@ function SelfOverviewCard({ pa, userProfile, user }: {
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
             </div>
-          </div>
+            </div>
           {/* Arrived / Office / Left */}
           <div className="grid grid-cols-3 gap-2" style={{ color: "var(--fg-secondary)" }}>
             <div className="card-static rounded-xl p-2.5">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Arrived</p>
               <p className="text-callout font-semibold tabular-nums">{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
-            </div>
+          </div>
             <div className="card-static rounded-xl p-2.5 text-center">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
               <p className="text-callout font-semibold tabular-nums">{formatMinutes(pa.officeMinutes)}</p>
-            </div>
+        </div>
             <div className="card-static rounded-xl p-2.5 text-right">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Left</p>
               <p className="text-callout font-semibold tabular-nums">{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
+              </div>
             </div>
-          </div>
           {/* Office / Remote split */}
           <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
             <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
             <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
-          </div>
+              </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Shift progress</span>
               <span className="text-caption tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes} / {shiftTarget} min ({shiftPct}%)</span>
-                </div>
+            </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
               <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
-                </div>
-          </div>
-    </div>
-      </div>
-    </motion.div>
+            </div>
+            </div>
+            </div>
+            </div>
+          </motion.div>
   );
 }
 
@@ -684,7 +695,7 @@ function AdminDashboard({
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} />
           <TodayTimelineCard pa={personalAttendance} dataLoading={dataLoading} />
-        </div>
+            </div>
       )}
 
       {/* 3. Team Status + Campaigns/Checklist */}
@@ -724,8 +735,8 @@ function AdminDashboard({
                   {g === "flat" ? "Flat" : g === "manager" ? "By Manager" : "By Dept"}
                 </button>
               ))}
+        </div>
             </div>
-          </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
           {presenceLoading && filteredPresence.length === 0 ? (
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
@@ -736,13 +747,13 @@ function AdminDashboard({
                     <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
                     <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
                     <Bone w="w-12" h="h-3.5" />
-        </div>
+          </div>
                   <Bone w="w-24" h="h-2" />
                   <div className="mt-1.5 flex justify-between"><Bone w="w-10" h="h-2" /><Bone w="w-14" h="h-2" /></div>
                   <div className="mt-1"><Bone w="w-full" h="h-1.5" /></div>
-        </div>
-            </div>
-            ))}
+                  </div>
+                </div>
+              ))}
             </div>
         ) : filteredPresence.length > 0 ? (
           (() => {
@@ -796,7 +807,7 @@ function AdminDashboard({
             }
 
             if (presenceGrouped) {
-              return (
+                return (
                 <div className="space-y-5 pt-2">
                   {presenceGrouped.map((group) => (
                     <motion.div key={group.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -804,8 +815,8 @@ function AdminDashboard({
                         <h3 className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{group.label}</h3>
                         <span className="text-caption font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
                           {group.employees.length}
-                        </span>
-                      </div>
+                    </span>
+                    </div>
                       <motion.div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
                         <AnimatePresence mode="popLayout">
                           {group.employees.map((emp, idx) => renderPresenceCard(emp, idx))}
@@ -813,7 +824,7 @@ function AdminDashboard({
                       </motion.div>
                     </motion.div>
                   ))}
-                </div>
+                      </div>
               );
             }
 
@@ -849,19 +860,19 @@ function AdminDashboard({
               <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
                   <div className="flex gap-1.5 mt-0.5">
                     {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
                     {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
                     <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
-                  </div>
-                </div>
+                      </div>
+                    </div>
               </motion.div>
             ))}
-          </div>
-        </motion.section>
+        </div>
+      </motion.section>
         <motion.section data-tour="dashboard-checklist" className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
           <div className="mb-3 flex shrink-0 items-center justify-between">
             <div className="flex items-center min-w-0">
@@ -869,11 +880,11 @@ function AdminDashboard({
               <RefreshBtn onRefresh={onRefreshFull} />
             </div>
             {!dataLoading && (
-              <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
-                {pendingTasks.length} Pending
-              </motion.div>
-            )}
-          </div>
+            <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
+              {pendingTasks.length} Pending
+            </motion.div>
+          )}
+        </div>
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {dataLoading ? (
               [1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
@@ -891,11 +902,11 @@ function AdminDashboard({
                   <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
+                  <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
                       <span className="text-[9px] rounded-full px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
                       <span className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>{statusLabel}</span>
                     </div>
@@ -905,13 +916,13 @@ function AdminDashboard({
                       {task.deadline && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>Due {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
                       {task.createdAt && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
                     </div>
-                  </div>
-                </motion.div>
+                </div>
+              </motion.div>
               );
             })}
           </div>
           <Link href="/workspace/tasks" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
-        </motion.section>
+      </motion.section>
       </div>
 
       {/* Ping toast */}
@@ -1053,7 +1064,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><path d="M8.464 15.536a5 5 0 010-7.072" /><path d="M15.536 8.464a5 5 0 010 7.072" /><circle cx="12" cy="12" r="1" /></svg>
                   Ping
                 </motion.button>
-                )}
+              )}
             </div>
           </div>
 
@@ -1375,7 +1386,6 @@ export default function DashboardHome({ user }: { user: User }) {
         const p = profileRes as Record<string, unknown>;
         const about = p.about as Record<string, unknown> | undefined;
         const dept = p.department as { title?: string } | undefined;
-        const shift = p.workShift as { type?: string; shift?: { start?: string; end?: string }; breakTime?: number } | undefined;
         setUserProfile({
           firstName: (about?.firstName as string) ?? user.firstName,
           lastName: (about?.lastName as string) ?? user.lastName,
@@ -1384,7 +1394,9 @@ export default function DashboardHome({ user }: { user: User }) {
           profileImage: (about?.profileImage as string) || undefined,
           department: dept?.title ?? undefined,
           designation: user.isSuperAdmin ? "System Administrator" : "Employee",
-          workShift: shift?.shift ? { type: shift.type ?? "fullTime", start: shift.shift.start ?? "09:00", end: shift.shift.end ?? "18:00", breakTime: shift.breakTime ?? 60 } : undefined,
+          weeklySchedule: resolveWeeklySchedule(p),
+          shiftType: typeof p.shiftType === "string" ? p.shiftType : undefined,
+          graceMinutes: resolveGraceMinutes(p),
         });
       }
     } catch { /* optional data */ }
@@ -1430,7 +1442,9 @@ export default function DashboardHome({ user }: { user: User }) {
   const presenceLoading = realPresence === null && isSuperAdmin;
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;
-    return employees.map((e) => ({
+    return employees.map((e) => {
+      const fallbackSch = getTodaySchedule(e as unknown as Record<string, unknown>, "Asia/Karachi");
+      return {
       _id: e._id,
       username: e.username ?? "",
       firstName: e.about?.firstName ?? "",
@@ -1454,14 +1468,15 @@ export default function DashboardHome({ user }: { user: User }) {
       firstOfficeEntry: null,
       lastOfficeExit: null,
       lastExit: null,
-      shiftStart: e.workShift?.shift?.start ?? "10:00",
-      shiftEnd: e.workShift?.shift?.end ?? "19:00",
-      shiftBreakTime: e.workShift?.breakTime ?? 60,
+      shiftStart: fallbackSch.start,
+      shiftEnd: fallbackSch.end,
+      shiftBreakTime: fallbackSch.breakMinutes,
       isLive: false,
       locationFlagged: false,
       isActive: true,
       teamIds: e.teams?.map((t) => t._id) ?? [],
-    }));
+    };
+    });
   }, [realPresence, employees]);
 
   if (user.isSuperAdmin === true) {

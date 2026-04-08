@@ -2,7 +2,7 @@ import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import SystemSettings from "@/lib/models/SystemSettings";
-import User from "@/lib/models/User";
+import User, { resolveWeeklySchedule, type Weekday } from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import { getVerifiedSession } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
@@ -23,7 +23,7 @@ export async function GET() {
 
   const managerId = me.reportsTo.toString();
   const manager = await User.findById(managerId)
-    .select("about email department workShift")
+    .select("about email department weeklySchedule")
     .populate("department", "title")
     .lean();
 
@@ -104,8 +104,8 @@ export async function GET() {
     remoteMinutes: daily?.remoteMinutes ?? 0,
     firstEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
     lastExit,
-    shiftStart: m.workShift?.shift?.start ?? "10:00",
-    shiftEnd: m.workShift?.shift?.end ?? "19:00",
+    shiftStart: (() => { const dayMap: Weekday[] = ["sun","mon","tue","wed","thu","fri","sat"]; const localNow = new Date(new Date().toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") })); const s = resolveWeeklySchedule(manager as unknown as Record<string, unknown>); return s[dayMap[localNow.getDay()]].start; })(),
+    shiftEnd: (() => { const dayMap: Weekday[] = ["sun","mon","tue","wed","thu","fri","sat"]; const localNow = new Date(new Date().toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") })); const s = resolveWeeklySchedule(manager as unknown as Record<string, unknown>); return s[dayMap[localNow.getDay()]].end; })(),
     isLive,
   });
 }

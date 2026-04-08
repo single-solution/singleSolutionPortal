@@ -2,7 +2,7 @@ import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import SystemSettings from "@/lib/models/SystemSettings";
-import User from "@/lib/models/User";
+import User, { resolveWeeklySchedule, type Weekday } from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
@@ -51,10 +51,14 @@ export async function GET() {
   }
 
   const employees = await User.find(empFilter)
-    .select("about email username department teams workShift reportsTo")
+    .select("about email username department teams weeklySchedule reportsTo")
     .populate("department", "title")
     .populate("reportsTo", "about.firstName about.lastName")
     .lean();
+
+  const dayMap: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const localNow = new Date(new Date().toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") }));
+  const todayDayKey = dayMap[localNow.getDay()];
 
   const activeSessions = await ActivitySession.find({
     sessionDate: today,
@@ -160,9 +164,9 @@ export async function GET() {
         ?? (daily?.lastSessionEnd ? new Date(daily.lastSessionEnd as unknown as string).toISOString() : null)
         ?? (lastEndMap.get(id) ? new Date(lastEndMap.get(id)!).toISOString() : null)
         ?? (daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null),
-      shiftStart: e.workShift?.shift?.start ?? "10:00",
-      shiftEnd: e.workShift?.shift?.end ?? "19:00",
-      shiftBreakTime: e.workShift?.breakTime ?? 60,
+      shiftStart: (() => { const s = resolveWeeklySchedule(emp as unknown as Record<string, unknown>); return s[todayDayKey].start; })(),
+      shiftEnd: (() => { const s = resolveWeeklySchedule(emp as unknown as Record<string, unknown>); return s[todayDayKey].end; })(),
+      shiftBreakTime: (() => { const s = resolveWeeklySchedule(emp as unknown as Record<string, unknown>); return s[todayDayKey].breakMinutes; })(),
       isLive,
       locationFlagged: active?.location?.locationFlagged ?? false,
       flagReason: active?.location?.flagReason ?? null,

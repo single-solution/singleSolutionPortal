@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getVerifiedSession, hasPermission } from "@/lib/permissions";
-import User from "@/lib/models/User";
+import User, { resolveWeeklySchedule, type Weekday, type DaySchedule } from "@/lib/models/User";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import Leave from "@/lib/models/Leave";
 import Payslip from "@/lib/models/Payslip";
@@ -21,21 +21,15 @@ function roundMoney(n: number, dec = 2): number {
   return Math.round(n * p) / p;
 }
 
-function expectedWorkingMinutes(u: {
-  workShift?: { shift?: { start?: string; end?: string }; breakTime?: number };
-}): number {
-  const shift = u.workShift;
-  if (!shift?.shift) return 8 * 60;
-  const startParts = (shift.shift.start ?? "10:00").split(":").map(Number);
-  const endParts = (shift.shift.end ?? "19:00").split(":").map(Number);
-  const sh = startParts[0] ?? 10;
-  const sm = startParts[1] ?? 0;
-  const eh = endParts[0] ?? 19;
-  const em = endParts[1] ?? 0;
-  const gross = eh * 60 + em - (sh * 60 + sm);
-  const brk = shift.breakTime ?? 60;
-  return Math.max(0, gross - brk);
+function dayExpectedMinutes(day: DaySchedule): number {
+  if (!day.isWorking) return 0;
+  const [sh, sm] = day.start.split(":").map(Number);
+  const [eh, em] = day.end.split(":").map(Number);
+  const gross = (eh * 60 + em) - (sh * 60 + sm);
+  return Math.max(0, gross - day.breakMinutes);
 }
+
+const DAY_OF_WEEK_MAP: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
@@ -85,7 +79,7 @@ export async function POST(req: Request) {
   const { start: monthStart, end: monthEnd } = monthUtcBounds(month, year);
 
   const employees = await User.find({ isSuperAdmin: { $ne: true }, isActive: true })
-    .select("salary workShift")
+    .select("salary weeklySchedule")
     .lean();
 
   const results: { userId: string; ok: boolean; error?: string }[] = [];
@@ -122,7 +116,7 @@ export async function POST(req: Request) {
     const presentKeys = new Set<string>();
     let lateDays = 0;
     let overtimeMinutesTotal = 0;
-    const expectedMin = expectedWorkingMinutes(emp);
+    const schedule = resolveWeeklySchedule(emp as unknown as Record<string, unknown>);
 
     for (const row of attendanceRows) {
       const d = new Date(row.date as Date);
@@ -132,6 +126,8 @@ export async function POST(req: Request) {
         presentKeys.add(key);
         const lateAmount = Math.max(Number(row.lateToOfficeBy) || 0, Number(row.lateBy) || 0);
         if (lateAmount > lateThreshold) lateDays += 1;
+        const dayKey = DAY_OF_WEEK_MAP[d.getUTCDay()];
+        const expectedMin = dayExpectedMinutes(schedule[dayKey]);
         const tw = Number(row.totalWorkingMinutes) || 0;
         overtimeMinutesTotal += Math.max(0, tw - expectedMin);
       }

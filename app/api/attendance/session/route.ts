@@ -420,10 +420,9 @@ async function handleCheckIn(
   },
 ) {
   const settings = await SystemSettings.findOne({ key: "global" })
-    .select("company.timezone shiftDefaults.graceMinutes")
+    .select("company.timezone")
     .lean();
   const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
-  const graceMinutes = (settings?.shiftDefaults as { graceMinutes?: number })?.graceMinutes ?? 30;
 
   const now = new Date();
   const today = startOfDay(now, tz);
@@ -514,14 +513,21 @@ async function handleCheckIn(
 
   let daily = await DailyAttendance.findOne({ user: userId, date: today });
   if (!daily) {
-    const user = await User.findById(userId).select("workShift").lean();
-    const shiftStart = user?.workShift?.shift?.start ?? "10:00";
+    const user = await User.findById(userId).select("weeklySchedule graceMinutes").lean();
+    const { resolveWeeklySchedule, resolveGraceMinutes } = await import("@/lib/models/User");
+    const schedule = resolveWeeklySchedule((user ?? {}) as Record<string, unknown>);
+    const grace = resolveGraceMinutes((user ?? {}) as Record<string, unknown>);
+    const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+    const tp = dateParts(today, tz);
+    const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") }));
+    const todayDay = schedule[dayMap[localNow.getDay()]];
+    const shiftStart = todayDay.start;
     const [sh, sm] = shiftStart.split(":").map(Number);
 
-    const tp = dateParts(today, tz);
-    const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + graceMinutes, 0, tz);
-    const isLate = now > shiftDeadline;
-    const isLateToOffice = inOffice && now > shiftDeadline;
+    const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + grace, 0, tz);
+    const isNonWorkingDay = !todayDay.isWorking;
+    const isLate = isNonWorkingDay ? false : now > shiftDeadline;
+    const isLateToOffice = isNonWorkingDay ? false : inOffice && now > shiftDeadline;
 
     daily = await DailyAttendance.create({
       user: userId,
@@ -540,12 +546,20 @@ async function handleCheckIn(
     if (inOffice && !daily.firstOfficeEntry) {
       daily.firstOfficeEntry = now;
 
-      const user = await User.findById(userId).select("workShift").lean();
-      const shiftStart = user?.workShift?.shift?.start ?? "10:00";
-      const [sh, sm] = shiftStart.split(":").map(Number);
+      const user = await User.findById(userId).select("weeklySchedule graceMinutes").lean();
+      const { resolveWeeklySchedule, resolveGraceMinutes } = await import("@/lib/models/User");
+      const schedule = resolveWeeklySchedule((user ?? {}) as Record<string, unknown>);
+      const grace = resolveGraceMinutes((user ?? {}) as Record<string, unknown>);
+      const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
       const tp = dateParts(today, tz);
-      const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + graceMinutes, 0, tz);
-      if (now > shiftDeadline) {
+      const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") }));
+      const todayDay = schedule[dayMap[localNow.getDay()]];
+      const shiftStart = todayDay.start;
+      const [sh, sm] = shiftStart.split(":").map(Number);
+      const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + grace, 0, tz);
+      if (!todayDay.isWorking) {
+        /* non-working day — skip late-to-office flag */
+      } else if (now > shiftDeadline) {
         daily.isLateToOffice = true;
         daily.lateToOfficeBy = Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000);
       }

@@ -31,14 +31,12 @@ export type TestEmailType = (typeof EMAIL_TYPES)[number][0];
 
 export interface SysSettings {
   office: { latitude: number; longitude: number; radiusMeters: number };
-  shiftDefaults: { start: string; end: string; breakMinutes: number; graceMinutes: number };
   company: { name: string; timezone: string };
   liveUpdates: boolean;
 }
 
 export const DEFAULT_SYS_SETTINGS: SysSettings = {
   office: { latitude: 31.4763416, longitude: 74.2687022, radiusMeters: 300 },
-  shiftDefaults: { start: "10:00", end: "19:00", breakMinutes: 60, graceMinutes: 30 },
   company: { name: "Single Solution", timezone: "asia-karachi" },
   liveUpdates: false,
 };
@@ -121,46 +119,21 @@ function SystemSettingsDetailSection({ sys, defaultSysSettings }: { sys: SystemS
   return (
     <FadeUp delay={0.25}>
       <section className="card-static p-5">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-          <div>
-            <h3 className="text-headline mb-1" style={{ color: "var(--fg)" }}>Office Location</h3>
-            <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Latitude</label>
-                <input className="input" type="number" step="any" value={settings.office.latitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, latitude: parseFloat(e.target.value) || 0 } })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Longitude</label>
-                <input className="input" type="number" step="any" value={settings.office.longitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, longitude: parseFloat(e.target.value) || 0 } })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Radius (m)</label>
-                <input className="input" type="number" value={settings.office.radiusMeters} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, radiusMeters: parseInt(e.target.value) || 50 } })} />
-              </div>
+        <div>
+          <h3 className="text-headline mb-1" style={{ color: "var(--fg)" }}>Office Location</h3>
+          <p className="text-caption mb-4">Geofence center for automatic presence detection.</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Latitude</label>
+              <input className="input" type="number" step="any" value={settings.office.latitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, latitude: parseFloat(e.target.value) || 0 } })} />
             </div>
-          </div>
-
-          <div>
-            <h3 className="text-headline mb-1" style={{ color: "var(--fg)" }}>Shift Defaults</h3>
-            <p className="text-caption mb-4">Default shift configuration for new employees.</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start Time</label>
-                <input className="input" type="time" value={settings.shiftDefaults.start} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, start: e.target.value } })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End Time</label>
-                <input className="input" type="time" value={settings.shiftDefaults.end} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, end: e.target.value } })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Break (min)</label>
-                <input className="input" type="number" value={settings.shiftDefaults.breakMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, breakMinutes: parseInt(e.target.value) || 60 } })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Grace (min)</label>
-                <input className="input" type="number" value={settings.shiftDefaults.graceMinutes} onChange={(e) => setSettings({ ...settings, shiftDefaults: { ...settings.shiftDefaults, graceMinutes: parseInt(e.target.value) || 30 } })} />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Longitude</label>
+              <input className="input" type="number" step="any" value={settings.office.longitude} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, longitude: parseFloat(e.target.value) || 0 } })} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Radius (m)</label>
+              <input className="input" type="number" value={settings.office.radiusMeters} onChange={(e) => setSettings({ ...settings, office: { ...settings.office, radiusMeters: parseInt(e.target.value) || 50 } })} />
             </div>
           </div>
         </div>

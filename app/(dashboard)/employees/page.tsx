@@ -13,6 +13,12 @@ import toast from "react-hot-toast";
 import { ScopeStrip } from "../components/ScopeStrip";
 import { useGuide } from "@/lib/useGuide";
 import { employeesTour } from "@/lib/tourConfigs";
+import {
+  ALL_WEEKDAYS,
+  getTodaySchedule,
+  resolveWeeklySchedule,
+  type WeeklySchedule,
+} from "@/lib/models/User";
 
 interface Employee {
   _id: string;
@@ -26,12 +32,8 @@ interface Employee {
   reportsTo?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null;
   isActive: boolean;
   isVerified?: boolean;
-  workShift?: {
-    type: string;
-    shift: { start: string; end: string };
-    workingDays: string[];
-    breakTime: number;
-  };
+  weeklySchedule?: WeeklySchedule;
+  shiftType?: string;
   createdAt: string;
 }
 
@@ -86,10 +88,14 @@ function primaryDesignationLabel(emp: Employee): string {
 }
 
 function shiftSummaryLine(emp: Employee) {
-  if (!emp.workShift) return undefined;
-  const type = SHIFT_TYPE_LABELS[emp.workShift.type] ?? emp.workShift.type;
-  const days = emp.workShift.workingDays?.length ? formatWorkingDays(emp.workShift.workingDays) : "";
-  return `${type} ${emp.workShift.shift.start}–${emp.workShift.shift.end}${days ? ` · ${days}` : ""}`;
+  const rec = emp as unknown as Record<string, unknown>;
+  const typeKey = emp.shiftType ?? "fullTime";
+  const type = SHIFT_TYPE_LABELS[typeKey] ?? typeKey;
+  const today = getTodaySchedule(rec, "Asia/Karachi");
+  const schedule = resolveWeeklySchedule(rec);
+  const workingKeys = ALL_WEEKDAYS.filter((d) => schedule[d].isWorking);
+  const days = workingKeys.length ? formatWorkingDays(workingKeys) : "";
+  return `${type} ${today.start}–${today.end}${days ? ` · ${days}` : ""}`;
 }
 
 export default function EmployeesPage() {
@@ -410,6 +416,7 @@ export default function EmployeesPage() {
         function renderCard(emp: Employee, i: number) {
           const p = presenceById.get(emp._id);
           const isSelected = selected.has(emp._id);
+          const todaySch = getTodaySchedule(emp as unknown as Record<string, unknown>, "Asia/Karachi");
           return (
             <motion.div key={emp._id} variants={cardVariants} custom={i} layout layoutId={emp._id} whileHover={cardHover} className="h-full" exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }} transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}>
               <div className={`card group relative flex h-full flex-col overflow-visible transition-opacity duration-300 ${!emp.isActive ? "opacity-50 grayscale" : ""}`}>
@@ -444,9 +451,9 @@ export default function EmployeesPage() {
                     officeMinutes: p?.officeMinutes,
                     remoteMinutes: p?.remoteMinutes,
                     lateBy: p?.lateBy,
-                    shiftStart: p?.shiftStart ?? emp.workShift?.shift.start,
-                    shiftEnd: p?.shiftEnd ?? emp.workShift?.shift.end,
-                    shiftBreakTime: p?.shiftBreakTime ?? emp.workShift?.breakTime,
+                    shiftStart: p?.shiftStart ?? todaySch.start,
+                    shiftEnd: p?.shiftEnd ?? todaySch.end,
+                    shiftBreakTime: p?.shiftBreakTime ?? todaySch.breakMinutes,
                     phone: emp.about.phone,
                     shiftSummary: shiftSummaryLine(emp),
                   }}

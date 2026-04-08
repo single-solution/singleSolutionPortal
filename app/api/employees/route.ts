@@ -77,7 +77,7 @@ export async function POST(req: Request) {
   await connectDB();
 
   const body = await req.json();
-  const { email, fullName, department, workShift, teams, reportsTo } = body;
+  const { email, fullName, department, weeklySchedule, graceMinutes, shiftType, teams, reportsTo } = body;
 
   if (!email || !fullName) {
     return badRequest("Missing required fields: email, fullName");
@@ -110,12 +110,9 @@ export async function POST(req: Request) {
     department: department || undefined,
     reportsTo: resolvedReportsTo || undefined,
     teams: teams ?? [],
-    workShift: workShift ?? {
-      type: "fullTime",
-      shift: { start: "10:00", end: "19:00" },
-      workingDays: ["mon", "tue", "wed", "thu", "fri"],
-      breakTime: 60,
-    },
+    weeklySchedule: weeklySchedule ?? undefined,
+    graceMinutes: typeof graceMinutes === "number" ? graceMinutes : undefined,
+    shiftType: shiftType ?? undefined,
     isActive: true,
     isVerified: false,
     createdBy: actor.id,

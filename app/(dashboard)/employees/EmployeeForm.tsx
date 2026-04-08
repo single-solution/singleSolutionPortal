@@ -13,8 +13,20 @@ interface Department { _id: string; title: string; manager?: string | { _id: str
 interface TeamOption { _id: string; name: string; department?: { _id: string } | string; }
 interface SupervisorOption { _id: string; fullName: string; departmentId: string; }
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+import {
+  ALL_WEEKDAYS,
+  WEEKDAY_LABELS,
+  makeDefaultWeeklySchedule,
+  resolveWeeklySchedule,
+  resolveGraceMinutes,
+  type Weekday,
+  type DaySchedule,
+  type WeeklySchedule,
+} from "@/lib/models/User";
+
+const WEEKDAY_SHORT: Record<Weekday, string> = {
+  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
+};
 
 interface EmployeeFormProps {
   employeeId?: string;
@@ -29,19 +41,16 @@ interface FormState {
   teams: string[];
   managedDepartments: string[];
   shiftType: string;
-  shiftStart: string;
-  shiftEnd: string;
-  workingDays: string[];
-  breakTime: number;
+  graceMinutes: number;
+  weeklySchedule: WeeklySchedule;
 }
 
 const INITIAL: FormState = {
   fullName: "", email: "", password: "",
   department: "", reportsTo: "", teams: [],
   managedDepartments: [],
-  shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
-  workingDays: ["mon", "tue", "wed", "thu", "fri"],
-  breakTime: 60,
+  shiftType: "fullTime", graceMinutes: 30,
+  weeklySchedule: makeDefaultWeeklySchedule(),
 };
 
 export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
@@ -103,11 +112,9 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           reportsTo: empRes.reportsTo?._id ?? "",
           teams: (empRes.teams ?? []).map((t: { _id: string }) => t._id),
           managedDepartments: managed,
-          shiftType: empRes.workShift?.type ?? "fullTime",
-          shiftStart: empRes.workShift?.shift?.start ?? "10:00",
-          shiftEnd: empRes.workShift?.shift?.end ?? "19:00",
-          workingDays: empRes.workShift?.workingDays ?? ["mon", "tue", "wed", "thu", "fri"],
-          breakTime: empRes.workShift?.breakTime ?? 60,
+          shiftType: empRes.shiftType ?? "fullTime",
+          graceMinutes: resolveGraceMinutes(empRes),
+          weeklySchedule: resolveWeeklySchedule(empRes),
         });
         setMultiDeptUi(managed.length > 0);
       }
@@ -158,22 +165,33 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
     }));
   }
 
-  function toggleWorkingDay(day: string) {
+  function updateDay(day: Weekday, patch: Partial<DaySchedule>) {
     setForm((f) => ({
       ...f,
-      workingDays: f.workingDays.includes(day) ? f.workingDays.filter((d) => d !== day) : [...f.workingDays, day],
+      weeklySchedule: {
+        ...f.weeklySchedule,
+        [day]: { ...f.weeklySchedule[day], ...patch },
+      },
     }));
+  }
+
+  function copyMondayToAll() {
+    setForm((f) => {
+      const mon = f.weeklySchedule.mon;
+      const next = { ...f.weeklySchedule };
+      for (const d of ALL_WEEKDAYS) next[d] = { ...mon };
+      return { ...f, weeklySchedule: next };
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      const workShift = {
-        type: form.shiftType,
-        shift: { start: form.shiftStart, end: form.shiftEnd },
-        workingDays: form.workingDays,
-        breakTime: form.breakTime,
+      const schedulePayload = {
+        weeklySchedule: form.weeklySchedule,
+        graceMinutes: form.graceMinutes,
+        shiftType: form.shiftType,
       };
 
       if (isEdit) {
@@ -183,7 +201,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           reportsTo: form.reportsTo || null,
           teams: form.teams,
           managedDepartments: isLeadOrManager ? form.managedDepartments : [],
-          workShift,
+          ...schedulePayload,
         };
         if (form.password) body.password = form.password;
         const res = await fetch(`/api/employees/${employeeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -205,7 +223,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
             reportsTo: form.reportsTo || undefined,
             teams: form.teams,
             managedDepartments: isLeadOrManager ? form.managedDepartments : [],
-            workShift,
+            ...schedulePayload,
           }),
         });
         if (res.ok) {
@@ -484,69 +502,154 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         </motion.div>
       </motion.div>
 
-      {/* Bottom row: Shift Configuration (full width with internal grid) */}
+      {/* Bottom row: Weekly Schedule (full width) */}
       <motion.div
         className="card-xl p-6 mb-5"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.2, ease }}
       >
-        <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--fg)" }}>Shift Configuration</h2>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Shift Type</label>
-              <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
-                <option value="fullTime">Full Time</option>
-                <option value="partTime">Part Time</option>
-                <option value="contract">Contract</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start Time</label>
-                <input className="input" type="time" value={form.shiftStart} onChange={(e) => setForm({ ...form, shiftStart: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End Time</label>
-                <input className="input" type="time" value={form.shiftEnd} onChange={(e) => setForm({ ...form, shiftEnd: e.target.value })} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Break Time (min)</label>
-              <input className="input" type="number" value={form.breakTime} onChange={(e) => setForm({ ...form, breakTime: Number(e.target.value) })} />
-            </div>
-          </div>
-
+        <div className="flex items-center justify-between mb-4 gap-3">
           <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Working Days</label>
-            <div className="flex flex-wrap gap-2">
-              {WEEKDAYS.map((day, idx) => {
-                const key = WEEKDAY_KEYS[idx];
-                const active = form.workingDays.includes(key);
+            <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Weekly Schedule</h2>
+            <p className="text-[11px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Configure working hours for each day of the week.</p>
+          </div>
+          <motion.button
+            type="button"
+            onClick={copyMondayToAll}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-lg shrink-0"
+            style={{ color: "var(--primary)", background: "var(--bg-grouped)" }}
+          >
+            Copy Mon → All
+          </motion.button>
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[var(--fg-tertiary)] text-[10px] uppercase tracking-wider">
+                <th className="pb-2 text-left font-medium w-24">Day</th>
+                <th className="pb-2 text-center font-medium w-16">Working</th>
+                <th className="pb-2 text-left font-medium">Start</th>
+                <th className="pb-2 text-left font-medium">End</th>
+                <th className="pb-2 text-left font-medium w-20">Break</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ALL_WEEKDAYS.map((day) => {
+                const ds = form.weeklySchedule[day];
                 return (
-                  <motion.button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleWorkingDay(key)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.92 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      active
-                        ? "bg-[var(--primary)] text-white shadow-sm"
-                        : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                    }`}
-                    style={!active ? { background: "var(--bg-grouped)" } : undefined}
-                  >
-                    {day}
-                  </motion.button>
+                  <tr key={day} className="border-t" style={{ borderColor: "var(--border)" }}>
+                    <td className="py-2 font-medium" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>
+                      {WEEKDAY_LABELS[day]}
+                    </td>
+                    <td className="py-2 text-center">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={ds.isWorking}
+                        onClick={() => updateDay(day, { isWorking: !ds.isWorking })}
+                        className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                        style={{ backgroundColor: ds.isWorking ? "var(--primary)" : "var(--bg-tertiary)" }}
+                      >
+                        <span className="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(1rem)" : "translateX(0)" }} />
+                      </button>
+                    </td>
+                    <td className="py-2 pr-2">
+                      <input
+                        className="input text-xs py-1.5"
+                        type="time"
+                        value={ds.start}
+                        disabled={!ds.isWorking}
+                        onChange={(e) => updateDay(day, { start: e.target.value })}
+                        style={{ opacity: ds.isWorking ? 1 : 0.4 }}
+                      />
+                    </td>
+                    <td className="py-2 pr-2">
+                      <input
+                        className="input text-xs py-1.5"
+                        type="time"
+                        value={ds.end}
+                        disabled={!ds.isWorking}
+                        onChange={(e) => updateDay(day, { end: e.target.value })}
+                        style={{ opacity: ds.isWorking ? 1 : 0.4 }}
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        className="input text-xs py-1.5 w-16"
+                        type="number"
+                        min={0}
+                        value={ds.breakMinutes}
+                        disabled={!ds.isWorking}
+                        onChange={(e) => updateDay(day, { breakMinutes: Number(e.target.value) || 0 })}
+                        style={{ opacity: ds.isWorking ? 1 : 0.4 }}
+                      />
+                    </td>
+                  </tr>
                 );
               })}
-            </div>
-            <p className="text-[11px] mt-2" style={{ color: "var(--fg-tertiary)" }}>
-              Toggle to select which days this employee works.
-            </p>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="sm:hidden space-y-2">
+          {ALL_WEEKDAYS.map((day) => {
+            const ds = form.weeklySchedule[day];
+            return (
+              <div key={day} className="rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[day]}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={ds.isWorking}
+                    onClick={() => updateDay(day, { isWorking: !ds.isWorking })}
+                    className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                    style={{ backgroundColor: ds.isWorking ? "var(--primary)" : "var(--bg-tertiary)" }}
+                  >
+                    <span className="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(1rem)" : "translateX(0)" }} />
+                  </button>
+                </div>
+                {ds.isWorking && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">Start</label>
+                      <input className="input text-xs py-1" type="time" value={ds.start} onChange={(e) => updateDay(day, { start: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">End</label>
+                      <input className="input text-xs py-1" type="time" value={ds.end} onChange={(e) => updateDay(day, { end: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">Break</label>
+                      <input className="input text-xs py-1" type="number" min={0} value={ds.breakMinutes} onChange={(e) => updateDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Shift type + Grace minutes row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Shift Type</label>
+            <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
+              <option value="fullTime">Full Time</option>
+              <option value="partTime">Part Time</option>
+              <option value="contract">Contract</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Grace Minutes</label>
+            <input className="input" type="number" min={0} value={form.graceMinutes} onChange={(e) => setForm({ ...form, graceMinutes: Number(e.target.value) || 0 })} />
+            <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>Allowed minutes after shift start before marking late.</p>
           </div>
         </div>
       </motion.div>

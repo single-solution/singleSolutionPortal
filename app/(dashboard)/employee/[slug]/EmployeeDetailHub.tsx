@@ -6,6 +6,13 @@ import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@/lib/useQuery";
 import { staggerContainerFast, cardVariants, ease } from "@/lib/motion";
+import {
+  ALL_WEEKDAYS,
+  WEEKDAY_LABELS,
+  getTodaySchedule,
+  resolveWeeklySchedule,
+  type WeeklySchedule,
+} from "@/lib/models/User";
 
 type TabId = "overview" | "attendance" | "profile" | "activity" | "leaves" | "payroll";
 
@@ -18,12 +25,9 @@ interface EmployeeDoc {
   department?: { _id?: string; title?: string } | null;
   teams?: { _id?: string; name?: string }[];
   reportsTo?: { about?: { firstName?: string; lastName?: string } } | null;
-  workShift?: {
-    type?: string;
-    shift?: { start?: string; end?: string };
-    breakTime?: number;
-    workingDays?: string[];
-  };
+  weeklySchedule?: WeeklySchedule;
+  shiftType?: string;
+  graceMinutes?: number;
   isActive?: boolean;
   createdAt?: string;
 }
@@ -276,9 +280,10 @@ export default function EmployeeDetailHub({
   const statusColor =
     !employee.isActive ? "var(--fg-tertiary)" : hasActive ? "#10b981" : todayMinutes > 0 ? "var(--primary)" : "var(--fg-secondary)";
 
-  const shiftStart = employee.workShift?.shift?.start ?? "10:00";
-  const shiftEnd = employee.workShift?.shift?.end ?? "19:00";
-  const shiftBreak = employee.workShift?.breakTime ?? 60;
+  const empRec = employee as unknown as Record<string, unknown>;
+  const weeklyResolved = resolveWeeklySchedule(empRec);
+  const todaySchedule = getTodaySchedule(empRec, TZ);
+  const shiftTypeKey = employee.shiftType ?? "";
   const reportsToName = employee.reportsTo?.about
     ? `${employee.reportsTo.about.firstName ?? ""} ${employee.reportsTo.about.lastName ?? ""}`.trim()
     : null;
@@ -766,30 +771,57 @@ export default function EmployeeDetailHub({
                   </h3>
                   <dl className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
                     <div className="flex justify-between gap-2 sm:block">
-                      <dt style={{ color: "var(--fg-tertiary)" }}>Hours</dt>
+                      <dt style={{ color: "var(--fg-tertiary)" }}>Today</dt>
                       <dd className="font-medium sm:mt-1" style={{ color: "var(--fg)" }}>
-                        {shiftStart} – {shiftEnd}
+                        {todaySchedule.isWorking
+                          ? `${todaySchedule.start} – ${todaySchedule.end}`
+                          : "Off"}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-2 sm:block">
                       <dt style={{ color: "var(--fg-tertiary)" }}>Break</dt>
                       <dd className="font-medium sm:mt-1" style={{ color: "var(--fg)" }}>
-                        {shiftBreak} min
+                        {todaySchedule.isWorking ? `${todaySchedule.breakMinutes} min` : "—"}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-2 sm:block">
                       <dt style={{ color: "var(--fg-tertiary)" }}>Type</dt>
                       <dd className="font-medium sm:mt-1" style={{ color: "var(--fg)" }}>
-                        {SHIFT_LABELS[employee.workShift?.type ?? ""] ?? employee.workShift?.type ?? "—"}
+                        {(SHIFT_LABELS[shiftTypeKey] ?? shiftTypeKey) || "—"}
                       </dd>
                     </div>
-                    <div className="flex justify-between gap-2 sm:block">
+                    <div className="flex justify-between gap-2 sm:block sm:col-span-2">
                       <dt style={{ color: "var(--fg-tertiary)" }}>Working days</dt>
                       <dd className="font-medium sm:mt-1" style={{ color: "var(--fg)" }}>
-                        {(employee.workShift?.workingDays ?? []).join(", ") || "—"}
+                        {ALL_WEEKDAYS.filter((d) => weeklyResolved[d].isWorking)
+                          .map((d) => WEEKDAY_LABELS[d])
+                          .join(", ") || "—"}
                       </dd>
                     </div>
                   </dl>
+                  <div className="mt-4 space-y-1.5 border-t pt-3 text-[12px]" style={{ borderColor: "var(--border)" }}>
+                    <p
+                      className="text-[11px] font-semibold uppercase tracking-wide"
+                      style={{ color: "var(--fg-tertiary)" }}
+                    >
+                      Weekly schedule
+                    </p>
+                    <ul className="grid gap-1 sm:grid-cols-2">
+                      {ALL_WEEKDAYS.map((d) => {
+                        const day = weeklyResolved[d];
+                        return (
+                          <li key={d} className="flex justify-between gap-2 tabular-nums">
+                            <span style={{ color: "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[d]}</span>
+                            <span className="font-medium" style={{ color: "var(--fg)" }}>
+                              {day.isWorking
+                                ? `${day.start}–${day.end} · ${day.breakMinutes}m break`
+                                : "Off"}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 </div>
               </section>
             )}

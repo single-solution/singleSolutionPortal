@@ -11,6 +11,16 @@ import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import toast from "react-hot-toast";
 import dynamic from "next/dynamic";
+import {
+  ALL_WEEKDAYS,
+  WEEKDAY_LABELS as FULL_DAY_LABELS,
+  makeDefaultWeeklySchedule,
+  resolveWeeklySchedule,
+  resolveGraceMinutes,
+  type Weekday,
+  type DaySchedule,
+  type WeeklySchedule,
+} from "@/lib/models/User";
 
 const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer" style={{ height: "calc(100vh - 280px)", minHeight: 400 }} /> });
 
@@ -20,13 +30,12 @@ interface Employee {
   department?: { _id: string; title: string };
   teams?: { _id: string; name: string }[];
   isActive: boolean; isVerified?: boolean;
-  workShift?: { type: string; shift: { start: string; end: string }; workingDays: string[]; breakTime: number };
+  weeklySchedule?: WeeklySchedule;
+  shiftType?: string;
+  graceMinutes?: number;
   createdAt: string;
 }
 interface Department { _id: string; title: string; slug: string; employeeCount: number; teamCount: number; isActive: boolean; manager?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null }
-
-const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function OrganizationPage() {
   const { data: session, status: sessionStatus } = useSession();
@@ -47,8 +56,8 @@ export default function OrganizationPage() {
   const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
   const [empForm, setEmpForm] = useState({
     fullName: "", email: "", password: "",
-    shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00",
-    workingDays: ["mon", "tue", "wed", "thu", "fri"], breakTime: 60,
+    shiftType: "fullTime", graceMinutes: 30,
+    weeklySchedule: makeDefaultWeeklySchedule(),
   });
   const [empSaving, setEmpSaving] = useState(false);
   const isEditEmp = !!editingEmpId;
@@ -58,7 +67,7 @@ export default function OrganizationPage() {
 
   function openCreateEmployee() {
     setEditingEmpId(null);
-    setEmpForm({ fullName: "", email: "", password: "", shiftType: "fullTime", shiftStart: "10:00", shiftEnd: "19:00", workingDays: ["mon", "tue", "wed", "thu", "fri"], breakTime: 60 });
+    setEmpForm({ fullName: "", email: "", password: "", shiftType: "fullTime", graceMinutes: 30, weeklySchedule: makeDefaultWeeklySchedule() });
     setEmpModalOpen(true);
   }
 
@@ -67,25 +76,30 @@ export default function OrganizationPage() {
     setEmpForm({
       fullName: `${emp.about.firstName} ${emp.about.lastName}`.trim(),
       email: emp.email, password: "",
-      shiftType: emp.workShift?.type ?? "fullTime", shiftStart: emp.workShift?.shift?.start ?? "10:00", shiftEnd: emp.workShift?.shift?.end ?? "19:00",
-      workingDays: emp.workShift?.workingDays ?? ["mon", "tue", "wed", "thu", "fri"], breakTime: emp.workShift?.breakTime ?? 60,
+      shiftType: emp.shiftType ?? "fullTime",
+      graceMinutes: resolveGraceMinutes(emp as unknown as Record<string, unknown>),
+      weeklySchedule: resolveWeeklySchedule(emp as unknown as Record<string, unknown>),
     });
     setEmpModalOpen(true);
+  }
+
+  function updateEmpDay(day: Weekday, patch: Partial<DaySchedule>) {
+    setEmpForm((f) => ({ ...f, weeklySchedule: { ...f.weeklySchedule, [day]: { ...f.weeklySchedule[day], ...patch } } }));
   }
 
   async function handleSaveEmployee() {
     if (!empForm.fullName.trim() || (!isEditEmp && !empForm.email.trim())) return;
     setEmpSaving(true);
     try {
-      const workShift = { type: empForm.shiftType, shift: { start: empForm.shiftStart, end: empForm.shiftEnd }, workingDays: empForm.workingDays, breakTime: empForm.breakTime };
+      const schedulePayload = { weeklySchedule: empForm.weeklySchedule, graceMinutes: empForm.graceMinutes, shiftType: empForm.shiftType };
       if (isEditEmp) {
-        const body: Record<string, unknown> = { fullName: empForm.fullName, workShift };
+        const body: Record<string, unknown> = { fullName: empForm.fullName, ...schedulePayload };
         if (empForm.password) body.password = empForm.password;
         const res = await fetch(`/api/employees/${editingEmpId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (res.ok) { toast.success("Employee updated"); setEmpModalOpen(false); await refetchEmployees(); }
         else { const data = await res.json(); toast.error(data.error || "Failed to update"); }
       } else {
-        const body: Record<string, unknown> = { email: empForm.email, fullName: empForm.fullName, workShift };
+        const body: Record<string, unknown> = { email: empForm.email, fullName: empForm.fullName, ...schedulePayload };
         const res = await fetch("/api/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (res.ok) { toast.success("Employee invited"); setEmpModalOpen(false); await refetchEmployees(); }
         else { const data = await res.json(); toast.error(data.error || "Failed to create"); }
@@ -93,8 +107,6 @@ export default function OrganizationPage() {
     } catch { toast.error("Something went wrong"); }
     setEmpSaving(false);
   }
-
-  function toggleEmpWorkingDay(day: string) { setEmpForm((f) => ({ ...f, workingDays: f.workingDays.includes(day) ? f.workingDays.filter((d) => d !== day) : [...f.workingDays, day] })); }
 
   const filteredEmps = useMemo(() => {
     if (!search.trim()) return empList;
@@ -213,15 +225,34 @@ export default function OrganizationPage() {
                   )}
 
                   <div className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-medium mb-2" style={{ color: "var(--fg-secondary)" }}>Shift Configuration</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option><option value="intern">Intern</option></select></div>
-                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Start</label><input type="time" value={empForm.shiftStart} onChange={(e) => setEmpForm((f) => ({ ...f, shiftStart: e.target.value }))} className="input w-full text-xs" /></div>
-                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>End</label><input type="time" value={empForm.shiftEnd} onChange={(e) => setEmpForm((f) => ({ ...f, shiftEnd: e.target.value }))} className="input w-full text-xs" /></div>
+                    <p className="text-[11px] font-medium mb-2" style={{ color: "var(--fg-secondary)" }}>Weekly Schedule</p>
+                    <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                      {ALL_WEEKDAYS.map((day) => {
+                        const ds = empForm.weeklySchedule[day];
+                        return (
+                          <div key={day} className="flex items-center gap-2 text-[10px]">
+                            <span className="w-8 font-semibold shrink-0" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{FULL_DAY_LABELS[day].slice(0, 3)}</span>
+                            <button type="button" role="switch" aria-checked={ds.isWorking} onClick={() => updateEmpDay(day, { isWorking: !ds.isWorking })} className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors" style={{ backgroundColor: ds.isWorking ? "var(--primary)" : "var(--bg-tertiary)" }}>
+                              <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(0.75rem)" : "translateX(0)" }} />
+                            </button>
+                            {ds.isWorking ? (
+                              <>
+                                <input type="time" value={ds.start} onChange={(e) => updateEmpDay(day, { start: e.target.value })} className="input text-[10px] py-0.5 w-20" />
+                                <span style={{ color: "var(--fg-tertiary)" }}>–</span>
+                                <input type="time" value={ds.end} onChange={(e) => updateEmpDay(day, { end: e.target.value })} className="input text-[10px] py-0.5 w-20" />
+                                <input type="number" min={0} value={ds.breakMinutes} onChange={(e) => updateEmpDay(day, { breakMinutes: Number(e.target.value) || 0 })} className="input text-[10px] py-0.5 w-12 text-center" />
+                                <span style={{ color: "var(--fg-tertiary)" }}>brk</span>
+                              </>
+                            ) : (
+                              <span style={{ color: "var(--fg-tertiary)" }}>Off</span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="mt-2 flex items-center gap-1.5">
-                      {WEEKDAY_KEYS.map((d, i) => (<button key={d} type="button" onClick={() => toggleEmpWorkingDay(d)} className={`h-7 w-7 rounded-md text-[10px] font-bold transition-all ${empForm.workingDays.includes(d) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={empForm.workingDays.includes(d) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{WEEKDAY_LABELS[i]}</button>))}
-                      <div className="ml-auto flex items-center gap-1"><label className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Break</label><input type="number" value={empForm.breakTime} onChange={(e) => setEmpForm((f) => ({ ...f, breakTime: Number(e.target.value) || 0 }))} className="input w-14 text-xs text-center" min={0} /><span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>min</span></div>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option></select></div>
+                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Grace (min)</label><input type="number" min={0} value={empForm.graceMinutes} onChange={(e) => setEmpForm((f) => ({ ...f, graceMinutes: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
                     </div>
                   </div>
 

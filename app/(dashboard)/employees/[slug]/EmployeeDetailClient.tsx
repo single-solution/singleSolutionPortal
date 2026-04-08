@@ -22,7 +22,6 @@ interface EmployeeData {
   shiftStart: string;
   shiftEnd: string;
   shiftBreak: number;
-  workingDays: string[];
   shiftType: string;
 }
 

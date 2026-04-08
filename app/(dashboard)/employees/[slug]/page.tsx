@@ -3,7 +3,7 @@ import { cookies, headers } from "next/headers";
 import { getVerifiedSession } from "@/lib/permissions";
 import { isValidId } from "@/lib/helpers";
 import { connectDB } from "@/lib/db";
-import User from "@/lib/models/User";
+import User, { getTodaySchedule } from "@/lib/models/User";
 import EmployeeDetailClient from "./EmployeeDetailClient";
 
 async function serverFetch(path: string) {
@@ -89,12 +89,12 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   const teams = (emp.teams as { _id?: string; name?: string }[] | undefined) ?? [];
   const reportsTo = emp.reportsTo as { about?: { firstName?: string; lastName?: string } } | undefined;
   const reportsToName = reportsTo?.about ? `${reportsTo.about.firstName ?? ""} ${reportsTo.about.lastName ?? ""}`.trim() : null;
-  const workShift = emp.workShift as
-    | { type?: string; shift?: { start?: string; end?: string }; breakTime?: number; workingDays?: string[] }
-    | undefined;
-  const shiftStart = workShift?.shift?.start ?? "10:00";
-  const shiftEnd = workShift?.shift?.end ?? "19:00";
-  const shiftBreak = workShift?.breakTime ?? 60;
+  const todayDay = getTodaySchedule(emp as Record<string, unknown>, "Asia/Karachi");
+  const shiftStart = todayDay.start;
+  const shiftEnd = todayDay.end;
+  const shiftBreak = todayDay.breakMinutes;
+  const shiftType =
+    (typeof emp.shiftType === "string" ? emp.shiftType : undefined) ?? "fullTime";
   const profileImage = about?.profileImage;
   const phone = about?.phone;
   const createdAt = emp.createdAt as string | undefined;
@@ -153,8 +153,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         shiftStart,
         shiftEnd,
         shiftBreak,
-        workingDays: workShift?.workingDays ?? [],
-        shiftType: workShift?.type ?? "fullTime",
+        shiftType,
       }}
       today={{
         todayMinutes: detail?.totalWorkingMinutes ?? 0,

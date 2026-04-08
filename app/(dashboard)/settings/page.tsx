@@ -61,7 +61,7 @@ function useSystemSettings(enabled: boolean) {
     }
     setSysLoading(true);
     fetch("/api/settings").then((r) => r.json()).then((d) => {
-      if (d.office) setSettings({ office: d.office, shiftDefaults: d.shiftDefaults, company: d.company, liveUpdates: d.liveUpdates ?? false });
+      if (d.office) setSettings({ office: d.office, company: d.company, liveUpdates: d.liveUpdates ?? false });
       setSysLoading(false);
     }).catch(() => setSysLoading(false));
   }, [enabled]);
