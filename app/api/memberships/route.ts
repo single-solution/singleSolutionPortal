@@ -64,7 +64,7 @@ export async function GET(req: Request) {
 
   await connectDB();
 
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { isActive: { $ne: false } };
 
   if (!isSuperAdmin(actor)) {
     const scope = departmentIdsWithEmployeesView(actor);

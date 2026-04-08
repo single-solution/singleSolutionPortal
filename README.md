@@ -125,14 +125,14 @@ Unified page with a left sidebar and a full-width interactive flow diagram:
 - **Flow diagram** (right of sidebar) — interactive organizational chart powered by React Flow (@xyflow/react). Fully self-contained management canvas:
   - **Departments** (purple), **Teams** (blue), **Employees** (teal) as distinct draggable node types
   - **Teams with multiple departments** — a single team node shows edges to all its assigned departments (purple dashed lines)
-  - **Manager connections** (gold ★ "Manages" label) — employees assigned as department managers appear above their departments with a gold arrow. One employee can manage multiple departments simultaneously
+  - **Positional hierarchy** — hierarchy is determined by vertical position, not hardcoded labels. Place a node above another to establish reporting: whoever is above reports to is the superior, whoever is below is the report. For example, an employee placed above a department is that department's lead; an employee below a team is a member reporting into it
   - **Drag-and-drop connections**: Drag from any node handle to another to create a connection. Supports all connection types:
     - Employee ↔ Department: assigns employee to department (creates Membership)
     - Employee ↔ Team: assigns employee to team (auto-resolves department)
     - Employee → Employee: creates a reporting relationship
     - Team ↔ Department: adds the department to the team's department list (multi-department)
   - When a connection is created via drag-and-drop, a **center modal** opens to select a designation for the new connection
-  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (center modal with all 50+ permission toggles organized by category), and **Remove Assignment** (delete the membership)
+  - Each membership edge has a **designation pill** on the connection line — click it to open a context menu with: designation picker (change instantly), **Edit Privileges** (center modal with all 50+ permission toggles organized by category), and **Remove Assignment** (opens a confirmation dialog before deleting the membership)
   - Employees can have **multiple connections** to different teams/departments simultaneously — one per membership, each with its own designation and permissions
   - Drag nodes to rearrange — positions auto-save to FlowLayout model in MongoDB so the layout persists across sessions
   - Legacy (non-membership) connections shown as dashed fallback lines

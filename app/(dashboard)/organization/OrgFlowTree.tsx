@@ -47,7 +47,7 @@ interface Employee {
   teams?: { _id: string; name: string }[];
   isActive: boolean;
 }
-interface Department { _id: string; title: string; employeeCount: number; teamCount: number; manager?: { _id: string; about: { firstName: string; lastName: string } } | null }
+interface Department { _id: string; title: string; employeeCount: number; teamCount: number }
 interface TeamRow { _id: string; name: string; memberCount: number; department: { _id: string; title: string; slug: string }; departments?: { _id: string; title: string; slug: string }[] }
 
 function idStr(x: unknown): string {
@@ -171,7 +171,7 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     Edit Privileges
                   </button>
-                  <button type="button" onClick={() => { if (confirm("Remove this assignment?")) data.onDeleteMembership?.(data.membershipId!); setOpen(false); }}
+                  <button type="button" onClick={() => { setOpen(false); data.onDeleteMembership?.(data.membershipId!); }}
                     className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--rose)" }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                     Remove
@@ -217,6 +217,12 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
   const [privPerms, setPrivPerms] = useState<Record<string, boolean>>({});
   const [privSaving, setPrivSaving] = useState(false);
   const [privLabel, setPrivLabel] = useState("");
+
+  /* ── Remove confirmation modal ── */
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [removeMembershipId, setRemoveMembershipId] = useState("");
+  const [removeLabel, setRemoveLabel] = useState("");
+  const [removeDeleting, setRemoveDeleting] = useState(false);
 
   const refetchMemberships = useCallback(async () => {
     const res = await fetch("/api/memberships");
@@ -343,9 +349,23 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
     setPrivSaving(false);
   }, [privMembershipId, privPerms]);
 
-  const handleDeleteMembership = useCallback(async (membershipId: string) => {
-    try { const res = await fetch(`/api/memberships/${membershipId}`, { method: "DELETE" }); if (res.ok) await refetchMemberships(); } catch { /* ignore */ }
-  }, [refetchMemberships]);
+  const handleDeleteMembership = useCallback((membershipId: string) => {
+    const mem = memberships.find((m) => m._id === membershipId);
+    if (!mem) return;
+    const name = mem.user ? `${mem.user.about?.firstName ?? ""} ${mem.user.about?.lastName ?? ""}`.trim() : "";
+    const target = mem.team?.name ?? mem.department?.title ?? "";
+    setRemoveMembershipId(membershipId);
+    setRemoveLabel(`${name} → ${target}`);
+    setRemoveOpen(true);
+  }, [memberships]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!removeMembershipId) return;
+    setRemoveDeleting(true);
+    try { const res = await fetch(`/api/memberships/${removeMembershipId}`, { method: "DELETE" }); if (res.ok) await refetchMemberships(); } catch { /* ignore */ }
+    setRemoveDeleting(false);
+    setRemoveOpen(false);
+  }, [removeMembershipId, refetchMemberships]);
 
   /* ── Build graph ── */
   const { initialNodes, initialEdges } = useMemo(() => {
@@ -377,14 +397,6 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       }
     });
 
-    const managedDeptIds = new Map<string, string[]>();
-    departments.forEach((dept) => {
-      if (!dept.manager?._id) return;
-      const mgrId = idStr(dept.manager._id);
-      if (!managedDeptIds.has(mgrId)) managedDeptIds.set(mgrId, []);
-      managedDeptIds.get(mgrId)!.push(dept._id);
-    });
-
     const empSet = new Set<string>();
     employees.forEach((emp, eIdx) => {
       const eId = `emp-${emp._id}`;
@@ -392,37 +404,13 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
       empSet.add(eId);
       const initials = (emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "");
       const empMems = memberships.filter((m) => idStr(m.user?._id) === emp._id);
-      const manages = managedDeptIds.get(emp._id);
       let yGuess = LEVEL * 2; let xGuess = eIdx * EMP_X;
-
-      if (manages && manages.length > 0) {
-        const deptNode = nodes.find((n) => n.id === `dept-${manages[0]}`);
-        if (deptNode) { xGuess = deptNode.position.x; yGuess = deptNode.position.y - LEVEL; }
-      } else if (empMems.length > 0) {
+      if (empMems.length > 0) {
         const first = empMems.find((m) => m.team) ?? empMems[0];
         const n = first?.team ? nodes.find((n) => n.id === `team-${idStr(first.team)}`) : nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
         if (n) { xGuess = n.position.x; yGuess = n.position.y + LEVEL; }
       }
       nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id } });
-    });
-
-    departments.forEach((dept) => {
-      if (!dept.manager?._id) return;
-      const mgrId = idStr(dept.manager._id);
-      const eId = `emp-${mgrId}`;
-      const dId = `dept-${dept._id}`;
-      if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === dId)) return;
-      edges.push({
-        id: `manages-${mgrId}-${dept._id}`,
-        source: eId, target: dId,
-        type: "smoothstep",
-        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12 },
-        style: { stroke: "#f59e0b", strokeWidth: 2.5 },
-        label: "★ Manages",
-        labelStyle: { fontSize: 9, fontWeight: 700, fill: "#f59e0b" },
-        labelBgStyle: { fill: "var(--bg-elevated)", stroke: "#f59e0b", strokeWidth: 0.5, rx: 6, ry: 6 },
-        labelBgPadding: [4, 6] as [number, number],
-      });
     });
 
     const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership } as DesigEdgeData as unknown as Record<string, unknown>);
@@ -494,7 +482,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
           <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click pill to edit</span>
           <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#f59e0b" }}>★ = Manager</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Above = Reports to</span>
         </div>
       </div>
 
@@ -557,6 +545,44 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
               <div className="flex gap-2 pt-4">
                 <motion.button type="button" onClick={handleSavePrivileges} disabled={privSaving} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{privSaving ? "Saving…" : "Save Privileges"}</motion.button>
                 <button type="button" onClick={() => setPrivOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Remove Confirmation Modal (center) ── */}
+      <AnimatePresence>
+        {removeOpen && (
+          <motion.div className="fixed inset-0 z-[80] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !removeDeleting && setRemoveOpen(false)} />
+            <motion.div className="relative w-full max-w-sm mx-4 rounded-2xl border p-6 shadow-xl"
+              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center shrink-0">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Remove Assignment</h2>
+                  <p className="text-xs" style={{ color: "var(--fg-secondary)" }}>This action cannot be undone.</p>
+                </div>
+              </div>
+              <p className="text-sm mb-5 rounded-lg p-3" style={{ color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}>
+                Remove <span className="font-semibold" style={{ color: "var(--fg)" }}>{removeLabel}</span>?
+              </p>
+              <div className="flex gap-2">
+                <motion.button type="button" onClick={confirmDelete} disabled={removeDeleting} whileTap={{ scale: 0.98 }}
+                  className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+                  style={{ background: "var(--rose)" }}>
+                  {removeDeleting ? "Removing…" : "Remove"}
+                </motion.button>
+                <button type="button" onClick={() => setRemoveOpen(false)} disabled={removeDeleting}
+                  className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors"
+                  style={{ color: "var(--fg-secondary)", borderColor: "var(--border)" }}>
+                  Cancel
+                </button>
               </div>
             </motion.div>
           </motion.div>
