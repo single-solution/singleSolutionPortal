@@ -11,6 +11,7 @@ import { EmployeeCard } from "../components/EmployeeCard";
 import { useGuide } from "@/lib/useGuide";
 import { organizationTour } from "@/lib/tourConfigs";
 import { DesignationsPanel } from "./DesignationsPanel";
+import { TeamsPanel } from "./TeamsPanel";
 import { Portal } from "../components/Portal";
 import toast from "react-hot-toast";
 import dynamic from "next/dynamic";
@@ -19,7 +20,7 @@ import type { IPermissions } from "@/lib/permissions.shared";
 
 const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer" style={{ height: "calc(100vh - 280px)", minHeight: 400 }} /> });
 
-type ViewMode = "tree" | "flat" | "cards";
+type ViewMode = "tree" | "cards";
 type SortKey = "name" | "email" | "role";
 type GroupBy = "none" | "department" | "team";
 
@@ -540,29 +541,6 @@ export default function OrganizationPage() {
     );
   };
 
-  const renderFlatRow = (emp: Employee) => (
-    <Link
-      key={emp._id}
-      href={`/employee/${emp.username}`}
-      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-grouped)]"
-    >
-      <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-        style={{ background: "var(--primary)" }}
-      >
-        {(emp.about.firstName?.[0] ?? "") + (emp.about.lastName?.[0] ?? "")}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium" style={{ color: "var(--fg)" }}>
-          {emp.about.firstName} {emp.about.lastName}
-        </p>
-        <p className="truncate text-xs" style={{ color: "var(--fg-secondary)" }}>
-          {DESIGNATION_LABELS[emp.userRole] ?? emp.userRole} · {emp.email}
-        </p>
-      </div>
-    </Link>
-  );
-
   const renderEmployeeGrid = (emps: Employee[], emptyMsg: string) => {
     if (employeesLoading) {
       return (
@@ -590,27 +568,7 @@ export default function OrganizationPage() {
         </motion.div>
       );
     }
-    if (viewMode === "flat") {
-      return (
-        <div className="card-xl divide-y overflow-hidden" style={{ borderColor: "var(--border)" }}>
-          {emps.map((emp) => renderFlatRow(emp))}
-        </div>
-      );
-    }
-    return (
-      <div className="card-xl p-4">
-        <ul className="space-y-2 border-l-2 pl-3" style={{ borderColor: "var(--border)" }}>
-          {emps.map((emp) => (
-            <li key={emp._id}>
-              <Link href={`/employee/${emp.username}`} className="text-sm font-medium transition-colors hover:underline" style={{ color: "var(--primary)" }}>
-                {emp.about.firstName} {emp.about.lastName}
-              </Link>
-              <span className="ml-2 text-xs" style={{ color: "var(--fg-secondary)" }}>{emp.email}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
+    return null;
   };
 
   const loading = deptsLoading || teamsLoading || employeesLoading;
@@ -729,9 +687,14 @@ export default function OrganizationPage() {
       </div>
 
       {isSuperAdmin && (
-        <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-          <DesignationsPanel />
-        </div>
+        <>
+          <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+            <TeamsPanel teams={teamList as any} departments={deptList} loading={teamsLoading} refetch={refetchTeams} />
+          </div>
+          <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+            <DesignationsPanel />
+          </div>
+        </>
       )}
     </div>
   );
@@ -781,7 +744,7 @@ export default function OrganizationPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: "var(--border-strong)", background: "var(--bg)" }}>
-            {(["tree", "cards", "flat"] as const).map((mode) => (
+            {(["tree", "cards"] as const).map((mode) => (
               <button key={mode} type="button" onClick={() => setViewMode(mode)} className={`px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${viewMode === mode ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
                 {mode === "tree" ? "Flow" : mode}
               </button>

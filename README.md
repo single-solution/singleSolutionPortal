@@ -117,8 +117,9 @@ Each section loads independently with its own skeleton. Department scope filter 
 Unified page for managing employees, departments, and teams:
 
 - **Org tree sidebar** with department → team hierarchy; "All Employees" with inline count as default overview
+- **Teams panel** in sidebar (SuperAdmin only) — create, edit, delete teams with department assignment; listed alphabetically with member counts
 - **Designations panel** in sidebar (SuperAdmin only) — create, edit, toggle designations as simple titles
-- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react) showing Organization → Department → Team → Employee hierarchy with drag-and-drop, pan/zoom, minimap, and controls. Switch between Flow / Cards / Flat views
+- **Default Flow view** — interactive organizational flow diagram powered by React Flow (@xyflow/react) showing Organization → Department → Team → Employee hierarchy with drag-and-drop, pan/zoom, minimap, and controls. Toggle between Flow and Cards views
 - **Title bar controls** — view toggle, sort (Name / Email / Role), and group (All / Dept / Team) are integrated directly into the page title bar on desktop for a clean, compact layout. Sort/group controls auto-hide in Flow view
 - **Context views** that change based on sidebar selection (department overview with team pills, team members, unassigned employees)
 - Employee cards with live status, designation badges, reporting chain
@@ -269,6 +270,7 @@ app/
     SessionTracker.tsx      Heartbeat attendance tracker
     organization/           Unified employees + departments + teams + designations management
       OrgFlowTree.tsx      Interactive flow diagram (React Flow) for org hierarchy
+      TeamsPanel.tsx       Teams CRUD panel (SuperAdmin, sidebar)
       DesignationsPanel.tsx Inline designation management (SuperAdmin, sidebar)
     workspace/
       layout.tsx            Shared header + tab bar for workspace sub-pages
