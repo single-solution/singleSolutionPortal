@@ -83,8 +83,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: user._id.toString(),
           email: user.email,
-          role: user.userRole,
-          isSuperAdmin: user.isSuperAdmin === true || user.userRole === "superadmin",
+          role: user.userRole ?? "developer",
+          isSuperAdmin: user.isSuperAdmin === true,
           firstName: user.about.firstName,
           lastName: user.about.lastName ?? "",
           username: user.username,

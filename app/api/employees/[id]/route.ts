@@ -67,17 +67,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
     if (body.phone !== undefined) update["about.phone"] = body.phone;
 
-    if (body.userRole) {
-      if (body.userRole === "superadmin") {
-        const { confirmPassword } = body;
-        if (!confirmPassword) return badRequest("Password confirmation required to promote to superadmin");
-        const actorUser = await User.findById(actor.id).select("+password").lean();
-        if (!actorUser?.password) return badRequest("Could not verify your identity");
-        const valid = await bcrypt.compare(confirmPassword, actorUser.password);
-        if (!valid) return badRequest("Incorrect password");
-      }
-      update.userRole = body.userRole;
-    }
     if (body.department !== undefined) update.department = body.department || null;
     if (body.reportsTo !== undefined) update.reportsTo = body.reportsTo || null;
     if (body.teams !== undefined) update.teams = body.teams ?? [];
@@ -162,9 +151,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   if (actor.id === id) return badRequest("Cannot delete yourself");
 
-  const target = await User.findById(id).select("userRole department teams").lean();
+  const target = await User.findById(id).select("isSuperAdmin department teams").lean();
   if (!target) return notFound("Employee not found");
-  if (target.userRole === "superadmin") return badRequest("Cannot delete superadmin");
+  if (target.isSuperAdmin) return badRequest("Cannot delete superadmin");
 
   const user = await User.findByIdAndUpdate(id, { isActive: false }, { new: true }).select("-password").lean();
   if (!user) return notFound("Employee not found");

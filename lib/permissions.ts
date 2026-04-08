@@ -99,7 +99,7 @@ export async function getVerifiedSession(): Promise<VerifiedUser | null> {
   return {
     id: dbUser._id.toString(),
     email: dbUser.email,
-    isSuperAdmin: raw.isSuperAdmin === true || raw.userRole === "superadmin",
+    isSuperAdmin: raw.isSuperAdmin === true,
     memberships: membershipContexts,
     role: raw.userRole,
     department: raw.department?.toString(),
@@ -241,7 +241,7 @@ const ROLE_LEVEL: Record<UserRole, number> = {
 
 /** @deprecated Use actor.isSuperAdmin */
 export function isSuperAdmin(user: VerifiedUser): boolean {
-  return user.isSuperAdmin || user.role === "superadmin";
+  return user.isSuperAdmin;
 }
 
 /** @deprecated Use hasPermission */
@@ -256,7 +256,7 @@ export function isTeamLead(user: VerifiedUser): boolean {
 
 /** @deprecated Use hasPermission */
 export function isAdmin(user: VerifiedUser): boolean {
-  return user.isSuperAdmin || user.role === "superadmin" || user.role === "manager" || user.role === "teamLead";
+  return user.isSuperAdmin || user.role === "manager" || user.role === "teamLead";
 }
 
 /** @deprecated Use hasPermission */

@@ -1,5 +1,5 @@
-export const isSuperAdmin = (role?: string, flagged?: boolean): boolean => flagged === true || role === "superadmin";
-export const isAdmin = (role?: string): boolean => ["superadmin", "admin"].includes(role ?? "");
-export const canManage = (role?: string): boolean => ["superadmin", "admin", "manager"].includes(role ?? "");
+export const isSuperAdmin = (_role?: string, flagged?: boolean): boolean => flagged === true;
+export const isAdmin = (_role?: string, flagged?: boolean): boolean => flagged === true;
+export const canManage = (_role?: string, flagged?: boolean): boolean => flagged === true;
 export const isManagerOrAbove = canManage;
-export const isTeamLeadOrAbove = (role?: string): boolean => ["superadmin", "admin", "manager", "teamLead"].includes(role ?? "");
+export const isTeamLeadOrAbove = (_role?: string, flagged?: boolean): boolean => flagged === true;

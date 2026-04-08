@@ -149,8 +149,8 @@ export default function AttendancePage() {
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("attendance", attendanceTour); }, [registerTour]);
   const sessionReady = sessionStatus !== "loading";
-  const isSuperAdmin = authSession?.user?.role === "superadmin";
-  const isAdmin = isSuperAdmin || authSession?.user?.role === "manager" || authSession?.user?.role === "teamLead";
+  const isSuperAdmin = authSession?.user?.isSuperAdmin === true;
+  const isAdmin = isSuperAdmin;
 
   /* ── Team overview state ── */
   const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);

@@ -86,7 +86,7 @@ function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null
 
 export default function SessionTracker() {
   const { data: authSession } = useSession();
-  const isSuperAdmin = authSession?.user?.role === "superadmin";
+  const isSuperAdmin = authSession?.user?.isSuperAdmin === true;
   const showCoords = authSession?.user?.showCoordinates ?? false;
   const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number } | null>(null);
 

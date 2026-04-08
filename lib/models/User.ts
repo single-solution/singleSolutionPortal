@@ -110,7 +110,7 @@ const userSchema = new Schema<IUser>(
     userRole: {
       type: String,
       enum: ["superadmin", "manager", "teamLead", "businessDeveloper", "developer"],
-      required: true,
+      default: "developer",
     },
     workShift: {
       type: {

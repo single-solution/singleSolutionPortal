@@ -125,14 +125,6 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   const monthRemoteMins = dailyList.reduce((s, d) => s + (d.remoteMinutes ?? 0), 0);
   const monthWorkingDays = dailyList.length;
 
-  const ROLE_DESIGNATION: Record<string, string> = {
-    superadmin: "System Administrator",
-    manager: "Team Manager",
-    teamLead: "Team Lead",
-    businessDeveloper: "Business Developer",
-    developer: "Software Developer",
-  };
-
   return (
     <EmployeeDetailClient
       employee={{
@@ -142,7 +134,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         email,
         username,
         userRole: userRole as string,
-        designation: ROLE_DESIGNATION[userRole as string] ?? (userRole as string),
+        designation: "Employee",
         department: dept?.title ?? null,
         teams: teams.map((t) => ({ _id: String(t._id), name: t.name ?? "" })),
         reportsTo: reportsToName,

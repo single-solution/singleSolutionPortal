@@ -56,7 +56,7 @@ export default function TasksPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("tasks", tasksTour); }, [registerTour]);
-  const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "manager" || session?.user?.role === "teamLead";
+  const isAdmin = session?.user?.isSuperAdmin === true;
 
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
   const [search, setSearch] = useState("");

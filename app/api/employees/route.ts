@@ -68,19 +68,10 @@ export async function POST(req: Request) {
   await connectDB();
 
   const body = await req.json();
-  const { email, fullName, userRole, department, workShift, teams, reportsTo } = body;
+  const { email, fullName, department, workShift, teams, reportsTo } = body;
 
-  if (!email || !fullName || !userRole) {
-    return badRequest("Missing required fields: email, fullName, userRole");
-  }
-
-  if (userRole === "superadmin") {
-    const { confirmPassword } = body;
-    if (!confirmPassword) return badRequest("Password confirmation required to create a superadmin");
-    const actorUser = await User.findById(actor.id).select("+password").lean();
-    if (!actorUser?.password) return badRequest("Could not verify your identity");
-    const valid = await bcrypt.compare(confirmPassword, actorUser.password);
-    if (!valid) return badRequest("Incorrect password");
+  if (!email || !fullName) {
+    return badRequest("Missing required fields: email, fullName");
   }
 
   const trimmedEmail = email.toLowerCase().trim();
@@ -107,7 +98,7 @@ export async function POST(req: Request) {
     username,
     password: hashed,
     about: { firstName, lastName },
-    userRole,
+    userRole: "developer",
     department: department || undefined,
     reportsTo: resolvedReportsTo || undefined,
     teams: teams ?? [],
@@ -147,7 +138,6 @@ export async function POST(req: Request) {
   });
 
   const resetUrl = `${getBaseUrl()}/reset-password?token=${rawToken}&email=${encodeURIComponent(trimmedEmail)}`;
-  const roleLabels: Record<string, string> = { superadmin: "Super Admin", manager: "Manager", teamLead: "Team Lead", businessDeveloper: "Business Developer", developer: "Developer" };
   const inviteHtml = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:500px;margin:0 auto;">
       <div style="background:linear-gradient(135deg,#0071e3,#0055cc);padding:32px 24px;border-radius:20px 20px 0 0;text-align:center;">
@@ -157,9 +147,6 @@ export async function POST(req: Request) {
       </div>
       <div style="background:#f8fafc;padding:28px 24px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
         <p style="color:#475569;font-size:15px;margin:0 0 4px;font-weight:500;text-align:center;">Hi <strong style="color:#1e293b;">${firstName}</strong>, your account has been created.</p>
-        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0 16px;">
-          <p style="color:#475569;font-size:14px;margin:4px 0;"><strong style="color:#1e293b;">Role:</strong> ${roleLabels[userRole] ?? userRole}</p>
-        </div>
         <p style="color:#475569;font-size:14px;margin:0 0 16px;text-align:center;">Click below to set your password and get started.</p>
         <div style="text-align:center;"><a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#0071e3,#0055cc);color:white;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px;">Set Password →</a></div>
         <p style="color:#94a3b8;font-size:12px;margin:16px 0 0;text-align:center;">This link expires in 24 hours.</p>

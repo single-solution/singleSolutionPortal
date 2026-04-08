@@ -99,14 +99,6 @@ interface CampaignRow {
   };
 }
 
-const ROLE_DESIGNATION: Record<string, string> = {
-  superadmin: "System Administrator",
-  manager: "Team Manager",
-  teamLead: "Team Lead",
-  businessDeveloper: "Business Developer",
-  developer: "Software Developer",
-};
-
 const SHIFT_LABELS: Record<string, string> = {
   fullTime: "Full Time",
   partTime: "Part Time",
@@ -167,7 +159,7 @@ function primaryDesignation(memberships: MembershipRow[] | null, userRole: strin
     const any = memberships.find((m) => m.designation?.name);
     if (any?.designation?.name) return any.designation.name;
   }
-  return ROLE_DESIGNATION[userRole] ?? userRole;
+  return "Employee";
 }
 
 function calendarCells(year: number, month: number) {

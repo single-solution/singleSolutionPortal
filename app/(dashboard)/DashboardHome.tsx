@@ -16,7 +16,6 @@ import {
 } from "@/lib/motion";
 import { EmployeeCard } from "./components/EmployeeCard";
 import { ScopeStrip } from "./components/ScopeStrip";
-import type { UserRole } from "@/lib/models/User";
 import { useGuide } from "@/lib/useGuide";
 import { dashboardTour } from "@/lib/tourConfigs";
 
@@ -25,7 +24,8 @@ import { dashboardTour } from "@/lib/tourConfigs";
 interface User {
   id: string;
   email: string;
-  role: UserRole;
+  role?: string;
+  isSuperAdmin?: boolean;
   firstName: string;
   lastName: string;
   username: string;
@@ -37,6 +37,7 @@ interface ApiEmployee {
   username: string;
   about: { firstName: string; lastName: string };
   userRole: string;
+  isSuperAdmin?: boolean;
   isActive: boolean;
   department?: { _id: string; title: string; slug?: string };
   teams?: { _id: string; name: string }[];
@@ -190,14 +191,6 @@ const STATUS_LABELS: Record<PresenceStatus, string> = {
   late: "Late",
   overtime: "Overtime",
   absent: "Absent",
-};
-
-const ROLE_DESIGNATION: Record<string, string> = {
-  superadmin: "System Administrator",
-  manager: "Team Manager",
-  teamLead: "Team Lead",
-  businessDeveloper: "Business Developer",
-  developer: "Software Developer",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -442,7 +435,7 @@ function SelfOverviewCard({ pa, userProfile, user }: {
         <div className="min-w-0 flex-1 space-y-4">
           <div>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>{profileName} {profileLast}</h2>
-            <p className="text-subhead">{userProfile?.department ?? ROLE_DESIGNATION[user.role]}</p>
+            <p className="text-subhead">{userProfile?.department ?? (user.isSuperAdmin ? "System Administrator" : "Employee")}</p>
             <p className="text-caption mt-0.5">{user.email}</p>
                     </div>
           {/* Clock In / Hours / Clock Out */}
@@ -587,7 +580,7 @@ function AdminDashboard({
   onRefreshLive: () => void;
   onRefreshFull: () => void;
 }) {
-  const isSuperAdmin = user.role === "superadmin";
+  const isSuperAdmin = user.isSuperAdmin === true;
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("dashboard", dashboardTour); }, [registerTour]);
   const [scopeDept, setScopeDept] = useState("all");
@@ -1039,7 +1032,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                 <div className="min-w-0">
                   <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Reports to</p>
                   <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{reportsToName}</p>
-                  {mgrStatus && <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{ROLE_DESIGNATION[mgrStatus.userRole] ?? mgrStatus.userRole} · {mgrStatus.department}</p>}
+                  {mgrStatus && <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{mgrStatus.department}</p>}
               </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -1212,8 +1205,8 @@ export default function DashboardHome({ user }: { user: User }) {
   const [monthlyStats, setMonthlyStats] = useState<FullMonthlyStats | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  const isSuperAdmin = user.role === "superadmin";
-  const isAdminRole = isSuperAdmin || user.role === "manager" || user.role === "teamLead";
+  const isSuperAdmin = user.isSuperAdmin === true;
+  const isAdminRole = isSuperAdmin;
   const initialDone = useRef(false);
 
   /* ── Helper: parse presence array ── */
@@ -1227,7 +1220,7 @@ export default function DashboardHome({ user }: { user: User }) {
         firstName: p.firstName,
         lastName: p.lastName,
         email: p.email ?? "",
-        designation: ROLE_DESIGNATION[p.userRole] ?? p.userRole,
+        designation: p.isSuperAdmin ? "System Administrator" : "Employee",
         department: p.department,
         departmentId: p.departmentId ?? null,
         reportsTo: p.reportsTo ?? null,
@@ -1389,7 +1382,7 @@ export default function DashboardHome({ user }: { user: User }) {
           username: (p.username as string) ?? user.username,
           profileImage: (about?.profileImage as string) || undefined,
           department: dept?.title ?? undefined,
-          designation: ROLE_DESIGNATION[user.role] ?? user.role,
+          designation: user.isSuperAdmin ? "System Administrator" : "Employee",
           workShift: shift?.shift ? { type: shift.type ?? "fullTime", start: shift.shift.start ?? "09:00", end: shift.shift.end ?? "18:00", breakTime: shift.breakTime ?? 60 } : undefined,
         });
       }
@@ -1442,7 +1435,7 @@ export default function DashboardHome({ user }: { user: User }) {
       firstName: e.about?.firstName ?? "",
       lastName: e.about?.lastName ?? "",
       email: e.email ?? "",
-      designation: ROLE_DESIGNATION[e.userRole] ?? e.userRole,
+      designation: e.isSuperAdmin ? "System Administrator" : "Employee",
       department: (e.department as { title?: string })?.title ?? "Unassigned",
       departmentId: (e.department as { _id?: string })?._id ?? null,
       reportsTo: null,
@@ -1470,7 +1463,7 @@ export default function DashboardHome({ user }: { user: User }) {
     }));
   }, [realPresence, employees]);
 
-  if (user.role === "superadmin" || user.role === "manager" || user.role === "teamLead") {
+  if (user.isSuperAdmin === true) {
       return (
       <AdminDashboard
         user={user}

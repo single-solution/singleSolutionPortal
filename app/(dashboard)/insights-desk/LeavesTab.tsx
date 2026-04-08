@@ -86,7 +86,7 @@ export function LeavesTab() {
   const [submitting, setSubmitting] = useState(false);
 
   const isSuperAdmin = session?.user?.isSuperAdmin === true;
-  const canApproveReject = isSuperAdmin || session?.user?.role === "manager";
+  const canApproveReject = isSuperAdmin;
 
   const loadBalance = useCallback(async () => {
     const uid = userFilter || session?.user?.id;
