@@ -62,7 +62,8 @@ function idStr(x: unknown): string {
 function DeptNode({ data }: NodeProps) {
   return (
     <div className="rounded-2xl border-2 px-5 py-3 shadow-lg min-w-[180px]" style={{ background: "var(--bg-elevated)", borderColor: "#8b5cf6" }}>
-      <Handle type="target" position={Position.Top} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="t-in" type="target" position={Position.Top} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="t-out" type="source" position={Position.Top} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "#8b5cf6", color: "white" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
@@ -72,7 +73,8 @@ function DeptNode({ data }: NodeProps) {
           {data.sub ? <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="b-in" type="target" position={Position.Bottom} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="b-out" type="source" position={Position.Bottom} className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -80,7 +82,8 @@ function DeptNode({ data }: NodeProps) {
 function TeamNode({ data }: NodeProps) {
   return (
     <div className="rounded-2xl border-2 px-4 py-2.5 shadow-md min-w-[150px]" style={{ background: "var(--bg-elevated)", borderColor: "#3b82f6" }}>
-      <Handle type="target" position={Position.Top} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="t-in" type="target" position={Position.Top} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="t-out" type="source" position={Position.Top} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: "#3b82f6", color: "white" }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -90,7 +93,8 @@ function TeamNode({ data }: NodeProps) {
           {data.sub ? <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="b-in" type="target" position={Position.Bottom} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="b-out" type="source" position={Position.Bottom} className="!bg-[#3b82f6] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -100,7 +104,8 @@ function EmpNode({ data }: NodeProps) {
   const isActive = data.active !== false;
   return (
     <div className={`rounded-xl border px-3 py-2 shadow-sm min-w-[140px] ${isActive ? "" : "opacity-50 grayscale"}`} style={{ background: "var(--bg-elevated)", borderColor: "var(--border-strong)" }}>
-      <Handle type="target" position={Position.Top} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="t-in" type="target" position={Position.Top} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="t-out" type="source" position={Position.Top} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: isActive ? "var(--teal)" : "var(--fg-tertiary)" }}>{initials}</span>
         <div className="min-w-0 text-left">
@@ -108,7 +113,8 @@ function EmpNode({ data }: NodeProps) {
           <p className="text-[9px] truncate max-w-[100px]" style={{ color: "var(--fg-tertiary)" }}>{String(data.email ?? "")}</p>
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="b-in" type="target" position={Position.Bottom} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
+      <Handle id="b-out" type="source" position={Position.Bottom} className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -269,11 +275,17 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
 
       const body: Record<string, unknown> = { designation: connDesig };
 
+      const teamDeptId = (t: TeamRow | undefined) => {
+        if (!t) return "";
+        if (t.departments?.length) return idStr(t.departments[0]);
+        return idStr(t.department);
+      };
+
       if (tgtType === "emp" && (srcType === "dept" || srcType === "team")) {
         body.user = tgtId;
         if (srcType === "team") {
           const team = teams.find((t) => t._id === srcId);
-          body.department = team ? idStr(team.department) : srcId;
+          body.department = teamDeptId(team) || srcId;
           body.team = srcId;
         } else {
           body.department = srcId;
@@ -282,7 +294,7 @@ export function OrgFlowTree({ departments, teams, employees, teamsByDept, design
         body.user = srcId;
         if (tgtType === "team") {
           const team = teams.find((t) => t._id === tgtId);
-          body.department = team ? idStr(team.department) : tgtId;
+          body.department = teamDeptId(team) || tgtId;
           body.team = tgtId;
         } else {
           body.department = tgtId;
