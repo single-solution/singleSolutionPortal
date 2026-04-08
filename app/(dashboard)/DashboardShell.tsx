@@ -969,19 +969,16 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
 
       {/* ── Main content with page transition ── */}
       <main className="mx-auto max-w-[1600px] px-5 py-4 pb-40 sm:px-8 sm:py-5 sm:pb-40 lg:px-14">
-        <AnimatePresence mode="wait" initial={false}>
+        <LiveProvider enabled={liveUpdates}>
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 10, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.99 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
-            <LiveProvider enabled={liveUpdates}>
-              {children}
-            </LiveProvider>
+            {children}
           </motion.div>
-        </AnimatePresence>
+        </LiveProvider>
       </main>
 
       {/* ── Floating bottom navigation dock ── */}
