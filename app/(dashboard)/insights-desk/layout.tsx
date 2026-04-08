@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, LayoutGroup } from "framer-motion";
 import { tabIndicatorTransition } from "@/lib/motion";
@@ -28,7 +28,9 @@ export default function InsightsDeskLayout({ children }: { children: React.React
   const router = useRouter();
   const activeTab = resolveTab(pathname);
   const { registerTour } = useGuide();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => setMounted(true), []);
   useEffect(() => { registerTour("insights-desk", insightsDeskTour); }, [registerTour]);
 
   return (
@@ -47,7 +49,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
               className="relative flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
               style={{ color: activeTab === tab.id ? "var(--primary)" : "var(--fg-tertiary)" }}
             >
-              {activeTab === tab.id && (
+              {mounted && activeTab === tab.id && (
                 <motion.span
                   layoutId="insights-tab-pill"
                   className="absolute inset-0 rounded-lg"

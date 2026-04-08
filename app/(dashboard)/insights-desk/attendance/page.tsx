@@ -502,7 +502,7 @@ export default function AttendancePage() {
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <AnimatePresence mode="wait">
-              <motion.span key={`${month}-${year}`} className="text-headline" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }}>
+              <motion.span key={`${month}-${year}`} className="text-headline" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }} suppressHydrationWarning>
                 {MONTH_NAMES[month - 1]} {year}
               </motion.span>
             </AnimatePresence>

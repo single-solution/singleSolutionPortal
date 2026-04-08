@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, LayoutGroup } from "framer-motion";
 import { tabIndicatorTransition } from "@/lib/motion";
@@ -27,7 +27,9 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const activeTab = resolveTab(pathname);
   const { registerTour } = useGuide();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => setMounted(true), []);
   useEffect(() => { registerTour("workspace", workspaceTour); }, [registerTour]);
 
   return (
@@ -52,7 +54,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                   className="relative flex-1 rounded-lg px-3 py-2.5 text-center text-sm font-semibold transition-colors sm:flex-initial sm:px-5 sm:py-2"
                   style={{ color: active ? "var(--primary)" : "var(--fg-secondary)" }}
                 >
-                  {active && (
+                  {mounted && active && (
                     <motion.span
                       layoutId="workspace-tab-pill"
                       className="absolute inset-0 rounded-lg"

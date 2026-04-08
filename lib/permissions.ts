@@ -377,6 +377,34 @@ export function canDeleteCampaign(actor: VerifiedUser): boolean {
   return hasPermission(actor, "campaigns_delete");
 }
 
+export function canViewOrgChart(actor: VerifiedUser): boolean {
+  return hasPermission(actor, "organization_view");
+}
+
+export function canManageOrgLinks(actor: VerifiedUser): boolean {
+  return hasPermission(actor, "organization_manageLinks");
+}
+
+export function canViewUpdates(actor: VerifiedUser): boolean {
+  return hasPermission(actor, "updates_view");
+}
+
+export function canManageUpdates(actor: VerifiedUser): boolean {
+  return hasAnyPermission(actor, ["updates_create", "updates_edit"]);
+}
+
+export function canSendPing(actor: VerifiedUser): boolean {
+  return hasPermission(actor, "ping_send");
+}
+
+export function canViewCalendar(actor: VerifiedUser): boolean {
+  return hasPermission(actor, "calendar_view");
+}
+
+export function canManageCalendar(actor: VerifiedUser): boolean {
+  return hasPermission(actor, "calendar_manage");
+}
+
 export function canManageSettings(actor: VerifiedUser): boolean {
   return hasPermission(actor, "settings_manage");
 }

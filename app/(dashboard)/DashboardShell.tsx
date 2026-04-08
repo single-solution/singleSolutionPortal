@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { dockEntrance, tabIndicatorTransition } from "@/lib/motion";
 import { useGuide } from "@/lib/useGuide";
+import { LiveProvider } from "@/lib/useLive";
 import SessionTracker from "./SessionTracker";
 
 interface NavLink {
@@ -148,6 +149,7 @@ interface DashboardShellProps {
     username: string;
     profileImage?: string;
   };
+  liveUpdates?: boolean;
   children: React.ReactNode;
 }
 
@@ -166,7 +168,7 @@ const PATH_TO_TOUR_NAME: Record<string, string> = {
   "/settings": "Settings",
 };
 
-export function DashboardShell({ user, children }: DashboardShellProps) {
+export function DashboardShell({ user, liveUpdates = false, children }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { startTour, startWelcome } = useGuide();
@@ -203,7 +205,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     setPingsLoaded(true);
   }, []);
 
-  useEffect(() => { fetchPings(); }, [fetchPings]);
+  useEffect(() => { if (liveUpdates) fetchPings(); }, [liveUpdates, fetchPings]);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -426,7 +428,8 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
               </AnimatePresence>
             </div>
 
-            {/* Ping inbox */}
+            {/* Ping inbox — only visible when live updates are enabled */}
+            {liveUpdates && (
             <div className="relative" ref={pingRef}>
               <button
                 type="button"
@@ -505,6 +508,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 )}
               </AnimatePresence>
             </div>
+            )}
 
             {/* Notification bell */}
               <div className="relative" ref={notifRef}>
@@ -878,6 +882,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
               {/* Links */}
               <div className="flex-1 py-2">
+                {liveUpdates && (
                 <button
                   type="button"
                   onClick={() => { setMobileMenuOpen(false); setPingsOpen(true); }}
@@ -894,6 +899,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                     </span>
                   )}
                 </button>
+                )}
 
                 <button
                   type="button"
@@ -971,7 +977,9 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             exit={{ opacity: 0, scale: 0.99 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
-            {children}
+            <LiveProvider enabled={liveUpdates}>
+              {children}
+            </LiveProvider>
           </motion.div>
         </AnimatePresence>
       </main>

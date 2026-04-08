@@ -30,16 +30,16 @@ export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (actor.isSuperAdmin) {
-    return ok({ activeSession: null, todayMinutes: 0, isStale: false });
-  }
-
   await connectDB();
 
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get("userId") ?? actor.id;
 
-  if (targetUserId !== actor.id) {
+  if (actor.isSuperAdmin && targetUserId === actor.id) {
+    return ok({ activeSession: null, todayMinutes: 0, isStale: false });
+  }
+
+  if (targetUserId !== actor.id && !actor.isSuperAdmin) {
     const targetMemberships = await Membership.find({ user: targetUserId, isActive: true })
       .select("department team")
       .lean();

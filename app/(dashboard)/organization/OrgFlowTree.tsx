@@ -22,7 +22,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { PERMISSION_CATEGORIES, PERMISSION_KEYS, type IPermissions } from "@/lib/permissions.shared";
+import { PERMISSION_CATEGORIES, PERMISSION_KEYS, PERMISSION_META, type IPermissions } from "@/lib/permissions.shared";
 
 /* ────────── Permission sets per node type ────────── */
 
@@ -700,28 +700,68 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
         {privOpen && (
           <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPrivOpen(false)} />
-            <motion.div className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
+            <motion.div className="relative w-full max-w-3xl mx-4 max-h-[85vh] flex flex-col rounded-2xl border shadow-xl"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-bold mb-1" style={{ color: "var(--fg)" }}>Edit Privileges</h2>
-              <p className="text-xs mb-4" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
-              <div className="space-y-4">
-                {PERMISSION_CATEGORIES.map((cat) => (
-                  <div key={cat.label}>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--fg-tertiary)" }}>{cat.label}</p>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                      {cat.keys.map((k) => (
-                        <label key={k} className="flex items-center gap-1.5 cursor-pointer">
-                          <input type="checkbox" checked={!!privPerms[k]} onChange={(e) => setPrivPerms((p) => ({ ...p, [k]: e.target.checked }))} className="h-3.5 w-3.5 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]" />
-                          <span className="text-[11px] capitalize" style={{ color: "var(--fg-secondary)" }}>{k.split("_").slice(1).join(" ")}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              {/* Header */}
+              <div className="flex items-center justify-between gap-3 border-b px-6 py-4 shrink-0" style={{ borderColor: "var(--border)" }}>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold" style={{ color: "var(--fg)" }}>Edit Privileges</h2>
+                  <p className="text-xs truncate" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setPrivPerms(p); }}
+                    className="rounded-lg px-2.5 py-1.5 text-[10px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                    style={{ color: "#10b981", borderColor: "rgba(16,185,129,0.3)" }}>
+                    All On
+                  </button>
+                  <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setPrivPerms(p); }}
+                    className="rounded-lg px-2.5 py-1.5 text-[10px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                    style={{ color: "var(--rose)", borderColor: "rgba(244,63,94,0.3)" }}>
+                    All Off
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 pt-4">
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+                {PERMISSION_CATEGORIES.map((cat) => {
+                  const allOn = cat.keys.every((k) => !!privPerms[k]);
+                  const someOn = !allOn && cat.keys.some((k) => !!privPerms[k]);
+                  return (
+                    <div key={cat.label}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg className="h-4 w-4 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d={cat.icon} />
+                        </svg>
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>{cat.label}</span>
+                        <button type="button" onClick={() => { const val = !allOn; setPrivPerms((p) => { const next = { ...p }; for (const k of cat.keys) next[k] = val; return next; }); }}
+                          className="ml-auto rounded px-2 py-0.5 text-[9px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                          style={{ color: allOn ? "var(--rose)" : "var(--primary)", borderColor: "var(--border)" }}>
+                          {allOn ? "Disable all" : someOn ? "Enable rest" : "Enable all"}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
+                        {cat.keys.map((k) => {
+                          const meta = PERMISSION_META[k];
+                          return (
+                            <label key={k} className="group flex items-start gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors hover:bg-[var(--hover-bg)]">
+                              <input type="checkbox" checked={!!privPerms[k]} onChange={(e) => setPrivPerms((p) => ({ ...p, [k]: e.target.checked }))}
+                                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]" />
+                              <div className="min-w-0">
+                                <span className="text-[11px] font-medium leading-tight block" style={{ color: privPerms[k] ? "var(--fg)" : "var(--fg-secondary)" }}>{meta.label}</span>
+                                <span className="text-[9px] leading-tight block" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</span>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Footer */}
+              <div className="flex gap-2 border-t px-6 py-4 shrink-0" style={{ borderColor: "var(--border)" }}>
                 <motion.button type="button" onClick={handleSavePrivileges} disabled={privSaving} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{privSaving ? "Saving…" : "Save Privileges"}</motion.button>
                 <button type="button" onClick={() => setPrivOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
               </div>

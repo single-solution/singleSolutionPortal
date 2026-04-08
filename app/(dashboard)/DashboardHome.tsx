@@ -17,6 +17,7 @@ import {
 import { EmployeeCard } from "./components/EmployeeCard";
 import { ScopeStrip } from "./components/ScopeStrip";
 import { useGuide } from "@/lib/useGuide";
+import { useLive } from "@/lib/useLive";
 import { dashboardTour } from "@/lib/tourConfigs";
 
 /* ──────────────────────── TYPES ──────────────────────── */
@@ -578,6 +579,7 @@ function AdminDashboard({
   onRefreshLive: () => void;
   onRefreshFull: () => void;
 }) {
+  const liveUpdates = useLive();
   const isSuperAdmin = user.isSuperAdmin === true;
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("dashboard", dashboardTour); }, [registerTour]);
@@ -755,7 +757,7 @@ function AdminDashboard({
                   key={emp._id}
                   idx={idx}
                   attendanceLoading={presenceLoading}
-                  onPing={handlePing}
+                  onPing={liveUpdates ? handlePing : undefined}
                   emp={{
                     _id: emp._id,
                     username: emp.username,
@@ -930,6 +932,7 @@ function AdminDashboard({
 /* ──────────────────────── OTHER ROLES OVERVIEW ──────────────────────── */
 
 function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, monthlyStats: ms, userProfile, dataLoading }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null; weeklyRecords: WeeklyDay[]; monthlyStats: FullMonthlyStats | null; userProfile: UserProfile | null; dataLoading: boolean }) {
+  const liveUpdates = useLive();
   const pa = personalAttendance;
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
@@ -1045,10 +1048,12 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                     {STATUS_LABELS[mgrStatus.status]}
                   </span>
                 ) : null}
+                {liveUpdates && (
                 <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handlePingManager} disabled={pingSending} className="btn btn-sm flex items-center gap-1.5" style={{ background: "var(--primary)", color: "#fff", opacity: pingSending ? 0.5 : 1 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><path d="M8.464 15.536a5 5 0 010-7.072" /><path d="M15.536 8.464a5 5 0 010 7.072" /><circle cx="12" cy="12" r="1" /></svg>
                   Ping
                 </motion.button>
+                )}
             </div>
           </div>
 

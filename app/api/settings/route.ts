@@ -50,6 +50,8 @@ export async function PUT(req: Request) {
     if (body.company.timezone !== undefined) update["company.timezone"] = body.company.timezone;
   }
 
+  if (body.liveUpdates !== undefined) update.liveUpdates = !!body.liveUpdates;
+
   const settings = await SystemSettings.findOneAndUpdate(
     { key: "global" },
     { $set: update },
