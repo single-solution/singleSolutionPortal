@@ -1222,8 +1222,8 @@ export default function DashboardHome({ user }: { user: User }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const isSuperAdmin = user.isSuperAdmin === true;
-  const { can: canPermRoot } = usePermissions();
-  const hasTeamAccess = canPermRoot("attendance_viewTeam");
+  const { can: canPermRoot, hasSubordinates } = usePermissions();
+  const hasTeamAccess = canPermRoot("attendance_viewTeam") || hasSubordinates;
   const canViewCampaigns = canPermRoot("campaigns_view");
   const canViewDepts = canPermRoot("departments_view");
   const initialDone = useRef(false);

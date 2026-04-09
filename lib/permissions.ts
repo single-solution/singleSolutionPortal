@@ -344,11 +344,11 @@ export function canViewDepartment(actor: VerifiedUser, _deptId?: string | null):
 }
 
 export function canManageTeams(actor: VerifiedUser): boolean {
-  return hasAnyPermission(actor, ["teams_create", "teams_edit"]);
+  return actor.isSuperAdmin;
 }
 
 export function canEditTeam(actor: VerifiedUser, _teamDept?: string | null, _teamId?: string | null): boolean {
-  return hasAnyPermission(actor, ["teams_create", "teams_edit"]);
+  return actor.isSuperAdmin;
 }
 
 export function canManageTasks(actor: VerifiedUser): boolean {

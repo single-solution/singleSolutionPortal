@@ -5,6 +5,7 @@ import type { IPermissions } from "@/lib/permissions.shared";
 
 interface PermissionsState {
   isSuperAdmin: boolean;
+  hasSubordinates: boolean;
   permissions: Partial<Record<keyof IPermissions, boolean>>;
   loading: boolean;
   can: (key: keyof IPermissions) => boolean;
@@ -14,6 +15,7 @@ interface PermissionsState {
 
 const PermissionsContext = createContext<PermissionsState>({
   isSuperAdmin: false,
+  hasSubordinates: false,
   permissions: {},
   loading: true,
   can: () => false,
@@ -23,6 +25,7 @@ const PermissionsContext = createContext<PermissionsState>({
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [hasSubordinates, setHasSubordinates] = useState(false);
   const [permissions, setPermissions] = useState<Partial<Record<keyof IPermissions, boolean>>>({});
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
@@ -34,6 +37,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       if (!mounted.current) return;
       setIsSuperAdmin(data.isSuperAdmin === true);
+      setHasSubordinates(data.hasSubordinates === true);
       setPermissions(data.permissions ?? {});
     } catch { /* silent */ }
     if (mounted.current) setLoading(false);
@@ -56,7 +60,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <PermissionsContext.Provider value={{ isSuperAdmin, permissions, loading, can, canAny, refresh: fetchPermissions }}>
+    <PermissionsContext.Provider value={{ isSuperAdmin, hasSubordinates, permissions, loading, can, canAny, refresh: fetchPermissions }}>
       {children}
     </PermissionsContext.Provider>
   );

@@ -21,7 +21,6 @@ export function makeDefaultPermissions(preset: "employee" | "teamLead" | "manage
   if (preset === "teamLead" || preset === "manager" || preset === "admin") {
     p.employees_view = true;
     p.employees_viewDetail = true;
-    p.teams_view = true;
     p.tasks_view = true;
     p.tasks_create = true;
     p.tasks_edit = true;
@@ -41,12 +40,8 @@ export function makeDefaultPermissions(preset: "employee" | "teamLead" | "manage
     p.employees_edit = true;
     p.employees_toggleStatus = true;
     p.employees_resendInvite = true;
-    p.members_addToTeam = true;
-    p.members_removeFromTeam = true;
     p.members_assignDesignation = true;
     p.departments_view = true;
-    p.teams_create = true;
-    p.teams_edit = true;
     p.tasks_delete = true;
     p.campaigns_create = true;
     p.campaigns_edit = true;

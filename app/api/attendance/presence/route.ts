@@ -6,9 +6,7 @@ import User, { resolveWeeklySchedule, type Weekday } from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
-  isAdmin,
   hasPermission,
-  getTeamMemberIds,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
@@ -18,10 +16,6 @@ export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!isAdmin(actor) && !hasPermission(actor, "attendance_viewTeam")) {
-    return ok([]);
-  }
-
   await connectDB();
 
   const settings = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
@@ -30,19 +24,24 @@ export async function GET() {
 
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (actor.isSuperAdmin) {
-    // no extra filter — all non–super-admin employees
-  } else if (isAdmin(actor) || hasPermission(actor, "attendance_viewTeam")) {
-    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
-    const teamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
-    const memberIds = teamIds.length > 0 ? await getTeamMemberIds(teamIds) : [];
+    // superadmin sees all non–super-admin employees
+  } else {
     const subordinateIds = await getSubordinateUserIds(actor.id);
+    const canViewTeam = hasPermission(actor, "attendance_viewTeam");
+
+    if (!canViewTeam && subordinateIds.length === 0) {
+      return ok([]);
+    }
+
+    const deptIds = canViewTeam
+      ? [...new Set(actor.memberships.map((m) => m.departmentId))]
+      : [];
 
     const orClauses: Record<string, unknown>[] = [
       { _id: actor.id },
       { reportsTo: actor.id },
     ];
     if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
-    if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
     if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
     empFilter.$or = orClauses;
   }

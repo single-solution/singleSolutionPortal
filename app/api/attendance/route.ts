@@ -11,13 +11,9 @@ import { resolveTimezone, dateInTz } from "@/lib/tz";
 import {
   getVerifiedSession,
   canViewAttendance,
-  canViewTeamStats,
   isSuperAdmin,
-  isManager,
-  isTeamLead,
-  isEmployee,
-  getTeamMemberIds,
   hasPermission,
+  getSubordinateUserIds,
 } from "@/lib/permissions";
 import type { VerifiedUser } from "@/lib/permissions";
 import { NextRequest } from "next/server";
@@ -30,24 +26,18 @@ async function buildTeamStatsEmployeeFilter(actor: VerifiedUser): Promise<Record
   };
   if (actor.isSuperAdmin) return empFilter;
 
-  const actorDeptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
-  const actorTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
+  const subordinateIds = await getSubordinateUserIds(actor.id);
+  const canViewTeam = hasPermission(actor, "attendance_viewTeam");
+  const deptIds = canViewTeam
+    ? [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))]
+    : [];
 
-  if (isManager(actor)) {
-    if (actorDeptIds.length > 1) {
-      empFilter.department = { $in: actorDeptIds };
-    } else if (actorDeptIds.length === 1) {
-      empFilter.department = actorDeptIds[0];
-    } else if (actor.memberships[0]?.departmentId) {
-      empFilter.department = actor.memberships[0].departmentId;
-    }
-  } else if (isTeamLead(actor)) {
-    const memberIds = await getTeamMemberIds(actorTeamIds);
-    const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
-    if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
+  const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
+  if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
+  if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
+
+  if (orClauses.length > 0) {
     empFilter.$or = orClauses;
-  } else if (isEmployee(actor) && hasPermission(actor, "attendance_viewTeam") && actor.memberships[0]?.departmentId) {
-    empFilter.department = actor.memberships[0].departmentId;
   }
 
   return empFilter;
@@ -69,9 +59,8 @@ export async function GET(req: NextRequest) {
   const userId = url.searchParams.get("userId") ?? actor.id;
 
   if (type === "team") {
-    if (!canViewTeamStats(actor)) return ok([]);
-
     const empFilter = await buildTeamStatsEmployeeFilter(actor);
+    if (!empFilter.$or && !actor.isSuperAdmin) return ok([]);
 
     const employees = await User.find(empFilter)
       .select("about department")
@@ -90,9 +79,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === "team-monthly") {
-    if (!canViewTeamStats(actor)) return ok([]);
-
     const empFilter = await buildTeamStatsEmployeeFilter(actor);
+    if (!empFilter.$or && !actor.isSuperAdmin) return ok([]);
 
     const employees = await User.find(empFilter)
       .select("about department reportsTo")
@@ -149,12 +137,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === "team-date") {
-    if (!canViewTeamStats(actor)) return ok([]);
-
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok([]);
 
     const empFilter = await buildTeamStatsEmployeeFilter(actor);
+    if (!empFilter.$or && !actor.isSuperAdmin) return ok([]);
 
     const employees = await User.find(empFilter)
       .select("about department")
@@ -224,8 +211,11 @@ export async function GET(req: NextRequest) {
     targetReportsTo = target?.reportsTo?.toString() ?? null;
   }
 
+  const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
+  const isSubordinate = subordinateIds.includes(userId);
   const allowed = canViewAttendance(actor, userId, targetDept, targetTeams)
-    || (isTeamLead(actor) && targetReportsTo === actor.id);
+    || targetReportsTo === actor.id
+    || isSubordinate;
   if (!allowed) {
     if (type === "detail" || type === "monthly") return ok(null);
     return ok([]);

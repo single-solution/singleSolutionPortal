@@ -10,7 +10,6 @@ import {
   isManager,
   isTeamLead,
   getDepartmentScope,
-  getTeamScope,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -43,14 +42,10 @@ export async function GET() {
     }
   } else if (isTeamLead(actor)) {
     deptFilter.isActive = true;
-    const leadTeamIds = [...new Set(getTeamScope(actor, "teams_view"))];
-    if (leadTeamIds.length > 0) {
-      const teams = await Team.find({ _id: { $in: leadTeamIds }, isActive: true }).select("department").lean();
-      const deptIds = [...new Set(teams.map((t) => t.department.toString()).filter(Boolean))];
-      if (primaryDeptId && !deptIds.includes(primaryDeptId)) deptIds.push(primaryDeptId);
+    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
+    if (primaryDeptId && !deptIds.includes(primaryDeptId)) deptIds.push(primaryDeptId);
+    if (deptIds.length > 0) {
       deptFilter._id = { $in: deptIds };
-    } else if (primaryDeptId) {
-      deptFilter._id = primaryDeptId;
     } else {
       return ok([]);
     }
