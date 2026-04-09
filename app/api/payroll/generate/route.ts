@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import User, { resolveWeeklySchedule, type Weekday, type DaySchedule } from "@/lib/models/User";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import Leave from "@/lib/models/Leave";
@@ -78,7 +78,13 @@ export async function POST(req: Request) {
 
   const { start: monthStart, end: monthEnd } = monthUtcBounds(month, year);
 
-  const employees = await User.find({ isSuperAdmin: { $ne: true }, isActive: true })
+  const employeeFilter: Record<string, unknown> = { isSuperAdmin: { $ne: true }, isActive: true };
+  if (!isSuperAdmin(actor)) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    employeeFilter._id = { $in: subordinateIds };
+  }
+
+  const employees = await User.find(employeeFilter)
     .select("salary weeklySchedule")
     .lean();
 

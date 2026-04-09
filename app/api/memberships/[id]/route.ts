@@ -1,8 +1,6 @@
 import { connectDB } from "@/lib/db";
 import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
-import User from "@/lib/models/User";
-import Team from "@/lib/models/Team";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 
@@ -11,9 +9,7 @@ function populateMembership(q: any) {
   return q
     .populate("user", "about.firstName about.lastName email username")
     .populate("department", "title")
-    .populate("team", "name")
-    .populate("designation", "name color defaultPermissions")
-    .populate("reportsTo", "about.firstName about.lastName email username");
+    .populate("designation", "name color defaultPermissions");
 }
 
 function canViewMembership(
@@ -101,36 +97,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  if (body.team !== undefined) {
-    if (body.team === null || body.team === "") {
-      membership.set("team", null);
-    } else {
-      if (typeof body.team !== "string" || !isValidId(body.team)) {
-        return badRequest("Invalid team");
-      }
-      const teamDoc = await Team.findById(body.team).select("department").lean();
-      if (!teamDoc) return badRequest("Team not found");
-      if (teamDoc.department.toString() !== deptId) {
-        return badRequest("Team does not belong to this membership's department");
-      }
-      membership.team = body.team;
-    }
-  }
-
-  if (body.reportsTo !== undefined) {
-    if (body.reportsTo === null || body.reportsTo === "") {
-      membership.set("reportsTo", null);
-    } else {
-      if (typeof body.reportsTo !== "string" || !isValidId(body.reportsTo)) {
-        return badRequest("Invalid reportsTo");
-      }
-      const ru = await User.findById(body.reportsTo).select("_id").lean();
-      if (!ru) return badRequest("reportsTo user not found");
-      membership.reportsTo = body.reportsTo;
-    }
-  }
-
-  if (typeof body.isPrimary === "boolean") membership.isPrimary = body.isPrimary;
   if (typeof body.isActive === "boolean") membership.isActive = body.isActive;
 
   if (body.permissions !== undefined) {

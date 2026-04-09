@@ -1,18 +1,11 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
-import Team from "@/lib/models/Team";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
-  isManager,
-  isTeamLead,
-  isEmployee,
   hasPermission,
-  getTeamMemberIds,
-  getDepartmentScope,
-  getTeamScope,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
@@ -30,39 +23,17 @@ export async function GET() {
   if (!isSuperAdmin(actor)) filter.isActive = true;
 
   if (isSuperAdmin(actor)) {
-    // superadmin sees all employees (no department filter)
+    // SuperAdmin sees all employees
   } else {
-    const scopedDepts = [...new Set(getDepartmentScope(actor, "employees_view"))];
-    const deptIds = scopedDepts.length > 0
-      ? scopedDepts
-      : [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
-    const teamMemberIds = await getTeamMemberIds([...new Set(getTeamScope(actor, "employees_view"))]);
     const subordinateIds = await getSubordinateUserIds(actor.id);
-
-    const orClauses: Record<string, unknown>[] = [
-      { reportsTo: actor.id },
-    ];
-    if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
-    if (teamMemberIds.length > 0) orClauses.push({ _id: { $in: teamMemberIds } });
-    if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
-
-    if (orClauses.length > 0) {
-      filter.$or = orClauses;
-    } else {
-      return ok([]);
-    }
+    if (subordinateIds.length === 0) return ok([]);
+    filter._id = { $in: subordinateIds };
   }
 
   const users = await User.find(filter)
     .select("-password")
-    .populate("department", "title slug")
-    .populate("teams", "name slug department")
-    .populate("reportsTo", "about.firstName about.lastName email")
     .sort({ createdAt: -1 })
     .lean();
-
-  void Department;
-  void Team;
 
   return ok(users);
 }
@@ -75,7 +46,7 @@ export async function POST(req: Request) {
   await connectDB();
 
   const body = await req.json();
-  const { email, fullName, department, weeklySchedule, graceMinutes, shiftType, teams, reportsTo } = body;
+  const { email, fullName, weeklySchedule, graceMinutes, shiftType } = body;
 
   if (!email || !fullName) {
     return badRequest("Missing required fields: email, fullName");
@@ -91,12 +62,6 @@ export async function POST(req: Request) {
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ");
 
-  let resolvedReportsTo = reportsTo || null;
-  if (!resolvedReportsTo && department) {
-    const dept = await Department.findById(department).select("manager").lean();
-    if (dept?.manager) resolvedReportsTo = dept.manager.toString();
-  }
-
   const tempPassword = crypto.randomUUID() + "Aa1!";
   const hashed = await bcrypt.hash(tempPassword, 12);
 
@@ -105,9 +70,6 @@ export async function POST(req: Request) {
     username,
     password: hashed,
     about: { firstName, lastName },
-    department: department || undefined,
-    reportsTo: resolvedReportsTo || undefined,
-    teams: teams ?? [],
     weeklySchedule: weeklySchedule ?? undefined,
     graceMinutes: typeof graceMinutes === "number" ? graceMinutes : undefined,
     shiftType: shiftType ?? undefined,
@@ -128,9 +90,6 @@ export async function POST(req: Request) {
 
   const populated = await User.findById(user._id)
     .select("-password")
-    .populate("department", "title slug")
-    .populate("teams", "name slug department")
-    .populate("reportsTo", "about.firstName about.lastName email")
     .lean();
 
   const rawToken = crypto.randomBytes(32).toString("hex");
@@ -168,8 +127,6 @@ export async function POST(req: Request) {
     entityId: user._id.toString(),
     details: `${fullName.trim()} (${trimmedEmail})`,
     targetUserIds: [user._id.toString()],
-    targetDepartmentId: department || undefined,
-    targetTeamIds: (teams ?? []).map((t: string) => t),
     visibility: "targeted",
   });
 

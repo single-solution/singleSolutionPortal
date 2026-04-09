@@ -6,12 +6,11 @@ interface LogInput {
   userEmail: string;
   userName: string;
   action: string;
-  entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth" | "security";
+  entity: "employee" | "department" | "task" | "campaign" | "attendance" | "settings" | "auth" | "security";
   entityId?: string;
   details?: string;
   targetUserIds?: string[];
   targetDepartmentId?: string;
-  targetTeamIds?: string[];
   visibility?: "all" | "targeted" | "self";
 }
 
@@ -21,7 +20,6 @@ export async function logActivity(input: LogInput): Promise<void> {
     await ActivityLog.create({
       ...input,
       targetUserIds: input.targetUserIds ?? [],
-      targetTeamIds: input.targetTeamIds ?? [],
       visibility: input.visibility ?? "targeted",
     });
 

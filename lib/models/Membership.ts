@@ -5,10 +5,7 @@ export interface IMembership extends Document {
   _id: Types.ObjectId;
   user: Types.ObjectId;
   department: Types.ObjectId;
-  team?: Types.ObjectId;
   designation: Types.ObjectId;
-  reportsTo?: Types.ObjectId;
-  isPrimary: boolean;
   isActive: boolean;
   /** Visual direction: "above" = employee node renders above the department; "below" = below */
   direction: "above" | "below";
@@ -28,10 +25,7 @@ const membershipSchema = new Schema<IMembership>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     department: { type: Schema.Types.ObjectId, ref: "Department", required: true },
-    team: { type: Schema.Types.ObjectId, ref: "Team", default: null },
     designation: { type: Schema.Types.ObjectId, ref: "Designation", required: true },
-    reportsTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
-    isPrimary: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     direction: { type: String, enum: ["above", "below"], default: "below" },
     autoSource: { type: String, enum: ["hierarchy", null], default: null },
@@ -42,7 +36,7 @@ const membershipSchema = new Schema<IMembership>(
 
 membershipSchema.index({ user: 1, isActive: 1 });
 membershipSchema.index({ department: 1, isActive: 1 });
-membershipSchema.index({ user: 1, department: 1, team: 1 }, { unique: true, partialFilterExpression: { isActive: true } });
+membershipSchema.index({ user: 1, department: 1 }, { unique: true, partialFilterExpression: { isActive: true } });
 
 const Membership =
   mongoose.models.Membership ||

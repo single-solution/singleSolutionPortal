@@ -1,14 +1,13 @@
 import { connectDB } from "@/lib/db";
 import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
-import { getVerifiedSession, isAdmin, getTeamMemberIds } from "@/lib/permissions";
-import { unauthorized, ok } from "@/lib/helpers";
-import User from "@/lib/models/User";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
+import { unauthorized, forbidden, ok } from "@/lib/helpers";
 
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!isAdmin(actor)) {
+  if (!hasPermission(actor, "attendance_viewTeam")) {
     return ok({ flags: [], total: 0 });
   }
 
@@ -24,27 +23,10 @@ export async function GET(req: Request) {
 
   if (userId) {
     filter.user = userId;
-  } else if (!actor.isSuperAdmin) {
-    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
-    const teamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
-    const memberIds = teamIds.length > 0 ? await getTeamMemberIds(teamIds) : [];
-    const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
-    if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
-    if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
-    const users = await User.find({
-      isActive: true,
-      isSuperAdmin: { $ne: true },
-      $or: orClauses,
-    })
-      .select("_id")
-      .lean();
-    const visibleUserIds = users.map((u) => u._id.toString());
-
-    if (visibleUserIds.length > 0) {
-      filter.user = { $in: visibleUserIds };
-    } else {
-      return ok({ flags: [], total: 0 });
-    }
+  } else if (!isSuperAdmin(actor)) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (subordinateIds.length === 0) return ok({ flags: [], total: 0 });
+    filter.user = { $in: subordinateIds };
   }
 
   const [flags, total] = await Promise.all([
@@ -65,8 +47,8 @@ export async function PATCH(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!isAdmin(actor)) {
-    return unauthorized();
+  if (!hasPermission(actor, "attendance_edit")) {
+    return forbidden();
   }
 
   const body = await req.json();

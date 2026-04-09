@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
+import FlowLayout from "@/lib/models/FlowLayout";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User, { resolveWeeklySchedule, type Weekday } from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
@@ -10,7 +11,8 @@ import { resolveTimezone } from "@/lib/tz";
 
 /**
  * GET /api/attendance/presence/manager
- * Returns the live presence status of the logged-in user's reportsTo (manager/lead).
+ * Returns the live presence status of the logged-in user's direct manager
+ * (determined via the org chart hierarchy in FlowLayout).
  */
 export async function GET() {
   const actor = await getVerifiedSession();
@@ -18,10 +20,27 @@ export async function GET() {
 
   await connectDB();
 
-  const me = await User.findById(actor.id).select("reportsTo").lean();
-  if (!me?.reportsTo) return ok(null);
+  const layout = await FlowLayout.findOne({ canvasId: "org" }).lean();
+  const empLinks = (layout?.links ?? []) as {
+    source: string; target: string;
+    sourceHandle: string; targetHandle: string;
+  }[];
 
-  const managerId = me.reportsTo.toString();
+  const selfNode = `emp-${actor.id}`;
+  let managerId: string | null = null;
+  for (const link of empLinks) {
+    if (link.target === selfNode && link.sourceHandle === "bottom" && link.targetHandle === "top") {
+      managerId = link.source.startsWith("emp-") ? link.source.slice(4) : null;
+      break;
+    }
+    if (link.source === selfNode && link.sourceHandle === "top" && link.targetHandle === "bottom") {
+      managerId = link.target.startsWith("emp-") ? link.target.slice(4) : null;
+      break;
+    }
+  }
+
+  if (!managerId) return ok(null);
+
   const manager = await User.findById(managerId)
     .select("about email department weeklySchedule")
     .populate("department", "title")

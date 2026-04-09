@@ -14,8 +14,6 @@ interface EmployeeData {
   username: string;
   designation: string;
   department: string | null;
-  teams: { _id: string; name: string }[];
-  reportsTo: string | null;
   profileImage: string | null;
   phone: string | null;
   createdAt: string | null;
@@ -268,12 +266,6 @@ export default function EmployeeDetailClient({
                 <span style={{ color: "var(--fg-tertiary)" }}>Role</span>
                 <span className="truncate font-medium text-right" style={{ color: "var(--fg)" }}>{emp.designation}</span>
               </div>
-              {emp.reportsTo && (
-                <div className="flex items-start justify-between gap-2">
-                  <span style={{ color: "var(--fg-tertiary)" }}>Reports to</span>
-                  <span className="truncate font-medium text-right" style={{ color: "var(--fg)" }}>{emp.reportsTo}</span>
-                </div>
-              )}
               <div className="flex items-start justify-between gap-2">
                 <span style={{ color: "var(--fg-tertiary)" }}>Shift</span>
                 <span className="font-medium text-right" style={{ color: "var(--fg)" }}>
@@ -284,18 +276,6 @@ export default function EmployeeDetailClient({
                 <span style={{ color: "var(--fg-tertiary)" }}>Type</span>
                 <span className="font-medium text-right" style={{ color: "var(--fg)" }}>{SHIFT_LABELS[emp.shiftType] ?? emp.shiftType}</span>
               </div>
-              {emp.teams.length > 0 && (
-                <div className="flex items-start justify-between gap-2">
-                  <span className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>Teams</span>
-                  <div className="flex flex-wrap justify-end gap-1">
-                    {emp.teams.map((t) => (
-                      <span key={t._id} className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
-                        {t.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
               {emp.createdAt && (
                 <div className="flex items-start justify-between gap-2">
                   <span style={{ color: "var(--fg-tertiary)" }}>Joined</span>

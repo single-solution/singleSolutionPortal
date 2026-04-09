@@ -37,8 +37,6 @@ interface Campaign {
   tags: {
     employees: TaggedEmployee[];
     departments: TaggedDept[];
-    /** Legacy — no longer shown or edited in UI; preserved on save when updating a campaign. */
-    teams: { _id: string; name: string }[];
   };
   notes?: string;
   isActive: boolean;
@@ -68,7 +66,7 @@ function formatDate(d?: string) {
 }
 
 export default function CampaignsPage() {
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("campaigns", campaignsTour); }, [registerTour]);
   const { canAny: canAnyPerm } = usePermissions();
@@ -178,11 +176,6 @@ export default function CampaignsPage() {
         tagEmployees: formTagEmployees,
         tagDepartments: formTagDepts,
       };
-      if (editingCampaign) {
-        payload.tagTeams = editingCampaign.tags.teams.map((t) => t._id);
-      } else {
-        payload.tagTeams = [];
-      }
       if (editingCampaign) {
         await fetch(`/api/campaigns/${editingCampaign._id}`, {
           method: "PUT",

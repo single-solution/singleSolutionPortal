@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
-import { getVerifiedSession, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import Payslip from "@/lib/models/Payslip";
 import { isValidId } from "@/lib/helpers";
 
@@ -18,7 +18,19 @@ export async function GET(req: NextRequest) {
     const userId = sp.get("userId");
     if (userId) {
       if (!isValidId(userId)) return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
-      filter.user = new mongoose.Types.ObjectId(userId);
+      if (!isSuperAdmin(actor)) {
+        const subordinateIds = await getSubordinateUserIds(actor.id);
+        if (!subordinateIds.includes(userId)) {
+          filter.user = new mongoose.Types.ObjectId(actor.id);
+        } else {
+          filter.user = new mongoose.Types.ObjectId(userId);
+        }
+      } else {
+        filter.user = new mongoose.Types.ObjectId(userId);
+      }
+    } else if (!isSuperAdmin(actor)) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      filter.user = { $in: [actor.id, ...subordinateIds].map((id) => new mongoose.Types.ObjectId(id)) };
     }
   } else {
     filter.user = new mongoose.Types.ObjectId(actor.id);
@@ -81,6 +93,13 @@ export async function PUT(req: Request) {
 
   const payslip = await Payslip.findById(body.id);
   if (!payslip) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (!isSuperAdmin(actor)) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(payslip.user.toString())) {
+      return NextResponse.json({ error: "Forbidden — not in your hierarchy" }, { status: 403 });
+    }
+  }
 
   if (payslip.status === "paid") {
     return NextResponse.json({ error: "Payslip is already paid" }, { status: 400 });

@@ -27,7 +27,7 @@ export interface SettingsProfileData {
   username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   isSuperAdmin?: boolean;
-  memberships?: Array<{ isPrimary?: boolean; designation?: { name: string } | null }>;
+  memberships?: Array<{ designation?: { name: string } | null }>;
   department?: { title: string };
 }
 
@@ -65,9 +65,10 @@ function profileDesignationLabel(profile: SettingsProfileData | null | undefined
   if (profile.isSuperAdmin) return "System Administrator";
   const list = profile.memberships;
   if (list?.length) {
-    const row = list.find((m) => m.isPrimary) ?? list[0];
-    const name = row?.designation && typeof row.designation === "object" && "name" in row.designation ? row.designation.name : undefined;
-    if (name) return name;
+    for (const m of list) {
+      const des = m.designation;
+      if (des && typeof des === "object" && "name" in des && des.name) return des.name;
+    }
   }
   return "Employee";
 }

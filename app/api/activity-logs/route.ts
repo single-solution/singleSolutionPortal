@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import ActivityLog from "@/lib/models/ActivityLog";
 import { unauthorized, ok } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin, isAdmin, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds, getHierarchyDepartmentIds } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -22,21 +22,20 @@ export async function GET(req: NextRequest) {
     return ok({ logs });
   }
 
+  const subordinateIds = await getSubordinateUserIds(actor.id);
+  const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
+
   const conditions: Record<string, unknown>[] = [
     { visibility: "all" },
     { targetUserIds: actor.id },
     { userEmail: actor.email },
   ];
 
-  const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
-  const teamIds = [...new Set(actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!))];
-
-  if (isAdmin(actor) && deptIds.length > 0) {
-    conditions.push({ targetDepartmentId: { $in: deptIds } });
+  if (subordinateIds.length > 0) {
+    conditions.push({ targetUserIds: { $in: subordinateIds } });
   }
-
-  if (teamIds.length > 0 && (isAdmin(actor) || hasPermission(actor, "attendance_viewTeam"))) {
-    conditions.push({ targetTeamIds: { $in: teamIds } });
+  if (hierarchyDeptIds.length > 0) {
+    conditions.push({ targetDepartmentId: { $in: hierarchyDeptIds } });
   }
 
   const logs = await ActivityLog.find({ $or: conditions })

@@ -12,7 +12,6 @@ interface DeptItem {
   description?: string;
   isActive: boolean;
   employeeCount: number;
-  teamCount: number;
 }
 
 interface DepartmentsPanelProps {
@@ -137,7 +136,7 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{d.title}</p>
                       <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                        {d.employeeCount} people · {d.teamCount} team{d.teamCount !== 1 ? "s" : ""}
+                        {d.employeeCount} people
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -171,7 +170,7 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
       <ConfirmDialog
         open={deleteTarget !== null}
         title="Delete department"
-        description={`Remove "${deleteTarget?.title}"? Employees and teams in this department will be unaffected but the department will be deactivated.`}
+        description={`Remove "${deleteTarget?.title}"? Employees in this department will be unaffected but the department record will be permanently deleted.`}
         confirmLabel="Delete" variant="danger" loading={deleting}
         onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)}
       />

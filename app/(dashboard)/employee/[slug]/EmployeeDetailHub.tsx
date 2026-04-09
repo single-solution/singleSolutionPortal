@@ -24,8 +24,6 @@ interface EmployeeDoc {
   isSuperAdmin?: boolean;
   about?: { firstName?: string; lastName?: string; phone?: string; profileImage?: string };
   department?: { _id?: string; title?: string } | null;
-  teams?: { _id?: string; name?: string }[];
-  reportsTo?: { about?: { firstName?: string; lastName?: string } } | null;
   weeklySchedule?: WeeklySchedule;
   shiftType?: string;
   graceMinutes?: number;
@@ -47,10 +45,8 @@ interface SessionApi {
 
 interface MembershipRow {
   _id: string;
-  isPrimary?: boolean;
   isActive?: boolean;
   department?: { title?: string };
-  team?: { name?: string } | null;
   designation?: { name?: string; color?: string };
 }
 
@@ -160,10 +156,8 @@ function recordDateKey(iso: string | Date): string {
 function primaryDesignation(memberships: MembershipRow[] | null, isSuperAdmin?: boolean): string {
   if (isSuperAdmin) return "System Administrator";
   if (memberships?.length) {
-    const primary = memberships.find((m) => m.isPrimary && m.designation?.name);
-    if (primary?.designation?.name) return primary.designation.name;
-    const any = memberships.find((m) => m.designation?.name);
-    if (any?.designation?.name) return any.designation.name;
+    const withDes = memberships.find((m) => m.designation?.name);
+    if (withDes?.designation?.name) return withDes.designation.name;
   }
   return "Employee";
 }
@@ -286,9 +280,6 @@ export default function EmployeeDetailHub({
   const weeklyResolved = resolveWeeklySchedule(empRec);
   const todaySchedule = getTodaySchedule(empRec, TZ);
   const shiftTypeKey = employee.shiftType ?? "";
-  const reportsToName = employee.reportsTo?.about
-    ? `${employee.reportsTo.about.firstName ?? ""} ${employee.reportsTo.about.lastName ?? ""}`.trim()
-    : null;
 
   const cells = calendarCells(calYear, calMonth);
   const monthLabel = new Date(calYear, calMonth - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -365,15 +356,6 @@ export default function EmployeeDetailHub({
                       {employee.department.title}
                     </span>
                   )}
-                  {(employee.teams ?? []).map((t) => (
-                    <span
-                      key={String(t._id)}
-                      className="badge text-[10px]"
-                      style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}
-                    >
-                      {t.name}
-                    </span>
-                  ))}
                 </div>
               </div>
             </div>
@@ -515,15 +497,9 @@ export default function EmployeeDetailHub({
                           <div>
                             <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
                               {m.department?.title ?? "Department"}
-                              {m.isPrimary && (
-                                <span className="ml-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--primary)" }}>
-                                  Primary
-                                </span>
-                              )}
                             </p>
                             <p className="text-caption mt-0.5" style={{ color: "var(--fg-secondary)" }}>
                               {m.designation?.name ?? "—"}
-                              {m.team?.name ? ` · ${m.team.name}` : ""}
                             </p>
                           </div>
                           {m.isActive === false && (
@@ -744,18 +720,6 @@ export default function EmployeeDetailHub({
                         <dt style={{ color: "var(--fg-tertiary)" }}>Department</dt>
                         <dd className="font-medium text-right" style={{ color: "var(--fg)" }}>
                           {employee.department?.title ?? "—"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <dt style={{ color: "var(--fg-tertiary)" }}>Teams</dt>
-                        <dd className="text-right font-medium" style={{ color: "var(--fg)" }}>
-                          {(employee.teams ?? []).length ? (employee.teams ?? []).map((t) => t.name).join(", ") : "—"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <dt style={{ color: "var(--fg-tertiary)" }}>Reports to</dt>
-                        <dd className="font-medium text-right" style={{ color: "var(--fg)" }}>
-                          {reportsToName ?? "—"}
                         </dd>
                       </div>
                       <div className="flex justify-between gap-2">

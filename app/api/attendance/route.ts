@@ -10,37 +10,31 @@ import { startOfDay } from "@/lib/dayBoundary";
 import { resolveTimezone, dateInTz } from "@/lib/tz";
 import {
   getVerifiedSession,
-  canViewAttendance,
   isSuperAdmin,
-  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import type { VerifiedUser } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
-async function buildTeamStatsEmployeeFilter(actor: VerifiedUser): Promise<Record<string, unknown>> {
-  const empFilter: Record<string, unknown> = {
+async function buildSubordinateEmployeeFilter(actor: VerifiedUser): Promise<Record<string, unknown>> {
+  const filter: Record<string, unknown> = {
     isActive: true,
     isSuperAdmin: { $ne: true },
-    _id: { $ne: actor.id },
   };
-  if (actor.isSuperAdmin) return empFilter;
 
-  const subordinateIds = await getSubordinateUserIds(actor.id);
-  const canViewTeam = hasPermission(actor, "attendance_viewTeam");
-  const deptIds = canViewTeam
-    ? [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))]
-    : [];
-
-  const orClauses: Record<string, unknown>[] = [{ reportsTo: actor.id }];
-  if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
-  if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
-
-  if (orClauses.length > 0) {
-    empFilter.$or = orClauses;
+  if (actor.isSuperAdmin) {
+    filter._id = { $ne: actor.id };
+    return filter;
   }
 
-  return empFilter;
+  const subordinateIds = await getSubordinateUserIds(actor.id);
+  if (subordinateIds.length === 0) {
+    filter._id = { $in: [] };
+    return filter;
+  }
+
+  filter._id = { $in: subordinateIds };
+  return filter;
 }
 
 export async function GET(req: NextRequest) {
@@ -59,33 +53,26 @@ export async function GET(req: NextRequest) {
   const userId = url.searchParams.get("userId") ?? actor.id;
 
   if (type === "team") {
-    const empFilter = await buildTeamStatsEmployeeFilter(actor);
-    if (!empFilter.$or && !actor.isSuperAdmin) return ok([]);
+    const empFilter = await buildSubordinateEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
-      .select("about department")
-      .populate("department", "title")
+      .select("about")
       .sort({ "about.firstName": 1 })
       .lean();
 
-    const team = employees.map((emp) => ({
+    const result = employees.map((emp) => ({
       _id: emp._id.toString(),
       name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
-      department: (emp.department as { title?: string })?.title ?? "Unassigned",
-      departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
     }));
 
-    return ok(team);
+    return ok(result);
   }
 
   if (type === "team-monthly") {
-    const empFilter = await buildTeamStatsEmployeeFilter(actor);
-    if (!empFilter.$or && !actor.isSuperAdmin) return ok([]);
+    const empFilter = await buildSubordinateEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
-      .select("about department reportsTo")
-      .populate("department", "title")
-      .populate("reportsTo", "about.firstName about.lastName")
+      .select("about")
       .sort({ "about.firstName": 1 })
       .lean();
 
@@ -114,14 +101,9 @@ export async function GET(req: NextRequest) {
       const id = emp._id.toString();
       const ms = statsMap.get(id);
       const dc = dailyMap.get(id);
-      const mgr = emp.reportsTo as { _id?: unknown; about?: { firstName?: string; lastName?: string } } | null;
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
-        department: (emp.department as { title?: string })?.title ?? "Unassigned",
-        departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
-        managerId: mgr?._id ? String(mgr._id) : null,
-        managerName: mgr?.about ? `${mgr.about.firstName ?? ""} ${mgr.about.lastName ?? ""}`.trim() : null,
         presentDays: dc?.presentDays ?? ms?.presentDays ?? 0,
         onTimeDays: dc?.onTimeDays ?? ms?.onTimeArrivals ?? 0,
         lateDays: dc?.lateDays ?? ms?.lateArrivals ?? 0,
@@ -140,12 +122,10 @@ export async function GET(req: NextRequest) {
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok([]);
 
-    const empFilter = await buildTeamStatsEmployeeFilter(actor);
-    if (!empFilter.$or && !actor.isSuperAdmin) return ok([]);
+    const empFilter = await buildSubordinateEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
-      .select("about department")
-      .populate("department", "title")
+      .select("about")
       .sort({ "about.firstName": 1 })
       .lean();
 
@@ -181,8 +161,6 @@ export async function GET(req: NextRequest) {
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
-        department: (emp.department as { title?: string })?.title ?? "Unassigned",
-        departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
         isPresent: rec?.isPresent ?? false,
         isOnTime: rec?.isOnTime ?? false,
         totalWorkingMinutes: rec?.totalWorkingMinutes ?? 0,
@@ -201,21 +179,10 @@ export async function GET(req: NextRequest) {
     return ok(result);
   }
 
-  let targetDept: string | null | undefined = undefined;
-  let targetTeams: string[] | undefined = undefined;
-  let targetReportsTo: string | null = null;
-  if (userId !== actor.id && !isSuperAdmin(actor)) {
-    const target = await User.findById(userId).select("department teams reportsTo").lean();
-    targetDept = target?.department?.toString();
-    targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString());
-    targetReportsTo = target?.reportsTo?.toString() ?? null;
-  }
-
+  const isSelf = userId === actor.id;
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
   const isSubordinate = subordinateIds.includes(userId);
-  const allowed = canViewAttendance(actor, userId, targetDept, targetTeams)
-    || targetReportsTo === actor.id
-    || isSubordinate;
+  const allowed = actor.isSuperAdmin || isSelf || isSubordinate;
   if (!allowed) {
     if (type === "detail" || type === "monthly") return ok(null);
     return ok([]);

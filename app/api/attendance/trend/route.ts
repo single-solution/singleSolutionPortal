@@ -5,7 +5,6 @@ import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
-  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
@@ -25,23 +24,7 @@ export async function GET() {
     // no extra filter
   } else {
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    const canViewTeam = hasPermission(actor, "attendance_viewTeam");
-
-    if (!canViewTeam && subordinateIds.length === 0) {
-      return ok([]);
-    }
-
-    const deptIds = canViewTeam
-      ? [...new Set(actor.memberships.map((m) => m.departmentId))]
-      : [];
-
-    const orClauses: Record<string, unknown>[] = [
-      { _id: actor.id },
-      { reportsTo: actor.id },
-    ];
-    if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
-    if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
-    empFilter.$or = orClauses;
+    empFilter._id = { $in: [actor.id, ...subordinateIds] };
   }
 
   const employees = await User.find(empFilter).select("_id").lean();

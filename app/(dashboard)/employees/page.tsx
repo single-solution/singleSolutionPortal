@@ -27,10 +27,8 @@ interface Employee {
   username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   isSuperAdmin?: boolean;
-  memberships?: Array<{ isPrimary?: boolean; designation?: { name: string } | null }>;
+  memberships?: Array<{ designation?: { name: string } | null }>;
   department?: { _id: string; title: string };
-  teams?: { _id: string; name: string }[];
-  reportsTo?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null;
   isActive: boolean;
   isVerified?: boolean;
   weeklySchedule?: WeeklySchedule;
@@ -46,7 +44,7 @@ const SHIFT_TYPE_LABELS: Record<string, string> = {
 };
 
 type SortMode = "recent" | "name";
-type GroupMode = "flat" | "manager" | "department";
+type GroupMode = "flat" | "department";
 
 interface PresenceRow {
   _id: string;
@@ -81,9 +79,10 @@ function primaryDesignationLabel(emp: Employee): string {
   if (emp.isSuperAdmin) return "System Administrator";
   const list = emp.memberships;
   if (list?.length) {
-    const row = list.find((m) => m.isPrimary) ?? list[0];
-    const name = row?.designation && typeof row.designation === "object" && "name" in row.designation ? row.designation.name : undefined;
-    if (name) return name;
+    for (const m of list) {
+      const des = m.designation;
+      if (des && typeof des === "object" && "name" in des && des.name) return des.name;
+    }
   }
   return "Employee";
 }
@@ -117,7 +116,6 @@ export default function EmployeesPage() {
   const canDeleteEmployees = canPerm("employees_delete");
   const canToggleEmployeeStatus = canPerm("employees_toggleStatus");
   const canResendInvite = canPerm("employees_resendInvite");
-  const canManageEmployees = canCreateEmployees || canEditEmployees;
   const { data: employees, loading: employeesLoading, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>("/api/employees", "employees");
   const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "presence");
 
@@ -158,26 +156,14 @@ export default function EmployeesPage() {
     if (groupMode === "flat") return null;
     const map = new Map<string, { label: string; employees: typeof filtered }>();
     for (const emp of filtered) {
-      let key: string;
-      let label: string;
-      if (groupMode === "manager") {
-        if (emp.reportsTo) {
-          key = emp.reportsTo._id;
-          label = `${emp.reportsTo.about.firstName} ${emp.reportsTo.about.lastName}`;
-        } else {
-          key = "__none__";
-          label = "No Manager Assigned";
-        }
-      } else {
-        key = emp.department?._id ?? "__none__";
-        label = emp.department?.title ?? "No Department";
-      }
+      const key = emp.department?._id ?? "__none__";
+      const label = emp.department?.title ?? "No Department";
       if (!map.has(key)) map.set(key, { label, employees: [] });
       map.get(key)!.employees.push(emp);
     }
     return [...map.values()].sort((a, b) => {
-      if (a.label === "No Manager Assigned" || a.label === "No Department") return 1;
-      if (b.label === "No Manager Assigned" || b.label === "No Department") return -1;
+      if (a.label === "No Department") return 1;
+      if (b.label === "No Department") return -1;
       return a.label.localeCompare(b.label);
     });
   }, [filtered, groupMode]);
@@ -292,7 +278,7 @@ export default function EmployeesPage() {
               <span className="inline-block h-3 w-36 max-w-[50vw] rounded align-middle shimmer" aria-hidden />
             ) : (
               <>
-                {empList.length} team member{empList.length !== 1 ? "s" : ""}
+                {empList.length} employee{empList.length !== 1 ? "s" : ""}
               </>
             )}
           </p>
@@ -300,7 +286,7 @@ export default function EmployeesPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <ScopeStrip value={scopeDept} onChange={setScopeDept} />
           <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            {(["flat", "manager", "department"] as GroupMode[]).map((g) => (
+            {(["flat", "department"] as GroupMode[]).map((g) => (
               <motion.button
                 key={g}
                 type="button"
@@ -313,7 +299,7 @@ export default function EmployeesPage() {
                     : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
                 }`}
               >
-                {g === "flat" ? "Flat" : g === "manager" ? "By Manager" : "By Dept"}
+                {g === "flat" ? "Flat" : "By Dept"}
               </motion.button>
             ))}
         </div>
@@ -433,7 +419,7 @@ export default function EmployeesPage() {
                   selectable={canDeleteEmployees}
                   selected={isSelected}
                   onSelect={() => toggleSelect(emp._id)}
-                  showRoleDepartmentTeams
+                  showEmployeeMeta
                   showActions={(canEditEmployees || canDeleteEmployees) && !emp.isSuperAdmin}
                   onEdit={canEditEmployees && !emp.isSuperAdmin ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
                   onDelete={canDeleteEmployees && !emp.isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
@@ -446,7 +432,6 @@ export default function EmployeesPage() {
                     designation: primaryDesignationLabel(emp),
                     department: emp.department?.title,
                     profileImage: emp.about.profileImage,
-                    teams: emp.teams,
                     isVerified: emp.isVerified,
                     isLive: p?.isLive,
                     status: p?.status,

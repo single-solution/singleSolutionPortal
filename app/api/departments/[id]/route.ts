@@ -3,7 +3,7 @@ import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getHierarchyDepartmentIds } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +15,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!isValidId(id)) return badRequest("Invalid ID");
 
   await connectDB();
+
+  if (!isSuperAdmin(actor)) {
+    const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
+    if (!hierarchyDeptIds.includes(id)) return forbidden("Can only edit departments within your hierarchy");
+  }
+
   const body = await req.json();
 
   if (body.managerId) {
@@ -60,6 +66,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!isValidId(id)) return badRequest("Invalid ID");
 
   await connectDB();
+
+  if (!isSuperAdmin(actor)) {
+    const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
+    if (!hierarchyDeptIds.includes(id)) return forbidden("Can only delete departments within your hierarchy");
+  }
 
   const dept = await Department.findById(id).lean();
   if (!dept) return notFound("Department not found");

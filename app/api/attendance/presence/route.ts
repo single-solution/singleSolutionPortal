@@ -6,7 +6,6 @@ import User, { resolveWeeklySchedule, type Weekday } from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
-  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
@@ -27,29 +26,12 @@ export async function GET() {
     // superadmin sees all non–super-admin employees
   } else {
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    const canViewTeam = hasPermission(actor, "attendance_viewTeam");
-
-    if (!canViewTeam && subordinateIds.length === 0) {
-      return ok([]);
-    }
-
-    const deptIds = canViewTeam
-      ? [...new Set(actor.memberships.map((m) => m.departmentId))]
-      : [];
-
-    const orClauses: Record<string, unknown>[] = [
-      { _id: actor.id },
-      { reportsTo: actor.id },
-    ];
-    if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
-    if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
-    empFilter.$or = orClauses;
+    empFilter._id = { $in: [actor.id, ...subordinateIds] };
   }
 
   const employees = await User.find(empFilter)
-    .select("about email username department teams weeklySchedule reportsTo")
+    .select("about email username department weeklySchedule")
     .populate("department", "title")
-    .populate("reportsTo", "about.firstName about.lastName")
     .lean();
 
   const dayMap: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -123,11 +105,6 @@ export async function GET() {
 
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const e = emp as any;
-    const rtObj = e.reportsTo;
-    const rt = rtObj?.about
-      ? `${rtObj.about.firstName ?? ""} ${rtObj.about.lastName ?? ""}`.trim() || null
-      : null;
-    const rtId = rtObj?._id ? String(rtObj._id) : null;
 
     return {
       _id: id,
@@ -137,8 +114,6 @@ export async function GET() {
       email: e.email ?? "",
       department: (emp.department as { title?: string })?.title ?? "Unassigned",
       departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
-      reportsTo: rt,
-      reportsToId: rtId,
       status,
       todayMinutes,
       officeMinutes: daily?.officeMinutes ?? 0,
@@ -170,7 +145,6 @@ export async function GET() {
         ? { lat: active.location.latitude, lng: active.location.longitude }
         : null,
       isActive: true,
-      teamIds: Array.isArray(emp.teams) ? emp.teams.map((t: unknown) => String(t)) : [],
     };
   });
 

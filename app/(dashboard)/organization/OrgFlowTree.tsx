@@ -181,12 +181,20 @@ const edgeTypes = { designation: DesignationEdge };
 
 interface Props {
   departments: Department[]; employees: Employee[];
-  designations: DesigOption[]; isSuperAdmin: boolean;
+  designations: DesigOption[]; canEditCanvas: boolean;
+  /** When set, only these employee IDs can be edited/connected. Undefined = all (SuperAdmin). */
+  editableEmployeeIds?: string[];
   onEditEmployee?: (empId: string) => void;
 }
 
-export function OrgFlowTree({ departments, employees, designations, isSuperAdmin, onEditEmployee }: Props) {
+export function OrgFlowTree({ departments, employees, designations, canEditCanvas, editableEmployeeIds, onEditEmployee }: Props) {
   interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string }
+
+  const canEditEmp = useCallback((empId: string) => {
+    if (canEditCanvas) return true;
+    if (!editableEmployeeIds) return true;
+    return editableEmployeeIds.includes(empId);
+  }, [canEditCanvas, editableEmployeeIds]);
 
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
   const [empLinks, setEmpLinks] = useState<EmpLink[]>([]);
@@ -287,7 +295,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
 
   /* ── Connection handler ── */
   const onConnect = useCallback((connection: Connection) => {
-    if (!isSuperAdmin) return;
+    if (!canEditCanvas) return;
     if (!connection.source || !connection.target) return;
     const srcType = connection.source.split("-")[0];
     const tgtType = connection.target.split("-")[0];
@@ -304,7 +312,6 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     const tgtHandle = connection.targetHandle ?? "";
 
     if (srcIsEmp && tgtIsEmp) {
-      // Normalize: upper node = the one whose bottom handle is used
       let upperNode: string;
       let lowerNode: string;
       let upperHandle: string;
@@ -315,6 +322,13 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       } else {
         upperNode = connection.target; lowerNode = connection.source;
         upperHandle = "bottom"; lowerHandle = "top";
+      }
+
+      const lowerEmpId = lowerNode.slice(4);
+      if (!canEditEmp(lowerEmpId)) {
+        setRestrictMsg("You can only manage employees within your hierarchy.");
+        setRestrictOpen(true);
+        return;
       }
 
       const linkId = `${upperNode}-${upperHandle}-${lowerNode}-${lowerHandle}`;
@@ -338,17 +352,36 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     const deptNode = srcIsEmp ? connection.target : connection.source;
     const empHandle = srcIsEmp ? srcHandle : tgtHandle;
 
+    const empId = empNode.slice(4);
+    if (!canEditEmp(empId)) {
+      setRestrictMsg("You can only manage employees within your hierarchy.");
+      setRestrictOpen(true);
+      return;
+    }
+
     // Employee's bottom handle used → employee is above the department
     const isAbove = empHandle === "bottom";
+
+    if (!isAbove) {
+      // Employee below department — no designation needed, create membership directly
+      const userId = empNode.replace(/^emp-/, "");
+      const deptId = deptNode.replace(/^dept-/, "");
+      fetch("/api/memberships", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: userId, department: deptId, designation: designations[0]?._id, direction: "below" }),
+      }).then(() => { syncHierarchy(); refetchMemberships(); });
+      return;
+    }
 
     setConnEmpId(empNode);
     setConnDeptId(deptNode);
     setConnEmpLabel(getNodeLabel(empNode));
     setConnDeptLabel(getNodeLabel(deptNode));
     setConnDesig(designations[0]?._id ?? "");
-    setConnAbove(isAbove);
+    setConnAbove(true);
     setConnOpen(true);
-  }, [isSuperAdmin, departments, employees, designations, empLinks, saveEmpLinks, wouldCycle]);
+  }, [canEditCanvas, departments, employees, designations, empLinks, saveEmpLinks, wouldCycle, canEditEmp, syncHierarchy, refetchMemberships]);
 
   const handleCreateConnection = useCallback(async () => {
     if (!connDesig) return;
@@ -499,7 +532,8 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
         const n = nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
         if (n) { xGuess = n.position.x; yGuess = n.position.y + LEVEL; }
       }
-      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id, onEdit: onEditEmployee ? () => onEditEmployee(emp._id) : undefined } });
+      const editable = canEditEmp(emp._id);
+      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id, onEdit: onEditEmployee && editable ? () => onEditEmployee(emp._id) : undefined } });
     });
 
     const edgeData = (m: MembershipRow): Record<string, unknown> => {
@@ -509,7 +543,9 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
         const mp = m.permissions;
         isCustom = PERMISSION_KEYS.some((k) => Boolean(dp[k]) !== Boolean(mp[k]));
       }
-      return { designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: false, readOnly: !isSuperAdmin, isCustomPermissions: isCustom } as DesigEdgeData as unknown as Record<string, unknown>;
+      const empEditable = m.user?._id ? canEditEmp(idStr(m.user._id)) : false;
+      const isAboveDirection = m.direction === "above";
+      return { designation: isAboveDirection ? (m.designation ?? null) : null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: !isAboveDirection, readOnly: !canEditCanvas || !empEditable, isCustomPermissions: isAboveDirection && isCustom } as DesigEdgeData as unknown as Record<string, unknown>;
     };
 
     memberships.forEach((m) => {
@@ -523,7 +559,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       const srcHandle = isAbove ? "top" : "bottom";
       const tgtHandle = isAbove ? "bottom" : "top";
 
-      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "#8b5cf6", strokeWidth: 2 } });
+      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: isAbove ? (m.designation?.color ?? "#8b5cf6") : "#8b5cf6", strokeWidth: isAbove ? 2 : 1.5, ...(isAbove ? {} : { strokeDasharray: "4 3" }) } });
     });
 
     // Emp ↔ Emp hierarchy links (with pill for designation + privileges)
@@ -531,6 +567,8 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       if (!nodes.find((n) => n.id === link.source) || !nodes.find((n) => n.id === link.target)) return;
       const linkDesig = link.designationId ? designations.find((d) => d._id === link.designationId) ?? null : null;
       const linkIdx = idx;
+      const lowerEmpId = link.target.startsWith("emp-") ? link.target.slice(4) : link.source.startsWith("emp-") ? link.source.slice(4) : "";
+      const linkEditable = lowerEmpId ? canEditEmp(lowerEmpId) : false;
       edges.push({
         id: `link-${idx}`,
         source: link.source,
@@ -543,21 +581,21 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
           onChangeDesignation: (_id: string, dId: string) => handleChangeLinkDesignation(linkIdx, dId),
           onOpenPrivileges: () => openLinkPrivileges(linkIdx),
           onDeleteMembership: () => handleDeleteLink(linkIdx),
-          readOnly: !isSuperAdmin,
+          readOnly: !canEditCanvas || !linkEditable,
         } as DesigEdgeData as unknown as Record<string, unknown>,
         style: { stroke: linkDesig?.color ?? "var(--teal)", strokeWidth: 1.5, strokeDasharray: "6 3" },
       });
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee]);
+  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee, canEditEmp]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   useEffect(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   const handleEdgesChange = useCallback((changes: Parameters<typeof onEdgesChange>[0]) => {
-    if (!isSuperAdmin) { onEdgesChange(changes.filter((c) => c.type !== "remove")); return; }
+    if (!canEditCanvas) { onEdgesChange(changes.filter((c) => c.type !== "remove")); return; }
     const removals = changes.filter((c): c is Extract<typeof c, { type: "remove" }> => c.type === "remove" && "id" in c && (c as { id?: string }).id?.startsWith("link-") === true);
     if (removals.length > 0) {
       const removeIds = new Set(removals.map((c) => (c as unknown as { id: string }).id));
@@ -565,10 +603,10 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       saveEmpLinks(newLinks);
     }
     onEdgesChange(changes);
-  }, [isSuperAdmin, onEdgesChange, empLinks, saveEmpLinks]);
+  }, [canEditCanvas, onEdgesChange, empLinks, saveEmpLinks]);
 
   const savePositions = useCallback((currentNodes: Node[]) => {
-    if (!isSuperAdmin) return;
+    if (!canEditCanvas) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const pos: Record<string, { x: number; y: number }> = {};
@@ -576,7 +614,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       setSavedPositions(pos);
       fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", positions: pos }) });
     }, 800);
-  }, [isSuperAdmin]);
+  }, [canEditCanvas]);
 
   const handleNodesChange: OnNodesChange = useCallback((changes) => {
     onNodesChange(changes);
@@ -617,7 +655,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
               <h2 className="text-lg font-bold mb-1" style={{ color: "var(--fg)" }}>New Connection</h2>
               <p className="text-xs mb-3" style={{ color: "var(--fg-secondary)" }}>
                 <span className="font-semibold" style={{ color: "var(--teal)" }}>{connEmpLabel}</span>
-                {connAbove ? " above " : " under "}
+                {" managing "}
                 <span className="font-semibold" style={{ color: "#8b5cf6" }}>{connDeptLabel}</span>
               </p>
               <div className="space-y-3">

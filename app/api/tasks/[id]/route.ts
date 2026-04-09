@@ -4,12 +4,10 @@ import User from "@/lib/models/User";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
-  isAdmin,
-  isManager,
-  isTeamLead,
+  isSuperAdmin,
+  hasPermission,
   canManageTasks,
-  canAssignTaskTo,
-  getTeamMemberIds,
+  getSubordinateUserIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -26,8 +24,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const task = await ActivityTask.findById(id);
   if (!task) return notFound("Task not found");
 
-  const isPrivileged = isAdmin(actor);
   const isOwner = task.assignedTo.toString() === actor.id;
+  const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_edit");
   if (!isPrivileged && !isOwner) return forbidden();
 
   const validStatuses = ["pending", "in-progress", "completed", "cancelled"];
@@ -55,19 +53,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.priority !== undefined) task.priority = body.priority;
     if (body.deadline !== undefined) task.deadline = body.deadline;
     if (body.assignedTo) {
-      const target = await User.findById(body.assignedTo).select("isSuperAdmin department teams").lean();
+      const target = await User.findById(body.assignedTo).select("isSuperAdmin").lean();
       if (target?.isSuperAdmin === true) return badRequest("Cannot assign tasks to superadmin");
 
-      const targetTeams = (target?.teams as { toString(): string }[] | undefined)?.map((t) => t.toString()) ?? [];
-
-      if (isManager(actor) && !canAssignTaskTo(actor, target?.department?.toString(), targetTeams)) {
-        return badRequest("Can only assign tasks to employees in your department");
-      }
-      if (isTeamLead(actor)) {
-        const leadTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
-        const memberIds = await getTeamMemberIds(leadTeamIds);
-        if (!memberIds.includes(body.assignedTo) && body.assignedTo !== actor.id) {
-          return badRequest("Can only assign tasks to your team members");
+      if (!isSuperAdmin(actor)) {
+        const subordinateIds = await getSubordinateUserIds(actor.id);
+        if (!subordinateIds.includes(body.assignedTo)) {
+          return badRequest("Can only assign tasks to employees within your hierarchy");
         }
       }
       task.assignedTo = body.assignedTo;
@@ -108,27 +100,19 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   await connectDB();
 
-  const task = await ActivityTask.findById(id).populate("assignedTo", "department teams");
+  const task = await ActivityTask.findById(id);
   if (!task) return notFound("Task not found");
 
-  if (isManager(actor)) {
-    const assigneeDept = (task.assignedTo as unknown as { department?: { toString(): string } })?.department;
-    if (!canAssignTaskTo(actor, assigneeDept?.toString())) {
-      return forbidden();
+  if (!isSuperAdmin(actor)) {
+    const assigneeId = task.assignedTo.toString();
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(assigneeId)) {
+      return forbidden("Can only delete tasks assigned to employees within your hierarchy");
     }
   }
 
-  if (isTeamLead(actor)) {
-    const leadTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
-    const memberIds = await getTeamMemberIds(leadTeamIds);
-    const assigneeId = (task.assignedTo as unknown as { _id?: { toString(): string } })?._id?.toString() ?? task.assignedTo.toString();
-    if (!memberIds.includes(assigneeId) && assigneeId !== actor.id) {
-      return forbidden();
-    }
-  }
-
-  const delAssigneeId = (task.assignedTo as unknown as { _id?: { toString(): string } })?._id?.toString() ?? task.assignedTo?.toString() ?? "";
   const taskTitle = task.title;
+  const assigneeIdStr = task.assignedTo.toString();
   await task.deleteOne();
 
   logActivity({
@@ -138,7 +122,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     entity: "task",
     entityId: id,
     details: taskTitle,
-    targetUserIds: delAssigneeId ? [delAssigneeId] : [],
+    targetUserIds: assigneeIdStr ? [assigneeIdStr] : [],
     visibility: "targeted",
   });
 

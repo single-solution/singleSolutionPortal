@@ -3,9 +3,8 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Leave from "@/lib/models/Leave";
 import LeaveBalance from "@/lib/models/LeaveBalance";
-import Membership from "@/lib/models/Membership";
 import type { LeaveType } from "@/lib/models/Leave";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, getSubordinateUserIds } from "@/lib/permissions";
 import { badRequest, forbidden, unauthorized } from "@/lib/helpers";
 
 const LEAVE_TYPES: LeaveType[] = [
@@ -21,7 +20,6 @@ const LEAVE_TYPES: LeaveType[] = [
 
 const BALANCE_TYPES = new Set<LeaveType>(["annual", "sick", "casual"]);
 
-/** Weekdays Mon–Fri inclusive between two calendar dates (local). */
 export function countBusinessDays(start: Date, end: Date): number {
   const s = new Date(start);
   const e = new Date(end);
@@ -44,11 +42,6 @@ function isDateBeforeToday(date: Date): boolean {
   const s = new Date(date);
   s.setHours(0, 0, 0, 0);
   return s < t;
-}
-
-async function directReportUserIds(managerId: string): Promise<string[]> {
-  const ids = await Membership.find({ reportsTo: managerId, isActive: true }).distinct("user");
-  return ids.map((id) => id.toString());
 }
 
 async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number) {
@@ -99,22 +92,20 @@ export async function GET(req: NextRequest) {
   const yearParam = url.searchParams.get("year");
   const monthParam = url.searchParams.get("month");
 
-  const reportIds = await directReportUserIds(actor.id);
-  const accessibleIds = new Set<string>([actor.id, ...reportIds]);
+  const subordinateIds = isSuperAdmin(actor) ? null : await getSubordinateUserIds(actor.id);
+  const accessibleIds = isSuperAdmin(actor) ? null : new Set<string>([actor.id, ...(subordinateIds ?? [])]);
 
-  if (userIdParam && !actor.isSuperAdmin) {
-    if (!accessibleIds.has(userIdParam)) {
-      return forbidden("You can only view leaves for yourself or your direct reports.");
-    }
+  if (userIdParam && accessibleIds && !accessibleIds.has(userIdParam)) {
+    return forbidden("You can only view leaves for yourself or employees in your hierarchy.");
   }
 
   const filter: Record<string, unknown> = {};
 
-  if (!actor.isSuperAdmin) {
+  if (!isSuperAdmin(actor)) {
     if (userIdParam) {
       filter.user = new mongoose.Types.ObjectId(userIdParam);
     } else {
-      filter.user = { $in: [...accessibleIds].map((id) => new mongoose.Types.ObjectId(id)) };
+      filter.user = { $in: [...accessibleIds!].map((id) => new mongoose.Types.ObjectId(id)) };
     }
   } else if (userIdParam) {
     filter.user = new mongoose.Types.ObjectId(userIdParam);
@@ -194,14 +185,14 @@ export async function POST(req: NextRequest) {
     return badRequest("Leave must include at least one business day");
   }
 
-  if (!actor.isSuperAdmin && targetUserId !== actor.id) {
+  if (!isSuperAdmin(actor) && targetUserId !== actor.id) {
     return forbidden("You can only create leave requests for yourself.");
   }
 
   const past = isDateBeforeToday(startDate);
   let isPastCorrection = false;
   if (past) {
-    if (!actor.isSuperAdmin) {
+    if (!isSuperAdmin(actor)) {
       return forbidden("Past-dated leave requests require a SuperAdmin.");
     }
     isPastCorrection = true;

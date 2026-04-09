@@ -21,12 +21,15 @@ async function serverFetch(path: string) {
 
 function primaryDesignationFromEmp(emp: Record<string, unknown>): string {
   if (emp.isSuperAdmin === true) return "System Administrator";
-  const list = emp.memberships as Array<{ isPrimary?: boolean; designation?: { name: string } | null }> | undefined;
+  const list = emp.memberships as Array<{ designation?: { name: string } | null }> | undefined;
   if (list?.length) {
-    const row = list.find((m) => m.isPrimary) ?? list[0];
-    const des = row?.designation;
-    const name = des && typeof des === "object" && des !== null && "name" in des ? String((des as { name: string }).name) : "";
-    if (name) return name;
+    for (const m of list) {
+      const des = m.designation;
+      if (des && typeof des === "object" && des !== null && "name" in des) {
+        const name = String((des as { name: string }).name);
+        if (name) return name;
+      }
+    }
   }
   return "Employee";
 }
@@ -86,9 +89,6 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   const email = (emp.email as string) ?? "";
   const username = (emp.username as string) ?? "";
   const dept = emp.department as { title?: string } | undefined;
-  const teams = (emp.teams as { _id?: string; name?: string }[] | undefined) ?? [];
-  const reportsTo = emp.reportsTo as { about?: { firstName?: string; lastName?: string } } | undefined;
-  const reportsToName = reportsTo?.about ? `${reportsTo.about.firstName ?? ""} ${reportsTo.about.lastName ?? ""}`.trim() : null;
   const todayDay = getTodaySchedule(emp as Record<string, unknown>, "Asia/Karachi");
   const shiftStart = todayDay.start;
   const shiftEnd = todayDay.end;
@@ -145,8 +145,6 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         username,
         designation: primaryDesignationFromEmp(emp),
         department: dept?.title ?? null,
-        teams: teams.map((t) => ({ _id: String(t._id), name: t.name ?? "" })),
-        reportsTo: reportsToName,
         profileImage: profileImage ?? null,
         phone: phone ?? null,
         createdAt: createdAt ?? null,

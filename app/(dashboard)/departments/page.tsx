@@ -24,7 +24,6 @@ interface Department {
   manager?: { _id: string; about: { firstName: string; lastName: string }; email?: string };
   parentDepartment?: { _id: string; title: string } | null;
   employeeCount: number;
-  teamCount: number;
   isActive: boolean;
   createdAt: string;
 }
@@ -420,7 +419,6 @@ export default function DepartmentsPage() {
                       <div className="mt-1.5 space-y-0.5">
                         <p className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>
                           {dept.employeeCount} employee{dept.employeeCount !== 1 ? "s" : ""}
-                          {dept.teamCount > 0 && <span> · {dept.teamCount} team{dept.teamCount !== 1 ? "s" : ""}</span>}
                           <span style={{ color: "var(--fg-tertiary)" }}> · {pct}%</span>
                         </p>
                       </div>

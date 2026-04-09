@@ -1,15 +1,16 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
-import { getSession, unauthorized, ok, badRequest } from "@/lib/helpers";
+import { unauthorized, ok, badRequest } from "@/lib/helpers";
+import { getVerifiedSession } from "@/lib/permissions";
 
 const VALID_TOURS = ["welcome", "dashboard", "organization", "workspace", "insights-desk", "employees", "departments", "campaigns", "tasks", "attendance", "settings"] as const;
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   await connectDB();
-  const user = await User.findById(session.user.id).select("guideTours").lean();
+  const user = await User.findById(actor.id).select("guideTours").lean();
   if (!user) return unauthorized();
 
   const defaults = Object.fromEntries(VALID_TOURS.map((t) => [t, false]));
@@ -17,8 +18,8 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
 
   const body = await req.json();
   const { tour, completed } = body as { tour?: string; completed?: boolean };
@@ -28,7 +29,7 @@ export async function PATCH(req: Request) {
   }
 
   await connectDB();
-  await User.findByIdAndUpdate(session.user.id, {
+  await User.findByIdAndUpdate(actor.id, {
     $set: { [`guideTours.${tour}`]: completed !== false },
   });
 

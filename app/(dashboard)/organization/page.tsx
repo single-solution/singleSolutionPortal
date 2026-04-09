@@ -10,6 +10,9 @@ import { organizationTour } from "@/lib/tourConfigs";
 import { DepartmentsPanel } from "./DepartmentsPanel";
 import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
+import { EmployeeCard } from "../components/EmployeeCard";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { StatusToggle } from "../components/DataTable";
 import toast from "react-hot-toast";
 import dynamic from "next/dynamic";
 import {
@@ -18,6 +21,7 @@ import {
   makeDefaultWeeklySchedule,
   resolveWeeklySchedule,
   resolveGraceMinutes,
+  getTodaySchedule,
   type Weekday,
   type DaySchedule,
   type WeeklySchedule,
@@ -28,31 +32,148 @@ const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowT
 interface Employee {
   _id: string; email: string; username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
+  isSuperAdmin?: boolean;
+  memberships?: Array<{ designation?: { name: string } | null }>;
   department?: { _id: string; title: string };
-  teams?: { _id: string; name: string }[];
   isActive: boolean; isVerified?: boolean;
   weeklySchedule?: WeeklySchedule;
   shiftType?: string;
   graceMinutes?: number;
   createdAt: string;
 }
-interface Department { _id: string; title: string; slug: string; employeeCount: number; teamCount: number; isActive: boolean; manager?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null }
+interface Department { _id: string; title: string; slug: string; employeeCount: number; isActive: boolean; manager?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null }
+
+interface PresenceRow {
+  _id: string; status: string; isLive?: boolean;
+  firstEntry?: string | null; lastOfficeExit?: string | null; lastExit?: string | null;
+  todayMinutes?: number; officeMinutes?: number; remoteMinutes?: number;
+  lateBy?: number; shiftStart?: string; shiftEnd?: string; shiftBreakTime?: number;
+  locationFlagged?: boolean;
+}
+
+const SHIFT_TYPE_LABELS: Record<string, string> = { fullTime: "Full-time", partTime: "Part-time", contract: "Contract", intern: "Intern" };
+const DAY_MAP: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+const FULL_WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function formatWorkingDays(days: string[]) {
+  const sorted = FULL_WEEK.filter((d) => days.includes(d));
+  if (sorted.length === 7) return "Every day";
+  if (sorted.length === 5 && ["mon", "tue", "wed", "thu", "fri"].every((d) => sorted.includes(d))) return "Mon – Fri";
+  if (sorted.length === 6 && FULL_WEEK.slice(0, 6).every((d) => sorted.includes(d))) return "Mon – Sat";
+  return sorted.map((d) => DAY_MAP[d] ?? d).join(", ");
+}
+
+function primaryDesignationLabel(emp: Employee): string {
+  if (emp.isSuperAdmin) return "System Administrator";
+  const list = emp.memberships;
+  if (list?.length) {
+    for (const m of list) {
+      if (m.designation && typeof m.designation === "object" && "name" in m.designation && m.designation.name) return m.designation.name;
+    }
+  }
+  return "Employee";
+}
+
+function shiftSummaryLine(emp: Employee) {
+  const rec = emp as unknown as Record<string, unknown>;
+  const type = SHIFT_TYPE_LABELS[emp.shiftType ?? "fullTime"] ?? emp.shiftType;
+  const today = getTodaySchedule(rec, "Asia/Karachi");
+  const schedule = resolveWeeklySchedule(rec);
+  const workingKeys = ALL_WEEKDAYS.filter((d) => schedule[d].isWorking);
+  const days = workingKeys.length ? formatWorkingDays(workingKeys) : "";
+  return `${type} ${today.start}–${today.end}${days ? ` · ${days}` : ""}`;
+}
 
 export default function OrganizationPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("organization", organizationTour); }, [registerTour]);
   const { can: canPerm, isSuperAdmin } = usePermissions();
+  const canViewOrg = canPerm("organization_view");
   const canManageOrganization = canPerm("organization_manageLinks");
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
   const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>("/api/designations", "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
+  const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "org-presence");
+
+  const presenceById = useMemo(() => {
+    const map = new Map<string, PresenceRow>();
+    if (presenceData) for (const p of presenceData) map.set(p._id, p);
+    return map;
+  }, [presenceData]);
 
   const [search, setSearch] = useState("");
 
-  /* ── Employee modal ── */
+  /* ── Employee preview modal (full card) ── */
+  const [previewEmp, setPreviewEmp] = useState<Employee | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [copyingId, setCopyingId] = useState<string | null>(null);
+
+  const canEditEmployees = canPerm("employees_edit");
+  const canDeleteEmployees = canPerm("employees_delete");
+  const canToggleStatus = canPerm("employees_toggleStatus");
+  const canResendInvite = canPerm("employees_resendInvite");
+
+  function openEmployeePreview(empId: string) {
+    const emp = scopedEmps.find((e) => e._id === empId);
+    if (emp) setPreviewEmp(emp);
+  }
+
+  async function handleDeleteEmployee() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/employees/${deleteTarget._id}`, { method: "DELETE" });
+      toast.success("Employee removed");
+      setDeleteTarget(null);
+      if (previewEmp?._id === deleteTarget._id) setPreviewEmp(null);
+      await refetchEmployees();
+    } catch { toast.error("Something went wrong"); }
+    setDeleting(false);
+  }
+
+  async function toggleEmployeeActive(emp: Employee) {
+    const newStatus = !emp.isActive;
+    try {
+      const res = await fetch(`/api/employees/${emp._id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+      if (res.ok) {
+        toast.success(newStatus ? "Activated" : "Deactivated");
+        await refetchEmployees();
+      } else toast.error("Failed to update status");
+    } catch { toast.error("Failed to update status"); }
+  }
+
+  async function resendInvite(emp: Employee) {
+    setResendingId(emp._id);
+    try {
+      const res = await fetch(`/api/employees/${emp._id}/resend-invite`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.sent) toast.success(`Invite sent to ${emp.email}`);
+        else { await navigator.clipboard.writeText(data.link); toast.success("Email failed — invite link copied"); }
+      } else { const data = await res.json(); toast.error(data.error || "Failed to send"); }
+    } catch { toast.error("Something went wrong"); }
+    setResendingId(null);
+  }
+
+  async function copyInviteLink(emp: Employee) {
+    setCopyingId(emp._id);
+    try {
+      const res = await fetch(`/api/employees/${emp._id}/resend-invite`, { method: "POST" });
+      if (res.ok) { const data = await res.json(); await navigator.clipboard.writeText(data.link); toast.success("Invite link copied"); }
+      else { const data = await res.json(); toast.error(data.error || "Failed to generate link"); }
+    } catch { toast.error("Something went wrong"); }
+    setCopyingId(null);
+  }
+
+  /* ── Employee edit form modal ── */
   const [empModalOpen, setEmpModalOpen] = useState(false);
   const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
   const [empForm, setEmpForm] = useState({
@@ -108,11 +229,50 @@ export default function OrganizationPage() {
     setEmpSaving(false);
   }
 
+  /* ── Hierarchy scope for non-SuperAdmins ── */
+  const [hierarchyScope, setHierarchyScope] = useState<{ subordinateIds: string[]; managerIds: string[] } | null>(null);
+  useEffect(() => {
+    if (isSuperAdmin) return;
+    fetch("/api/organization/scope").then((r) => r.ok ? r.json() : null).then((data) => {
+      if (data) setHierarchyScope({ subordinateIds: data.subordinateIds ?? [], managerIds: data.managerIds ?? [] });
+    }).catch(() => {});
+  }, [isSuperAdmin]);
+
+  const scopedEmps = useMemo(() => {
+    if (isSuperAdmin || !hierarchyScope) return empList;
+    const selfId = session?.user?.id;
+    const visible = new Set<string>([
+      ...(selfId ? [selfId] : []),
+      ...hierarchyScope.subordinateIds,
+      ...hierarchyScope.managerIds,
+    ]);
+    return empList.filter((e) => visible.has(e._id));
+  }, [empList, isSuperAdmin, hierarchyScope, session?.user?.id]);
+
+  const scopedDepts = useMemo(() => {
+    if (isSuperAdmin || !hierarchyScope) return deptList;
+    const visibleDeptIds = new Set<string>();
+    for (const emp of scopedEmps) {
+      if (emp.department?._id) visibleDeptIds.add(emp.department._id);
+    }
+    return deptList.filter((d) => visibleDeptIds.has(d._id));
+  }, [deptList, scopedEmps, isSuperAdmin, hierarchyScope]);
+
   const filteredEmps = useMemo(() => {
-    if (!search.trim()) return empList;
+    if (!search.trim()) return scopedEmps;
     const q = search.toLowerCase();
-    return empList.filter((e) => `${e.about.firstName} ${e.about.lastName} ${e.email} ${e.username}`.toLowerCase().includes(q));
-  }, [empList, search]);
+    return scopedEmps.filter((e) => `${e.about.firstName} ${e.about.lastName} ${e.email} ${e.username}`.toLowerCase().includes(q));
+  }, [scopedEmps, search]);
+
+  if (!canViewOrg && !isSuperAdmin) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+        <h2 className="text-lg font-semibold" style={{ color: "var(--fg)" }}>Access Restricted</h2>
+        <p className="text-sm max-w-xs" style={{ color: "var(--fg-tertiary)" }}>You don&apos;t have permission to view the organization chart. Contact your administrator for access.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(90dvh - 80px)" }}>
@@ -178,23 +338,23 @@ export default function OrganizationPage() {
           {/* Departments card */}
           <div className="card-xl flex-1 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
             {canManageOrganization ? (
-              <DepartmentsPanel departments={deptList} loading={deptsLoading} refetch={refetchDepts} />
+              <DepartmentsPanel departments={scopedDepts} loading={deptsLoading} refetch={refetchDepts} />
             ) : (
               <div className="flex flex-col gap-1.5">
                 <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Departments</h2>
-                {deptsLoading && deptList.length === 0 ? (
+                {deptsLoading && scopedDepts.length === 0 ? (
                   <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-8 rounded-lg" />)}</div>
-                ) : deptList.length === 0 ? (
+                ) : scopedDepts.length === 0 ? (
                   <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No departments.</p>
                 ) : (
-                  deptList.map((d) => (
+                  scopedDepts.map((d) => (
                     <div key={d._id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#8b5cf6", color: "white" }}>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{d.title}</p>
-                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{d.employeeCount} people · {d.teamCount} teams</p>
+                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{d.employeeCount} people</p>
                       </div>
                     </div>
                   ))
@@ -213,9 +373,93 @@ export default function OrganizationPage() {
 
         {/* Flow diagram */}
         <main className="min-h-0 min-w-0 flex-1">
-          <OrgFlowTree departments={deptList} employees={filteredEmps} designations={activeDesignations} isSuperAdmin={canManageOrganization} onEditEmployee={canManageOrganization ? (empId) => { const emp = empList.find((e) => e._id === empId); if (emp) openEditEmployee(emp); } : undefined} />
+          <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={activeDesignations} canEditCanvas={canManageOrganization} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployeePreview(empId)} />
         </main>
       </div>
+
+      {/* ── Employee Preview Modal (full card) ── */}
+      <Portal>
+        <AnimatePresence>
+          {previewEmp && (() => {
+            const emp = scopedEmps.find((e) => e._id === previewEmp._id) ?? previewEmp;
+            const p = presenceById.get(emp._id);
+            const todaySch = getTodaySchedule(emp as unknown as Record<string, unknown>, "Asia/Karachi");
+            const notSA = !emp.isSuperAdmin;
+            return (
+              <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPreviewEmp(null)} />
+                <motion.div
+                  className="relative mx-4 w-full max-w-sm max-h-[92vh] overflow-y-auto rounded-2xl border shadow-xl"
+                  style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+                  initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className={`card group relative flex flex-col overflow-visible ${!emp.isActive ? "opacity-60 grayscale" : ""}`}>
+                    <EmployeeCard
+                      embedded
+                      idx={0}
+                      showEmployeeMeta
+                      showActions={(canEditEmployees || canDeleteEmployees) && notSA}
+                      onEdit={canEditEmployees && notSA ? () => { setPreviewEmp(null); openEditEmployee(emp); } : undefined}
+                      onDelete={canDeleteEmployees && notSA ? () => setDeleteTarget(emp) : undefined}
+                      emp={{
+                        _id: emp._id,
+                        username: emp.username,
+                        firstName: emp.about.firstName,
+                        lastName: emp.about.lastName,
+                        email: emp.email,
+                        designation: primaryDesignationLabel(emp),
+                        department: emp.department?.title,
+                        profileImage: emp.about.profileImage,
+                        isVerified: emp.isVerified,
+                        isLive: p?.isLive,
+                        status: p?.status,
+                        locationFlagged: p?.locationFlagged,
+                        firstEntry: p?.firstEntry ?? undefined,
+                        lastOfficeExit: p?.lastOfficeExit ?? undefined,
+                        lastExit: p?.lastExit ?? undefined,
+                        todayMinutes: p?.todayMinutes,
+                        officeMinutes: p?.officeMinutes,
+                        remoteMinutes: p?.remoteMinutes,
+                        lateBy: p?.lateBy,
+                        shiftStart: p?.shiftStart ?? todaySch.start,
+                        shiftEnd: p?.shiftEnd ?? todaySch.end,
+                        shiftBreakTime: p?.shiftBreakTime ?? todaySch.breakMinutes,
+                        phone: emp.about.phone,
+                        shiftSummary: shiftSummaryLine(emp),
+                      }}
+                      footerSlot={
+                        <div className="flex flex-wrap items-center gap-2">
+                          {canToggleStatus && notSA && <StatusToggle active={emp.isActive} onChange={() => toggleEmployeeActive(emp)} />}
+                          <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                            Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                          </span>
+                          {canResendInvite && emp.isVerified === false && (
+                            <>
+                              <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} disabled={resendingId === emp._id} onClick={() => resendInvite(emp)} className="flex h-7 items-center gap-1 px-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50" style={{ color: "var(--teal)", background: "color-mix(in srgb, var(--teal) 10%, transparent)" }} title="Send invite email">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                                {resendingId === emp._id ? "Sending…" : "Invite"}
+                              </motion.button>
+                              <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={copyingId === emp._id} onClick={() => copyInviteLink(emp)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-50" style={{ color: "var(--fg-secondary)" }} title="Copy invite link">
+                                {copyingId === emp._id ? (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                                ) : (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                                )}
+                              </motion.button>
+                            </>
+                          )}
+                        </div>
+                      }
+                    />
+                  </div>
+                </motion.div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+      </Portal>
 
       {/* ── Employee Add/Edit Modal ── */}
       <Portal>
@@ -283,6 +527,18 @@ export default function OrganizationPage() {
           )}
         </AnimatePresence>
       </Portal>
+
+      {/* ── Delete Confirmation ── */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Remove Employee"
+        description={`Remove "${deleteTarget?.about.firstName} ${deleteTarget?.about.lastName}"? This action cannot be undone.`}
+        confirmLabel="Remove"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDeleteEmployee}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

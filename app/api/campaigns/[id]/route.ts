@@ -1,20 +1,16 @@
 import { connectDB } from "@/lib/db";
 import Campaign from "@/lib/models/Campaign";
 import User from "@/lib/models/User";
-import Team from "@/lib/models/Team";
 import Department from "@/lib/models/Department";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
-  isManager,
-  isTeamLead,
   canManageCampaigns,
   canDeleteCampaign,
   getCampaignScopeFilter,
-  getDeptEmployeeIds,
-  getDeptTeamIds,
-  getTeamMemberIds,
+  getSubordinateUserIds,
+  getHierarchyDepartmentIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -27,14 +23,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   await connectDB();
   void Department;
-  void Team;
   void User;
 
   const scopeFilter = await getCampaignScopeFilter(actor);
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter })
     .populate("tags.employees", "about.firstName about.lastName email")
     .populate("tags.departments", "title slug")
-    .populate("tags.teams", "name slug")
     .populate("createdBy", "about.firstName about.lastName")
     .lean();
 
@@ -66,43 +60,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const tagEmployees: string[] | undefined = body.tagEmployees;
   const tagDepartments: string[] | undefined = body.tagDepartments;
-  const tagTeams: string[] | undefined = body.tagTeams;
-
-  const actorTeamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
-  const primaryDeptId = actor.memberships[0]?.departmentId;
 
   if (!isSuperAdmin(actor)) {
-    if (isManager(actor)) {
-      if (primaryDeptId) {
-        if (tagDepartments !== undefined && tagDepartments.length > 0) {
-          const valid = tagDepartments.every((d) => d === primaryDeptId);
-          if (!valid) return badRequest("Can only tag your own department");
-        }
-        if (tagTeams !== undefined && tagTeams.length > 0) {
-          const deptTeams = await getDeptTeamIds(primaryDeptId);
-          const allValid = tagTeams.every((t) => deptTeams.includes(t));
-          if (!allValid) return badRequest("Can only tag teams in your department");
-        }
-        if (tagEmployees !== undefined && tagEmployees.length > 0) {
-          const deptEmps = await getDeptEmployeeIds(primaryDeptId);
-          const allValid = tagEmployees.every((e) => deptEmps.includes(e));
-          if (!allValid) return badRequest("Can only tag employees in your department");
-        }
-      }
-    } else if (isTeamLead(actor)) {
-      if (tagDepartments !== undefined && tagDepartments.length > 0) {
-        return badRequest("Team leads cannot tag departments — tag employees instead");
-      }
-      if (tagTeams !== undefined && tagTeams.length > 0) {
-        const allValid = tagTeams.every((t) => actorTeamIds.includes(t));
-        if (!allValid) return badRequest("Can only tag teams you lead");
-      }
-      if (tagEmployees !== undefined && tagEmployees.length > 0) {
-        const memberIds = await getTeamMemberIds(actorTeamIds);
-        const selfAndMembers = [...memberIds, actor.id];
-        const allValid = tagEmployees.every((e) => selfAndMembers.includes(e));
-        if (!allValid) return badRequest("Can only tag members of your teams");
-      }
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    const visibleUsers = new Set([actor.id, ...subordinateIds]);
+    const visibleDepts = new Set(await getHierarchyDepartmentIds(actor.id));
+
+    if (tagEmployees !== undefined && tagEmployees.length > 0) {
+      const allValid = tagEmployees.every((e) => visibleUsers.has(e));
+      if (!allValid) return badRequest("Can only tag employees within your hierarchy");
+    }
+    if (tagDepartments !== undefined && tagDepartments.length > 0) {
+      const allValid = tagDepartments.every((d) => visibleDepts.has(d));
+      if (!allValid) return badRequest("Can only tag departments within your hierarchy");
     }
   }
 
@@ -117,7 +87,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   if (tagEmployees !== undefined) campaign.tags.employees = tagEmployees as typeof campaign.tags.employees;
   if (tagDepartments !== undefined) campaign.tags.departments = tagDepartments as typeof campaign.tags.departments;
-  if (tagTeams !== undefined) campaign.tags.teams = tagTeams as typeof campaign.tags.teams;
 
   campaign.updatedBy = actor.id as unknown as typeof campaign.updatedBy;
   await campaign.save();
@@ -125,13 +94,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const populated = await Campaign.findById(id)
     .populate("tags.employees", "about.firstName about.lastName email")
     .populate("tags.departments", "title slug")
-    .populate("tags.teams", "name slug")
     .lean();
 
   const statusChange = body.status ? ` → ${body.status}` : "";
   const updatedEmps = (campaign.tags.employees as unknown as string[]).map((e) => e.toString());
   const updatedDepts = (campaign.tags.departments as unknown as string[]).map((d) => d.toString());
-  const updatedTeamsArr = (campaign.tags.teams as unknown as string[]).map((t) => t.toString());
   logActivity({
     userEmail: actor.email,
     userName: "",
@@ -141,8 +108,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     details: campaign.name,
     targetUserIds: updatedEmps,
     targetDepartmentId: updatedDepts[0] || undefined,
-    targetTeamIds: updatedTeamsArr,
-    visibility: updatedEmps.length === 0 && updatedDepts.length === 0 && updatedTeamsArr.length === 0 ? "all" : "targeted",
+    visibility: updatedEmps.length === 0 && updatedDepts.length === 0 ? "all" : "targeted",
   });
 
   return ok(populated);
@@ -164,7 +130,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const delEmps = (campaign.tags.employees as unknown as string[]).map((e) => e.toString());
   const delDepts = (campaign.tags.departments as unknown as string[]).map((d) => d.toString());
-  const delTeamsArr = (campaign.tags.teams as unknown as string[]).map((t) => t.toString());
   const campaignName = campaign.name;
   await campaign.deleteOne();
 
@@ -177,7 +142,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     details: campaignName,
     targetUserIds: delEmps,
     targetDepartmentId: delDepts[0] || undefined,
-    targetTeamIds: delTeamsArr,
   });
 
   return ok({ message: "Campaign deleted" });

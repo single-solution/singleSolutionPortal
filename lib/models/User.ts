@@ -22,9 +22,6 @@ export type {
   WeeklySchedule,
 } from "@/lib/schedule";
 
-/** @deprecated No longer used for authorization. Kept only for DB backward compat. */
-export type UserRole = string;
-
 export type ProposalStatus = "pending" | "submitted" | "shortlisted" | "interview" | "hired" | "rejected" | "withdrawn";
 
 export interface IUser extends Document {
@@ -39,14 +36,6 @@ export interface IUser extends Document {
     phone?: string;
     profileImage?: string;
   };
-  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
-  department?: Types.ObjectId;
-  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
-  teams: Types.ObjectId[];
-  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
-  reportsTo?: Types.ObjectId;
-  /** @deprecated Use Membership model. Kept temporarily for migration rollback. */
-  userRole: UserRole;
   weeklySchedule: WeeklySchedule;
   graceMinutes: number;
   shiftType: ShiftType;
@@ -95,8 +84,6 @@ export interface IUser extends Document {
     attendance: boolean;
     settings: boolean;
   };
-  crossDepartmentAccess: boolean;
-  teamStatsVisible: boolean;
   isActive: boolean;
   /** Monthly gross salary for payroll (optional). */
   salary?: number;
@@ -121,14 +108,6 @@ const userSchema = new Schema<IUser>(
       lastName: { type: String, default: "", trim: true },
       phone: { type: String, default: "" },
       profileImage: { type: String, default: "" },
-    },
-    department: { type: Schema.Types.ObjectId, ref: "Department" },
-    teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
-    reportsTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
-    userRole: {
-      type: String,
-      enum: ["superadmin", "manager", "teamLead", "businessDeveloper", "developer"],
-      default: "developer",
     },
     weeklySchedule: {
       type: Schema.Types.Mixed,
@@ -185,8 +164,6 @@ const userSchema = new Schema<IUser>(
       attendance: { type: Boolean, default: false },
       settings: { type: Boolean, default: false },
     },
-    crossDepartmentAccess: { type: Boolean, default: false },
-    teamStatsVisible: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
     salary: { type: Number, min: 0 },
     isVerified: { type: Boolean, default: false },

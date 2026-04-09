@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import LeaveBalance from "@/lib/models/LeaveBalance";
-import Membership from "@/lib/models/Membership";
-import { getVerifiedSession, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { badRequest, forbidden, unauthorized, isValidId } from "@/lib/helpers";
 
 async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number) {
@@ -13,13 +12,6 @@ async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number)
     { upsert: true, new: true },
   );
   return doc!;
-}
-
-async function canViewBalance(actor: { id: string; isSuperAdmin: boolean }, targetUserId: string): Promise<boolean> {
-  if (actor.isSuperAdmin) return true;
-  if (targetUserId === actor.id) return true;
-  const reports = await Membership.find({ reportsTo: actor.id, isActive: true }).distinct("user");
-  return reports.some((id) => id.toString() === targetUserId);
 }
 
 export async function GET(req: NextRequest) {
@@ -42,8 +34,11 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  if (!(await canViewBalance(actor, targetUserId))) {
-    return forbidden("You can only view leave balance for yourself or your direct reports.");
+  if (targetUserId !== actor.id && !isSuperAdmin(actor)) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(targetUserId)) {
+      return forbidden("You can only view leave balance for yourself or employees in your hierarchy.");
+    }
   }
 
   const bal = await ensureLeaveBalance(new mongoose.Types.ObjectId(targetUserId), year);
@@ -100,6 +95,13 @@ export async function PUT(req: NextRequest) {
   }
 
   await connectDB();
+
+  if (!isSuperAdmin(actor)) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(userId)) {
+      return forbidden("Can only update leave allocations for employees in your hierarchy.");
+    }
+  }
 
   const oid = new mongoose.Types.ObjectId(userId);
   const update: Record<string, number> = {};

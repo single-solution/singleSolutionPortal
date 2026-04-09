@@ -14,7 +14,6 @@ export interface ICampaign extends Document {
   tags: {
     employees: Types.ObjectId[];
     departments: Types.ObjectId[];
-    teams: Types.ObjectId[];
   };
   notes?: string;
   isActive: boolean;
@@ -49,7 +48,6 @@ const campaignSchema = new Schema<ICampaign>(
     tags: {
       employees: [{ type: Schema.Types.ObjectId, ref: "User" }],
       departments: [{ type: Schema.Types.ObjectId, ref: "Department" }],
-      teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
     },
     notes: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
@@ -62,7 +60,6 @@ const campaignSchema = new Schema<ICampaign>(
 campaignSchema.index({ status: 1 });
 campaignSchema.index({ "tags.employees": 1 });
 campaignSchema.index({ "tags.departments": 1 });
-campaignSchema.index({ "tags.teams": 1 });
 
 campaignSchema.pre("save", async function () {
   if (!this.isModified("name")) return;

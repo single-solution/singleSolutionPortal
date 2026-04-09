@@ -46,7 +46,6 @@ interface ApiEmployee {
   isSuperAdmin?: boolean;
   isActive: boolean;
   department?: { _id: string; title: string; slug?: string };
-  teams?: { _id: string; name: string }[];
   weeklySchedule?: WeeklySchedule;
   shiftType?: string;
 }
@@ -100,8 +99,6 @@ interface PresenceEmployee {
   designation: string;
   department: string;
   departmentId: string | null;
-  reportsTo: string | null;
-  reportsToId: string | null;
   status: PresenceStatus;
   todayMinutes: number;
   officeMinutes: number;
@@ -123,7 +120,6 @@ interface PresenceEmployee {
   flagReason?: string | null;
   flagCoords?: { lat: number; lng: number } | null;
   isActive: boolean;
-  teamIds?: string[];
 }
 
 interface ApiCampaign {
@@ -135,15 +131,10 @@ interface ApiCampaign {
   tags: {
     employees: { _id: string; about: { firstName: string; lastName: string } }[];
     departments: { _id: string; title: string }[];
-    teams: { _id: string; name: string }[];
   };
 }
 
-interface TrendDay {
-  date: string;
-  label: string;
-  count: number;
-}
+
 
 interface WeeklyDay {
   date: string;
@@ -176,7 +167,6 @@ interface UserProfile {
   weeklySchedule?: WeeklySchedule;
   shiftType?: string;
   graceMinutes?: number;
-  reportsTo?: { _id: string; about: { firstName: string; lastName: string } } | null;
 }
 
 /* ──────────────────────── CONSTANTS ──────────────────────── */
@@ -421,7 +411,8 @@ function SelfOverviewCard({ pa, userProfile, user }: {
                     </div>
     </div>
   );
-}
+  }
+
   const todayHours = pa.todayMinutes / 60;
   const shiftPct = Math.min(100, Math.round((pa.todayMinutes / shiftTarget) * 100));
   const isPresent = pa.todaySessions > 0 || pa.todayMinutes > 0;
@@ -629,7 +620,7 @@ function AdminDashboard({
   }, [campaigns]);
 
   const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>("all");
-  type DashGroupMode = "flat" | "manager" | "department";
+  type DashGroupMode = "flat" | "department";
   const [dashGroupMode, setDashGroupMode] = useState<DashGroupMode>("flat");
   const filteredPresence = useMemo(() => {
     return otherEmps
@@ -644,26 +635,14 @@ function AdminDashboard({
     if (dashGroupMode === "flat") return null;
     const map = new Map<string, { label: string; employees: typeof filteredPresence }>();
     for (const emp of filteredPresence) {
-      let key: string;
-      let label: string;
-      if (dashGroupMode === "manager") {
-        if (emp.reportsTo) {
-          key = emp.reportsToId ?? emp.reportsTo;
-          label = emp.reportsTo;
-        } else {
-          key = "__none__";
-          label = "No Manager Assigned";
-        }
-      } else {
-        key = emp.departmentId ?? "__none__";
-        label = emp.department || "No Department";
-      }
+      const key = emp.departmentId ?? "__none__";
+      const label = emp.department || "No Department";
       if (!map.has(key)) map.set(key, { label, employees: [] });
       map.get(key)!.employees.push(emp);
     }
     return [...map.values()].sort((a, b) => {
-      if (a.label === "No Manager Assigned" || a.label === "No Department") return 1;
-      if (b.label === "No Manager Assigned" || b.label === "No Department") return -1;
+      if (a.label === "No Department") return 1;
+      if (b.label === "No Department") return -1;
       return a.label.localeCompare(b.label);
     });
   }, [filteredPresence, dashGroupMode]);
@@ -733,9 +712,9 @@ function AdminDashboard({
               </div>
             </LayoutGroup>
             <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-              {(["flat", "manager", "department"] as DashGroupMode[]).map((g) => (
+              {(["flat", "department"] as DashGroupMode[]).map((g) => (
                 <button key={g} type="button" onClick={() => setDashGroupMode(g)} className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${dashGroupMode === g ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
-                  {g === "flat" ? "Flat" : g === "manager" ? "By Manager" : "By Dept"}
+                  {g === "flat" ? "Flat" : "By Dept"}
                 </button>
               ))}
         </div>
@@ -780,7 +759,6 @@ function AdminDashboard({
                     email: emp.email,
                     designation: emp.designation,
                     department: emp.department,
-                    reportsTo: emp.reportsTo ?? undefined,
                     isLive: emp.isLive,
                     status: emp.status,
                     locationFlagged: emp.locationFlagged,
@@ -868,7 +846,6 @@ function AdminDashboard({
                       <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
                   <div className="flex gap-1.5 mt-0.5">
                     {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
-                    {camp.tags.teams.slice(0, 1).map((t) => <span key={t._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(48,209,88,0.12)", color: "var(--teal)" }}>{t.name}</span>)}
                     <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
                       </div>
                     </div>
@@ -946,69 +923,12 @@ function AdminDashboard({
 /* ──────────────────────── OTHER ROLES OVERVIEW ──────────────────────── */
 
 function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, monthlyStats: ms, userProfile, dataLoading }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null; weeklyRecords: WeeklyDay[]; monthlyStats: FullMonthlyStats | null; userProfile: UserProfile | null; dataLoading: boolean }) {
-  const liveUpdates = useLive();
   const pa = personalAttendance;
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(id); }, []);
-
-  const reportsToName = userProfile?.reportsTo?.about
-    ? `${userProfile.reportsTo.about.firstName} ${userProfile.reportsTo.about.lastName}`.trim()
-    : null;
-  const reportsToId = userProfile?.reportsTo?._id ?? null;
-
-  /* ── Manager / lead live status ── */
-  interface ManagerStatus {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    department: string;
-    status: PresenceStatus;
-    todayMinutes: number;
-    officeMinutes: number;
-    remoteMinutes: number;
-    firstEntry: string | null;
-    lastExit: string | null;
-    shiftStart: string;
-    shiftEnd: string;
-    isLive: boolean;
-  }
-  const [mgrStatus, setMgrStatus] = useState<ManagerStatus | null>(null);
-  const [mgrLoading, setMgrLoading] = useState(true);
-
-  const fetchMgrStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/attendance/presence/manager");
-      if (!res.ok) return;
-      const data = await res.json();
-      setMgrStatus(data);
-    } catch { /* silent */ }
-    setMgrLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (!reportsToId) { setMgrLoading(false); return; }
-    fetchMgrStatus();
-  }, [reportsToId, fetchMgrStatus]);
-
-  const [pingSending, setPingSending] = useState(false);
-  const [pingSuccess, setPingSuccess] = useState<string | null>(null);
-
-  const handlePingManager = useCallback(async () => {
-    if (!reportsToId || pingSending) return;
-    setPingSending(true);
-    try {
-      const res = await fetch("/api/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: reportsToId }) });
-      if (res.ok) {
-        setPingSuccess(reportsToName ?? "Manager");
-        setTimeout(() => setPingSuccess(null), 2500);
-      }
-    } catch { /* ignore */ }
-    setPingSending(false);
-  }, [reportsToId, reportsToName, pingSending]);
 
   const monthlyOfficePct = ms && (ms.totalOfficeHours + ms.totalRemoteHours > 0) ? (ms.totalOfficeHours / (ms.totalOfficeHours + ms.totalRemoteHours)) * 100 : 0;
   const monthlyRemotePct = 100 - monthlyOfficePct;
@@ -1029,89 +949,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             <span className="text-caption">{formatClockDate(now)}</span>
           </motion.div>
         </header>
-
-        {/* Reports-to card — shows manager/lead live status */}
-        {reportsToName && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card-static rounded-xl p-4">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
-                  {mgrStatus?.isLive && (
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2" style={{ borderColor: "var(--bg-elevated)", background: "#10b981" }}>
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: "#10b981" }} />
-                    </span>
-                  )}
-            </div>
-                <div className="min-w-0">
-                  <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Reports to</p>
-                  <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{reportsToName}</p>
-                  {mgrStatus && <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{mgrStatus.department}</p>}
-              </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {mgrLoading ? (
-                  <Bone w="w-16" h="h-5" />
-                ) : mgrStatus ? (
-                  <span className={`badge ${STATUS_BADGE_CLASS[mgrStatus.status]}`}>
-                    {mgrStatus.isLive && (
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full mr-1" style={{ background: "currentColor" }}>
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: "currentColor" }} />
-                      </span>
-                    )}
-                    {STATUS_LABELS[mgrStatus.status]}
-                  </span>
-                ) : null}
-                {liveUpdates && (
-                <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handlePingManager} disabled={pingSending} className="btn btn-sm flex items-center gap-1.5" style={{ background: "var(--primary)", color: "#fff", opacity: pingSending ? 0.5 : 1 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><path d="M8.464 15.536a5 5 0 010-7.072" /><path d="M15.536 8.464a5 5 0 010 7.072" /><circle cx="12" cy="12" r="1" /></svg>
-                  Ping
-                </motion.button>
-              )}
-            </div>
-          </div>
-
-            {/* Status details row */}
-            {mgrLoading ? (
-              <div className="flex gap-4">
-                <Bone w="w-20" h="h-4" /><Bone w="w-24" h="h-4" /><Bone w="w-16" h="h-4" />
-                </div>
-            ) : mgrStatus && mgrStatus.status !== "absent" ? (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption" style={{ color: "var(--fg-secondary)" }}>
-                {mgrStatus.firstEntry && (
-                  <span className="flex items-center gap-1">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                    Arrived {new Date(mgrStatus.firstEntry).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
-                  {formatMinutes(mgrStatus.todayMinutes)} worked
-                </span>
-                <span className="flex items-center gap-1">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                  {mgrStatus.officeMinutes > 0 && mgrStatus.remoteMinutes > 0
-                    ? `${formatMinutes(mgrStatus.officeMinutes)} office · ${formatMinutes(mgrStatus.remoteMinutes)} remote`
-                    : mgrStatus.officeMinutes > 0 ? "In Office" : "Remote"}
-                </span>
-                {mgrStatus.isLive && mgrStatus.shiftEnd && (
-                  <span className="flex items-center gap-1">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg>
-                    Shift until {mgrStatus.shiftEnd}
-                  </span>
-                )}
-                {!mgrStatus.isLive && mgrStatus.lastExit && (
-                  <span className="flex items-center gap-1">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
-                    Left {new Date(mgrStatus.lastExit).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                  </span>
-                )}
-      </div>
-            ) : mgrStatus?.status === "absent" ? (
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Not checked in today</p>
-            ) : null}
-          </motion.div>
-        )}
 
         {/* Self overview + Activity timeline */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -1189,18 +1026,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           )}
         </motion.section>
       </div>
-
-      {/* Ping success toast */}
-      <AnimatePresence>
-        {pingSuccess && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl px-5 py-3 shadow-lg" style={{ background: "var(--primary)", color: "#fff" }}>
-            <p className="text-callout font-semibold flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><circle cx="12" cy="12" r="1" /></svg>
-              Pinged {pingSuccess}
-            </p>
-            </motion.div>
-          )}
-      </AnimatePresence>
         </div>
   );
 }
@@ -1216,7 +1041,6 @@ export default function DashboardHome({ user }: { user: User }) {
   const [realPresence, setRealPresence] = useState<PresenceEmployee[] | null>(null);
   const [personalAttendance, setPersonalAttendance] = useState<PersonalAttendance | null>(null);
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
-  const [attendanceTrend, setAttendanceTrend] = useState<TrendDay[]>([]);
   const [weeklyRecords, setWeeklyRecords] = useState<WeeklyDay[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<FullMonthlyStats | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -1242,8 +1066,6 @@ export default function DashboardHome({ user }: { user: User }) {
         designation: p.isSuperAdmin ? "System Administrator" : "Employee",
         department: p.department,
         departmentId: p.departmentId ?? null,
-        reportsTo: p.reportsTo ?? null,
-        reportsToId: p.reportsToId ?? null,
         status: p.status as PresenceStatus,
         todayMinutes: p.todayMinutes,
         officeMinutes: p.officeMinutes ?? 0,
@@ -1265,7 +1087,6 @@ export default function DashboardHome({ user }: { user: User }) {
         flagReason: p.flagReason ?? null,
         flagCoords: p.flagCoords ?? null,
         isActive: p.isActive,
-        teamIds: p.teamIds ?? [],
       })),
     );
   }, []);
@@ -1420,23 +1241,17 @@ export default function DashboardHome({ user }: { user: User }) {
       if (canViewCampaigns) {
         fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
       }
-      if (hasTeamAccess) {
-        fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
-      }
       const [empRes, taskRes, deptRes, ...rest] = await Promise.all(fetches);
-      let idx = 0;
-      const campaignRes = canViewCampaigns ? rest[idx++] : undefined;
-      const trendRes = hasTeamAccess ? rest[idx++] : undefined;
+      const campaignRes = canViewCampaigns ? rest[0] : undefined;
 
       setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
       setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
       setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
       if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
-      if (Array.isArray(trendRes)) setAttendanceTrend(trendRes as TrendDay[]);
 
       if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [canViewDepts, canViewCampaigns, hasTeamAccess, isSuperAdmin, fetchPersonalData]);
+  }, [canViewDepts, canViewCampaigns, isSuperAdmin, fetchPersonalData]);
 
   /* ── Initial load ── */
   useEffect(() => {
@@ -1466,8 +1281,6 @@ export default function DashboardHome({ user }: { user: User }) {
       designation: e.isSuperAdmin ? "System Administrator" : "Employee",
       department: (e.department as { title?: string })?.title ?? "Unassigned",
       departmentId: (e.department as { _id?: string })?._id ?? null,
-      reportsTo: null,
-      reportsToId: null,
       status: "absent" as PresenceStatus,
       todayMinutes: 0,
       officeMinutes: 0,
@@ -1487,7 +1300,6 @@ export default function DashboardHome({ user }: { user: User }) {
       isLive: false,
       locationFlagged: false,
       isActive: true,
-      teamIds: e.teams?.map((t) => t._id) ?? [],
     };
     });
   }, [realPresence, employees]);

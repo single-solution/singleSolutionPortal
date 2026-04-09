@@ -4,12 +4,11 @@ export interface IActivityLog extends Document {
   userEmail: string;
   userName: string;
   action: string;
-  entity: "employee" | "department" | "team" | "task" | "campaign" | "attendance" | "settings" | "auth" | "security";
+  entity: "employee" | "department" | "task" | "campaign" | "attendance" | "settings" | "auth" | "security";
   entityId?: string;
   details?: string;
   targetUserIds: string[];
   targetDepartmentId?: string;
-  targetTeamIds: string[];
   visibility: "all" | "targeted" | "self";
   createdAt: Date;
 }
@@ -22,13 +21,12 @@ const activityLogSchema = new Schema<IActivityLog>(
     entity: {
       type: String,
       required: true,
-      enum: ["employee", "department", "team", "task", "campaign", "attendance", "settings", "auth", "security"],
+      enum: ["employee", "department", "task", "campaign", "attendance", "settings", "auth", "security"],
     },
     entityId: { type: String, default: null },
     details: { type: String, default: "" },
     targetUserIds: { type: [String], default: [] },
     targetDepartmentId: { type: String, default: null },
-    targetTeamIds: { type: [String], default: [] },
     visibility: { type: String, enum: ["all", "targeted", "self"], default: "targeted" },
   },
   { timestamps: true },
@@ -38,7 +36,6 @@ activityLogSchema.index({ createdAt: -1 });
 activityLogSchema.index({ entity: 1, createdAt: -1 });
 activityLogSchema.index({ targetUserIds: 1, createdAt: -1 });
 activityLogSchema.index({ targetDepartmentId: 1, createdAt: -1 });
-activityLogSchema.index({ targetTeamIds: 1, createdAt: -1 });
 activityLogSchema.index({ visibility: 1, createdAt: -1 });
 
 const ActivityLog =

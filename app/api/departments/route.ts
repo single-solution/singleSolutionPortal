@@ -1,15 +1,13 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
-import Team from "@/lib/models/Team";
+import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
   canManageDepartments,
   isSuperAdmin,
-  isManager,
-  isTeamLead,
-  getDepartmentScope,
+  getHierarchyDepartmentIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -21,68 +19,32 @@ export async function GET() {
 
   let deptFilter: Record<string, unknown> = {};
 
-  const primaryDeptId =
-    actor.memberships.find((m) => m.isPrimary)?.departmentId ?? actor.memberships[0]?.departmentId;
-
   if (isSuperAdmin(actor)) {
-    // sees all (including inactive)
-  } else if (isManager(actor)) {
-    deptFilter.isActive = true;
-    if (!actor.isSuperAdmin) {
-      const scopedDepts = [...new Set(getDepartmentScope(actor, "departments_view"))];
-      if (scopedDepts.length > 0) {
-        deptFilter._id = { $in: scopedDepts };
-      } else {
-        const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
-        if (deptIds.length > 0) {
-          deptFilter._id = { $in: deptIds };
-        }
-      }
-      // no else — managers with no explicit scope see all departments
-    }
-  } else if (isTeamLead(actor)) {
-    deptFilter.isActive = true;
-    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
-    if (primaryDeptId && !deptIds.includes(primaryDeptId)) deptIds.push(primaryDeptId);
-    if (deptIds.length > 0) {
-      deptFilter._id = { $in: deptIds };
-    } else {
-      return ok([]);
-    }
+    // SuperAdmin sees all (including inactive)
   } else {
     deptFilter.isActive = true;
-    if (primaryDeptId) {
-      deptFilter._id = primaryDeptId;
-    } else {
-      return ok([]);
-    }
+    const visibleDeptIds = await getHierarchyDepartmentIds(actor.id);
+    if (visibleDeptIds.length === 0) return ok([]);
+    deptFilter._id = { $in: visibleDeptIds };
   }
 
-  const [departments, empCounts, teamCounts] = await Promise.all([
+  const [departments, membershipCounts] = await Promise.all([
     Department.find(deptFilter)
       .populate("manager", "about.firstName about.lastName email")
       .populate("parentDepartment", "title slug")
       .sort({ createdAt: -1 })
       .lean(),
-    User.aggregate([
-      { $match: { isActive: true, department: { $ne: null }, isSuperAdmin: { $ne: true } } },
+    Membership.aggregate([
+      { $match: { isActive: { $ne: false } } },
       { $group: { _id: "$department", count: { $sum: 1 } } },
-    ]),
-    Team.aggregate([
-      { $match: { isActive: true } },
-      { $project: { allDepts: { $concatArrays: [{ $ifNull: ["$departments", []] }, { $cond: [{ $ifNull: ["$department", false] }, ["$department"], []] }] } } },
-      { $unwind: "$allDepts" },
-      { $group: { _id: "$allDepts", count: { $sum: 1 } } },
     ]),
   ]);
 
-  const empMap = new Map(empCounts.map((c) => [c._id.toString(), c.count]));
-  const teamMap = new Map(teamCounts.map((c) => [c._id.toString(), c.count]));
+  const empMap = new Map(membershipCounts.map((c) => [c._id.toString(), c.count]));
 
   const result = departments.map((d) => ({
     ...d,
     employeeCount: empMap.get(d._id.toString()) ?? 0,
-    teamCount: teamMap.get(d._id.toString()) ?? 0,
   }));
 
   return ok(result);

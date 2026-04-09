@@ -16,8 +16,6 @@ export async function GET() {
 
   const user = await User.findById(actor.id)
     .select("-password")
-    .populate("department", "title slug")
-    .populate("reportsTo", "about.firstName about.lastName")
     .lean();
 
   if (!user) return notFound("User not found");
@@ -95,7 +93,6 @@ export async function PUT(req: Request) {
 
   const user = await User.findByIdAndUpdate(actor.id, { $set: update }, { new: true })
     .select("-password")
-    .populate("department", "title slug")
     .lean();
 
   if (!user) return notFound("User not found");

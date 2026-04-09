@@ -16,7 +16,7 @@ interface TaggedDept { _id: string; title: string }
 interface Campaign {
   _id: string; name: string; slug: string; description?: string; status: CampaignStatus;
   startDate?: string; endDate?: string; budget?: string;
-  tags: { employees: TaggedEmployee[]; departments: TaggedDept[]; teams: { _id: string; name: string }[] };
+  tags: { employees: TaggedEmployee[]; departments: TaggedDept[] };
   notes?: string; isActive: boolean;
   createdBy?: { about: { firstName: string; lastName: string } };
   createdAt: string; updatedAt?: string;
@@ -72,7 +72,7 @@ function NavPill({ active, onClick, children, badge }: { active: boolean; onClic
 interface SelectOption { _id: string; label: string }
 
 export default function CampaignsPage() {
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const { canAny: canAnyPerm } = usePermissions();
   const canManageCampaigns = canAnyPerm("campaigns_create", "campaigns_edit");
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
@@ -112,7 +112,7 @@ export default function CampaignsPage() {
     if (!formName.trim()) return;
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = { name: formName.trim(), description: formDesc, status: formStatus, startDate: formStart || null, endDate: formEnd || null, budget: formBudget, notes: formNotes, tagEmployees: formTagEmployees, tagDepartments: formTagDepts, tagTeams: editingCampaign ? editingCampaign.tags.teams.map((t) => t._id) : [] };
+      const payload: Record<string, unknown> = { name: formName.trim(), description: formDesc, status: formStatus, startDate: formStart || null, endDate: formEnd || null, budget: formBudget, notes: formNotes, tagEmployees: formTagEmployees, tagDepartments: formTagDepts };
       if (editingCampaign) await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       else await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       setModalOpen(false); await refetchCampaigns();

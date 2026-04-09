@@ -1,17 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { PasswordInput } from "@/components/PasswordInput";
 import { PasswordStrength } from "@/components/PasswordStrength";
 import toast from "react-hot-toast";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
-
-interface Department { _id: string; title: string; manager?: string | { _id: string }; }
-interface TeamOption { _id: string; name: string; department?: { _id: string } | string; }
-interface SupervisorOption { _id: string; fullName: string; departmentId: string; }
 
 import {
   ALL_WEEKDAYS,
@@ -24,9 +20,7 @@ import {
   type WeeklySchedule,
 } from "@/lib/schedule";
 
-const WEEKDAY_SHORT: Record<Weekday, string> = {
-  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
-};
+interface Department { _id: string; title: string; manager?: string | { _id: string }; }
 
 interface EmployeeFormProps {
   employeeId?: string;
@@ -37,8 +31,6 @@ interface FormState {
   email: string;
   password: string;
   department: string;
-  reportsTo: string;
-  teams: string[];
   managedDepartments: string[];
   shiftType: string;
   graceMinutes: number;
@@ -47,7 +39,7 @@ interface FormState {
 
 const INITIAL: FormState = {
   fullName: "", email: "", password: "",
-  department: "", reportsTo: "", teams: [],
+  department: "",
   managedDepartments: [],
   shiftType: "fullTime", graceMinutes: 30,
   weeklySchedule: makeDefaultWeeklySchedule(),
@@ -58,11 +50,9 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   const isEdit = !!employeeId;
   const [form, setForm] = useState<FormState>(INITIAL);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [allTeams, setAllTeams] = useState<TeamOption[]>([]);
-  const [supervisors, setSupervisors] = useState<SupervisorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  /** Multi-department management UI (replaces legacy manager/team-lead role). */
+  /** Multi-department management UI (replaces legacy single-department manager role). */
   const [multiDeptUi, setMultiDeptUi] = useState(false);
 
   const isLeadOrManager = multiDeptUi;
@@ -73,24 +63,8 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   }, [form.email]);
 
   const load = useCallback(async () => {
-    const [deptRes, teamsRes, empListRes] = await Promise.all([
-      fetch("/api/departments").then((r) => r.ok ? r.json() : []),
-      fetch("/api/teams").then((r) => r.ok ? r.json() : []),
-      fetch("/api/employees").then((r) => r.ok ? r.json() : []),
-    ]);
+    const deptRes = await fetch("/api/departments").then((r) => (r.ok ? r.json() : []));
     setDepartments(Array.isArray(deptRes) ? deptRes : []);
-    setAllTeams(Array.isArray(teamsRes) ? teamsRes : []);
-
-    const empList: Array<{ _id: string; about: { firstName: string; lastName: string }; department?: { _id: string } | string }> = Array.isArray(empListRes) ? empListRes : [];
-    setSupervisors(
-      empList
-        .filter((e) => !employeeId || e._id !== employeeId)
-        .map((e) => ({
-          _id: e._id,
-          fullName: `${e.about.firstName} ${e.about.lastName}`.trim(),
-          departmentId: typeof e.department === "object" && e.department ? e.department._id : String(e.department ?? ""),
-        })),
-    );
 
     if (employeeId) {
       const empRes = await fetch(`/api/employees/${employeeId}`).then((r) => r.ok ? r.json() : null);
@@ -109,8 +83,6 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           email: empRes.email ?? "",
           password: "",
           department: empRes.department?._id ?? "",
-          reportsTo: empRes.reportsTo?._id ?? "",
-          teams: (empRes.teams ?? []).map((t: { _id: string }) => t._id),
           managedDepartments: managed,
           shiftType: empRes.shiftType ?? "fullTime",
           graceMinutes: resolveGraceMinutes(empRes),
@@ -126,35 +98,6 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   }, [employeeId]);
 
   useEffect(() => { load(); }, [load]);
-
-  const filteredTeams = useMemo(() => {
-    if (!form.department) return allTeams;
-    return allTeams.filter((t) => {
-      const dId = typeof t.department === "object" && t.department ? t.department._id : String(t.department ?? "");
-      return dId === form.department;
-    });
-  }, [allTeams, form.department]);
-
-  const filteredSupervisors = useMemo(() => {
-    if (!form.department) return supervisors;
-    return supervisors.filter((s) => s.departmentId === form.department);
-  }, [supervisors, form.department]);
-
-  const deptManagerName = useMemo(() => {
-    if (!form.department) return null;
-    const dept = departments.find((d) => d._id === form.department);
-    if (!dept?.manager) return null;
-    const mgrId = typeof dept.manager === "object" ? dept.manager._id : dept.manager;
-    const mgr = supervisors.find((s) => s._id === mgrId);
-    return mgr?.fullName ?? null;
-  }, [form.department, departments, supervisors]);
-
-  function toggleTeam(teamId: string) {
-    setForm((f) => ({
-      ...f,
-      teams: f.teams.includes(teamId) ? f.teams.filter((id) => id !== teamId) : [...f.teams, teamId],
-    }));
-  }
 
   function toggleManagedDept(deptId: string) {
     setForm((f) => ({
@@ -198,8 +141,6 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         const body: Record<string, unknown> = {
           fullName: form.fullName,
           department: form.department || null,
-          reportsTo: form.reportsTo || null,
-          teams: form.teams,
           managedDepartments: isLeadOrManager ? form.managedDepartments : [],
           ...schedulePayload,
         };
@@ -220,8 +161,6 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
             email: form.email,
             fullName: form.fullName,
             department: form.department || undefined,
-            reportsTo: form.reportsTo || undefined,
-            teams: form.teams,
             managedDepartments: isLeadOrManager ? form.managedDepartments : [],
             ...schedulePayload,
           }),
@@ -290,7 +229,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-title">{isEdit ? "Edit Employee" : "Invite Employee"}</h1>
-          <p className="text-subhead hidden sm:block">{isEdit ? "Update employee details and shift configuration." : "Add a new team member — they'll set their own password."}</p>
+          <p className="text-subhead hidden sm:block">{isEdit ? "Update employee details and shift configuration." : "Add a new employee — they'll set their own password."}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button type="button" onClick={() => router.push("/organization")} className="btn btn-secondary hidden sm:inline-flex">Cancel</button>
@@ -365,18 +304,6 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           <div className="space-y-4">
             {isEdit && (
               <>
-              <div>
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Reports To</label>
-                  <select className="input" value={form.reportsTo} onChange={(e) => setForm({ ...form, reportsTo: e.target.value })}>
-                    <option value="">None</option>
-                    {supervisors.map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.fullName}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
                 {departments.length > 0 && (
               <div>
                     <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">
@@ -451,51 +378,15 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                           Use single department only
                         </button>
                       )}
+                    </div>
               </div>
-            </div>
                 )}
-
-            <AnimatePresence>
-              {filteredTeams.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease }}
-                >
-                  <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Teams</label>
-                  <div className="flex flex-wrap gap-2">
-                    {filteredTeams.map((t) => {
-                      const active = form.teams.includes(t._id);
-                      return (
-                        <motion.button
-                          key={t._id}
-                          type="button"
-                          onClick={() => toggleTeam(t._id)}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.92 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            active
-                              ? "bg-[var(--teal)] text-white shadow-sm"
-                              : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                          }`}
-                              style={!active ? { background: "var(--bg-grouped)" } : undefined}
-                        >
-                          {t.name}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
               </>
             )}
 
             {!isEdit && (
               <p className="text-[11px] rounded-lg p-2" style={{ color: "var(--fg-tertiary)", background: "var(--bg-grouped)" }}>
-                Department, team, and reporting assignments can be configured after the employee is added, from the Organization page.
+                Department assignments can be configured after the employee is added, from the Organization page.
               </p>
             )}
           </div>

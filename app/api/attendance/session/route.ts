@@ -5,8 +5,7 @@ import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
-import Membership from "@/lib/models/Membership";
-import { getVerifiedSession } from "@/lib/permissions";
+import { getVerifiedSession, getSubordinateUserIds } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice, validateLocation } from "@/lib/geo";
 import { emitSocket } from "@/lib/socket";
@@ -40,26 +39,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (targetUserId !== actor.id && !actor.isSuperAdmin) {
-    const targetMemberships = await Membership.find({ user: targetUserId, isActive: true })
-      .select("department team")
-      .lean();
-    const targetDeptIds = new Set(
-      targetMemberships
-        .map((m) => (m as { department?: { toString(): string } }).department?.toString())
-        .filter((d): d is string => Boolean(d)),
-    );
-    const targetTeamIds = new Set(
-      targetMemberships
-        .filter((m) => (m as { team?: unknown }).team)
-        .map((m) => (m as { team: { toString(): string } }).team.toString()),
-    );
-    const actorDeptIds = new Set(actor.memberships.map((m) => m.departmentId));
-    const actorTeamIds = new Set(
-      actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!),
-    );
-    const sameDept = [...targetDeptIds].some((d) => actorDeptIds.has(d));
-    const sameTeam = [...targetTeamIds].some((t) => actorTeamIds.has(t));
-    if (!sameDept && !sameTeam) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(targetUserId)) {
       return ok({ activeSession: null });
     }
   }
@@ -280,24 +261,15 @@ function notifyFlagAsync(
 ) {
   (async () => {
     try {
-      const employee = await User.findById(userId).select("about email reportsTo").lean();
+      const employee = await User.findById(userId).select("about email").lean();
       if (!employee) return;
 
       const empName = `${employee.about?.firstName ?? ""} ${employee.about?.lastName ?? ""}`.trim() || employee.email;
       const prefix = severity === "violation" ? "VIOLATION" : "Warning";
       const action = `location flagged — ${prefix} (#${totalCount})`;
 
-      const targetIds: string[] = [];
-
-      if (employee.reportsTo) {
-        targetIds.push(employee.reportsTo.toString());
-      }
-
       const superAdmins = await User.find({ isSuperAdmin: true, isActive: true }).select("_id").lean();
-      for (const sa of superAdmins) {
-        const saId = sa._id.toString();
-        if (!targetIds.includes(saId)) targetIds.push(saId);
-      }
+      const targetIds: string[] = superAdmins.map((sa) => sa._id.toString());
 
       if (targetIds.length === 0) return;
 

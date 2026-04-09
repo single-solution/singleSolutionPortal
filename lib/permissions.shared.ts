@@ -96,22 +96,6 @@ export const PERMISSION_KEYS: (keyof IPermissions)[] = [
   "designations_view", "designations_manage", "holidays_view", "holidays_manage", "settings_view", "settings_manage",
 ];
 
-export const VIEW_ONLY_PERMISSIONS: Set<keyof IPermissions> = new Set([
-  "employees_view", "employees_viewDetail",
-  "departments_view",
-  "tasks_view",
-  "campaigns_view",
-  "updates_view",
-  "attendance_viewTeam", "attendance_viewDetail",
-  "leaves_viewTeam",
-  "payroll_viewTeam",
-  "organization_view",
-  "activityLogs_view",
-  "designations_view",
-  "holidays_view",
-  "settings_view",
-]);
-
 export const PERMISSION_META: Record<keyof IPermissions, { label: string; desc: string }> = {
   employees_view:           { label: "View employee list",       desc: "See the directory of employees and their basic info" },
   employees_viewDetail:     { label: "View employee profiles",   desc: "Open full employee profiles, work history, and details" },

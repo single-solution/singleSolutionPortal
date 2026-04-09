@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, badRequest, notFound, ok } from "@/lib/helpers";
-import { getVerifiedSession, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { sendMail, getBaseUrl } from "@/lib/mail";
 import { logActivity } from "@/lib/activityLogger";
 import { isValidId } from "@/lib/helpers";
@@ -46,6 +46,11 @@ export async function POST(
   if (!isValidId(id)) return badRequest("Invalid employee ID");
 
   await connectDB();
+
+  if (!isSuperAdmin(actor)) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(id)) return forbidden("Can only resend invites to employees within your hierarchy");
+  }
 
   const user = await User.findById(id);
   if (!user) return notFound("Employee not found");

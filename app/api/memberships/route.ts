@@ -3,27 +3,15 @@ import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
-import Team from "@/lib/models/Team";
 import { unauthorized, forbidden, badRequest, ok, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function populateMembership(q: any) {
   return q
     .populate("user", "about.firstName about.lastName email username")
     .populate("department", "title")
-    .populate("team", "name")
-    .populate("designation", "name color defaultPermissions")
-    .populate("reportsTo", "about.firstName about.lastName email username");
-}
-
-function departmentIdsWithEmployeesView(actor: Awaited<ReturnType<typeof getVerifiedSession>>): string[] {
-  if (!actor) return [];
-  return [
-    ...new Set(
-      actor.memberships.filter((m) => m.permissions.employees_view === true).map((m) => m.departmentId),
-    ),
-  ];
+    .populate("designation", "name color defaultPermissions");
 }
 
 function clonePermissionsFromDesignation(defaultPermissions: IPermissions | Record<string, boolean>): Record<string, boolean> {
@@ -56,32 +44,24 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId") ?? undefined;
   const departmentId = searchParams.get("departmentId") ?? undefined;
-  const teamId = searchParams.get("teamId") ?? undefined;
 
   if (userId && !isValidId(userId)) return badRequest("Invalid userId");
   if (departmentId && !isValidId(departmentId)) return badRequest("Invalid departmentId");
-  if (teamId && !isValidId(teamId)) return badRequest("Invalid teamId");
 
   await connectDB();
 
   const filter: Record<string, unknown> = { isActive: { $ne: false } };
 
   if (!isSuperAdmin(actor)) {
-    const scope = departmentIdsWithEmployeesView(actor);
-    if (scope.length === 0) return ok([]);
-
-    if (departmentId) {
-      if (!scope.includes(departmentId)) return forbidden();
-      filter.department = departmentId;
-    } else {
-      filter.department = { $in: scope };
-    }
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    const visibleUserIds = [actor.id, ...subordinateIds];
+    filter.user = { $in: visibleUserIds };
+    if (departmentId) filter.department = departmentId;
   } else if (departmentId) {
     filter.department = departmentId;
   }
 
   if (userId) filter.user = userId;
-  if (teamId) filter.team = teamId;
 
   const list = await populateMembership(Membership.find(filter))
     .sort({ createdAt: -1 })
@@ -131,33 +111,6 @@ export async function POST(req: Request) {
   if (!deptDoc) return badRequest("Department not found");
   if (!desigDoc) return badRequest("Designation not found");
 
-  let team: string | null | undefined;
-  if (body.team !== undefined && body.team !== null && body.team !== "") {
-    if (typeof body.team !== "string" || !isValidId(body.team)) {
-      return badRequest("Invalid team");
-    }
-    const teamDoc = await Team.findById(body.team).select("department").lean();
-    if (!teamDoc) return badRequest("Team not found");
-    if (teamDoc.department.toString() !== department) {
-      return badRequest("Team does not belong to the selected department");
-    }
-    team = body.team;
-  } else {
-    team = null;
-  }
-
-  let reportsTo: string | null | undefined;
-  if (body.reportsTo !== undefined && body.reportsTo !== null && body.reportsTo !== "") {
-    if (typeof body.reportsTo !== "string" || !isValidId(body.reportsTo)) {
-      return badRequest("Invalid reportsTo");
-    }
-    const reportsUser = await User.findById(body.reportsTo).select("_id").lean();
-    if (!reportsUser) return badRequest("reportsTo user not found");
-    reportsTo = body.reportsTo;
-  } else {
-    reportsTo = null;
-  }
-
   const basePerms = clonePermissionsFromDesignation(
     (desigDoc.defaultPermissions ?? {}) as IPermissions,
   );
@@ -166,7 +119,6 @@ export async function POST(req: Request) {
       ? mergePermissionOverrides(basePerms, body.permissions)
       : basePerms;
 
-  const isPrimary = typeof body.isPrimary === "boolean" ? body.isPrimary : false;
   const direction = body.direction === "above" ? "above" : "below";
   const autoSource = body.autoSource === "hierarchy" ? "hierarchy" : null;
 
@@ -175,9 +127,6 @@ export async function POST(req: Request) {
       user,
       department,
       designation: designationId,
-      team: team ?? undefined,
-      reportsTo: reportsTo ?? undefined,
-      isPrimary,
       isActive: true,
       direction,
       autoSource,
@@ -190,7 +139,7 @@ export async function POST(req: Request) {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("E11000") || msg.includes("duplicate")) {
-      return badRequest("A membership already exists for this user, department, and team");
+      return badRequest("A membership already exists for this user and department");
     }
     throw e;
   }

@@ -3,17 +3,11 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Leave from "@/lib/models/Leave";
 import LeaveBalance from "@/lib/models/LeaveBalance";
-import Membership from "@/lib/models/Membership";
 import type { LeaveStatus, LeaveType } from "@/lib/models/Leave";
-import { getVerifiedSession, isAdmin, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { badRequest, forbidden, notFound, unauthorized, isValidId } from "@/lib/helpers";
 
 const BALANCE_TYPES = new Set<LeaveType>(["annual", "sick", "casual"]);
-
-async function directReportUserIds(managerId: string): Promise<string[]> {
-  const ids = await Membership.find({ reportsTo: managerId, isActive: true }).distinct("user");
-  return ids.map((id) => id.toString());
-}
 
 async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number) {
   const doc = await LeaveBalance.findOneAndUpdate(
@@ -55,18 +49,12 @@ async function releaseBalance(leave: {
   await bal.save();
 }
 
-function canApproveReject(actor: Parameters<typeof isAdmin>[0]): boolean {
-  return isAdmin(actor);
-}
-
-async function canViewLeave(
-  actor: { id: string; isSuperAdmin: boolean },
-  leaveUserId: string,
-): Promise<boolean> {
+async function isInActorHierarchy(actor: Awaited<ReturnType<typeof getVerifiedSession>>, targetUserId: string): Promise<boolean> {
+  if (!actor) return false;
   if (actor.isSuperAdmin) return true;
-  if (leaveUserId === actor.id) return true;
-  const reports = await directReportUserIds(actor.id);
-  return reports.includes(leaveUserId);
+  if (targetUserId === actor.id) return true;
+  const subordinateIds = await getSubordinateUserIds(actor.id);
+  return subordinateIds.includes(targetUserId);
 }
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -91,7 +79,7 @@ export async function GET(_req: NextRequest, context: RouteCtx) {
     ? String((leave.user as { _id: unknown })._id)
     : String(leave.user);
 
-  if (!(await canViewLeave(actor, leaveUserId))) {
+  if (!(await isInActorHierarchy(actor, leaveUserId))) {
     return forbidden();
   }
 
@@ -126,7 +114,7 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
 
   const leaveUserId = leave.user.toString();
 
-  if (!(await canViewLeave(actor, leaveUserId))) {
+  if (!(await isInActorHierarchy(actor, leaveUserId))) {
     return forbidden();
   }
 
@@ -135,11 +123,11 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
   if (nextStatus === "cancelled") {
     const isOwner = leaveUserId === actor.id;
     if (prev === "pending") {
-      if (!actor.isSuperAdmin && !isOwner) {
+      if (!isSuperAdmin(actor) && !isOwner) {
         return forbidden("Only the requester can cancel a pending leave.");
       }
     } else if (prev === "approved") {
-      if (!actor.isSuperAdmin) {
+      if (!isSuperAdmin(actor)) {
         return forbidden("Only a SuperAdmin can cancel an approved leave.");
       }
       await releaseBalance(leave);
@@ -156,10 +144,13 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
     return NextResponse.json(populated);
   }
 
-  if (nextStatus === "approved") {
-    if (!canApproveReject(actor)) {
-      return forbidden("Only a Manager or SuperAdmin can approve leave.");
+  if (nextStatus === "approved" || nextStatus === "rejected") {
+    if (!hasPermission(actor, "leaves_approve")) {
+      return forbidden("You don't have permission to approve or reject leaves.");
     }
+  }
+
+  if (nextStatus === "approved") {
     if (prev !== "pending") {
       return badRequest("Only pending requests can be approved.");
     }
@@ -177,9 +168,6 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
   }
 
   if (nextStatus === "rejected") {
-    if (!canApproveReject(actor)) {
-      return forbidden("Only a Manager or SuperAdmin can reject leave.");
-    }
     if (prev !== "pending" && prev !== "approved") {
       return badRequest("Invalid transition to rejected.");
     }

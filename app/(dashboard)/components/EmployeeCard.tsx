@@ -12,7 +12,6 @@ export interface EmployeeCardEmp {
   email?: string;
   designation?: string;
   department?: string;
-  reportsTo?: string;
   isLive?: boolean;
   status?: string;
   locationFlagged?: boolean;
@@ -34,7 +33,6 @@ export interface EmployeeCardEmp {
   shiftEnd?: string;
   shiftBreakTime?: number;
   profileImage?: string;
-  teams?: { _id: string; name: string }[];
   weeklySchedule?: Record<string, { isWorking: boolean; start: string; end: string; breakMinutes: number }>;
   isVerified?: boolean;
   pendingTasks?: number;
@@ -58,8 +56,8 @@ export interface EmployeeCardProps {
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (id: string) => void;
-  /** Role / department / teams block (employee list only). */
-  showRoleDepartmentTeams?: boolean;
+  /** Show designation, department, shift, and other meta (employee list only). */
+  showEmployeeMeta?: boolean;
   /** Extra row below card body (e.g. status toggle, joined date). */
   footerSlot?: React.ReactNode;
   /** When true, omit outer card chrome (parent supplies `.card`). */
@@ -267,7 +265,7 @@ export function EmployeeCard({
   selectable,
   selected,
   onSelect,
-  showRoleDepartmentTeams,
+  showEmployeeMeta,
   footerSlot,
   embedded,
   className,
@@ -361,15 +359,10 @@ export function EmployeeCard({
                 {subtitle}
               </p>
             )}
-            {emp.reportsTo && (
-              <p className="text-caption mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
-                Reports to <span className="font-medium" style={{ color: "var(--fg-secondary)" }}>{emp.reportsTo}</span>
-              </p>
-            )}
           </div>
         </div>
 
-        {showRoleDepartmentTeams && (
+        {showEmployeeMeta && (
           <div className="space-y-1 text-[11px]">
             <div className="flex items-center justify-between gap-2">
               <span style={{ color: "var(--fg-tertiary)" }}>Designation</span>
@@ -383,24 +376,6 @@ export function EmployeeCard({
                 {emp.department ?? "—"}
               </span>
             </div>
-            {emp.teams && emp.teams.length > 0 && (
-              <div className="flex items-start justify-between gap-2">
-                <span className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
-                  Teams
-                </span>
-                <div className="flex flex-wrap justify-end gap-1">
-                  {emp.teams.map((t) => (
-                    <span
-                      key={t._id}
-                      className="rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                      style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}
-                    >
-                      {t.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
             {emp.shiftSummary && (
               <div className="flex items-start justify-between gap-2">
                 <span className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>

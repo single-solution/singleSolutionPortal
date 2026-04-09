@@ -48,8 +48,6 @@ export interface EmployeeCardEmp {
   designation?: string;
   department?: string;
   departmentId?: string | null;
-  reportsTo?: string;
-  reportsToId?: string | null;
   isLive?: boolean;
   status?: string;
   locationFlagged?: boolean;
@@ -73,8 +71,6 @@ export interface EmployeeCardEmp {
   shiftBreakTime?: number;
   profileImage?: string;
   isSuperAdmin?: boolean;
-  teams?: { _id: string; name: string }[];
-  teamIds?: string[];
   weeklySchedule?: Record<string, { isWorking: boolean; start: string; end: string; breakMinutes: number }>;
   shiftType?: string;
   graceMinutes?: number;
@@ -103,7 +99,6 @@ export interface Department {
   manager?: DepartmentManager;
   parentDepartment?: { _id: string; title: string } | null;
   employeeCount: number;
-  teamCount: number;
   isActive: boolean;
   createdAt: string;
 }
@@ -133,8 +128,6 @@ export interface Campaign {
   tags: {
     employees: TaggedEmployee[];
     departments: TaggedDept[];
-    /** Legacy — preserved on save when updating a campaign. */
-    teams: { _id: string; name: string }[];
   };
   notes?: string;
   isActive: boolean;

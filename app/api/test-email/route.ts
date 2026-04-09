@@ -1,30 +1,31 @@
-import { getSession, unauthorized, forbidden } from "@/lib/helpers";
+import { unauthorized, forbidden } from "@/lib/helpers";
+import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
 import { sendMail, buildInviteHtml, buildResetHtml, buildAlertHtml } from "@/lib/mail";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  if (!session.user.isSuperAdmin) return forbidden();
+  const actor = await getVerifiedSession();
+  if (!actor) return unauthorized();
+  if (!isSuperAdmin(actor)) return forbidden();
 
   const url = new URL(request.url);
   const type = url.searchParams.get("type") ?? "invite";
-  const to = url.searchParams.get("email") ?? session.user.email;
+  const to = url.searchParams.get("email") ?? actor.email;
 
   let subject = "";
   let html = "";
 
   switch (type) {
     case "invite":
-      subject = "🧪 TEST — Welcome Email";
+      subject = "TEST — Welcome Email";
       html = buildInviteHtml("Test Admin", true);
       break;
     case "reset":
-      subject = "🧪 TEST — Password Reset";
+      subject = "TEST — Password Reset";
       html = buildResetHtml(true);
       break;
     case "alert":
-      subject = "🧪 TEST — Attendance Alert";
+      subject = "TEST — Attendance Alert";
       html = buildAlertHtml("This is a test attendance notification.", true);
       break;
     default:
