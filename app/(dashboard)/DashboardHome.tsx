@@ -1440,13 +1440,14 @@ export default function DashboardHome({ user }: { user: User }) {
 
   /* ── Initial load ── */
   useEffect(() => {
+    if (initialDone.current) return;
+    initialDone.current = true;
     Promise.all([fetchFull(), fetchLive()]).then(() => {
       if (hasTeamAccess && !realPresence) {
         setTimeout(fetchLive, 1500);
       }
     }).finally(() => {
       setLoading(false);
-      initialDone.current = true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

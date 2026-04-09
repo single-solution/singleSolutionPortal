@@ -3,7 +3,7 @@ import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import FlowLayout from "@/lib/models/FlowLayout";
 import type { IPermissions } from "@/lib/models/Designation";
-import { VIEW_ONLY_PERMISSIONS } from "@/lib/models/Designation";
+import { VIEW_ONLY_PERMISSIONS, PERMISSION_KEYS } from "@/lib/models/Designation";
 import { auth } from "@/lib/auth";
 
 /* ================================================================ */
@@ -71,6 +71,54 @@ export async function getVerifiedSession(): Promise<VerifiedUser | null> {
     isSuperAdmin: raw.isSuperAdmin === true,
     memberships: membershipContexts,
     isActive: dbUser.isActive,
+  };
+}
+
+/* ================================================================ */
+/* SERVER-SIDE PERMISSIONS PAYLOAD                                    */
+/* ================================================================ */
+
+export interface PermissionsPayload {
+  isSuperAdmin: boolean;
+  permissions: Partial<Record<keyof IPermissions, boolean>>;
+  hasSubordinates: boolean;
+}
+
+/**
+ * Build the merged permissions object for a user — same shape as
+ * GET /api/me/permissions. Called from the server layout so the client
+ * hydrates with correct values on first paint.
+ */
+export async function getPermissionsPayload(userId: string): Promise<PermissionsPayload> {
+  await connectDB();
+
+  const dbUser = await User.findById(userId).select("isSuperAdmin isActive").lean();
+  if (!dbUser || !dbUser.isActive) {
+    return { isSuperAdmin: false, permissions: {}, hasSubordinates: false };
+  }
+
+  const isSA = (dbUser as any).isSuperAdmin === true;
+  const merged: Partial<Record<keyof IPermissions, boolean>> = {};
+
+  if (isSA) {
+    for (const k of PERMISSION_KEYS) merged[k] = true;
+  } else {
+    const memberships = await Membership.find({ user: userId, isActive: true })
+      .select("permissions")
+      .lean();
+    for (const m of memberships) {
+      for (const k of PERMISSION_KEYS) {
+        if ((m.permissions as unknown as Record<string, boolean>)?.[k]) merged[k] = true;
+      }
+    }
+  }
+
+  const subordinateIds = isSA ? [] : await getSubordinateUserIds(userId);
+
+  return {
+    isSuperAdmin: isSA,
+    permissions: merged,
+    hasSubordinates: isSA || subordinateIds.length > 0,
   };
 }
 

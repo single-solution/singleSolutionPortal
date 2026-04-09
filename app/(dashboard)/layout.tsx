@@ -4,6 +4,7 @@ import { DashboardShell } from "./DashboardShell";
 import Providers from "./Providers";
 import { GuideProvider } from "@/lib/useGuide";
 import { PermissionsProvider } from "@/lib/usePermissions";
+import { getPermissionsPayload } from "@/lib/permissions";
 
 async function getLiveUpdates(): Promise<boolean> {
   try {
@@ -21,11 +22,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const liveUpdates = await getLiveUpdates();
+  const [liveUpdates, permissionsPayload] = await Promise.all([
+    getLiveUpdates(),
+    getPermissionsPayload(session.user.id!),
+  ]);
 
   return (
     <Providers>
-      <PermissionsProvider>
+      <PermissionsProvider initialData={permissionsPayload}>
         <GuideProvider userName={session.user.firstName ?? "there"}>
           <DashboardShell user={session.user} liveUpdates={liveUpdates}>{children}</DashboardShell>
         </GuideProvider>

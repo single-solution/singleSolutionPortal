@@ -13,6 +13,12 @@ interface PermissionsState {
   refresh: () => Promise<void>;
 }
 
+export interface PermissionsInitialData {
+  isSuperAdmin: boolean;
+  permissions: Partial<Record<keyof IPermissions, boolean>>;
+  hasSubordinates: boolean;
+}
+
 const PermissionsContext = createContext<PermissionsState>({
   isSuperAdmin: false,
   hasSubordinates: false,
@@ -23,11 +29,17 @@ const PermissionsContext = createContext<PermissionsState>({
   refresh: async () => {},
 });
 
-export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [hasSubordinates, setHasSubordinates] = useState(false);
-  const [permissions, setPermissions] = useState<Partial<Record<keyof IPermissions, boolean>>>({});
-  const [loading, setLoading] = useState(true);
+interface ProviderProps {
+  children: ReactNode;
+  initialData?: PermissionsInitialData;
+}
+
+export function PermissionsProvider({ children, initialData }: ProviderProps) {
+  const hasInitial = !!initialData;
+  const [isSuperAdmin, setIsSuperAdmin] = useState(initialData?.isSuperAdmin ?? false);
+  const [hasSubordinates, setHasSubordinates] = useState(initialData?.hasSubordinates ?? false);
+  const [permissions, setPermissions] = useState<Partial<Record<keyof IPermissions, boolean>>>(initialData?.permissions ?? {});
+  const [loading, setLoading] = useState(!hasInitial);
   const mounted = useRef(true);
 
   const fetchPermissions = useCallback(async () => {
@@ -45,9 +57,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     mounted.current = true;
-    fetchPermissions();
+    if (!hasInitial) fetchPermissions();
     return () => { mounted.current = false; };
-  }, [fetchPermissions]);
+  }, [fetchPermissions, hasInitial]);
 
   const can = useCallback(
     (key: keyof IPermissions) => isSuperAdmin || permissions[key] === true,
