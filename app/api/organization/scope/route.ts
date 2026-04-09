@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import FlowLayout from "@/lib/models/FlowLayout";
+import Membership from "@/lib/models/Membership";
+import "@/lib/models/Department";
 import {
   getVerifiedSession,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 
 /**
- * Returns the set of user IDs a non-SuperAdmin is allowed to see on the
- * organization chart: themselves + transitive subordinates + direct managers
- * (1 step up only).
+ * Returns the scoped view for a non-SuperAdmin on the organization chart:
+ * - subordinateIds: all transitive subordinates
+ * - managerIds: direct manager (1 step up)
+ * - departmentIds: departments connected via memberships to self + subordinates + manager
  */
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (actor.isSuperAdmin) {
-    return NextResponse.json({ subordinateIds: [], managerIds: [], all: true });
+    return NextResponse.json({ subordinateIds: [], managerIds: [], departmentIds: [], all: true });
   }
 
   await connectDB();
@@ -45,5 +48,33 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ subordinateIds, managerIds });
+  const allVisibleUsers = [actor.id, ...subordinateIds, ...managerIds];
+  const visibleEmpNodes = new Set(allVisibleUsers.map((id) => `emp-${id}`));
+
+  const departmentIdSet = new Set<string>();
+
+  for (const link of links) {
+    const empNode = visibleEmpNodes.has(link.source) ? link.source : visibleEmpNodes.has(link.target) ? link.target : null;
+    if (!empNode) continue;
+    const otherNode = link.source === empNode ? link.target : link.source;
+    if (otherNode.startsWith("dept-")) {
+      departmentIdSet.add(otherNode.slice(5));
+    }
+  }
+
+  const memberships = await Membership.find({
+    user: { $in: allVisibleUsers },
+    isActive: { $ne: false },
+  }).select("department").lean();
+
+  for (const m of memberships) {
+    const dId = m.department?.toString();
+    if (dId) departmentIdSet.add(dId);
+  }
+
+  return NextResponse.json({
+    subordinateIds,
+    managerIds,
+    departmentIds: [...departmentIdSet],
+  });
 }

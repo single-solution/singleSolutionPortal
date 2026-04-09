@@ -230,11 +230,19 @@ export default function OrganizationPage() {
   }
 
   /* ── Hierarchy scope for non-SuperAdmins ── */
-  const [hierarchyScope, setHierarchyScope] = useState<{ subordinateIds: string[]; managerIds: string[] } | null>(null);
+  const [hierarchyScope, setHierarchyScope] = useState<{
+    subordinateIds: string[];
+    managerIds: string[];
+    departmentIds: string[];
+  } | null>(null);
   useEffect(() => {
     if (isSuperAdmin) return;
     fetch("/api/organization/scope").then((r) => r.ok ? r.json() : null).then((data) => {
-      if (data) setHierarchyScope({ subordinateIds: data.subordinateIds ?? [], managerIds: data.managerIds ?? [] });
+      if (data) setHierarchyScope({
+        subordinateIds: data.subordinateIds ?? [],
+        managerIds: data.managerIds ?? [],
+        departmentIds: data.departmentIds ?? [],
+      });
     }).catch(() => {});
   }, [isSuperAdmin]);
 
@@ -251,12 +259,9 @@ export default function OrganizationPage() {
 
   const scopedDepts = useMemo(() => {
     if (isSuperAdmin || !hierarchyScope) return deptList;
-    const visibleDeptIds = new Set<string>();
-    for (const emp of scopedEmps) {
-      if (emp.department?._id) visibleDeptIds.add(emp.department._id);
-    }
+    const visibleDeptIds = new Set(hierarchyScope.departmentIds);
     return deptList.filter((d) => visibleDeptIds.has(d._id));
-  }, [deptList, scopedEmps, isSuperAdmin, hierarchyScope]);
+  }, [deptList, isSuperAdmin, hierarchyScope]);
 
   const filteredEmps = useMemo(() => {
     if (!search.trim()) return scopedEmps;
