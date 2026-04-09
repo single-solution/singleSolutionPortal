@@ -1,17 +1,31 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getVerifiedSession, hasPermission } from "@/lib/permissions";
-import PayrollConfig from "@/lib/models/PayrollConfig";
+import PayrollConfig, { type ILatePenaltyTier } from "@/lib/models/PayrollConfig";
 
-const ALLOWED_FIELDS = [
+const SCALAR_FIELDS = [
   "workingDaysPerMonth",
   "lateThresholdMinutes",
-  "latePenaltyPerIncident",
   "absencePenaltyPerDay",
   "overtimeRateMultiplier",
   "currency",
   "payDay",
 ] as const;
+
+function validateTiers(tiers: unknown): tiers is ILatePenaltyTier[] {
+  if (!Array.isArray(tiers) || tiers.length === 0) return false;
+  return tiers.every(
+    (t) =>
+      typeof t === "object" &&
+      t !== null &&
+      Number.isFinite(t.minMinutes) &&
+      Number.isFinite(t.maxMinutes) &&
+      Number.isFinite(t.penaltyPercent) &&
+      t.minMinutes >= 0 &&
+      t.maxMinutes > t.minMinutes &&
+      t.penaltyPercent >= 0,
+  );
+}
 
 export async function GET() {
   const actor = await getVerifiedSession();
@@ -32,7 +46,7 @@ export async function GET() {
 export async function PUT(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "settings_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "payroll_manageSalary")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await connectDB();
 
@@ -44,7 +58,8 @@ export async function PUT(req: Request) {
   }
 
   const $set: Record<string, unknown> = {};
-  for (const key of ALLOWED_FIELDS) {
+
+  for (const key of SCALAR_FIELDS) {
     if (!(key in body) || body[key] === undefined) continue;
     if (key === "currency") {
       if (typeof body[key] !== "string") {
@@ -61,6 +76,16 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "payDay must be between 1 and 28" }, { status: 400 });
     }
     $set[key] = n;
+  }
+
+  if ("latePenaltyTiers" in body && body.latePenaltyTiers !== undefined) {
+    if (!validateTiers(body.latePenaltyTiers)) {
+      return NextResponse.json(
+        { error: "latePenaltyTiers must be a non-empty array of { minMinutes, maxMinutes, penaltyPercent }" },
+        { status: 400 },
+      );
+    }
+    $set.latePenaltyTiers = body.latePenaltyTiers;
   }
 
   if (Object.keys($set).length === 0) {

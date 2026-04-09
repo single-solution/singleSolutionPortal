@@ -71,6 +71,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (typeof body.graceMinutes === "number") update.graceMinutes = body.graceMinutes;
   if (body.shiftType) update.shiftType = body.shiftType;
 
+  if (typeof body.salary === "number" && Number.isFinite(body.salary) && hasPermission(actor, "payroll_manageSalary")) {
+    update.salary = body.salary;
+  }
+
   if (isSuperAdmin(actor)) {
     if (body.isActive !== undefined) update.isActive = body.isActive;
 

@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   await connectDB();
 
   const body = await req.json();
-  const { email, fullName, weeklySchedule, graceMinutes, shiftType } = body;
+  const { email, fullName, weeklySchedule, graceMinutes, shiftType, salary } = body;
 
   if (!email || !fullName) {
     return badRequest("Missing required fields: email, fullName");
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   const tempPassword = crypto.randomUUID() + "Aa1!";
   const hashed = await bcrypt.hash(tempPassword, 12);
 
-  const user = await User.create({
+  const createPayload: Record<string, unknown> = {
     email: trimmedEmail,
     username,
     password: hashed,
@@ -81,7 +81,13 @@ export async function POST(req: Request) {
     isActive: true,
     isVerified: false,
     createdBy: actor.id,
-  });
+  };
+
+  if (typeof salary === "number" && Number.isFinite(salary) && hasPermission(actor, "payroll_manageSalary")) {
+    createPayload.salary = salary;
+  }
+
+  const user = await User.create(createPayload);
 
   if (Array.isArray(body.managedDepartments)) {
     await Department.updateMany({ manager: user._id }, { $unset: { manager: 1 } });

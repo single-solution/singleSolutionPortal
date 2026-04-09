@@ -28,7 +28,7 @@ export async function GET() {
   }
 
   const users = await User.find(filter)
-    .select("_id email about.firstName about.lastName")
+    .select("_id email about.firstName about.lastName salary")
     .sort({ "about.firstName": 1 })
     .lean();
 

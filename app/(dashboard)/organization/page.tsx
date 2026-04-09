@@ -185,6 +185,7 @@ export default function OrganizationPage() {
   const [empForm, setEmpForm] = useState({
     fullName: "", email: "", password: "",
     shiftType: "fullTime", graceMinutes: 30,
+    salary: 0,
     weeklySchedule: makeDefaultWeeklySchedule(),
   });
   const [empSaving, setEmpSaving] = useState(false);
@@ -192,9 +193,11 @@ export default function OrganizationPage() {
 
   const deptList = useMemo(() => departments ?? [], [departments]);
   const empList = useMemo(() => employees ?? [], [employees]);
+  const canManageSalary = canPerm("payroll_manageSalary");
+
   function openCreateEmployee() {
     setEditingEmpId(null);
-    setEmpForm({ fullName: "", email: "", password: "", shiftType: "fullTime", graceMinutes: 30, weeklySchedule: makeDefaultWeeklySchedule() });
+    setEmpForm({ fullName: "", email: "", password: "", shiftType: "fullTime", graceMinutes: 30, salary: 0, weeklySchedule: makeDefaultWeeklySchedule() });
     setEmpModalOpen(true);
   }
 
@@ -205,6 +208,7 @@ export default function OrganizationPage() {
       email: emp.email, password: "",
       shiftType: emp.shiftType ?? "fullTime",
       graceMinutes: resolveGraceMinutes(emp as unknown as Record<string, unknown>),
+      salary: (emp as unknown as Record<string, unknown>).salary as number ?? 0,
       weeklySchedule: resolveWeeklySchedule(emp as unknown as Record<string, unknown>),
     });
     setEmpModalOpen(true);
@@ -218,7 +222,8 @@ export default function OrganizationPage() {
     if (!empForm.fullName.trim() || (!isEditEmp && !empForm.email.trim())) return;
     setEmpSaving(true);
     try {
-      const schedulePayload = { weeklySchedule: empForm.weeklySchedule, graceMinutes: empForm.graceMinutes, shiftType: empForm.shiftType };
+      const schedulePayload: Record<string, unknown> = { weeklySchedule: empForm.weeklySchedule, graceMinutes: empForm.graceMinutes, shiftType: empForm.shiftType };
+      if (canManageSalary) schedulePayload.salary = empForm.salary;
       if (isEditEmp) {
         const body: Record<string, unknown> = { fullName: empForm.fullName, ...schedulePayload };
         if (empForm.password) body.password = empForm.password;
@@ -493,9 +498,12 @@ export default function OrganizationPage() {
                         );
                       })}
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
+                    <div className={`mt-2 grid gap-2 ${canManageSalary ? "grid-cols-3" : "grid-cols-2"}`}>
                       <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option></select></div>
                       <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Grace (min)</label><input type="number" min={0} value={empForm.graceMinutes} onChange={(e) => setEmpForm((f) => ({ ...f, graceMinutes: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
+                      {canManageSalary && (
+                        <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Salary</label><input type="number" min={0} step="any" value={empForm.salary} onChange={(e) => setEmpForm((f) => ({ ...f, salary: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
+                      )}
                     </div>
                   </div>
 

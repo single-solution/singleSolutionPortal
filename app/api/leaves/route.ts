@@ -3,9 +3,10 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Leave from "@/lib/models/Leave";
 import LeaveBalance from "@/lib/models/LeaveBalance";
+import Holiday from "@/lib/models/Holiday";
 import "@/lib/models/User";
 import type { LeaveType } from "@/lib/models/Leave";
-import { getVerifiedSession, isSuperAdmin, getSubordinateUserIds } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { badRequest, forbidden, unauthorized } from "@/lib/helpers";
 
 const LEAVE_TYPES: LeaveType[] = [
@@ -21,17 +22,45 @@ const LEAVE_TYPES: LeaveType[] = [
 
 const BALANCE_TYPES = new Set<LeaveType>(["annual", "sick", "casual"]);
 
-export function countBusinessDays(start: Date, end: Date): number {
+export async function countBusinessDays(start: Date, end: Date): Promise<number> {
   const s = new Date(start);
   const e = new Date(end);
   s.setHours(0, 0, 0, 0);
   e.setHours(0, 0, 0, 0);
   if (e < s) return 0;
+
+  const years = new Set<number>();
+  const tmp = new Date(s);
+  while (tmp <= e) {
+    years.add(tmp.getFullYear());
+    tmp.setDate(tmp.getDate() + 1);
+  }
+
+  const yearFilters = [...years].map((y) => ({ year: y }));
+  const holidays = await Holiday.find({
+    $or: [...yearFilters, { isRecurring: true }],
+  }).lean();
+
+  const holidayDateKeys = new Set<string>();
+  for (const y of years) {
+    for (const h of holidays) {
+      const hd = new Date(h.date);
+      const hm = hd.getUTCMonth();
+      const hday = hd.getUTCDate();
+      if (h.isRecurring || h.year === y) {
+        holidayDateKeys.add(`${y}-${hm}-${hday}`);
+      }
+    }
+  }
+
   let count = 0;
   const cur = new Date(s);
   while (cur <= e) {
-    const d = cur.getDay();
-    if (d !== 0 && d !== 6) count += 1;
+    const dow = cur.getDay();
+    if (dow !== 0 && dow !== 6) {
+      const key = `${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`;
+      if (!holidayDateKeys.has(key)) count += 1;
+    }
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -181,20 +210,26 @@ export async function POST(req: NextRequest) {
     return badRequest("endDate must be on or after startDate");
   }
 
-  const days = countBusinessDays(startDate, endDate);
+  const days = await countBusinessDays(startDate, endDate);
   if (days < 0.5) {
     return badRequest("Leave must include at least one business day");
   }
 
-  if (!isSuperAdmin(actor) && targetUserId !== actor.id) {
-    return forbidden("You can only create leave requests for yourself.");
+  if (targetUserId !== actor.id && !isSuperAdmin(actor)) {
+    if (!hasPermission(actor, "leaves_approve")) {
+      return forbidden("You can only create leave requests for yourself.");
+    }
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(targetUserId)) {
+      return forbidden("You can only create leave on behalf of employees in your hierarchy.");
+    }
   }
 
   const past = isDateBeforeToday(startDate);
   let isPastCorrection = false;
   if (past) {
-    if (!isSuperAdmin(actor)) {
-      return forbidden("Past-dated leave requests require a SuperAdmin.");
+    if (!isSuperAdmin(actor) && !hasPermission(actor, "leaves_approve")) {
+      return forbidden("Past-dated leave requests require leave approval permission.");
     }
     isPastCorrection = true;
   }

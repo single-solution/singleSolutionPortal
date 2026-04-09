@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
+import Holiday from "@/lib/models/Holiday";
 import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import SystemSettings from "@/lib/models/SystemSettings";
@@ -379,6 +380,23 @@ async function recomputeDaily(userId: string, sessionDate: Date, _now: Date, tz:
   await updateMonthlyStats(userId, sessionDate, tz);
 }
 
+async function isTodayHoliday(date: Date, tz: string): Promise<boolean> {
+  const localStr = date.toLocaleDateString("en-CA", { timeZone: tz.replace(/-/g, "/") });
+  const [y, m, d] = localStr.split("-").map(Number);
+  const holidays = await Holiday.find({
+    $or: [{ year: y }, { isRecurring: true }],
+  }).lean();
+  for (const h of holidays) {
+    const hd = new Date(h.date);
+    const hMonth = hd.getUTCMonth() + 1;
+    const hDay = hd.getUTCDate();
+    if (hMonth === m && hDay === d) {
+      if (h.isRecurring || h.year === y) return true;
+    }
+  }
+  return false;
+}
+
 // ─── Check-in ─────────────────────────────────────────────────────
 async function handleCheckIn(
   userId: string,
@@ -483,6 +501,8 @@ async function handleCheckIn(
     }
   }
 
+  const todayIsHoliday = await isTodayHoliday(now, tz);
+
   let daily = await DailyAttendance.findOne({ user: userId, date: today });
   if (!daily) {
     const user = await User.findById(userId).select("weeklySchedule graceMinutes").lean();
@@ -497,9 +517,9 @@ async function handleCheckIn(
     const [sh, sm] = shiftStart.split(":").map(Number);
 
     const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + grace, 0, tz);
-    const isNonWorkingDay = !todayDay.isWorking;
-    const isLate = isNonWorkingDay ? false : now > shiftDeadline;
-    const isLateToOffice = isNonWorkingDay ? false : inOffice && now > shiftDeadline;
+    const skipLate = todayIsHoliday || !todayDay.isWorking;
+    const isLate = skipLate ? false : now > shiftDeadline;
+    const isLateToOffice = skipLate ? false : inOffice && now > shiftDeadline;
 
     daily = await DailyAttendance.create({
       user: userId,
@@ -507,6 +527,7 @@ async function handleCheckIn(
       firstOfficeEntry: inOffice ? now : undefined,
       isPresent: true,
       isOnTime: !isLate,
+      isHoliday: todayIsHoliday,
       lateBy: isLate ? Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000) : 0,
       isLateToOffice,
       lateToOfficeBy: isLateToOffice ? Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000) : 0,
@@ -514,26 +535,29 @@ async function handleCheckIn(
     });
   } else {
     daily.isPresent = true;
+    if (todayIsHoliday) daily.isHoliday = true;
     daily.activitySessions.push(activitySession._id);
     if (inOffice && !daily.firstOfficeEntry) {
       daily.firstOfficeEntry = now;
 
-      const user = await User.findById(userId).select("weeklySchedule graceMinutes").lean();
-      const { resolveWeeklySchedule, resolveGraceMinutes } = await import("@/lib/models/User");
-      const schedule = resolveWeeklySchedule((user ?? {}) as Record<string, unknown>);
-      const grace = resolveGraceMinutes((user ?? {}) as Record<string, unknown>);
-      const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
-      const tp = dateParts(today, tz);
-      const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") }));
-      const todayDay = schedule[dayMap[localNow.getDay()]];
-      const shiftStart = todayDay.start;
-      const [sh, sm] = shiftStart.split(":").map(Number);
-      const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + grace, 0, tz);
-      if (!todayDay.isWorking) {
-        /* non-working day — skip late-to-office flag */
-      } else if (now > shiftDeadline) {
-        daily.isLateToOffice = true;
-        daily.lateToOfficeBy = Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000);
+      if (!todayIsHoliday) {
+        const user = await User.findById(userId).select("weeklySchedule graceMinutes").lean();
+        const { resolveWeeklySchedule, resolveGraceMinutes } = await import("@/lib/models/User");
+        const schedule = resolveWeeklySchedule((user ?? {}) as Record<string, unknown>);
+        const grace = resolveGraceMinutes((user ?? {}) as Record<string, unknown>);
+        const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+        const tp = dateParts(today, tz);
+        const localNow = new Date(now.toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") }));
+        const todayDay = schedule[dayMap[localNow.getDay()]];
+        const shiftStart = todayDay.start;
+        const [sh, sm] = shiftStart.split(":").map(Number);
+        const shiftDeadline = dateInTz(tp.year, tp.month, tp.day, sh, sm + grace, 0, tz);
+        if (!todayDay.isWorking) {
+          /* non-working day — skip late-to-office flag */
+        } else if (now > shiftDeadline) {
+          daily.isLateToOffice = true;
+          daily.lateToOfficeBy = Math.floor((now.getTime() - shiftDeadline.getTime()) / 60000);
+        }
       }
     }
     await daily.save();

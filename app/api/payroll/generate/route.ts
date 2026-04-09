@@ -5,7 +5,7 @@ import User, { resolveWeeklySchedule, type Weekday, type DaySchedule } from "@/l
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import Leave from "@/lib/models/Leave";
 import Payslip from "@/lib/models/Payslip";
-import PayrollConfig from "@/lib/models/PayrollConfig";
+import PayrollConfig, { type ILatePenaltyTier } from "@/lib/models/PayrollConfig";
 import Holiday from "@/lib/models/Holiday";
 import {
   countHolidayDaysInMonth,
@@ -64,11 +64,15 @@ export async function POST(req: Request) {
     config = created.toObject();
   }
 
-  const workingDaysPerMonth = config.workingDaysPerMonth ?? 22;
-  const lateThreshold = config.lateThresholdMinutes ?? 30;
-  const latePenalty = config.latePenaltyPerIncident ?? 0;
   const absencePenaltyPct = config.absencePenaltyPerDay ?? 100;
   const otMult = config.overtimeRateMultiplier ?? 1.5;
+  const latePenaltyTiers: ILatePenaltyTier[] = Array.isArray(config.latePenaltyTiers) && config.latePenaltyTiers.length > 0
+    ? config.latePenaltyTiers
+    : [
+        { minMinutes: 0, maxMinutes: 15, penaltyPercent: 0 },
+        { minMinutes: 16, maxMinutes: 30, penaltyPercent: 50 },
+        { minMinutes: 31, maxMinutes: 9999, penaltyPercent: 100 },
+      ];
 
   const holidayRows = await Holiday.find({ $or: [{ year }, { isRecurring: true }] }).lean();
   const holidayKeys = holidayKeysInMonth(year, month, holidayRows);
@@ -122,7 +126,9 @@ export async function POST(req: Request) {
     const presentKeys = new Set<string>();
     let lateDays = 0;
     let overtimeMinutesTotal = 0;
+    let tieredLatePenaltyTotal = 0;
     const schedule = resolveWeeklySchedule(emp as unknown as Record<string, unknown>);
+    const dailyRate = workingDays > 0 ? baseSalary / workingDays : 0;
 
     for (const row of attendanceRows) {
       const d = new Date(row.date as Date);
@@ -130,8 +136,16 @@ export async function POST(req: Request) {
       if (!workingKeys.has(key)) continue;
       if (row.isPresent) {
         presentKeys.add(key);
-        const lateAmount = Math.max(Number(row.lateToOfficeBy) || 0, Number(row.lateBy) || 0);
-        if (lateAmount > lateThreshold) lateDays += 1;
+        const lateMinutes = Math.max(Number(row.lateToOfficeBy) || 0, Number(row.lateBy) || 0);
+        if (lateMinutes > 0) {
+          const matchingTier = latePenaltyTiers.find(
+            (t) => lateMinutes >= t.minMinutes && lateMinutes <= t.maxMinutes,
+          );
+          if (matchingTier && matchingTier.penaltyPercent > 0) {
+            lateDays += 1;
+            tieredLatePenaltyTotal += dailyRate * (matchingTier.penaltyPercent / 100);
+          }
+        }
         const dayKey = DAY_OF_WEEK_MAP[d.getUTCDay()];
         const expectedMin = dayExpectedMinutes(schedule[dayKey]);
         const tw = Number(row.totalWorkingMinutes) || 0;
@@ -147,14 +161,13 @@ export async function POST(req: Request) {
       if (!presentKeys.has(k) && !leaveKeys.has(k)) absentDays += 1;
     }
 
-    const dailyRate = workingDaysPerMonth > 0 ? baseSalary / workingDaysPerMonth : 0;
     const overtimeHours = overtimeMinutesTotal / 60;
     const hourlyRate = dailyRate > 0 ? dailyRate / 8 : 0;
     const overtimePay = overtimeHours * hourlyRate * otMult;
 
     const allowances: { label: string; amount: number }[] = [];
     const absenceDeduction = absentDays * dailyRate * (absencePenaltyPct / 100);
-    const lateDeduction = lateDays * latePenalty;
+    const lateDeduction = tieredLatePenaltyTotal;
     const deductions: { label: string; amount: number }[] = [];
     const absAmt = roundMoney(absenceDeduction);
     const lateAmt = roundMoney(lateDeduction);

@@ -13,16 +13,29 @@ interface PopulatedUser {
   username?: string;
 }
 
+interface LatePenaltyTier {
+  minMinutes: number;
+  maxMinutes: number;
+  penaltyPercent: number;
+}
+
 interface PayrollConfigDoc {
   _id?: string;
   workingDaysPerMonth: number;
   lateThresholdMinutes: number;
-  latePenaltyPerIncident: number;
+  latePenaltyTiers: LatePenaltyTier[];
   absencePenaltyPerDay: number;
   overtimeRateMultiplier: number;
   currency: string;
   payDay: number;
   updatedAt?: string;
+}
+
+interface EmployeeDropdownRow {
+  _id: string;
+  about?: { firstName?: string; lastName?: string };
+  email?: string;
+  salary?: number;
 }
 
 interface HolidayRow {
@@ -94,6 +107,8 @@ export function PayrollTab() {
   const [genYear, setGenYear] = useState(String(yearNow));
   const [genLoading, setGenLoading] = useState(false);
   const [genStatus, setGenStatus] = useState<string | null>(null);
+  const [salaryOverrides, setSalaryOverrides] = useState<Record<string, string>>({});
+  const [showOverrides, setShowOverrides] = useState(false);
 
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState(String(yearNow));
@@ -110,6 +125,11 @@ export function PayrollTab() {
   };
 
   const sessionOk = !!session?.user?.id;
+
+  const { data: employeeDropdown } = useQuery<EmployeeDropdownRow[]>(
+    sessionOk && canGenerateSlips ? "/api/employees/dropdown" : null,
+    "payroll-emp-dropdown",
+  );
 
   const { data: configData, refetch: refetchConfig } = useQuery<PayrollConfigDoc>(
     sessionOk ? "/api/payroll/config" : null,
@@ -134,17 +154,24 @@ export function PayrollTab() {
     loading: payslipsLoading,
   } = useQuery<PayslipRow[]>(payslipsUrl);
 
+  const defaultTiers: LatePenaltyTier[] = [
+    { minMinutes: 0, maxMinutes: 15, penaltyPercent: 0 },
+    { minMinutes: 16, maxMinutes: 30, penaltyPercent: 50 },
+    { minMinutes: 31, maxMinutes: 9999, penaltyPercent: 100 },
+  ];
+
   useEffect(() => {
     if (!configData || configDraft !== null) return;
     setConfigDraft({
       workingDaysPerMonth: configData.workingDaysPerMonth,
       lateThresholdMinutes: configData.lateThresholdMinutes,
-      latePenaltyPerIncident: configData.latePenaltyPerIncident,
+      latePenaltyTiers: configData.latePenaltyTiers?.length ? configData.latePenaltyTiers : defaultTiers,
       absencePenaltyPerDay: configData.absencePenaltyPerDay,
       overtimeRateMultiplier: configData.overtimeRateMultiplier,
       currency: configData.currency,
       payDay: configData.payDay,
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configData, configDraft]);
 
   const currencyCode = configData?.currency ?? configDraft?.currency ?? "PKR";
@@ -172,7 +199,7 @@ export function PayrollTab() {
         body: JSON.stringify({
           workingDaysPerMonth: Number(configDraft.workingDaysPerMonth),
           lateThresholdMinutes: Number(configDraft.lateThresholdMinutes),
-          latePenaltyPerIncident: Number(configDraft.latePenaltyPerIncident),
+          latePenaltyTiers: configDraft.latePenaltyTiers ?? defaultTiers,
           absencePenaltyPerDay: Number(configDraft.absencePenaltyPerDay),
           overtimeRateMultiplier: Number(configDraft.overtimeRateMultiplier),
           currency: String(configDraft.currency ?? "PKR"),
@@ -184,7 +211,7 @@ export function PayrollTab() {
       setConfigDraft({
         workingDaysPerMonth: j.workingDaysPerMonth,
         lateThresholdMinutes: j.lateThresholdMinutes,
-        latePenaltyPerIncident: j.latePenaltyPerIncident,
+        latePenaltyTiers: j.latePenaltyTiers ?? defaultTiers,
         absencePenaltyPerDay: j.absencePenaltyPerDay,
         overtimeRateMultiplier: j.overtimeRateMultiplier,
         currency: j.currency,
@@ -259,10 +286,15 @@ export function PayrollTab() {
     setGenStatus(null);
     setError(null);
     try {
+      const overridesPayload: Record<string, number> = {};
+      for (const [uid, val] of Object.entries(salaryOverrides)) {
+        const n = parseFloat(val);
+        if (Number.isFinite(n) && n > 0) overridesPayload[uid] = n;
+      }
       const res = await fetch("/api/payroll/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, year }),
+        body: JSON.stringify({ month, year, salaries: Object.keys(overridesPayload).length ? overridesPayload : undefined }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || "Generation failed");
@@ -402,26 +434,78 @@ export function PayrollTab() {
                       }
                     />
                   </label>
-                  <label
-                    className="flex flex-col gap-1 text-xs font-semibold"
-                    style={{ color: "var(--fg-tertiary)" }}
-                  >
-                    Late penalty (amount)
-                    <input
-                      type="number"
-                      required
-                      min={0}
-                      step="0.01"
-                      className={inputClass}
-                      style={inputStyle}
-                      value={configDraft.latePenaltyPerIncident ?? ""}
-                      onChange={(e) =>
-                        setConfigDraft((d) =>
-                          d ? { ...d, latePenaltyPerIncident: parseFloat(e.target.value) || 0 } : d,
-                        )
-                      }
-                    />
-                  </label>
+                  <div className="sm:col-span-2 lg:col-span-3 border-t pt-3 mt-1" style={{ borderColor: "var(--border-subtle)" }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>Late penalty tiers (% of daily salary)</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfigDraft((d) =>
+                            d
+                              ? {
+                                  ...d,
+                                  latePenaltyTiers: [
+                                    ...(d.latePenaltyTiers ?? []),
+                                    { minMinutes: 0, maxMinutes: 9999, penaltyPercent: 0 },
+                                  ],
+                                }
+                              : d,
+                          )
+                        }
+                        className="rounded-md px-2 py-0.5 text-xs font-semibold"
+                        style={{ background: "var(--primary-light)", color: "var(--primary)" }}
+                      >
+                        + Add tier
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {(configDraft.latePenaltyTiers ?? defaultTiers).map((tier, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-xs">
+                          <label className="flex flex-col gap-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                            <span className="text-[10px]">From (min)</span>
+                            <input type="number" min={0} className={`${inputClass} !w-20`} style={inputStyle} value={tier.minMinutes} onChange={(e) => setConfigDraft((d) => {
+                              if (!d) return d;
+                              const tiers = [...(d.latePenaltyTiers ?? [])];
+                              tiers[idx] = { ...tiers[idx], minMinutes: parseInt(e.target.value, 10) || 0 };
+                              return { ...d, latePenaltyTiers: tiers };
+                            })} />
+                          </label>
+                          <label className="flex flex-col gap-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                            <span className="text-[10px]">To (min)</span>
+                            <input type="number" min={1} className={`${inputClass} !w-20`} style={inputStyle} value={tier.maxMinutes} onChange={(e) => setConfigDraft((d) => {
+                              if (!d) return d;
+                              const tiers = [...(d.latePenaltyTiers ?? [])];
+                              tiers[idx] = { ...tiers[idx], maxMinutes: parseInt(e.target.value, 10) || 1 };
+                              return { ...d, latePenaltyTiers: tiers };
+                            })} />
+                          </label>
+                          <label className="flex flex-col gap-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                            <span className="text-[10px]">Penalty %</span>
+                            <input type="number" min={0} step="any" className={`${inputClass} !w-20`} style={inputStyle} value={tier.penaltyPercent} onChange={(e) => setConfigDraft((d) => {
+                              if (!d) return d;
+                              const tiers = [...(d.latePenaltyTiers ?? [])];
+                              tiers[idx] = { ...tiers[idx], penaltyPercent: parseFloat(e.target.value) || 0 };
+                              return { ...d, latePenaltyTiers: tiers };
+                            })} />
+                          </label>
+                          <button
+                            type="button"
+                            className="mt-3.5 rounded-md px-1.5 py-0.5 text-xs font-semibold"
+                            style={{ background: "rgba(225, 29, 72, 0.12)", color: "var(--rose, #e11d48)" }}
+                            onClick={() =>
+                              setConfigDraft((d) => {
+                                if (!d) return d;
+                                const tiers = (d.latePenaltyTiers ?? []).filter((_, i) => i !== idx);
+                                return { ...d, latePenaltyTiers: tiers.length ? tiers : defaultTiers };
+                              })
+                            }
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   <label
                     className="flex flex-col gap-1 text-xs font-semibold"
                     style={{ color: "var(--fg-tertiary)" }}
@@ -696,6 +780,51 @@ export function PayrollTab() {
               {genLoading ? "Generating…" : "Generate payslips"}
             </button>
           </div>
+          {canManagePayrollConfig && employeeDropdown && employeeDropdown.length > 0 && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowOverrides((o) => !o)}
+                className="text-xs font-semibold"
+                style={{ color: "var(--primary)" }}
+              >
+                {showOverrides ? "Hide" : "Show"} salary overrides for this month
+              </button>
+              <AnimatePresence>
+                {showOverrides && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden mt-2 space-y-1.5"
+                  >
+                    <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                      Override base salary for specific employees this month. Leave blank to use their profile salary.
+                    </p>
+                    {employeeDropdown.map((emp) => {
+                      const name = `${emp.about?.firstName ?? ""} ${emp.about?.lastName ?? ""}`.trim() || emp.email || emp._id;
+                      return (
+                        <div key={emp._id} className="flex items-center gap-2 text-xs">
+                          <span className="w-40 truncate" style={{ color: "var(--fg-secondary)" }} title={name}>{name}</span>
+                          <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Profile: {emp.salary ?? 0}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            placeholder="Override"
+                            className={`${inputClass} !w-28`}
+                            style={inputStyle}
+                            value={salaryOverrides[emp._id] ?? ""}
+                            onChange={(e) => setSalaryOverrides((prev) => ({ ...prev, [emp._id]: e.target.value }))}
+                          />
+                        </div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
           {genStatus && (
             <motion.p
               initial={{ opacity: 0 }}
