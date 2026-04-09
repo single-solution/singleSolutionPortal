@@ -121,7 +121,28 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  if (data?.hidePill) return <BaseEdge path={edgePath} style={style} />;
+  if (data?.hidePill) {
+    return (
+      <>
+        <BaseEdge path={edgePath} style={style} />
+        {!data?.readOnly && data?.onDeleteMembership && data?.membershipId && (
+          <EdgeLabelRenderer>
+            <div style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all", zIndex: 1 }} className="nodrag nopan">
+              <button
+                type="button"
+                onClick={() => data.onDeleteMembership!(data.membershipId!)}
+                className="flex h-5 w-5 items-center justify-center rounded-full border opacity-40 transition-all hover:opacity-100 hover:scale-110"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--rose)" }}
+                title="Remove connection"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+          </EdgeLabelRenderer>
+        )}
+      </>
+    );
+  }
 
   return (
     <>

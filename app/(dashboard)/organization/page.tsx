@@ -395,7 +395,7 @@ export default function OrganizationPage() {
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className={`card group relative flex flex-col overflow-visible ${!emp.isActive ? "opacity-60 grayscale" : ""}`}>
+                  <div className={`card group relative flex flex-col pt-4 ${!emp.isActive ? "opacity-60 grayscale" : ""}`}>
                     <EmployeeCard
                       embedded
                       idx={0}
