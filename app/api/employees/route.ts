@@ -13,6 +13,7 @@ import {
   getTeamMemberIds,
   getDepartmentScope,
   getTeamScope,
+  getSubordinateUserIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
@@ -28,31 +29,28 @@ export async function GET() {
   let filter: Record<string, unknown> = { isSuperAdmin: { $ne: true }, _id: { $ne: actor.id } };
   if (!isSuperAdmin(actor)) filter.isActive = true;
 
-  if (isManager(actor)) {
-    if (actor.isSuperAdmin) {
-      // superadmin sees all employees (no department filter)
-    } else {
-      const scopedDepts = [...new Set(getDepartmentScope(actor, "employees_view"))];
-      if (scopedDepts.length > 0) {
-        filter.department = { $in: scopedDepts };
-      } else {
-        const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
-        if (deptIds.length > 0) {
-          filter.department = { $in: deptIds };
-        }
-      }
-    }
-  } else if (isTeamLead(actor)) {
+  if (isSuperAdmin(actor)) {
+    // superadmin sees all employees (no department filter)
+  } else {
+    const scopedDepts = [...new Set(getDepartmentScope(actor, "employees_view"))];
+    const deptIds = scopedDepts.length > 0
+      ? scopedDepts
+      : [...new Set(actor.memberships.map((m) => m.departmentId).filter(Boolean))];
+    const teamMemberIds = await getTeamMemberIds([...new Set(getTeamScope(actor, "employees_view"))]);
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+
     const orClauses: Record<string, unknown>[] = [
       { reportsTo: actor.id },
     ];
-    const memberIds = await getTeamMemberIds([...new Set(getTeamScope(actor, "employees_view"))]);
-    if (memberIds.length > 0) {
-      orClauses.push({ _id: { $in: memberIds } });
+    if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
+    if (teamMemberIds.length > 0) orClauses.push({ _id: { $in: teamMemberIds } });
+    if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
+
+    if (orClauses.length > 0) {
+      filter.$or = orClauses;
+    } else {
+      return ok([]);
     }
-    filter.$or = orClauses;
-  } else if (isEmployee(actor)) {
-    return ok([]);
   }
 
   const users = await User.find(filter)

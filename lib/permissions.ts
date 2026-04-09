@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
+import FlowLayout from "@/lib/models/FlowLayout";
 import type { IPermissions } from "@/lib/models/Designation";
 import { VIEW_ONLY_PERMISSIONS } from "@/lib/models/Designation";
 import { auth } from "@/lib/auth";
@@ -196,18 +197,62 @@ export function getTeamScope(actor: VerifiedUser, permission: keyof IPermissions
 export async function getScopedEmployeeIds(actor: VerifiedUser): Promise<string[] | null> {
   if (actor.isSuperAdmin) return null; // null = all
 
-  const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
-  if (deptIds.length === 0) return [actor.id];
-
   await connectDB();
-  const membershipUsers = await Membership.find({
-    department: { $in: deptIds },
-    isActive: true,
-  }).distinct("user");
 
-  const ids = new Set(membershipUsers.map((id: any) => id.toString()));
+  const ids = new Set<string>();
   ids.add(actor.id);
+
+  const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
+  if (deptIds.length > 0) {
+    const membershipUsers = await Membership.find({
+      department: { $in: deptIds },
+      isActive: true,
+    }).distinct("user");
+    for (const id of membershipUsers) ids.add(id.toString());
+  }
+
+  const subordinateIds = await getSubordinateUserIds(actor.id);
+  for (const id of subordinateIds) ids.add(id);
+
   return [...ids];
+}
+
+/**
+ * Walk the org chart hierarchy (FlowLayout emp-to-emp links) downward
+ * from a given user and return all subordinate user IDs (transitive).
+ */
+export async function getSubordinateUserIds(userId: string): Promise<string[]> {
+  await connectDB();
+  const layout = await FlowLayout.findOne({ canvasId: "org" }).lean();
+  const links = (layout?.links ?? []) as { source: string; target: string; sourceHandle: string; targetHandle: string }[];
+  if (links.length === 0) return [];
+
+  const startNode = `emp-${userId}`;
+  const visited = new Set<string>();
+  const queue = [startNode];
+  const result: string[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    for (const link of links) {
+      let subNode: string | null = null;
+      if (link.source === current && link.sourceHandle === "bottom" && link.targetHandle === "top") {
+        subNode = link.target;
+      } else if (link.target === current && link.sourceHandle === "top" && link.targetHandle === "bottom") {
+        subNode = link.source;
+      }
+      if (!subNode || visited.has(subNode)) continue;
+      if (subNode.startsWith("emp-")) {
+        result.push(subNode.slice(4));
+        queue.push(subNode);
+      }
+    }
+  }
+
+  return result;
 }
 
 /* ================================================================ */

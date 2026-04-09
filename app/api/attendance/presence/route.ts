@@ -9,6 +9,7 @@ import {
   isAdmin,
   hasPermission,
   getTeamMemberIds,
+  getSubordinateUserIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
 import { resolveTimezone } from "@/lib/tz";
@@ -30,24 +31,20 @@ export async function GET() {
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (actor.isSuperAdmin) {
     // no extra filter — all non–super-admin employees
-  } else if (isAdmin(actor)) {
+  } else if (isAdmin(actor) || hasPermission(actor, "attendance_viewTeam")) {
     const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
     const teamIds = actor.memberships.filter((m) => m.teamId).map((m) => m.teamId!);
     const memberIds = teamIds.length > 0 ? await getTeamMemberIds(teamIds) : [];
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+
     const orClauses: Record<string, unknown>[] = [
       { _id: actor.id },
       { reportsTo: actor.id },
     ];
     if (deptIds.length > 0) orClauses.push({ department: { $in: deptIds } });
     if (memberIds.length > 0) orClauses.push({ _id: { $in: memberIds } });
+    if (subordinateIds.length > 0) orClauses.push({ _id: { $in: subordinateIds } });
     empFilter.$or = orClauses;
-  } else if (hasPermission(actor, "attendance_viewTeam")) {
-    const deptIds = [...new Set(actor.memberships.map((m) => m.departmentId))];
-    if (deptIds.length > 0) {
-      empFilter.department = { $in: deptIds };
-    } else {
-      empFilter._id = actor.id;
-    }
   }
 
   const employees = await User.find(empFilter)
