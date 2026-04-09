@@ -113,6 +113,25 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  const actor = await getVerifiedSession();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasPermission(actor, "holidays_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  let body: { id?: string; isRecurring?: boolean };
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
+  const id = body.id;
+  if (!id || !isValidId(id)) return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
+  if (typeof body.isRecurring !== "boolean") return NextResponse.json({ error: "isRecurring (boolean) is required" }, { status: 400 });
+
+  await connectDB();
+  const doc = await Holiday.findByIdAndUpdate(id, { isRecurring: body.isRecurring }, { new: true }).lean();
+  if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json(doc);
+}
+
 export async function DELETE(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

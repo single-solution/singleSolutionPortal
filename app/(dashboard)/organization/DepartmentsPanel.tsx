@@ -33,6 +33,20 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
 
   const [deleteTarget, setDeleteTarget] = useState<DeptItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  async function handleToggleActive(d: DeptItem) {
+    setTogglingId(d._id);
+    try {
+      const res = await fetch(`/api/departments/${d._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !d.isActive }),
+      });
+      if (res.ok) await refetch();
+    } catch { /* ignore */ }
+    setTogglingId(null);
+  }
 
   const openCreate = useCallback(() => {
     setModalMode("create");
@@ -126,7 +140,19 @@ export function DepartmentsPanel({ departments, loading, refetch }: DepartmentsP
                         {d.employeeCount} people · {d.teamCount} team{d.teamCount !== 1 ? "s" : ""}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={d.isActive}
+                        disabled={togglingId === d._id}
+                        onClick={() => handleToggleActive(d)}
+                        className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-50"
+                        style={{ backgroundColor: d.isActive ? "var(--green)" : "var(--bg-tertiary)" }}
+                        title={d.isActive ? "Active — click to deactivate" : "Inactive — click to activate"}
+                      >
+                        <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: d.isActive ? "translateX(0.75rem)" : "translateX(0)" }} />
+                      </button>
                       <button type="button" onClick={() => openEdit(d)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--primary)" }} title="Edit">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                       </button>

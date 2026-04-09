@@ -47,7 +47,6 @@ export default function OrganizationPage() {
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
-  const { data: membershipsRaw } = useQuery<{ _id: string; user?: { _id: string } }[]>("/api/memberships", "org-memberships");
   const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>("/api/designations", "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
 
@@ -66,14 +65,6 @@ export default function OrganizationPage() {
 
   const deptList = useMemo(() => departments ?? [], [departments]);
   const empList = useMemo(() => employees ?? [], [employees]);
-  const assignedEmpIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const m of membershipsRaw ?? []) {
-      if (m.user?._id) ids.add(m.user._id);
-    }
-    return ids;
-  }, [membershipsRaw]);
-
   function openCreateEmployee() {
     setEditingEmpId(null);
     setEmpForm({ fullName: "", email: "", password: "", shiftType: "fullTime", graceMinutes: 30, weeklySchedule: makeDefaultWeeklySchedule() });
@@ -150,11 +141,11 @@ export default function OrganizationPage() {
       </div>
 
       {/* ── Main layout: sidebar + flow ── */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
         {/* Left sidebar: separate cards */}
         <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[280px]">
           {/* Departments card */}
-          <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
+          <div className="card-xl flex-1 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
             {canManageOrganization ? (
               <DepartmentsPanel departments={deptList} loading={deptsLoading} refetch={refetchDepts} />
             ) : (
@@ -187,20 +178,6 @@ export default function OrganizationPage() {
               <DesignationsPanel />
             </div>
           )}
-
-          {/* Summary */}
-          <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded-lg p-2" style={{ background: "var(--bg-grouped)" }}>
-                <p className="text-lg font-bold tabular-nums" style={{ color: "var(--fg)" }}>{empList.length}</p>
-                <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Employees</p>
-              </div>
-              <div className="rounded-lg p-2" style={{ background: "var(--bg-grouped)" }}>
-                <p className="text-lg font-bold tabular-nums" style={{ color: "var(--amber)" }}>{empList.filter((e) => !assignedEmpIds.has(e._id)).length}</p>
-                <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Unassigned</p>
-              </div>
-            </div>
-          </div>
         </aside>
 
         {/* Flow diagram */}

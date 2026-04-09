@@ -20,14 +20,15 @@ export async function GET() {
 
   await connectDB();
 
-  let deptFilter: Record<string, unknown> = { isActive: true };
+  let deptFilter: Record<string, unknown> = {};
 
   const primaryDeptId =
     actor.memberships.find((m) => m.isPrimary)?.departmentId ?? actor.memberships[0]?.departmentId;
 
   if (isSuperAdmin(actor)) {
-    // sees all
+    // sees all (including inactive)
   } else if (isManager(actor)) {
+    deptFilter.isActive = true;
     if (!actor.isSuperAdmin) {
       const scopedDepts = [...new Set(getDepartmentScope(actor, "departments_view"))];
       if (scopedDepts.length > 0) {
@@ -41,6 +42,7 @@ export async function GET() {
       // no else — managers with no explicit scope see all departments
     }
   } else if (isTeamLead(actor)) {
+    deptFilter.isActive = true;
     const leadTeamIds = [...new Set(getTeamScope(actor, "teams_view"))];
     if (leadTeamIds.length > 0) {
       const teams = await Team.find({ _id: { $in: leadTeamIds }, isActive: true }).select("department").lean();
@@ -53,6 +55,7 @@ export async function GET() {
       return ok([]);
     }
   } else {
+    deptFilter.isActive = true;
     if (primaryDeptId) {
       deptFilter._id = primaryDeptId;
     } else {
