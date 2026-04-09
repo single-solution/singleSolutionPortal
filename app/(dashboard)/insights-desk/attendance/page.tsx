@@ -152,6 +152,7 @@ export default function AttendancePage() {
   const sessionReady = sessionStatus !== "loading";
   const { can: canPerm, isSuperAdmin } = usePermissions();
   const hasTeamAccess = canPerm("attendance_viewTeam");
+  const canViewHolidays = canPerm("holidays_view");
 
   /* ── Team overview state ── */
   const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
@@ -174,6 +175,9 @@ export default function AttendancePage() {
   /* ── Team date state ── */
   const [teamDateData, setTeamDateData] = useState<TeamDateRecord[]>([]);
   const [teamDateLoading, setTeamDateLoading] = useState(false);
+
+  /* ── Holidays for calendar highlighting ── */
+  const [calendarHolidays, setCalendarHolidays] = useState<{ date: string }[]>([]);
 
   const userIdParam = viewingUserId || "";
   const hasSelectedEmployee = !!viewingUserId;
@@ -248,6 +252,14 @@ export default function AttendancePage() {
   useEffect(() => { loadRecords(); loadMonthlyStats(); }, [loadRecords, loadMonthlyStats]);
   useEffect(() => { loadSelfMonthlyStats(); }, [loadSelfMonthlyStats]);
 
+  useEffect(() => {
+    if (!canViewHolidays) return;
+    fetch(`/api/payroll/holidays?year=${year}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setCalendarHolidays(Array.isArray(data) ? data : []))
+      .catch(() => setCalendarHolidays([]));
+  }, [year, canViewHolidays]);
+
   const mountRef = useRef(true);
   useEffect(() => {
     if (mountRef.current) { mountRef.current = false; return; }
@@ -304,6 +316,15 @@ export default function AttendancePage() {
     () => scopeDept === "all" ? teamDateData : teamDateData.filter((e) => e.departmentId === scopeDept),
     [teamDateData, scopeDept],
   );
+
+  const holidayDays = useMemo(() => {
+    const days = new Set<number>();
+    for (const h of calendarHolidays) {
+      const d = new Date(h.date);
+      if (d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month) days.add(d.getUTCDate());
+    }
+    return days;
+  }, [calendarHolidays, year, month]);
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
@@ -513,35 +534,55 @@ export default function AttendancePage() {
           </div>
 
           <div className="grid grid-cols-7 gap-1">
-            {DAY_NAMES.map((d) => (
-              <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{d}</div>
-            ))}
+            {DAY_NAMES.map((d) => {
+              const isWeekendCol = d === "Sat" || d === "Sun";
+              return (
+                <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: isWeekendCol ? "var(--fg-quaternary)" : "var(--fg-tertiary)" }}>{d}</div>
+              );
+            })}
             <AnimatePresence mode="wait">
               <motion.div key={`${year}-${month}-${viewingUserId}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                 {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`empty-${i}`} />)}
                 {Array.from({ length: daysInMonth }, (_, i) => {
                   const day = i + 1;
                   const rec = recordMap.get(day);
+                  const dateObj = new Date(year, month - 1, day);
+                  const dayOfWeek = dateObj.getDay();
+                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                  const isHoliday = holidayDays.has(day);
+                  const isOff = isWeekend || isHoliday;
                   const isToday = isCurrentMonth && day === today.getDate();
                   const isSelected = selectedDay === day;
-                  const isFuture = isCurrentMonth ? day > today.getDate() : new Date(year, month - 1, day) > today;
+                  const isFuture = isCurrentMonth ? day > today.getDate() : dateObj > today;
                   let dotColor = "transparent";
                   if (!isAggregateMode) {
                     if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
                     else if (rec) dotColor = "var(--rose)";
                   }
+                  if (isOff && dotColor === "transparent") dotColor = "color-mix(in srgb, var(--fg-tertiary) 25%, transparent)";
+
+                  const offBg = isHoliday
+                    ? "color-mix(in srgb, #8b5cf6 8%, transparent)"
+                    : "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)";
 
                   return (
                     <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
                       className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all outline-none"
                       style={{
-                        ...(isSelected ? { background: "var(--primary)", borderRadius: "0.5rem" } : isToday ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem" } : {}),
-                        cursor: isFuture ? "default" : "pointer", opacity: isFuture ? 0.35 : 1,
+                        ...(isSelected
+                          ? { background: "var(--primary)", borderRadius: "0.5rem" }
+                          : isToday
+                            ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem", background: isOff ? offBg : undefined }
+                            : isOff
+                              ? { background: offBg }
+                              : {}),
+                        cursor: isFuture ? "default" : "pointer",
+                        opacity: isFuture ? 0.35 : 1,
                       }}
                       whileHover={!isFuture ? { scale: 1.08 } : undefined} whileTap={!isFuture ? { scale: 0.92 } : undefined}
                       initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: isFuture ? 0.35 : 1, scale: 1 }} transition={{ duration: 0.2, delay: Math.min(i * 0.01, 0.3) }}
                     >
-                      <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : "var(--fg)" }}>{day}</span>
+                      <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : isOff ? "var(--fg-tertiary)" : "var(--fg)" }}>{day}</span>
                       <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
                     </motion.button>
                   );
@@ -550,11 +591,19 @@ export default function AttendancePage() {
             </AnimatePresence>
           </div>
 
-          {sessionReady && !isAggregateMode && (
+          {sessionReady && (
             <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
+              {!isAggregateMode && (
+                <>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
+                </>
+              )}
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }} /> Weekend</span>
+              {holidayDays.size > 0 && (
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, #8b5cf6 8%, transparent)", border: "1px solid color-mix(in srgb, #8b5cf6 20%, transparent)" }} /> Holiday</span>
+              )}
             </div>
           )}
         </motion.div>
