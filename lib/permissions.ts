@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import FlowLayout from "@/lib/models/FlowLayout";
+import "@/lib/models/Department";
 import type { IPermissions } from "@/lib/models/Designation";
 import { PERMISSION_KEYS } from "@/lib/models/Designation";
 import { auth } from "@/lib/auth";
