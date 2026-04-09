@@ -13,21 +13,26 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendMail, getBaseUrl } from "@/lib/mail";
 
-export async function GET() {
+export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
+  const url = new URL(req.url);
+  const includeSelf = url.searchParams.get("includeSelf") === "true";
+
   await connectDB();
 
-  let filter: Record<string, unknown> = { isSuperAdmin: { $ne: true }, _id: { $ne: actor.id } };
+  const filter: Record<string, unknown> = { isSuperAdmin: { $ne: true } };
+  if (!includeSelf) filter._id = { $ne: actor.id };
   if (!isSuperAdmin(actor)) filter.isActive = true;
 
   if (isSuperAdmin(actor)) {
     // SuperAdmin sees all employees
   } else {
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (subordinateIds.length === 0) return ok([]);
-    filter._id = { $in: subordinateIds };
+    const visibleIds = includeSelf ? [actor.id, ...subordinateIds] : subordinateIds;
+    if (visibleIds.length === 0) return ok([]);
+    filter._id = { $in: visibleIds };
   }
 
   const users = await User.find(filter)

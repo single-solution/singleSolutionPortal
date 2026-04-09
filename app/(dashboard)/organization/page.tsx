@@ -93,7 +93,7 @@ export default function OrganizationPage() {
   const canManageOrganization = canPerm("organization_manageLinks");
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
-  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
+  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees?includeSelf=true", "org-employees");
   const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>("/api/designations", "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
   const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "org-presence");
