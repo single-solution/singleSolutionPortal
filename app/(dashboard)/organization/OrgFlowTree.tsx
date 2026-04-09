@@ -148,38 +148,38 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
       <EdgeLabelRenderer>
         <div ref={ref} style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all", zIndex: open ? 100 : 1 }} className="nodrag nopan">
           <button type="button" onClick={() => { if (!data?.readOnly) setOpen(!open); }}
-            className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold shadow-sm transition-all hover:shadow-md"
+            className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm transition-all hover:shadow-md"
             style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)", cursor: data?.readOnly ? "default" : "pointer" }}>
             {desig?.name ?? "Assign"}
-            {!data?.readOnly && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
+            {!data?.readOnly && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
           </button>
           <AnimatePresence>
             {open && data?.membershipId && (
               <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.12 }}
-                className="absolute left-1/2 top-full mt-1 -translate-x-1/2 z-50 rounded-xl border shadow-xl overflow-hidden min-w-[160px]"
+                className="absolute left-1/2 top-full mt-1.5 -translate-x-1/2 z-50 rounded-xl border shadow-xl overflow-hidden min-w-[190px]"
                 style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-                <div className="p-1 max-h-36 overflow-y-auto border-b" style={{ borderColor: "var(--border)" }}>
-                  <p className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
+                <div className="p-1.5 max-h-44 overflow-y-auto border-b" style={{ borderColor: "var(--border)" }}>
+                  <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
                   {(data.designations ?? []).map((d) => (
                     <button key={d._id} type="button"
                       onClick={() => { data.onChangeDesignation?.(data.membershipId!, d._id); setOpen(false); }}
-                      className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium transition-colors hover:bg-[var(--bg-grouped)]"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[var(--bg-grouped)]"
                       style={{ color: desig?._id === d._id ? d.color : "var(--fg-secondary)" }}>
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: d.color }} />
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
                       {d.name}
-                      {desig?._id === d._id && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="ml-auto"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                      {desig?._id === d._id && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="ml-auto"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                     </button>
                   ))}
                 </div>
-                <div className="p-1">
+                <div className="p-1.5">
                   <button type="button" onClick={() => { data.onOpenPrivileges?.(data.membershipId!); setOpen(false); }}
-                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     Edit Privileges
                   </button>
                   <button type="button" onClick={() => { setOpen(false); data.onDeleteMembership?.(data.membershipId!); }}
-                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--rose)" }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--rose)" }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                     Remove
                   </button>
                 </div>
@@ -720,57 +720,57 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
         {privOpen && (
           <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPrivOpen(false)} />
-            <motion.div className="relative w-full max-w-3xl mx-4 max-h-[85vh] flex flex-col rounded-2xl border shadow-xl"
+            <motion.div className="relative w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col rounded-2xl border shadow-xl"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
               {/* Header */}
-              <div className="flex items-center justify-between gap-3 border-b px-6 py-4 shrink-0" style={{ borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between gap-3 border-b px-6 py-5 shrink-0" style={{ borderColor: "var(--border)" }}>
                 <div className="min-w-0">
-                  <h2 className="text-lg font-bold" style={{ color: "var(--fg)" }}>Edit Privileges</h2>
-                  <p className="text-xs truncate" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
+                  <h2 className="text-xl font-bold" style={{ color: "var(--fg)" }}>Edit Privileges</h2>
+                  <p className="text-sm truncate mt-0.5" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setPrivPerms(p); }}
-                    className="rounded-lg px-2.5 py-1.5 text-[10px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
                     style={{ color: "#10b981", borderColor: "rgba(16,185,129,0.3)" }}>
                     All On
                   </button>
                   <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setPrivPerms(p); }}
-                    className="rounded-lg px-2.5 py-1.5 text-[10px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
                     style={{ color: "var(--rose)", borderColor: "rgba(244,63,94,0.3)" }}>
                     All Off
                   </button>
                 </div>
               </div>
               {/* Body */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                 {PERMISSION_CATEGORIES.map((cat) => {
                   const allOn = cat.keys.every((k) => !!privPerms[k]);
                   const someOn = !allOn && cat.keys.some((k) => !!privPerms[k]);
                   return (
                     <div key={cat.label}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <svg className="h-4 w-4 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <svg className="h-5 w-5 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d={cat.icon} />
                         </svg>
-                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>{cat.label}</span>
+                        <span className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>{cat.label}</span>
                         <button type="button" onClick={() => { const val = !allOn; setPrivPerms((p) => { const next = { ...p }; for (const k of cat.keys) next[k] = val; return next; }); }}
-                          className="ml-auto rounded px-2 py-0.5 text-[9px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                          className="ml-auto rounded-lg px-2.5 py-1 text-[10px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
                           style={{ color: allOn ? "var(--rose)" : "var(--primary)", borderColor: "var(--border)" }}>
                           {allOn ? "Disable all" : someOn ? "Enable rest" : "Enable all"}
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-1.5">
                         {cat.keys.map((k) => {
                           const meta = PERMISSION_META[k];
                           return (
-                            <label key={k} className="group flex items-start gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors hover:bg-[var(--hover-bg)]">
+                            <label key={k} className="group flex items-start gap-2.5 rounded-lg px-2.5 py-2 cursor-pointer transition-colors hover:bg-[var(--hover-bg)]">
                               <input type="checkbox" checked={!!privPerms[k]} onChange={(e) => setPrivPerms((p) => ({ ...p, [k]: e.target.checked }))}
-                                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]" />
+                                className="mt-0.5 h-4 w-4 shrink-0 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]" />
                               <div className="min-w-0">
-                                <span className="text-[11px] font-medium leading-tight block" style={{ color: privPerms[k] ? "var(--fg)" : "var(--fg-secondary)" }}>{meta.label}</span>
-                                <span className="text-[9px] leading-tight block" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</span>
+                                <span className="text-xs font-medium leading-tight block" style={{ color: privPerms[k] ? "var(--fg)" : "var(--fg-secondary)" }}>{meta.label}</span>
+                                <span className="text-[10px] leading-snug block mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</span>
                               </div>
                             </label>
                           );
@@ -781,9 +781,9 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
                 })}
               </div>
               {/* Footer */}
-              <div className="flex gap-2 border-t px-6 py-4 shrink-0" style={{ borderColor: "var(--border)" }}>
-                <motion.button type="button" onClick={handleSavePrivileges} disabled={privSaving} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{privSaving ? "Saving…" : "Save Privileges"}</motion.button>
-                <button type="button" onClick={() => setPrivOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
+              <div className="flex gap-3 border-t px-6 py-5 shrink-0" style={{ borderColor: "var(--border)" }}>
+                <motion.button type="button" onClick={handleSavePrivileges} disabled={privSaving} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">{privSaving ? "Saving…" : "Save Privileges"}</motion.button>
+                <button type="button" onClick={() => setPrivOpen(false)} className="btn btn-secondary flex-1">Cancel</button>
               </div>
             </motion.div>
           </motion.div>
