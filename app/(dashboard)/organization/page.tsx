@@ -91,6 +91,8 @@ export default function OrganizationPage() {
   const { can: canPerm, isSuperAdmin } = usePermissions();
   const canViewOrg = canPerm("organization_view");
   const canManageOrganization = canPerm("organization_manageLinks");
+  const canViewDesignations = canPerm("designations_view");
+  const canManageDesignations = canPerm("designations_manage");
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees?includeSelf=true", "org-employees");
@@ -369,9 +371,9 @@ export default function OrganizationPage() {
           </div>
 
           {/* Designations card */}
-          {canManageOrganization && (
+          {canViewDesignations && (
             <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
-              <DesignationsPanel />
+              <DesignationsPanel canManage={canManageDesignations} />
             </div>
           )}
         </aside>

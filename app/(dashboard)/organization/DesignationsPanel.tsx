@@ -25,7 +25,7 @@ const PRESET_COLORS = [
   "#10b981", "#06b6d4", "#ec4899", "#f97316", "#6b7280",
 ];
 
-export function DesignationsPanel() {
+export function DesignationsPanel({ canManage = false }: { canManage?: boolean }) {
   const { data: designations, loading, refetch, mutate } = useQuery<Designation[]>(
     "/api/designations",
     "designations",
@@ -165,18 +165,20 @@ export function DesignationsPanel() {
               {loading && !designations ? "Loading…" : `${sorted.length} title${sorted.length !== 1 ? "s" : ""}`}
             </p>
           </div>
-          <motion.button
-            type="button"
-            onClick={openCreate}
-            whileTap={{ scale: 0.96 }}
-            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-            style={{ background: "var(--primary)", color: "white" }}
-            title="Add Designation"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          </motion.button>
+          {canManage && (
+            <motion.button
+              type="button"
+              onClick={openCreate}
+              whileTap={{ scale: 0.96 }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+              style={{ background: "var(--primary)", color: "white" }}
+              title="Add Designation"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </motion.button>
+          )}
         </div>
 
         <motion.div className="flex flex-col gap-1.5" variants={staggerContainerFast} initial="hidden" animate="visible">
@@ -225,37 +227,41 @@ export function DesignationsPanel() {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(d)}
-                        className="flex h-5 w-5 items-center justify-center rounded transition-colors"
-                        style={{ color: "var(--primary)" }}
-                        title="Edit"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </button>
-                      {!d.isSystem && (
+                    {canManage && (
+                      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                         <button
                           type="button"
-                          onClick={() => setDeleteTarget(d)}
+                          onClick={() => openEdit(d)}
                           className="flex h-5 w-5 items-center justify-center rounded transition-colors"
-                          style={{ color: "var(--rose)" }}
-                          title="Delete"
+                          style={{ color: "var(--primary)" }}
+                          title="Edit"
                         >
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
-                      )}
-                    </div>
-                    <StatusToggle
-                      active={d.isActive !== false}
-                      onChange={() => savingToggleId !== d._id && toggleActive(d)}
-                    />
+                        {!d.isSystem && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(d)}
+                            className="flex h-5 w-5 items-center justify-center rounded transition-colors"
+                            style={{ color: "var(--rose)" }}
+                            title="Delete"
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {canManage && (
+                      <StatusToggle
+                        active={d.isActive !== false}
+                        onChange={() => savingToggleId !== d._id && toggleActive(d)}
+                      />
+                    )}
                   </div>
                 </motion.div>
               ))
