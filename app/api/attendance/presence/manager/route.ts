@@ -42,8 +42,7 @@ export async function GET() {
   if (!managerId) return ok(null);
 
   const manager = await User.findById(managerId)
-    .select("about email department weeklySchedule")
-    .populate("department", "title")
+    .select("about email weeklySchedule")
     .lean();
 
   if (!manager) return ok(null);
@@ -116,7 +115,6 @@ export async function GET() {
     firstName: manager.about.firstName,
     lastName: manager.about.lastName,
     email: m.email ?? "",
-    department: (manager.department as { title?: string })?.title ?? "Unassigned",
     status,
     todayMinutes,
     officeMinutes: daily?.officeMinutes ?? 0,

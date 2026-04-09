@@ -30,8 +30,7 @@ export async function GET() {
   }
 
   const employees = await User.find(empFilter)
-    .select("about email username department weeklySchedule")
-    .populate("department", "title")
+    .select("about email username weeklySchedule")
     .lean();
 
   const dayMap: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -112,8 +111,6 @@ export async function GET() {
       firstName: emp.about.firstName,
       lastName: emp.about.lastName,
       email: e.email ?? "",
-      department: (emp.department as { title?: string })?.title ?? "Unassigned",
-      departmentId: (emp.department as { _id?: unknown })?._id ? String((emp.department as { _id: unknown })._id) : null,
       status,
       todayMinutes,
       officeMinutes: daily?.officeMinutes ?? 0,
