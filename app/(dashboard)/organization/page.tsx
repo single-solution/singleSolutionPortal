@@ -115,7 +115,7 @@ export default function OrganizationPage() {
   }, [empList, search]);
 
   return (
-    <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(100dvh - 80px)" }}>
+    <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(70dvh - 80px)" }}>
       {/* ── Title row ── */}
       <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="shrink-0">
