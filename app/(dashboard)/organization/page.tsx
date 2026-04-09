@@ -47,6 +47,7 @@ export default function OrganizationPage() {
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
+  const { data: membershipsRaw } = useQuery<{ _id: string; user?: { _id: string } }[]>("/api/memberships", "org-memberships");
   const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>("/api/designations", "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
 
@@ -65,6 +66,13 @@ export default function OrganizationPage() {
 
   const deptList = useMemo(() => departments ?? [], [departments]);
   const empList = useMemo(() => employees ?? [], [employees]);
+  const assignedEmpIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of membershipsRaw ?? []) {
+      if (m.user?._id) ids.add(m.user._id);
+    }
+    return ids;
+  }, [membershipsRaw]);
 
   function openCreateEmployee() {
     setEditingEmpId(null);
@@ -188,7 +196,7 @@ export default function OrganizationPage() {
                 <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Employees</p>
               </div>
               <div className="rounded-lg p-2" style={{ background: "var(--bg-grouped)" }}>
-                <p className="text-lg font-bold tabular-nums" style={{ color: "var(--amber)" }}>{empList.filter((e) => !e.department?._id).length}</p>
+                <p className="text-lg font-bold tabular-nums" style={{ color: "var(--amber)" }}>{empList.filter((e) => !assignedEmpIds.has(e._id)).length}</p>
                 <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Unassigned</p>
               </div>
             </div>
