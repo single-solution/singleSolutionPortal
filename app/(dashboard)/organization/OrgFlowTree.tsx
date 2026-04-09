@@ -54,7 +54,7 @@ interface MembershipRow {
   _id: string;
   user: { _id: string; about: { firstName: string; lastName: string }; email: string };
   department: { _id: string; title: string };
-  designation: { _id: string; name: string; color: string } | null;
+  designation: { _id: string; name: string; color: string; defaultPermissions?: Record<string, boolean> } | null;
   permissions?: Record<string, boolean>;
 }
 
@@ -124,6 +124,7 @@ interface DesigEdgeData {
   onDeleteMembership?: (mId: string) => void;
   hidePill?: boolean;
   readOnly?: boolean;
+  isCustomPermissions?: boolean;
 }
 
 function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
@@ -151,6 +152,7 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
             className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm transition-all hover:shadow-md"
             style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)", cursor: data?.readOnly ? "default" : "pointer" }}>
             {desig?.name ?? "Assign"}
+            {data?.isCustomPermissions && desig && <span className="rounded-sm px-1 py-px text-[8px] font-bold uppercase leading-none" style={{ background: "rgba(255,255,255,0.25)" }}>Custom</span>}
             {!data?.readOnly && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
           </button>
           <AnimatePresence>
@@ -410,9 +412,12 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
   const handleChangeDesignation = useCallback(async (membershipId: string, designationId: string) => {
     try {
       const res = await fetch(`/api/memberships/${membershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ designation: designationId }) });
-      if (res.ok) setMemberships((prev) => prev.map((m) => m._id === membershipId ? { ...m, designation: designations.find((d) => d._id === designationId) ?? m.designation } : m));
+      if (res.ok) {
+        const updated = await res.json();
+        setMemberships((prev) => prev.map((m) => m._id === membershipId ? updated : m));
+      }
     } catch { /* ignore */ }
-  }, [designations]);
+  }, []);
 
   /* ── Edge actions (emp link) ── */
   const handleChangeLinkDesignation = useCallback((linkIdx: number, designationId: string) => {
@@ -536,7 +541,15 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id, onEdit: onEditEmployee ? () => onEditEmployee(emp._id) : undefined } });
     });
 
-    const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: false, readOnly: !isSuperAdmin } as DesigEdgeData as unknown as Record<string, unknown>);
+    const edgeData = (m: MembershipRow): Record<string, unknown> => {
+      let isCustom = false;
+      if (m.designation?.defaultPermissions && m.permissions) {
+        const dp = m.designation.defaultPermissions;
+        const mp = m.permissions;
+        isCustom = PERMISSION_KEYS.some((k) => Boolean(dp[k]) !== Boolean(mp[k]));
+      }
+      return { designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: false, readOnly: !isSuperAdmin, isCustomPermissions: isCustom } as DesigEdgeData as unknown as Record<string, unknown>;
+    };
 
     memberships.forEach((m) => {
       if (!m.user?._id) return;
@@ -612,11 +625,11 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     if (changes.some((c) => c.type === "position" && c.dragging === false)) setNodes((cur) => { savePositions(cur); return cur; });
   }, [onNodesChange, savePositions, setNodes]);
 
-  if (!loaded) return <div className="card-xl shimmer" style={{ height: "calc(70vh - 154px)", minHeight: 340 }} />;
+  if (!loaded) return <div className="card-xl shimmer h-full" style={{ minHeight: 340 }} />;
 
   return (
     <>
-      <div className="card-xl overflow-hidden relative" style={{ height: "calc(70vh - 154px)", minHeight: 340 }}>
+      <div className="card-xl overflow-hidden relative h-full" style={{ minHeight: 340 }}>
         <ReactFlow
           nodes={nodes} edges={edgesState}
           onNodesChange={handleNodesChange} onEdgesChange={handleEdgesChange}

@@ -12,7 +12,7 @@ function populateMembership(q: any) {
     .populate("user", "about.firstName about.lastName email username")
     .populate("department", "title")
     .populate("team", "name")
-    .populate("designation", "name color")
+    .populate("designation", "name color defaultPermissions")
     .populate("reportsTo", "about.firstName about.lastName email username");
 }
 
@@ -91,9 +91,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (typeof body.designation !== "string" || !isValidId(body.designation)) {
       return badRequest("Invalid designation");
     }
-    const desig = await Designation.findById(body.designation).select("_id").lean();
+    const desig = await Designation.findById(body.designation).select("_id defaultPermissions").lean();
     if (!desig) return badRequest("Designation not found");
     membership.designation = body.designation;
+    if (body.permissions === undefined) {
+      const defaults: Record<string, boolean> = {};
+      for (const k of PERMISSION_KEYS) defaults[k] = Boolean((desig.defaultPermissions as Record<string, boolean> | undefined)?.[k]);
+      membership.permissions = defaults as typeof membership.permissions;
+    }
   }
 
   if (body.team !== undefined) {

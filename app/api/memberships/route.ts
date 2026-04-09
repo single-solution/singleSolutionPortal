@@ -13,7 +13,7 @@ function populateMembership(q: any) {
     .populate("user", "about.firstName about.lastName email username")
     .populate("department", "title")
     .populate("team", "name")
-    .populate("designation", "name color")
+    .populate("designation", "name color defaultPermissions")
     .populate("reportsTo", "about.firstName about.lastName email username");
 }
 

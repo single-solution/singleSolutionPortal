@@ -23,7 +23,7 @@ import {
   type WeeklySchedule,
 } from "@/lib/schedule";
 
-const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer" style={{ height: "calc(100vh - 280px)", minHeight: 400 }} /> });
+const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer h-full" style={{ minHeight: 340 }} /> });
 
 interface Employee {
   _id: string; email: string; username: string;
@@ -115,9 +115,9 @@ export default function OrganizationPage() {
   }, [empList, search]);
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 pb-10 pt-6">
+    <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(100dvh - 80px)" }}>
       {/* ── Title row ── */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="shrink-0">
           <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
           <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments and people.</p>
@@ -125,7 +125,7 @@ export default function OrganizationPage() {
       </div>
 
       {/* ── Search + Add Employee card ── */}
-      <div className="card-xl mb-4 flex items-center gap-3 p-4">
+      <div className="card-xl mb-4 flex shrink-0 items-center gap-3 p-4">
         <div className="relative w-full flex-1">
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -141,7 +141,7 @@ export default function OrganizationPage() {
       </div>
 
       {/* ── Main layout: sidebar + flow ── */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch">
         {/* Left sidebar: separate cards */}
         <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[280px]">
           {/* Departments card */}
@@ -181,7 +181,7 @@ export default function OrganizationPage() {
         </aside>
 
         {/* Flow diagram */}
-        <main className="min-w-0 flex-1">
+        <main className="min-h-0 min-w-0 flex-1">
           <OrgFlowTree departments={deptList} employees={filteredEmps} designations={activeDesignations} isSuperAdmin={canManageOrganization} onEditEmployee={canManageOrganization ? (empId) => { const emp = empList.find((e) => e._id === empId); if (emp) openEditEmployee(emp); } : undefined} />
         </main>
       </div>

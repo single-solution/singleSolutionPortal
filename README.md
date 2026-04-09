@@ -1,6 +1,6 @@
 # Single Solution Sync
 
-Automatic employee presence, attendance, leave, and payroll management system. Detects when employees arrive, when they leave, and how much time they spend — all without manual check-in/check-out.
+Automatic employee presence, attendance, leave, and payroll management system. Detects when employees arrive, when they leave, and how much time they spend — all without manual check-in or check-out.
 
 ---
 
@@ -10,41 +10,43 @@ There are **no roles**. Every user is just a user. Access is controlled by two t
 
 ### SuperAdmin
 
-One person has the SuperAdmin flag. They can do everything — no restrictions, no scoping. SuperAdmin is not set through any UI; it can only be granted through direct database access. SuperAdmin is also excluded from attendance tracking.
+One person has the SuperAdmin flag. They can do everything — no restrictions, no scoping. SuperAdmin is not set through any UI; it can only be granted through direct database access. SuperAdmin is also excluded from attendance tracking entirely (no sessions, no clock in/out).
+
+**One hard rule:** No one except a SuperAdmin can edit or remove another SuperAdmin.
 
 ### Privileges via Connections
 
-Everyone else gets their access through **connections** on the Organization flow diagram. When you connect an employee to a department, or to another employee, you configure exactly what they can and cannot do through privilege toggles on that connection.
+Everyone else gets their access through **connections** on the Organization flow diagram. When you connect an employee to a department you configure exactly what they can and cannot do through privilege toggles on that connection.
 
 The same person can be connected to multiple departments with completely different privileges in each one.
 
-**Example — giving someone hiring access in one department but read-only in another:**
+**Example — hiring access in one department, read-only in another:**
 
 > Sarah is connected to "Engineering" with `employees_create`, `employees_edit`, and `employees_view` enabled.
 > She is also connected to "Marketing" with only `employees_view` enabled.
 >
 > Result: Sarah can add and edit engineers, but can only browse the marketing team roster.
 
-**Example — creating a team lead who can approve leaves:**
+**Example — a team lead who can approve leaves:**
 
 > Ahmed is connected above three employees via reporting links. On each link, `leaves_approve` and `attendance_viewTeam` are enabled.
 >
-> Result: Ahmed can see his three reports' attendance and approve their leave requests. He cannot approve leaves for anyone else in the company.
+> Result: Ahmed can see his three reports' attendance and approve their leave requests. He cannot approve leaves for anyone else.
 
-**Example — a department manager with full control:**
+**Example — full department manager:**
 
 > When you drag an employee's bottom handle to a department's top handle, the system auto-enables all scoped department privileges.
 >
-> Result: That employee can manage everything within that department — employees, tasks, campaigns, attendance, leaves — but has zero access to other departments unless separately connected.
+> Result: That employee can manage everything within that department but has zero access to other departments unless separately connected.
 
 ### How Privileges Are Enforced
 
-Every action in the system — whether clicking a button or calling an API — checks: **is this user a SuperAdmin, or do they have the specific privilege for this action?**
+Every action — whether clicking a button or calling an API — checks: **is this user a SuperAdmin, or do they have the specific privilege for this action?**
 
-- On the **server**, every API endpoint verifies the user's privileges before processing the request. Even if someone crafts a manual API call, they cannot bypass the privilege system.
-- On the **screen**, buttons and features are hidden when the user lacks the required privilege. A user without `campaigns_create` will never see the "New Campaign" button.
+- **Server side:** Every API endpoint verifies the user's privileges before processing the request. Even if someone crafts a manual API call, they cannot bypass the privilege system.
+- **Client side:** Buttons and features are hidden when the user lacks the required privilege. A user without `campaigns_create` will never see the "New Campaign" button.
 
-There are **63 individual privilege toggles** across **14 categories**:
+There are **59 individual privilege toggles** across **13 categories**:
 
 | Category | What it controls |
 |----------|-----------------|
@@ -59,7 +61,6 @@ There are **63 individual privilege toggles** across **14 categories**:
 | **Attendance** | View team attendance, view session details, edit records, override past days, export reports |
 | **Leaves** | View team leaves, approve/reject requests, edit past leaves, bulk manage requests |
 | **Payroll** | View team payroll, manage salaries, generate pay slips, finalize pay slips, export reports |
-| **Calendar** | View the shared calendar, manage calendar events |
 | **Communication** | Send pings, view activity logs |
 | **System** | View/manage designations, view/manage holidays, view/manage system settings |
 
@@ -67,7 +68,17 @@ Every toggle has a human-readable label and a plain-English description so there
 
 ### Designations
 
-Designations are labels (name + color) — "Manager", "Developer", "QA Lead", etc. They do not grant any access on their own. Two people with the same designation can have completely different privileges. Designations come with **preset templates** (Employee, Team Lead, Manager, Admin) that pre-fill sensible defaults, but every toggle can be changed afterward. Designations are shown as colored pills on connection lines in the org chart.
+Designations are reusable templates — "Manager", "Developer", "QA Lead", etc. — with a name, color, and a **full set of default privileges**.
+
+When you create or edit a designation in the sidebar, a collapsible **Default Privileges** section lets you toggle every permission. These defaults are automatically copied to any new connection that uses this designation.
+
+You can still customize privileges per-connection afterward. When you do, the pill on that connection line will show a **"Custom"** badge so you can instantly see which connections have been modified versus those still using the designation defaults.
+
+Four built-in presets are available as starting points:
+- **Employee** — minimal (view updates, send pings)
+- **Team Lead** — view employees, tasks, campaigns, attendance, leaves, organization; create/edit tasks
+- **Manager** — everything a Team Lead has, plus create/edit employees, departments, teams, campaigns; approve leaves; view payroll; manage attendance
+- **Admin** — all privileges enabled
 
 ---
 
@@ -77,9 +88,9 @@ The Organization page is the heart of the system. It shows an interactive drag-a
 
 ### What you see
 
-- **Department nodes** (purple) — your departments
+- **Department nodes** (purple) — your departments, with active/inactive toggle
 - **Employee nodes** (teal) — your employees
-- A **sidebar** on the left with CRUD panels for Departments and Designations, plus a search bar and "Add Employee" button at the top
+- A **sidebar** on the left with panels for Departments (with active/inactive toggle and CRUD) and Designations (with default privileges editor), plus a search bar
 
 ### Creating connections
 
@@ -87,36 +98,37 @@ Drag from one node's handle to another to create a connection:
 
 **Employee to Department:**
 - A modal opens where you pick a designation and choose the initial access level
-- **Employee's bottom handle to Department's top handle** = the employee manages this department (scoped department privileges auto-enabled)
-- **Department's bottom handle to Employee's top handle** = the employee belongs to this department with no special access
+- **Employee's bottom handle to Department's top handle** — the employee manages this department (scoped department privileges auto-enabled)
+- **Department's bottom handle to Employee's top handle** — the employee belongs to this department with no special access
+- The designation's default privileges are automatically copied to the new connection
 - You can always switch or fine-tune privileges later through the pill
 
 **Employee to Employee (reporting hierarchy):**
 - Created instantly, no modal needed
 - The person connected via their **bottom handle** is the superior; the person connected via their **top handle** is the subordinate
 - Shows as a **dashed line** to visually distinguish from department connections
-- Default privileges: the superior can view the subordinate's details
 
 **What happens behind the scenes with reporting links:**
 - When Employee A is placed above Employee B, and B belongs to Department X, the system automatically gives A access to Department X with whatever privileges are configured on the A-to-B link
-- If you give A the `leaves_approve` privilege on the link to B, A can approve B's leave requests in Department X
-- This works transitively — if A is above B and B is above C, A gets access to C's departments too (with the combined privileges from both links)
+- This works transitively — if A is above B and B is above C, A gets access to C's departments too
 - If you remove a link or an employee leaves a department, the auto-created access is cleaned up automatically
 
 ### The pill on each connection
 
-Every connection line has a clickable pill. Click it to:
-- **Change the designation** (the label shown on the line)
-- **Edit Privileges** — opens a wide modal with all 63 privilege toggles organized by category, with per-category and global "Enable all / Disable all" buttons
+Every connection line has a clickable designation pill. Click it to:
+- **Change the designation** — the new designation's default privileges are automatically applied
+- **Edit Privileges** — opens a wide modal with all privilege toggles organized by category
 - **Remove** the connection (with confirmation)
+- If the connection's privileges differ from the designation defaults, a **"Custom"** badge appears on the pill
 
 Non-admin users see the org chart in read-only mode — pills are visible but not interactive, and connections cannot be created or removed.
 
-### Other details
+### Layout and sizing
 
+- The chart takes the full available vertical space (viewport minus header and bottom bar)
+- The sidebar cards maintain equal heights and scroll internally if content overflows
+- Positions persist — wherever you drag nodes, they stay there on refresh
 - **Cycle detection** — you cannot create a circular hierarchy
-- **Positions persist** — wherever you drag nodes, they stay there on refresh
-- **All forms use center modals** — no page navigation needed
 
 ---
 
@@ -124,8 +136,8 @@ Non-admin users see the org chart in read-only mode — pills are visible but no
 
 Adapts to what you have access to:
 
-- **If you have team access**: Welcome greeting, live status counts (In Office, Remote, Late, Absent), team status grid with employee cards, active campaigns, task checklist
-- **If you do not**: Personal overview with your own clock in/out times, office/remote split, shift progress, weekly and monthly summary
+- **If you have team access:** Welcome greeting, live status counts (In Office, Remote, Late, Absent), team status grid with employee cards, active campaigns, task checklist
+- **If you do not:** Personal overview with your own clock in/out times, office/remote split, shift progress, weekly and monthly summary
 
 ---
 
@@ -161,9 +173,28 @@ No manual check-in or check-out. The system detects everything automatically.
 
 ---
 
+## Weekly Schedule
+
+Each employee has their own **per-day weekly schedule** (Monday through Sunday). Each day is independently configured:
+
+- **Start time** — when the workday begins (e.g., 10:00)
+- **End time** — when the workday ends (e.g., 19:00)
+- **Break minutes** — daily break duration
+- **Working / Off toggle** — marks the day as a working day or day off
+
+Saturday and Sunday are off by default but their time inputs stay visible (dimmed) so you can quickly toggle them on for employees with non-standard weeks.
+
+Each employee also has a configurable **grace minutes** value (default 30) that determines how late they can arrive before being marked late.
+
+Shift type is tracked per employee: Full-time, Part-time, or Contract.
+
+The default schedule (Mon–Fri, 10:00–19:00, 60 min break) is applied when creating new employees and can be customized individually at any time through the employee edit modal in the Organization page.
+
+---
+
 ## Workspace
 
-Three sections under one tab bar:
+Three sections under one tab bar, using full available width:
 
 - **Campaigns** — Card grid for browsing campaigns. Sidebar tree grouped by status. Users with campaign privileges can create, edit, change status, toggle active/inactive, and delete campaigns. Everyone else sees a read-only view.
 - **Tasks** — Task list with sidebar grouping (by status, assignee, campaign, or priority). Users with task privileges can create, edit, reassign, and delete tasks. Assignees can update the status of their own tasks.
@@ -173,12 +204,35 @@ Three sections under one tab bar:
 
 ## Insights Desk
 
-Four sections under one tab bar:
+Three sections under one tab bar, plus a holiday management button:
 
-- **Attendance** — Users with team attendance access see team-wide stats, employee pills, grouping by scope, and per-employee drill-down with calendar and session timeline. Everyone else sees only their personal attendance calendar and monthly stats.
-- **Calendar** — Monthly grid with color-coded days (present, late, absent, holiday, leave). Click any day for details.
-- **Leaves** — Leave request form for yourself, approval queue for supervisors, and balance tracking. Leave types include Annual, Sick, Casual, Unpaid, Maternity, Paternity, Bereavement, and Other. Balances auto-deduct on approval and restore on rejection. Users with leave privileges can approve/reject requests, manage past leaves, and edit allocations.
-- **Payroll** — Users with payroll access can configure payroll settings (working days, late thresholds, penalties, overtime multiplier, currency, pay day), manage the holiday calendar, auto-generate monthly payslips from attendance data, and move payslips through the three-stage pipeline (Draft, Finalized, Paid). Everyone else sees only their own payslips.
+### Attendance
+
+Users with team attendance access see team-wide stats, employee pills, grouping by scope, and per-employee drill-down with calendar and session timeline. Everyone else sees only their personal attendance calendar and monthly stats.
+
+The calendar highlights:
+- **Saturdays and Sundays** with a faded weekend tint
+- **Declared holidays** with a distinct holiday tint
+- Off days without attendance show a faint dot
+- A legend at the bottom explains all visual indicators
+
+### Leaves
+
+Leave request form for yourself, approval queue for supervisors, and balance tracking. Leave types include Annual, Sick, Casual, Unpaid, Maternity, Paternity, Bereavement, and Other. Balances auto-deduct on approval and restore on rejection. Users with leave privileges can approve/reject requests, manage past leaves, and edit allocations.
+
+### Payroll
+
+Users with payroll access can configure payroll settings (working days, late thresholds, penalties, overtime multiplier, currency, pay day), auto-generate monthly payslips from attendance data, and move payslips through the three-stage pipeline (Draft, Finalized, Paid). Everyone else sees only their own payslips.
+
+### Holidays
+
+A **"Holidays"** button appears in the Insights Desk header (visible to users with holiday access). Clicking it opens a modal that:
+- Lists all declared holidays for the current year
+- Shows a count badge for upcoming holidays
+- Allows adding new holidays (name, date, recurring toggle) — for users with holiday management access
+- Allows toggling whether each holiday recurs yearly
+- Allows deleting holidays
+- Declared holidays automatically mark employees as not absent and are factored correctly into payroll calculations
 
 ---
 
@@ -188,10 +242,12 @@ Each employee has a dedicated page with tabbed sections:
 
 - **Overview** — Today's attendance, active tasks and campaigns, department memberships
 - **Attendance** — Monthly calendar with color-coded dots and stats
-- **Profile** — Personal details and shift configuration. The "Edit profile" button is visible only if you are viewing your own profile or you are a SuperAdmin.
+- **Profile** — Personal details, weekly schedule, and shift configuration. Editable by the employee themselves or anyone with `employees_edit` access (except SuperAdmin profiles which only another SuperAdmin can edit)
 - **Activity** — Recent activity log and task list
 - **Leaves** — Leave balance and request history
 - **Payroll** — Salary info and payslips
+
+Clicking an employee node in the Organization chart opens their edit modal directly.
 
 ---
 
@@ -233,8 +289,14 @@ Signal-wave icon in the header with unread badge and a dropdown inbox. Sending a
 - **Profile** — Name, phone, profile image upload
 - **Email change** — Requires current password, 24-hour cooldown between changes
 - **Password change** — With strength meter
-- **System Settings** (requires `settings_manage` privilege) — Company name, timezone, office geofence coordinates, shift defaults, Live Updates toggle
+- **System Settings** (requires `settings_manage` privilege) — Company name, timezone, office geofence coordinates, Live Updates toggle
 - **Theme** — Dark, Light, or System
+
+---
+
+## Deletion Behavior
+
+When a SuperAdmin deletes an entity (employee, department, team, campaign, task, or designation), it is a **permanent hard delete** from the database with cascading cleanup — not a soft delete. Related data (memberships, assignments, references) are cleaned up automatically.
 
 ---
 
@@ -256,7 +318,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-**First-time setup:** The initial user must have `isSuperAdmin` set directly in the database. From there, create employees from the Organization page, drag connections in the flow diagram to assign them to departments, and configure privileges on each connection's pill. Designations are created on-demand — no seed data needed.
+**First-time setup:** The initial user must have `isSuperAdmin` set directly in the database. From there, create employees from the Organization page, drag connections in the flow diagram to assign them to departments, and configure privileges on each connection's pill. Designations with preset default privileges can be created on-demand — no seed data needed.
 
 ### Environment Variables
 
