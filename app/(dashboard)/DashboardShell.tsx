@@ -75,8 +75,8 @@ function getEntityHref(entity: string, entityId?: string): string | null {
   switch (entity) {
     case "employee": return entityId ? `/employee/${entityId}/edit` : "/organization";
     case "department": return "/organization";
-    case "campaign": return "/workspace/campaigns";
-    case "task": return "/workspace/tasks";
+    case "campaign": return "/workspace";
+    case "task": return "/workspace";
     case "attendance": return "/insights-desk/attendance";
     case "settings": return "/settings";
     case "security": return "/organization";
@@ -88,8 +88,8 @@ function getEntityPageHref(entity: string): string | null {
   switch (entity) {
     case "employee": return "/organization";
     case "department": return "/organization";
-    case "campaign": return "/workspace/campaigns";
-    case "task": return "/workspace/tasks";
+    case "campaign": return "/workspace";
+    case "task": return "/workspace";
     case "attendance": return "/insights-desk/attendance";
     case "settings": return "/settings";
     default: return null;
@@ -154,9 +154,6 @@ const PATH_TO_TOUR_NAME: Record<string, string> = {
   "/": "Dashboard",
   "/organization": "Organization",
   "/workspace": "Workspace",
-  "/workspace/campaigns": "Workspace",
-  "/workspace/tasks": "Workspace",
-  "/workspace/updates": "Workspace",
   "/insights-desk": "Insights Desk",
   "/insights-desk/attendance": "Attendance",
   "/insights-desk/leaves": "Insights Desk",
@@ -778,16 +775,18 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
             </div>
 
             {/* Settings link */}
-            <Link
-              href="/settings"
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
-                pathname.startsWith("/settings")
-                  ? "bg-[var(--primary)] text-white shadow-sm"
-                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--hover-bg)]"
-              }`}
-            >
-              Settings
-            </Link>
+            {canPerm("settings_view") && (
+              <Link
+                href="/settings"
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
+                  pathname.startsWith("/settings")
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--hover-bg)]"
+                }`}
+              >
+                Settings
+              </Link>
+            )}
 
             {/* Sign out */}
             <button
@@ -928,17 +927,19 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                   Help &amp; Guides
                 </button>
 
-                <Link
-                  href="/settings"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
-                  style={{ color: pathname.startsWith("/settings") ? "var(--primary)" : "var(--fg-secondary)" }}
-                >
-                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  </svg>
-                  Settings
-                </Link>
+                {canPerm("settings_view") && (
+                  <Link
+                    href="/settings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
+                    style={{ color: pathname.startsWith("/settings") ? "var(--primary)" : "var(--fg-secondary)" }}
+                  >
+                    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    </svg>
+                    Settings
+                  </Link>
+                )}
               </div>
 
               {/* Sign out */}

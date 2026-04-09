@@ -156,14 +156,9 @@ export const organizationTour: TourStep[] = [
 
 export const workspaceTour: TourStep[] = [
   {
-    target: "workspace-tabs",
-    title: "Workspace Hub",
-    description: "Your unified workspace brings together Campaigns, Tasks, and Updates. Switch between tabs to manage different aspects of your work.",
-  },
-  {
-    target: "workspace-content",
-    title: "Content Area",
-    description: "Each tab shows its own view — campaign cards with status filters, task lists with priority and grouping options, or a live activity feed of recent updates.",
+    target: "workspace-toolbar",
+    title: "Workspace",
+    description: "Your unified workspace for campaigns, tasks, and activity. Group tasks by campaign, employee, or hierarchy, filter by status, and search across everything.",
   },
 ];
 

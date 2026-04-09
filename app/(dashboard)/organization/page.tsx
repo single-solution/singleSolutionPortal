@@ -93,6 +93,10 @@ export default function OrganizationPage() {
   const canManageOrganization = canPerm("organization_manageLinks");
   const canViewDesignations = canPerm("designations_view");
   const canManageDesignations = canPerm("designations_manage");
+  const canCreateEmployees = canPerm("employees_create");
+  const canCreateDepts = canPerm("departments_create");
+  const canEditDepts = canPerm("departments_edit");
+  const canDeleteDepts = canPerm("departments_delete");
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees?includeSelf=true", "org-employees");
@@ -330,7 +334,7 @@ export default function OrganizationPage() {
           </svg>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, departments…" className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
-        {sessionStatus !== "loading" && canManageOrganization && (
+        {sessionStatus !== "loading" && canCreateEmployees && (
           <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Add Employee
@@ -344,30 +348,7 @@ export default function OrganizationPage() {
         <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[280px]">
           {/* Departments card */}
           <div className="card-xl flex-1 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
-            {canManageOrganization ? (
-              <DepartmentsPanel departments={scopedDepts} loading={deptsLoading} refetch={refetchDepts} />
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Departments</h2>
-                {deptsLoading && scopedDepts.length === 0 ? (
-                  <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-8 rounded-lg" />)}</div>
-                ) : scopedDepts.length === 0 ? (
-                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No departments.</p>
-                ) : (
-                  scopedDepts.map((d) => (
-                    <div key={d._id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#8b5cf6", color: "white" }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>{d.title}</p>
-                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{d.employeeCount} people</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            <DepartmentsPanel departments={scopedDepts} loading={deptsLoading} refetch={refetchDepts} canCreate={canCreateDepts} canEdit={canEditDepts} canDelete={canDeleteDepts} />
           </div>
 
           {/* Designations card */}

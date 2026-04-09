@@ -77,7 +77,9 @@ export function PayrollTab() {
   const { can: canPerm } = usePermissions();
   const canViewTeamPayroll = canPerm("payroll_viewTeam");
   const canGenerateSlips = canPerm("payroll_generateSlips");
+  const canFinalizeSlips = canPerm("payroll_finalizeSlips");
   const canManagePayrollConfig = canPerm("payroll_manageSalary");
+  const canManageSlipStatus = canGenerateSlips || canFinalizeSlips;
 
   const [error, setError] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(true);
@@ -780,7 +782,7 @@ export function PayrollTab() {
                   <th className="pb-2 pr-3">Deductions</th>
                   <th className="pb-2 pr-3">Net</th>
                   <th className="pb-2 pr-3">Status</th>
-                  {canGenerateSlips && <th className="pb-2">Actions</th>}
+                  {canManageSlipStatus && <th className="pb-2">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -806,10 +808,10 @@ export function PayrollTab() {
                       <td className="py-2 pr-3">
                         <StatusPill status={row.status} />
                       </td>
-                      {canGenerateSlips && (
+                      {canManageSlipStatus && (
                         <td className="py-2">
                           <div className="flex flex-wrap gap-1">
-                            {row.status === "draft" && (
+                            {row.status === "draft" && canFinalizeSlips && (
                               <button
                                 type="button"
                                 className="rounded-md px-2 py-1 text-xs font-semibold"
@@ -819,7 +821,7 @@ export function PayrollTab() {
                                 Finalize
                               </button>
                             )}
-                            {row.status !== "paid" && (
+                            {row.status !== "paid" && canFinalizeSlips && (
                               <button
                                 type="button"
                                 className="rounded-md px-2 py-1 text-xs font-semibold"

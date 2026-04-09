@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
+import "@/lib/models/Campaign";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
 import {
@@ -52,6 +53,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.description !== undefined) task.description = body.description;
     if (body.priority !== undefined) task.priority = body.priority;
     if (body.deadline !== undefined) task.deadline = body.deadline;
+    if (body.campaign !== undefined) task.campaign = body.campaign || undefined;
     if (body.assignedTo) {
       const target = await User.findById(body.assignedTo).select("isSuperAdmin").lean();
       if (target?.isSuperAdmin === true) return badRequest("Cannot assign tasks to superadmin");
@@ -72,6 +74,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const populated = await ActivityTask.findById(task._id)
     .populate("assignedTo", "about.firstName about.lastName email")
+    .populate("campaign", "name status")
     .lean();
 
   const changes = Object.keys(body).filter((k) => k !== "assignedTo").join(", ");

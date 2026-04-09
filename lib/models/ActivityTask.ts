@@ -9,6 +9,7 @@ export interface IActivityTask extends Document {
   slug: string;
   description?: string;
   assignedTo: Types.ObjectId;
+  campaign?: Types.ObjectId;
   deadline?: Date;
   priority: TaskPriority;
   status: TaskStatus;
@@ -34,6 +35,7 @@ const activityTaskSchema = new Schema<IActivityTask>(
     slug: { type: String, unique: true },
     description: { type: String, default: "" },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    campaign: { type: Schema.Types.ObjectId, ref: "Campaign" },
     deadline: Date,
     priority: {
       type: String,
@@ -51,6 +53,8 @@ const activityTaskSchema = new Schema<IActivityTask>(
   },
   { timestamps: true },
 );
+
+activityTaskSchema.index({ campaign: 1 });
 
 activityTaskSchema.pre("save", async function () {
   if (!this.isModified("title")) return;
