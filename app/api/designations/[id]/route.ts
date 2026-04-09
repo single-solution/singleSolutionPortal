@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/db";
 import Designation, { PERMISSION_KEYS } from "@/lib/models/Designation";
+import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 import mongoose from "mongoose";
@@ -109,12 +110,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!designation) return notFound("Designation not found");
   if (designation.isSystem) return badRequest("Cannot delete system designations");
 
-  designation.isActive = false;
-  await designation.save();
+  await Membership.updateMany({ designation: id }, { $unset: { designation: "" } });
+  await designation.deleteOne();
 
-  const doc = await Designation.findById(id)
-    .select("_id name description color isSystem isActive defaultPermissions createdAt updatedAt")
-    .lean();
-
-  return ok(doc);
+  return ok({ deleted: true });
 }

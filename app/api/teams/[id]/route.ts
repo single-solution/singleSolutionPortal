@@ -128,8 +128,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   await User.updateMany({ teams: id }, { $pull: { teams: id } });
 
-  team.isActive = false;
-  await team.save();
+  const teamName = team.name;
+  const teamDeptId = team.department?.toString() ?? "";
+  await team.deleteOne();
 
   logActivity({
     userEmail: actor.email,
@@ -137,11 +138,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     action: "deleted team",
     entity: "team",
     entityId: id,
-    details: team.name,
+    details: teamName,
     targetTeamIds: [id],
-    targetDepartmentId: team.department?.toString() ?? "",
+    targetDepartmentId: teamDeptId,
     visibility: "targeted",
   });
 
-  return ok({ message: "Team deactivated" });
+  return ok({ message: "Team deleted" });
 }

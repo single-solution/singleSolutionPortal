@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
+import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
 import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
@@ -60,8 +61,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   await connectDB();
 
-  const dept = await Department.findByIdAndUpdate(id, { isActive: false }, { new: true }).lean();
+  const dept = await Department.findById(id).lean();
   if (!dept) return notFound("Department not found");
+
+  await Membership.deleteMany({ department: id });
+  await Department.findByIdAndDelete(id);
 
   logActivity({
     userEmail: actor.email,
@@ -73,5 +77,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     visibility: "targeted",
   });
 
-  return ok({ message: "Department deactivated" });
+  return ok({ message: "Department deleted" });
 }

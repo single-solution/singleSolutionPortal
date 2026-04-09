@@ -17,6 +17,7 @@ import {
 import { EmployeeCard } from "./components/EmployeeCard";
 import { ScopeStrip } from "./components/ScopeStrip";
 import { useGuide } from "@/lib/useGuide";
+import { usePermissions } from "@/lib/usePermissions";
 import { useLive } from "@/lib/useLive";
 import { dashboardTour } from "@/lib/tourConfigs";
 import {
@@ -317,13 +318,13 @@ const blobGradients = [
 
 /* ──────────────────────── WELCOME HEADER ──────────────────────── */
 
-function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSuperAdmin, dataLoading, scopeStrip }: {
+function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasTeamAccess, dataLoading, scopeStrip }: {
   user: User;
   presenceEmps: PresenceEmployee[];
   tasks: ApiTask[];
   campaigns: ApiCampaign[];
   userProfile: UserProfile | null;
-  isSuperAdmin: boolean;
+  hasTeamAccess: boolean;
   dataLoading?: boolean;
   scopeStrip?: React.ReactNode;
 }) {
@@ -350,7 +351,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, isSu
         <p className="text-caption mb-0.5">Single Solution Sync</p>
         <h1 className="text-title"><span style={{ color: "var(--primary)" }}>{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {profileName}!</span></h1>
         <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
-          {isSuperAdmin ? (
+          {hasTeamAccess ? (
             <>
               <span className="badge badge-office">{liveOfficeCount} In Office</span>
               <span className="badge badge-remote">{liveRemoteCount} Remote</span>
@@ -592,6 +593,8 @@ function AdminDashboard({
 }) {
   const liveUpdates = useLive();
   const isSuperAdmin = user.isSuperAdmin === true;
+  const { can: canPerm } = usePermissions();
+  const hasTeamAccess = canPerm("attendance_viewTeam");
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("dashboard", dashboardTour); }, [registerTour]);
   const [scopeDept, setScopeDept] = useState("all");
@@ -688,7 +691,7 @@ function AdminDashboard({
   return (
     <div className="flex min-h-[calc(100dvh-15rem)] flex-col gap-5">
       {/* 1. Welcome header (includes scope strip on the right) */}
-      <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} isSuperAdmin={isSuperAdmin} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
+      <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
 
       {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (
@@ -1219,6 +1222,10 @@ export default function DashboardHome({ user }: { user: User }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const isSuperAdmin = user.isSuperAdmin === true;
+  const { can: canPermRoot } = usePermissions();
+  const hasTeamAccess = canPermRoot("attendance_viewTeam");
+  const canViewCampaigns = canPermRoot("campaigns_view");
+  const canViewDepts = canPermRoot("departments_view");
   const initialDone = useRef(false);
 
   /* ── Helper: parse presence array ── */
@@ -1294,7 +1301,7 @@ export default function DashboardHome({ user }: { user: User }) {
   /* ── FAST POLL: presence + today's detail ── */
   const fetchLive = useCallback(async () => {
     try {
-      if (isSuperAdmin) {
+      if (hasTeamAccess) {
         const res = await fetch("/api/attendance/presence");
         if (res.ok) {
           const presRes = await res.json();
@@ -1303,7 +1310,7 @@ export default function DashboardHome({ user }: { user: User }) {
       }
       if (!isSuperAdmin) await fetchTodayDetail();
     } catch { /* silent */ }
-  }, [isSuperAdmin, isSuperAdmin, parsePresence, fetchTodayDetail]);
+  }, [hasTeamAccess, isSuperAdmin, parsePresence, fetchTodayDetail]);
 
   /* ── Helper: fetch all personal data (monthly + weekly + profile) in one pass ── */
   const fetchPersonalData = useCallback(async () => {
@@ -1408,13 +1415,18 @@ export default function DashboardHome({ user }: { user: User }) {
       const fetches: Promise<unknown>[] = [
         fetch("/api/employees").then((r) => r.ok ? r.json() : []),
         fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
-        isSuperAdmin ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
+        canViewDepts ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
       ];
-      if (isSuperAdmin) {
+      if (canViewCampaigns) {
         fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
+      }
+      if (hasTeamAccess) {
         fetches.push(fetch("/api/attendance/trend").then((r) => r.ok ? r.json() : []));
       }
-      const [empRes, taskRes, deptRes, campaignRes, trendRes] = await Promise.all(fetches);
+      const [empRes, taskRes, deptRes, ...rest] = await Promise.all(fetches);
+      let idx = 0;
+      const campaignRes = canViewCampaigns ? rest[idx++] : undefined;
+      const trendRes = hasTeamAccess ? rest[idx++] : undefined;
 
       setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
       setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
@@ -1424,12 +1436,12 @@ export default function DashboardHome({ user }: { user: User }) {
 
       if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [isSuperAdmin, isSuperAdmin, fetchPersonalData]);
+  }, [canViewDepts, canViewCampaigns, hasTeamAccess, isSuperAdmin, fetchPersonalData]);
 
   /* ── Initial load ── */
   useEffect(() => {
     Promise.all([fetchFull(), fetchLive()]).then(() => {
-      if (isSuperAdmin && !realPresence) {
+      if (hasTeamAccess && !realPresence) {
         setTimeout(fetchLive, 1500);
       }
     }).finally(() => {
@@ -1439,7 +1451,7 @@ export default function DashboardHome({ user }: { user: User }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const presenceLoading = realPresence === null && isSuperAdmin;
+  const presenceLoading = realPresence === null && hasTeamAccess;
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;
     return employees.map((e) => {
@@ -1479,7 +1491,7 @@ export default function DashboardHome({ user }: { user: User }) {
     });
   }, [realPresence, employees]);
 
-  if (user.isSuperAdmin === true) {
+  if (hasTeamAccess) {
       return (
       <AdminDashboard
         user={user}

@@ -162,23 +162,23 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter });
   if (!campaign) return notFound("Campaign not found or outside your scope");
 
-  campaign.isActive = false;
-  await campaign.save();
-
   const delEmps = (campaign.tags.employees as unknown as string[]).map((e) => e.toString());
   const delDepts = (campaign.tags.departments as unknown as string[]).map((d) => d.toString());
   const delTeamsArr = (campaign.tags.teams as unknown as string[]).map((t) => t.toString());
+  const campaignName = campaign.name;
+  await campaign.deleteOne();
+
   logActivity({
     userEmail: actor.email,
     userName: "",
     action: "deleted campaign",
     entity: "campaign",
     entityId: id,
-    details: campaign.name,
+    details: campaignName,
     targetUserIds: delEmps,
     targetDepartmentId: delDepts[0] || undefined,
     targetTeamIds: delTeamsArr,
   });
 
-  return ok({ message: "Campaign deactivated" });
+  return ok({ message: "Campaign deleted" });
 }

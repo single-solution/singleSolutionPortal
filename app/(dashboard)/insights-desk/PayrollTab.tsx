@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@/lib/useQuery";
 
@@ -73,7 +74,10 @@ export function PayrollTab() {
   const yearNow = new Date().getFullYear();
   const monthNow = new Date().getMonth() + 1;
 
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
+  const { can: canPerm } = usePermissions();
+  const canViewTeamPayroll = canPerm("payroll_viewTeam");
+  const canGenerateSlips = canPerm("payroll_generateSlips");
+  const canManagePayrollConfig = canPerm("payroll_manageSalary");
 
   const [error, setError] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(true);
@@ -110,7 +114,7 @@ export function PayrollTab() {
   );
 
   const holidaysUrl =
-    sessionOk && isSuperAdmin ? `/api/payroll/holidays?year=${holidayYear}` : null;
+    sessionOk && canViewTeamPayroll ? `/api/payroll/holidays?year=${holidayYear}` : null;
   const { data: holidays, refetch: refetchHolidays, loading: holidaysLoading } = useQuery<
     HolidayRow[]
   >(holidaysUrl);
@@ -308,7 +312,7 @@ export function PayrollTab() {
         </motion.div>
       )}
 
-      {isSuperAdmin && (
+      {canManagePayrollConfig && (
         <div style={cardStyle}>
           <button
             type="button"
@@ -509,7 +513,7 @@ export function PayrollTab() {
         </div>
       )}
 
-      {isSuperAdmin && (
+      {canViewTeamPayroll && (
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -644,7 +648,7 @@ export function PayrollTab() {
         </motion.div>
       )}
 
-      {isSuperAdmin && (
+      {canGenerateSlips && (
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -776,7 +780,7 @@ export function PayrollTab() {
                   <th className="pb-2 pr-3">Deductions</th>
                   <th className="pb-2 pr-3">Net</th>
                   <th className="pb-2 pr-3">Status</th>
-                  {isSuperAdmin && <th className="pb-2">Actions</th>}
+                  {canGenerateSlips && <th className="pb-2">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -802,7 +806,7 @@ export function PayrollTab() {
                       <td className="py-2 pr-3">
                         <StatusPill status={row.status} />
                       </td>
-                      {isSuperAdmin && (
+                      {canGenerateSlips && (
                         <td className="py-2">
                           <div className="flex flex-wrap gap-1">
                             {row.status === "draft" && (

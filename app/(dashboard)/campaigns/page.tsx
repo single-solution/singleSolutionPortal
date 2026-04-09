@@ -8,6 +8,7 @@ import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
 import { campaignsTour } from "@/lib/tourConfigs";
 
@@ -70,7 +71,8 @@ export default function CampaignsPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("campaigns", campaignsTour); }, [registerTour]);
-  const canManageCampaigns = session?.user?.isSuperAdmin === true;
+  const { canAny: canAnyPerm } = usePermissions();
+  const canManageCampaigns = canAnyPerm("campaigns_create", "campaigns_edit");
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 
 type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
 type LeaveTypeOpt =
@@ -84,8 +85,10 @@ export function LeavesTab() {
   const [formUserId, setFormUserId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
-  const canApproveReject = isSuperAdmin;
+  const { can: canPerm } = usePermissions();
+  const canViewTeamLeaves = canPerm("leaves_viewTeam");
+  const canApproveReject = canPerm("leaves_approve");
+  const canDeleteLeaves = canPerm("leaves_manageBulk");
 
   const loadBalance = useCallback(async () => {
     const uid = userFilter || session?.user?.id;
@@ -133,13 +136,13 @@ export function LeavesTab() {
   }, [refresh]);
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canViewTeamLeaves) return;
     void (async () => {
       const res = await fetch("/api/employees/dropdown");
       if (!res.ok) return;
       setEmployees(await res.json());
     })();
-  }, [isSuperAdmin]);
+  }, [canViewTeamLeaves]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -156,7 +159,7 @@ export function LeavesTab() {
         endDate: formEnd,
         reason: formReason,
       };
-      if (isSuperAdmin && formUserId) body.userId = formUserId;
+      if (canViewTeamLeaves && formUserId) body.userId = formUserId;
       const res = await fetch("/api/leaves", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -262,7 +265,7 @@ export function LeavesTab() {
             <option value="cancelled">Cancelled</option>
           </select>
         </label>
-        {isSuperAdmin && (
+        {canViewTeamLeaves && (
           <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
             Employee
             <select
@@ -313,7 +316,7 @@ export function LeavesTab() {
           New leave request
         </h2>
         <form onSubmit={(e) => void handleCreate(e)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {isSuperAdmin && (
+          {canViewTeamLeaves && (
             <label className="flex flex-col gap-1 text-xs font-semibold md:col-span-2 lg:col-span-3" style={{ color: "var(--fg-tertiary)" }}>
               On behalf of (optional — defaults to you)
               <select
@@ -409,7 +412,7 @@ export function LeavesTab() {
           <div className="overflow-x-auto">
             {(() => {
               const showWhoCol =
-                isSuperAdmin ||
+                canViewTeamLeaves ||
                 leaves.some((l) => leaveUserId(l) && leaveUserId(l) !== session?.user?.id);
               return (
             <table className="w-full text-left text-sm">
@@ -437,7 +440,7 @@ export function LeavesTab() {
                       <td className="py-2 pr-3 capitalize">{row.status}</td>
                       <td className="py-2">
                         <div className="flex flex-wrap gap-1">
-                          {row.status === "pending" && canApproveReject && (isSuperAdmin || uid !== session?.user?.id) && (
+                          {row.status === "pending" && canApproveReject && (canViewTeamLeaves || uid !== session?.user?.id) && (
                             <>
                               <button
                                 type="button"
@@ -457,7 +460,7 @@ export function LeavesTab() {
                               </button>
                             </>
                           )}
-                          {row.status === "pending" && (uid === session?.user?.id || isSuperAdmin) && (
+                          {row.status === "pending" && (uid === session?.user?.id || canApproveReject) && (
                             <button
                               type="button"
                               className="rounded-md px-2 py-1 text-xs font-semibold"
@@ -467,7 +470,7 @@ export function LeavesTab() {
                               Cancel
                             </button>
                           )}
-                          {isSuperAdmin && (
+                          {canDeleteLeaves && (
                             <button
                               type="button"
                               className="rounded-md px-2 py-1 text-xs font-semibold"

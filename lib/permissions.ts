@@ -397,14 +397,6 @@ export function canSendPing(actor: VerifiedUser): boolean {
   return hasPermission(actor, "ping_send");
 }
 
-export function canViewCalendar(actor: VerifiedUser): boolean {
-  return hasPermission(actor, "calendar_view");
-}
-
-export function canManageCalendar(actor: VerifiedUser): boolean {
-  return hasPermission(actor, "calendar_manage");
-}
-
 export function canManageSettings(actor: VerifiedUser): boolean {
   return hasPermission(actor, "settings_manage");
 }

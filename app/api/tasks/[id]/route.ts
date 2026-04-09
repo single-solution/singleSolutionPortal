@@ -127,17 +127,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  task.isActive = false;
-  await task.save();
-
   const delAssigneeId = (task.assignedTo as unknown as { _id?: { toString(): string } })?._id?.toString() ?? task.assignedTo?.toString() ?? "";
+  const taskTitle = task.title;
+  await task.deleteOne();
+
   logActivity({
     userEmail: actor.email,
     userName: "",
     action: "deleted task",
     entity: "task",
     entityId: id,
-    details: task.title,
+    details: taskTitle,
     targetUserIds: delAssigneeId ? [delAssigneeId] : [],
     visibility: "targeted",
   });

@@ -615,22 +615,20 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                     <span className="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(1rem)" : "translateX(0)" }} />
                   </button>
                 </div>
-                {ds.isWorking && (
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">Start</label>
-                      <input className="input text-xs py-1" type="time" value={ds.start} onChange={(e) => updateDay(day, { start: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">End</label>
-                      <input className="input text-xs py-1" type="time" value={ds.end} onChange={(e) => updateDay(day, { end: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">Break</label>
-                      <input className="input text-xs py-1" type="number" min={0} value={ds.breakMinutes} onChange={(e) => updateDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
-                    </div>
+                <div className="grid grid-cols-3 gap-2" style={{ opacity: ds.isWorking ? 1 : 0.35 }}>
+                  <div>
+                    <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">Start</label>
+                    <input className="input text-xs py-1" type="time" value={ds.start} disabled={!ds.isWorking} onChange={(e) => updateDay(day, { start: e.target.value })} />
                   </div>
-                )}
+                  <div>
+                    <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">End</label>
+                    <input className="input text-xs py-1" type="time" value={ds.end} disabled={!ds.isWorking} onChange={(e) => updateDay(day, { end: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[var(--fg-tertiary)] mb-0.5">Break</label>
+                    <input className="input text-xs py-1" type="number" min={0} value={ds.breakMinutes} disabled={!ds.isWorking} onChange={(e) => updateDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
+                  </div>
+                </div>
               </div>
             );
           })}

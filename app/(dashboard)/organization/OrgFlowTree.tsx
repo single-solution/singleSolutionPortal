@@ -95,8 +95,13 @@ function DeptNode({ data }: NodeProps) {
 function EmpNode({ data }: NodeProps) {
   const initials = String(data.initials ?? "");
   const isActive = data.active !== false;
+  const onEdit = data.onEdit as (() => void) | undefined;
   return (
-    <div className={`rounded-xl border px-3 py-2 shadow-sm min-w-[140px] ${isActive ? "" : "opacity-50 grayscale"}`} style={{ background: "var(--bg-elevated)", borderColor: "var(--border-strong)" }}>
+    <div
+      className={`rounded-xl border px-3 py-2 shadow-sm min-w-[140px] transition-shadow ${isActive ? "" : "opacity-50 grayscale"} ${onEdit ? "cursor-pointer hover:shadow-md hover:border-[var(--teal)]" : ""}`}
+      style={{ background: "var(--bg-elevated)", borderColor: "var(--border-strong)" }}
+      onClick={() => onEdit?.()}
+    >
       <Handle type="source" position={Position.Top} id="top" className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: isActive ? "var(--teal)" : "var(--fg-tertiary)" }}>{initials}</span>
@@ -195,9 +200,10 @@ const edgeTypes = { designation: DesignationEdge };
 interface Props {
   departments: Department[]; employees: Employee[];
   designations: DesigOption[]; isSuperAdmin: boolean;
+  onEditEmployee?: (empId: string) => void;
 }
 
-export function OrgFlowTree({ departments, employees, designations, isSuperAdmin }: Props) {
+export function OrgFlowTree({ departments, employees, designations, isSuperAdmin, onEditEmployee }: Props) {
   interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string }
 
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
@@ -527,7 +533,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
         const n = nodes.find((n) => n.id === `dept-${idStr(first?.department)}`);
         if (n) { xGuess = n.position.x; yGuess = n.position.y + LEVEL; }
       }
-      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id } });
+      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id, onEdit: onEditEmployee ? () => onEditEmployee(emp._id) : undefined } });
     });
 
     const edgeData = (m: MembershipRow): Record<string, unknown> => ({ designation: m.designation ?? null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: false, readOnly: !isSuperAdmin } as DesigEdgeData as unknown as Record<string, unknown>);
@@ -573,7 +579,7 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink]);
+  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -627,19 +633,29 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
         </ReactFlow>
         <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#8b5cf6" }}>
+            <span className="inline-block h-2.5 w-2.5 rounded-sm border-2" style={{ borderColor: "#8b5cf6" }} />
+            Department
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
+          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--teal)" }}>
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--teal)" }} />
+            Employee
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
+          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>
+            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" /></svg>
+            Membership
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
+          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>
+            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
+            Employee link
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
           <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#10b981" }}>
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-            Bottom→Top = Full access
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#f43f5e" }}>
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-            Top→Bottom = No access
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--teal)" }}>
-            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
-            Reports to
+            Above = manages
           </span>
           <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click pill to edit</span>

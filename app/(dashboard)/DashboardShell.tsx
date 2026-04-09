@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { dockEntrance, tabIndicatorTransition } from "@/lib/motion";
 import { useGuide } from "@/lib/useGuide";
+import { usePermissions } from "@/lib/usePermissions";
 import { LiveProvider } from "@/lib/useLive";
 import SessionTracker from "./SessionTracker";
 
@@ -14,13 +15,13 @@ interface NavLink {
   href: string;
   label: string;
   icon: string;
-  superAdminOnly?: boolean;
+  permission?: string;
 }
 
 const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
   { href: "/workspace", label: "Workspace", icon: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" },
-  { href: "/organization", label: "Organization", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", superAdminOnly: true },
+  { href: "/organization", label: "Organization", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", permission: "organization_view" },
   { href: "/insights-desk", label: "Insights Desk", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
 ];
 
@@ -162,7 +163,6 @@ const PATH_TO_TOUR_NAME: Record<string, string> = {
   "/workspace/updates": "Workspace",
   "/insights-desk": "Insights Desk",
   "/insights-desk/attendance": "Attendance",
-  "/insights-desk/calendar": "Insights Desk",
   "/insights-desk/leaves": "Insights Desk",
   "/insights-desk/payroll": "Insights Desk",
   "/settings": "Settings",
@@ -304,8 +304,9 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
 
 
 
+  const { can: canPerm } = usePermissions();
   const visibleLinks = NAV_LINKS.filter(
-    (l) => !l.superAdminOnly || user.isSuperAdmin,
+    (l) => !l.permission || canPerm(l.permission as keyof import("@/lib/permissions.shared").IPermissions),
   );
   const currentTheme =
     THEME_OPTIONS.find((o) => o.value === theme) ?? THEME_OPTIONS[0];

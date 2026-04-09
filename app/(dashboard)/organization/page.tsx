@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { useQuery } from "@/lib/useQuery";
 import { useGuide } from "@/lib/useGuide";
 import { organizationTour } from "@/lib/tourConfigs";
@@ -41,8 +42,8 @@ export default function OrganizationPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("organization", organizationTour); }, [registerTour]);
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
-  const canManageOrganization = isSuperAdmin;
+  const { can: canPerm, isSuperAdmin } = usePermissions();
+  const canManageOrganization = canPerm("organization_manageLinks");
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees", "org-employees");
@@ -146,7 +147,7 @@ export default function OrganizationPage() {
         <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[280px]">
           {/* Departments card */}
           <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
-            {isSuperAdmin ? (
+            {canManageOrganization ? (
               <DepartmentsPanel departments={deptList} loading={deptsLoading} refetch={refetchDepts} />
             ) : (
               <div className="flex flex-col gap-1.5">
@@ -173,7 +174,7 @@ export default function OrganizationPage() {
           </div>
 
           {/* Designations card */}
-          {isSuperAdmin && (
+          {canManageOrganization && (
             <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
               <DesignationsPanel />
             </div>
@@ -196,7 +197,7 @@ export default function OrganizationPage() {
 
         {/* Flow diagram */}
         <main className="min-w-0 flex-1">
-          <OrgFlowTree departments={deptList} employees={filteredEmps} designations={activeDesignations} isSuperAdmin={isSuperAdmin} />
+          <OrgFlowTree departments={deptList} employees={filteredEmps} designations={activeDesignations} isSuperAdmin={canManageOrganization} onEditEmployee={canManageOrganization ? (empId) => { const emp = empList.find((e) => e._id === empId); if (emp) openEditEmployee(emp); } : undefined} />
         </main>
       </div>
 
@@ -207,7 +208,7 @@ export default function OrganizationPage() {
             <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setEmpModalOpen(false)} />
               <motion.div
-                className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
+                className="relative w-full max-w-lg mx-4 max-h-[92vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
                 style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -226,7 +227,7 @@ export default function OrganizationPage() {
 
                   <div className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
                     <p className="text-[11px] font-medium mb-2" style={{ color: "var(--fg-secondary)" }}>Weekly Schedule</p>
-                    <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                    <div className="space-y-1.5">
                       {ALL_WEEKDAYS.map((day) => {
                         const ds = empForm.weeklySchedule[day];
                         return (
@@ -235,17 +236,11 @@ export default function OrganizationPage() {
                             <button type="button" role="switch" aria-checked={ds.isWorking} onClick={() => updateEmpDay(day, { isWorking: !ds.isWorking })} className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors" style={{ backgroundColor: ds.isWorking ? "var(--primary)" : "var(--bg-tertiary)" }}>
                               <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(0.75rem)" : "translateX(0)" }} />
                             </button>
-                            {ds.isWorking ? (
-                              <>
-                                <input type="time" value={ds.start} onChange={(e) => updateEmpDay(day, { start: e.target.value })} className="input text-[10px] py-0.5 w-20" />
-                                <span style={{ color: "var(--fg-tertiary)" }}>–</span>
-                                <input type="time" value={ds.end} onChange={(e) => updateEmpDay(day, { end: e.target.value })} className="input text-[10px] py-0.5 w-20" />
-                                <input type="number" min={0} value={ds.breakMinutes} onChange={(e) => updateEmpDay(day, { breakMinutes: Number(e.target.value) || 0 })} className="input text-[10px] py-0.5 w-12 text-center" />
-                                <span style={{ color: "var(--fg-tertiary)" }}>brk</span>
-                              </>
-                            ) : (
-                              <span style={{ color: "var(--fg-tertiary)" }}>Off</span>
-                            )}
+                            <input type="time" value={ds.start} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { start: e.target.value })} className="input text-[10px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
+                            <span style={{ color: "var(--fg-tertiary)" }}>–</span>
+                            <input type="time" value={ds.end} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { end: e.target.value })} className="input text-[10px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
+                            <input type="number" min={0} value={ds.breakMinutes} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { breakMinutes: Number(e.target.value) || 0 })} className="input text-[10px] py-0.5 w-12 text-center" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
+                            <span style={{ color: "var(--fg-tertiary)" }}>brk</span>
                           </div>
                         );
                       })}

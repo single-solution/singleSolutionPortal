@@ -7,6 +7,7 @@ import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
 import { departmentsTour } from "@/lib/tourConfigs";
 
@@ -34,7 +35,8 @@ export default function DepartmentsPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("departments", departmentsTour); }, [registerTour]);
-  const canManageDepts = session?.user?.isSuperAdmin === true;
+  const { canAny: canAnyPerm } = usePermissions();
+  const canManageDepts = canAnyPerm("departments_create", "departments_edit");
   const { data: departments, loading: deptsLoading, refetch: refetchDepts, mutate: mutateDepts } = useQuery<Department[]>("/api/departments", "departments");
   const { data: managersRaw } = useQuery<Employee[]>("/api/employees/dropdown", "employees");
 

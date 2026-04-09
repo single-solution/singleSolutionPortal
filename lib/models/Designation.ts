@@ -14,7 +14,6 @@ export function makeDefaultPermissions(preset: "employee" | "teamLead" | "manage
   const p = allOff() as unknown as IPermissions;
   if (preset === "employee") {
     p.updates_view = true;
-    p.calendar_view = true;
     p.ping_send = true;
     return p;
   }
@@ -33,7 +32,6 @@ export function makeDefaultPermissions(preset: "employee" | "teamLead" | "manage
     p.attendance_viewDetail = true;
     p.leaves_viewTeam = true;
     p.organization_view = true;
-    p.calendar_view = true;
     p.ping_send = true;
     p.activityLogs_view = true;
   }
@@ -62,7 +60,6 @@ export function makeDefaultPermissions(preset: "employee" | "teamLead" | "manage
     p.payroll_viewTeam = true;
     p.holidays_view = true;
     p.organization_manageLinks = true;
-    p.calendar_manage = true;
   }
 
   if (preset === "admin") {

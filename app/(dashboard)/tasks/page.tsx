@@ -7,6 +7,7 @@ import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
 import { tasksTour } from "@/lib/tourConfigs";
 
@@ -51,7 +52,10 @@ export default function TasksPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("tasks", tasksTour); }, [registerTour]);
+  const { can: canPerm, canAny: canAnyPerm } = usePermissions();
   const isSuperAdmin = session?.user?.isSuperAdmin === true;
+  const canManageTasks = canAnyPerm("tasks_create", "tasks_edit");
+  const canAssignTasks = canPerm("tasks_reassign");
 
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
   const [search, setSearch] = useState("");
@@ -68,7 +72,7 @@ export default function TasksPage() {
   const [deleting, setDeleting] = useState(false);
 
   const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "tasks");
-  const { data: employeesRaw } = useQuery<Employee[]>(isSuperAdmin ? "/api/employees/dropdown" : null, "employees");
+  const { data: employeesRaw } = useQuery<Employee[]>(canAssignTasks ? "/api/employees/dropdown" : null, "employees");
 
   const taskList = tasks ?? [];
   const employees = employeesRaw ?? [];
@@ -187,7 +191,7 @@ export default function TasksPage() {
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input flex-1" style={{ paddingLeft: "40px" }} />
         </div>
-        {sessionStatus !== "loading" && isSuperAdmin && (
+        {sessionStatus !== "loading" && canManageTasks && (
           <motion.button type="button" onClick={openCreate} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Create Task
@@ -289,7 +293,7 @@ export default function TasksPage() {
                         <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${prioColor} 15%, transparent)`, color: prioColor }}>
                           {PRIORITY_LABELS[task.priority] ?? task.priority}
                         </span>
-                        {!isSuperAdmin && task.assignedTo?._id === session?.user?.id ? (
+                        {!canManageTasks && task.assignedTo?._id === session?.user?.id ? (
                           <select
                             className="rounded-full px-2 py-0.5 text-[9px] font-semibold cursor-pointer border-0 bg-transparent transition-colors duration-200"
                             style={{
@@ -353,7 +357,7 @@ export default function TasksPage() {
                           ? `Updated ${new Date(task.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                           : new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
-                      {isSuperAdmin && (
+                      {canManageTasks && (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEdit(task)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -422,7 +426,7 @@ export default function TasksPage() {
                     <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label>
                     <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                   </div>
-                  {isSuperAdmin && (
+                  {canAssignTasks && (
                     <div>
                       <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To</label>
                       <select className="input transition-colors duration-200" required value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>

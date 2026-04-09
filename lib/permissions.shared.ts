@@ -73,10 +73,6 @@ export interface IPermissions {
   payroll_finalizeSlips: boolean;
   payroll_export: boolean;
 
-  /* ── Calendar ── */
-  calendar_view: boolean;
-  calendar_manage: boolean;
-
   /* ── Communication ── */
   ping_send: boolean;
   activityLogs_view: boolean;
@@ -105,7 +101,6 @@ export const PERMISSION_KEYS: (keyof IPermissions)[] = [
   "attendance_viewTeam", "attendance_viewDetail", "attendance_edit", "attendance_overridePast", "attendance_export",
   "leaves_viewTeam", "leaves_approve", "leaves_editPast", "leaves_manageBulk",
   "payroll_viewTeam", "payroll_manageSalary", "payroll_generateSlips", "payroll_finalizeSlips", "payroll_export",
-  "calendar_view", "calendar_manage",
   "ping_send", "activityLogs_view",
   "designations_view", "designations_manage", "holidays_view", "holidays_manage", "settings_view", "settings_manage",
 ];
@@ -121,7 +116,6 @@ export const VIEW_ONLY_PERMISSIONS: Set<keyof IPermissions> = new Set([
   "leaves_viewTeam",
   "payroll_viewTeam",
   "organization_view",
-  "calendar_view",
   "activityLogs_view",
   "designations_view",
   "holidays_view",
@@ -192,9 +186,6 @@ export const PERMISSION_META: Record<keyof IPermissions, { label: string; desc: 
   payroll_finalizeSlips: { label: "Finalize pay slips",  desc: "Lock and approve pay slips for distribution" },
   payroll_export:        { label: "Export payroll",      desc: "Download payroll reports and summaries" },
 
-  calendar_view:   { label: "View calendar",       desc: "See the shared calendar with holidays and events" },
-  calendar_manage: { label: "Manage events",       desc: "Create, edit, and remove calendar events" },
-
   ping_send:         { label: "Send pings",        desc: "Send attention pings to other team members" },
   activityLogs_view: { label: "View activity logs", desc: "See the audit trail and activity history" },
 
@@ -218,7 +209,6 @@ export const PERMISSION_CATEGORIES: { label: string; icon: string; keys: (keyof 
   { label: "Attendance",    icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",  keys: ["attendance_viewTeam", "attendance_viewDetail", "attendance_edit", "attendance_overridePast", "attendance_export"] },
   { label: "Leaves",        icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",  keys: ["leaves_viewTeam", "leaves_approve", "leaves_editPast", "leaves_manageBulk"] },
   { label: "Payroll",       icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",  keys: ["payroll_viewTeam", "payroll_manageSalary", "payroll_generateSlips", "payroll_finalizeSlips", "payroll_export"] },
-  { label: "Calendar",      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zM12 17v-4m0 0l-2 2m2-2l2 2",  keys: ["calendar_view", "calendar_manage"] },
   { label: "Communication", icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",  keys: ["ping_send", "activityLogs_view"] },
   { label: "System",        icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",  keys: ["designations_view", "designations_manage", "holidays_view", "holidays_manage", "settings_view", "settings_manage"] },
 ];

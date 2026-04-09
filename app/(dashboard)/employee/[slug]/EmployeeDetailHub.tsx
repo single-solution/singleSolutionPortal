@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@/lib/useQuery";
 import { staggerContainerFast, cardVariants, ease } from "@/lib/motion";
@@ -189,8 +190,9 @@ export default function EmployeeDetailHub({
   const { data: session } = useSession();
   const id = empId(employee);
   const isOwnProfile = session?.user?.id === id;
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
-  const canEditProfile = isOwnProfile || isSuperAdmin;
+  const { can: canPerm, isSuperAdmin: viewerIsSuperAdmin } = usePermissions();
+  const targetIsSuperAdmin = employee.isSuperAdmin === true;
+  const canEditProfile = isOwnProfile || (canPerm("employees_edit") && (!targetIsSuperAdmin || viewerIsSuperAdmin));
   const firstName = employee.about?.firstName ?? "Employee";
   const lastName = employee.about?.lastName ?? "";
   const displaySlug = employee.username || id.slice(-6);

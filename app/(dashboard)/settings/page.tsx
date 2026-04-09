@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
 import { settingsTour } from "@/lib/tourConfigs";
 import {
@@ -82,9 +83,10 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("settings", settingsTour); }, [registerTour]);
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
+  const { can: canPerm } = usePermissions();
+  const canManageSettings = canPerm("settings_manage");
 
-  const sys = useSystemSettings(isSuperAdmin);
+  const sys = useSystemSettings(canManageSettings);
 
   const [profile, setProfile] = useState<SettingsProfileData | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -301,7 +303,7 @@ export default function SettingsPage() {
       <PreferencesSection />
 
       {/* SuperAdmin row: Test Email + System Settings side by side */}
-      {isSuperAdmin && (
+      {canManageSettings && (
         <div data-tour="settings-system">
           <SettingsSystem
             testEmail={testEmail}

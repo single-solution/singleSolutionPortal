@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useQuery } from "@/lib/useQuery";
-import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 
 interface Dept {
   _id: string;
@@ -16,8 +16,8 @@ interface ScopeStripProps {
 }
 
 export function ScopeStrip({ value, onChange, className }: ScopeStripProps) {
-  const { data: session } = useSession();
-  const shouldShow = session?.user?.isSuperAdmin === true;
+  const { canAny } = usePermissions();
+  const shouldShow = canAny("employees_view", "attendance_viewTeam", "departments_view");
   const { data: deptsRaw } = useQuery<Dept[]>(shouldShow ? "/api/departments" : null, "scopeDepts");
 
   if (!shouldShow || !deptsRaw || deptsRaw.length < 2) return null;

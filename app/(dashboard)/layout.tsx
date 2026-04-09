@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { DashboardShell } from "./DashboardShell";
 import Providers from "./Providers";
 import { GuideProvider } from "@/lib/useGuide";
+import { PermissionsProvider } from "@/lib/usePermissions";
 
 async function getLiveUpdates(): Promise<boolean> {
   try {
@@ -24,9 +25,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <Providers>
-      <GuideProvider userName={session.user.firstName ?? "there"}>
-        <DashboardShell user={session.user} liveUpdates={liveUpdates}>{children}</DashboardShell>
-      </GuideProvider>
+      <PermissionsProvider>
+        <GuideProvider userName={session.user.firstName ?? "there"}>
+          <DashboardShell user={session.user} liveUpdates={liveUpdates}>{children}</DashboardShell>
+        </GuideProvider>
+      </PermissionsProvider>
     </Providers>
   );
 }

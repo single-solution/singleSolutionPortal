@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import { useMemo, useState, useCallback, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cardHover, cardVariants, staggerContainerFast } from "@/lib/motion";
@@ -72,7 +73,8 @@ interface SelectOption { _id: string; label: string }
 
 export default function CampaignsPage() {
   const { data: session, status: sessionStatus } = useSession();
-  const canManageCampaigns = session?.user?.isSuperAdmin === true;
+  const { canAny: canAnyPerm } = usePermissions();
+  const canManageCampaigns = canAnyPerm("campaigns_create", "campaigns_edit");
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "workspace-campaigns");
   const { data: tasks } = useQuery<Task[]>("/api/tasks", "workspace-tasks");
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "ws-emp-dropdown");

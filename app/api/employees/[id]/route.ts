@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Team from "@/lib/models/Team";
 import Department from "@/lib/models/Department";
+import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
@@ -169,13 +170,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!target) return notFound("Employee not found");
   if (target.isSuperAdmin) return badRequest("Cannot delete superadmin");
 
-  const user = await User.findByIdAndUpdate(id, { isActive: false }, { new: true }).select("-password").lean();
-  if (!user) return notFound("Employee not found");
+  await Membership.deleteMany({ user: id });
+  await User.findByIdAndDelete(id);
 
   logActivity({
     userEmail: actor.email,
     userName: "",
-    action: "deactivated employee",
+    action: "deleted employee",
     entity: "employee",
     entityId: id,
     targetUserIds: [],
@@ -184,5 +185,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     visibility: "targeted",
   });
 
-  return ok({ message: "Employee deactivated" });
+  return ok({ message: "Employee deleted" });
 }

@@ -9,6 +9,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/usePermissions";
 import toast from "react-hot-toast";
 import { ScopeStrip } from "../components/ScopeStrip";
 import { useGuide } from "@/lib/useGuide";
@@ -110,7 +111,13 @@ export default function EmployeesPage() {
     if (id === "all") params.delete("dept"); else params.set("dept", id);
     router.replace(`?${params.toString()}`, { scroll: false });
   }
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
+  const { can: canPerm } = usePermissions();
+  const canCreateEmployees = canPerm("employees_create");
+  const canEditEmployees = canPerm("employees_edit");
+  const canDeleteEmployees = canPerm("employees_delete");
+  const canToggleEmployeeStatus = canPerm("employees_toggleStatus");
+  const canResendInvite = canPerm("employees_resendInvite");
+  const canManageEmployees = canCreateEmployees || canEditEmployees;
   const { data: employees, loading: employeesLoading, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>("/api/employees", "employees");
   const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "presence");
 
@@ -345,7 +352,7 @@ export default function EmployeesPage() {
             style={{ paddingLeft: "40px" }}
           />
         </div>
-        {sessionStatus !== "loading" && isSuperAdmin && (
+        {sessionStatus !== "loading" && canCreateEmployees && (
         <motion.button
           type="button"
             onClick={() => router.push("/employees/new")}
@@ -369,7 +376,7 @@ export default function EmployeesPage() {
 
       {/* Batch Action Bar */}
       <AnimatePresence>
-        {isSuperAdmin && selected.size > 0 && (
+        {canDeleteEmployees && selected.size > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -10, height: 0 }}
             animate={{ opacity: 1, y: 0, height: "auto" }}
@@ -404,7 +411,7 @@ export default function EmployeesPage() {
           </motion.span>
           {" "}employee{filtered.length !== 1 ? "s" : ""}
         </p>
-        {isSuperAdmin && (
+        {canDeleteEmployees && (
         <button type="button" onClick={toggleSelectAll} className="text-footnote font-medium hover:underline" style={{ color: "var(--primary)" }}>
           {selected.size === filtered.length && filtered.length > 0 ? "Deselect all" : "Select all"}
         </button>
@@ -423,13 +430,13 @@ export default function EmployeesPage() {
                 <EmployeeCard
                   embedded
                   idx={i}
-                  selectable={isSuperAdmin}
+                  selectable={canDeleteEmployees}
                   selected={isSelected}
                   onSelect={() => toggleSelect(emp._id)}
                   showRoleDepartmentTeams
-                  showActions={isSuperAdmin}
-                  onEdit={isSuperAdmin ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
-                  onDelete={isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
+                  showActions={(canEditEmployees || canDeleteEmployees) && !emp.isSuperAdmin}
+                  onEdit={canEditEmployees && !emp.isSuperAdmin ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
+                  onDelete={canDeleteEmployees && !emp.isSuperAdmin ? () => setDeleteTarget(emp) : undefined}
                   emp={{
                     _id: emp._id,
                     username: emp.username,
@@ -459,11 +466,11 @@ export default function EmployeesPage() {
                   }}
                   footerSlot={
                     <div className="flex flex-wrap items-center gap-2">
-                        {isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
+                        {canToggleEmployeeStatus && !emp.isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
                         <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                           Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                         </span>
-                        {isSuperAdmin && emp.isVerified === false && (
+                        {canResendInvite && emp.isVerified === false && (
                           <>
                           <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} disabled={resendingId === emp._id} onClick={() => resendInvite(emp)} className="flex h-7 items-center gap-1 px-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50" style={{ color: "var(--teal)", background: "color-mix(in srgb, var(--teal) 10%, transparent)" }} title="Send invite email">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
