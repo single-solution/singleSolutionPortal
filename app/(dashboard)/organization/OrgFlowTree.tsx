@@ -22,29 +22,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { PERMISSION_CATEGORIES, PERMISSION_KEYS, PERMISSION_META, type IPermissions } from "@/lib/permissions.shared";
+import { PERMISSION_CATEGORIES, PERMISSION_KEYS, PERMISSION_META } from "@/lib/permissions.shared";
 
-/* ────────── Permission sets per node type ────────── */
-
-const DEPT_PERM_KEYS: Set<keyof IPermissions> = new Set([
-  "departments_view", "departments_create", "departments_edit", "departments_delete",
-]);
-const EMP_PERM_KEYS: Set<keyof IPermissions> = new Set([
-  "employees_view", "employees_viewDetail", "employees_create", "employees_edit",
-  "employees_delete", "employees_toggleStatus", "employees_resendInvite",
-]);
-
-function permSetForNodeType(nodeType: string): Set<keyof IPermissions> {
-  if (nodeType === "dept") return DEPT_PERM_KEYS;
-  if (nodeType === "emp") return EMP_PERM_KEYS;
-  return DEPT_PERM_KEYS;
-}
-
-function permSetLabel(nodeType: string): string {
-  if (nodeType === "dept") return "Departments";
-  if (nodeType === "emp") return "Employees";
-  return "Departments";
-}
 
 /* ────────── Types ────────── */
 
@@ -56,6 +35,7 @@ interface MembershipRow {
   department: { _id: string; title: string };
   designation: { _id: string; name: string; color: string; defaultPermissions?: Record<string, boolean> } | null;
   permissions?: Record<string, boolean>;
+  direction?: "above" | "below";
 }
 
 interface Employee {
@@ -216,14 +196,13 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
 
   /* ── Connection modal ── */
   const [connOpen, setConnOpen] = useState(false);
-  const [connSource, setConnSource] = useState("");
-  const [connTarget, setConnTarget] = useState("");
-  const [connSourceLabel, setConnSourceLabel] = useState("");
-  const [connTargetLabel, setConnTargetLabel] = useState("");
+  const [connEmpId, setConnEmpId] = useState("");
+  const [connDeptId, setConnDeptId] = useState("");
+  const [connEmpLabel, setConnEmpLabel] = useState("");
+  const [connDeptLabel, setConnDeptLabel] = useState("");
   const [connDesig, setConnDesig] = useState("");
   const [connSaving, setConnSaving] = useState(false);
-  const [connFullAccess, setConnFullAccess] = useState(true);
-  const [connTargetNodeType, setConnTargetNodeType] = useState("dept");
+  const [connAbove, setConnAbove] = useState(false);
 
   /* ── Privileges modal (shared for memberships & emp links) ── */
   const [privOpen, setPrivOpen] = useState(false);
@@ -325,44 +304,49 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     const tgtHandle = connection.targetHandle ?? "";
 
     if (srcIsEmp && tgtIsEmp) {
-      const linkId = `${connection.source}-${srcHandle}-${connection.target}-${tgtHandle}`;
+      // Normalize: upper node = the one whose bottom handle is used
+      let upperNode: string;
+      let lowerNode: string;
+      let upperHandle: string;
+      let lowerHandle: string;
+      if (srcHandle === "bottom") {
+        upperNode = connection.source; lowerNode = connection.target;
+        upperHandle = "bottom"; lowerHandle = tgtHandle || "top";
+      } else {
+        upperNode = connection.target; lowerNode = connection.source;
+        upperHandle = "bottom"; lowerHandle = "top";
+      }
+
+      const linkId = `${upperNode}-${upperHandle}-${lowerNode}-${lowerHandle}`;
       const exists = empLinks.some((l) => `${l.source}-${l.sourceHandle}-${l.target}-${l.targetHandle}` === linkId);
       if (exists) return;
-
-      // Determine upper/lower based on handles
-      const upperNode = srcHandle === "bottom" ? connection.source : connection.target;
-      const lowerNode = srcHandle === "bottom" ? connection.target : connection.source;
-
       if (upperNode === lowerNode) return;
       if (wouldCycle(upperNode, lowerNode, empLinks)) {
-        setRestrictMsg(`Cannot connect ${getNodeLabel(connection.source)} to ${getNodeLabel(connection.target)}. This would create a circular hierarchy.`);
+        setRestrictMsg(`Cannot create this link — it would form a circular hierarchy.`);
         setRestrictOpen(true);
         return;
       }
 
       const defaultPerms: Record<string, boolean> = {};
       for (const k of PERMISSION_KEYS) defaultPerms[k] = k === "employees_view" || k === "employees_viewDetail";
-      saveEmpLinks([...empLinks, { source: connection.source, target: connection.target, sourceHandle: srcHandle, targetHandle: tgtHandle, permissions: defaultPerms, designationId: designations[0]?._id ?? undefined }]);
+      saveEmpLinks([...empLinks, { source: upperNode, target: lowerNode, sourceHandle: upperHandle, targetHandle: lowerHandle, permissions: defaultPerms, designationId: designations[0]?._id ?? undefined }]);
       return;
     }
 
-    setConnSource(connection.source);
-    setConnTarget(connection.target);
-    setConnSourceLabel(getNodeLabel(connection.source));
-    setConnTargetLabel(getNodeLabel(connection.target));
+    // Employee ↔ Department: determine direction from handles, not drag order
+    const empNode = srcIsEmp ? connection.source : connection.target;
+    const deptNode = srcIsEmp ? connection.target : connection.source;
+    const empHandle = srcIsEmp ? srcHandle : tgtHandle;
+
+    // Employee's bottom handle used → employee is above the department
+    const isAbove = empHandle === "bottom";
+
+    setConnEmpId(empNode);
+    setConnDeptId(deptNode);
+    setConnEmpLabel(getNodeLabel(empNode));
+    setConnDeptLabel(getNodeLabel(deptNode));
     setConnDesig(designations[0]?._id ?? "");
-
-    if (srcIsEmp && tgtType === "dept") {
-      setConnFullAccess(srcHandle === "bottom" && tgtHandle === "top");
-      setConnTargetNodeType("dept");
-    } else if (srcType === "dept" && tgtIsEmp) {
-      setConnFullAccess(!(srcHandle === "bottom" && tgtHandle === "top"));
-      setConnTargetNodeType("dept");
-    } else {
-      setConnFullAccess(true);
-      setConnTargetNodeType("dept");
-    }
-
+    setConnAbove(isAbove);
     setConnOpen(true);
   }, [isSuperAdmin, departments, employees, designations, empLinks, saveEmpLinks, wouldCycle]);
 
@@ -370,43 +354,20 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
     if (!connDesig) return;
     setConnSaving(true);
     try {
-      const srcType = connSource.split("-")[0];
-      const srcId = connSource.slice(srcType.length + 1);
-      const tgtType = connTarget.split("-")[0];
-      const tgtId = connTarget.slice(tgtType.length + 1);
+      const userId = connEmpId.replace(/^emp-/, "");
+      const deptId = connDeptId.replace(/^dept-/, "");
 
-      const body: Record<string, unknown> = { designation: connDesig };
-
-      if (tgtType === "emp" && srcType === "dept") {
-        body.user = tgtId;
-        body.department = srcId;
-      } else if (srcType === "emp" && tgtType === "dept") {
-        body.user = srcId;
-        body.department = tgtId;
-      } else {
-        setConnOpen(false); setConnSaving(false);
-        return;
-      }
-
-      if (body.user && body.department) {
-        const perms: Record<string, boolean> = {};
-        if (connFullAccess) {
-          const enableSet = permSetForNodeType(connTargetNodeType);
-          for (const k of PERMISSION_KEYS) perms[k] = enableSet.has(k);
-        } else {
-          for (const k of PERMISSION_KEYS) perms[k] = false;
-        }
-        body.permissions = perms;
-        await fetch("/api/memberships", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        // Backfill: if this employee has superiors via emp-to-emp links,
-        // auto-create hierarchy memberships for them in this department.
-        await syncHierarchy();
-      }
+      await fetch("/api/memberships", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: userId, department: deptId, designation: connDesig, direction: connAbove ? "above" : "below" }),
+      });
+      await syncHierarchy();
       await refetchMemberships();
       setConnOpen(false);
     } catch { /* ignore */ }
     setConnSaving(false);
-  }, [connSource, connTarget, connDesig, connFullAccess, connTargetNodeType, departments, refetchMemberships, syncHierarchy]);
+  }, [connEmpId, connDeptId, connDesig, connAbove, refetchMemberships, syncHierarchy]);
 
   /* ── Edge actions (membership) ── */
   const handleChangeDesignation = useCallback(async (membershipId: string, designationId: string) => {
@@ -557,13 +518,10 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
       const dId = `dept-${idStr(m.department)}`;
       if (!nodes.find((n) => n.id === eId) || !nodes.find((n) => n.id === dId)) return;
 
-      const perms = m.permissions ?? {};
-      const relevantOn = [...DEPT_PERM_KEYS].filter((k) => perms[k]).length;
-      const isUpward = relevantOn > DEPT_PERM_KEYS.size / 2;
+      const isAbove = m.direction === "above";
 
-      // source = dept, target = emp
-      const srcHandle = isUpward ? "top" : "bottom";
-      const tgtHandle = isUpward ? "bottom" : "top";
+      const srcHandle = isAbove ? "top" : "bottom";
+      const tgtHandle = isAbove ? "bottom" : "top";
 
       edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: m.designation?.color ?? "#8b5cf6", strokeWidth: 2 } });
     });
@@ -645,34 +603,6 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
             className="!bg-[var(--bg-elevated)] !border-[var(--border)] !shadow-lg !rounded-xl [&>button]:!bg-[var(--bg-elevated)] [&>button]:!border-[var(--border)] [&>button]:!fill-[var(--fg-secondary)] [&>button:hover]:!bg-[var(--bg-grouped)]" />
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
         </ReactFlow>
-        <div className="absolute left-3 bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#8b5cf6" }}>
-            <span className="inline-block h-2.5 w-2.5 rounded-sm border-2" style={{ borderColor: "#8b5cf6" }} />
-            Department
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--teal)" }}>
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--teal)" }} />
-            Employee
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>
-            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" /></svg>
-            Membership
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>
-            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
-            Employee link
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#10b981" }}>
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-            Above = manages
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>•</span>
-          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Click pill to edit</span>
-        </div>
       </div>
 
       {/* ── New Connection Modal ── */}
@@ -685,38 +615,20 @@ export function OrgFlowTree({ departments, employees, designations, isSuperAdmin
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
               <h2 className="text-lg font-bold mb-1" style={{ color: "var(--fg)" }}>New Connection</h2>
-              <p className="text-xs mb-4" style={{ color: "var(--fg-secondary)" }}>
-                <span className="font-semibold">{connSourceLabel}</span> → <span className="font-semibold">{connTargetLabel}</span>
+              <p className="text-xs mb-3" style={{ color: "var(--fg-secondary)" }}>
+                <span className="font-semibold" style={{ color: "var(--teal)" }}>{connEmpLabel}</span>
+                {connAbove ? " above " : " under "}
+                <span className="font-semibold" style={{ color: "#8b5cf6" }}>{connDeptLabel}</span>
               </p>
               <div className="space-y-3">
-                <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: connFullAccess ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)", border: `1px solid ${connFullAccess ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}` }}>
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: connFullAccess ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.15)" }}>
-                    {connFullAccess
-                      ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
-                      : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold" style={{ color: connFullAccess ? "#10b981" : "#f43f5e" }}>
-                      {connFullAccess ? `${permSetLabel(connTargetNodeType)} Access` : "No Access"}
-                    </p>
-                    <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                      {connFullAccess
-                        ? <>{permSetForNodeType(connTargetNodeType).size} <span className="font-semibold">{permSetLabel(connTargetNodeType).toLowerCase()}</span> privileges enabled</>
-                        : "All privileges disabled — edit later via pill"}
-                    </p>
-                  </div>
-                  <button type="button" onClick={() => setConnFullAccess(!connFullAccess)}
-                    className="text-[10px] font-semibold rounded-lg px-2.5 py-1 border transition-colors"
-                    style={{ color: "var(--fg-secondary)", borderColor: "var(--border)" }}>
-                    Switch
-                  </button>
-                </div>
-
                 <div>
-                  <label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation *</label>
+                  <label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation</label>
                   <select value={connDesig} onChange={(e) => setConnDesig(e.target.value)} className="input w-full">
                     {designations.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
                   </select>
+                  <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                    Privileges from this designation will be applied. You can fine-tune them later via the pill.
+                  </p>
                 </div>
                 <div className="flex gap-2 pt-2">
                   <motion.button type="button" onClick={handleCreateConnection} disabled={connSaving || !connDesig} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{connSaving ? "Saving…" : "Create Connection"}</motion.button>

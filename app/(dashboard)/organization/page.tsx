@@ -122,6 +122,37 @@ export default function OrganizationPage() {
           <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
           <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments and people.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#8b5cf6" }}>
+            <span className="inline-block h-2.5 w-2.5 rounded-sm border-2" style={{ borderColor: "#8b5cf6" }} />
+            Department
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
+          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--teal)" }}>
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--teal)" }} />
+            Employee
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
+          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
+            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" /></svg>
+            Solid line = department membership
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
+          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
+            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
+            Dashed line = reporting to another employee
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
+          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#10b981" }}>
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+            Above = manages / supervises
+          </span>
+          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
+          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+            <span className="inline-block h-3 rounded-full border px-1.5 text-[7px] font-bold leading-[12px]" style={{ background: "var(--primary)", color: "white", borderColor: "var(--primary)" }}>Pill</span>
+            Designation &amp; privileges (click to edit)
+          </span>
+        </div>
       </div>
 
       {/* ── Search + Add Employee card ── */}

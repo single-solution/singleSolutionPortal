@@ -10,6 +10,8 @@ export interface IMembership extends Document {
   reportsTo?: Types.ObjectId;
   isPrimary: boolean;
   isActive: boolean;
+  /** Visual direction: "above" = employee node renders above the department; "below" = below */
+  direction: "above" | "below";
   /** "hierarchy" = auto-created from emp→emp link; null = manually created */
   autoSource?: "hierarchy" | null;
   permissions: IPermissions;
@@ -31,6 +33,7 @@ const membershipSchema = new Schema<IMembership>(
     reportsTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
     isPrimary: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    direction: { type: String, enum: ["above", "below"], default: "below" },
     autoSource: { type: String, enum: ["hierarchy", null], default: null },
     permissions: permissionSchemaFields,
   },
