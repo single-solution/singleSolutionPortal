@@ -16,7 +16,6 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
 
   const user = await User.findOne({ $or: orConditions })
     .select("-password")
-    .populate("department", "title")
     .lean();
 
   if (!user) notFound();

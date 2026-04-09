@@ -411,7 +411,7 @@ function SelfOverviewCard({ pa, userProfile, user }: {
                     </div>
     </div>
   );
-  }
+}
 
   const todayHours = pa.todayMinutes / 60;
   const shiftPct = Math.min(100, Math.round((pa.todayMinutes / shiftTarget) * 100));
@@ -947,14 +947,14 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Local time</span>
             <span className="text-headline tabular-nums" style={{ color: "var(--fg)" }}>{formatClock(now)}</span>
             <span className="text-caption">{formatClockDate(now)}</span>
-          </motion.div>
+              </motion.div>
         </header>
 
         {/* Self overview + Activity timeline */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} />
           <TodayTimelineCard pa={pa} dataLoading={dataLoading} />
-        </div>
+      </div>
 
         {/* Weekly overview — horizontal scroll strip */}
         <section className="space-y-3">
@@ -1016,15 +1016,15 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                 <div className="flex justify-between text-caption" style={{ color: "var(--fg-tertiary)" }}>
                   <span>Office {monthlyOfficePct.toFixed(0)}%</span>
                   <span>Remote {monthlyRemotePct.toFixed(0)}%</span>
-                </div>
-              </div>
+            </div>
+        </div>
             </>
           ) : (
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {[1, 2, 3, 4].map((i) => <div key={i} className="card-static rounded-xl p-4 space-y-2"><Bone w="w-20" h="h-3" /><Bone w="w-14" h="h-6" /></div>)}
             </div>
-          )}
-        </motion.section>
+        )}
+      </motion.section>
       </div>
         </div>
   );
@@ -1256,7 +1256,7 @@ export default function DashboardHome({ user }: { user: User }) {
   /* ── Initial load ── */
   useEffect(() => {
     if (initialDone.current) return;
-    initialDone.current = true;
+      initialDone.current = true;
     Promise.all([fetchFull(), fetchLive()]).then(() => {
       if (hasTeamAccess && !realPresence) {
         setTimeout(fetchLive, 1500);

@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/db";
 import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
+import "@/lib/models/User";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { unauthorized, forbidden, ok } from "@/lib/helpers";
 

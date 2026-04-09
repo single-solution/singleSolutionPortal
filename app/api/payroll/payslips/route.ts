@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import Payslip from "@/lib/models/Payslip";
+import "@/lib/models/User";
 import { isValidId } from "@/lib/helpers";
 
 export async function GET(req: NextRequest) {

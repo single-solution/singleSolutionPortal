@@ -1,6 +1,8 @@
 import { connectDB } from "@/lib/db";
 import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
+import "@/lib/models/User";
+import "@/lib/models/Department";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 

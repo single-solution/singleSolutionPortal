@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Leave from "@/lib/models/Leave";
 import LeaveBalance from "@/lib/models/LeaveBalance";
+import "@/lib/models/User";
 import type { LeaveStatus, LeaveType } from "@/lib/models/Leave";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { badRequest, forbidden, notFound, unauthorized, isValidId } from "@/lib/helpers";
