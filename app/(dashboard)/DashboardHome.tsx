@@ -696,15 +696,16 @@ function AdminDashboard({
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
             <h2 className="text-headline" style={{ color: "var(--fg)" }}>Team Status</h2>
             <RefreshBtn onRefresh={onRefreshLive} />
-            {presenceLoading ? (
+            {hasTeamAccess && (presenceLoading ? (
               <Bone w="w-20" h="h-3.5" />
             ) : (
               <>
                 <span className="text-caption font-semibold" style={{ color: "#10b981" }}>{liveCount} live</span>
                 <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
               </>
-              )}
+              ))}
             </div>
+          {hasTeamAccess && (
           <LayoutGroup id="admin-presence-filter">
             <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
                 {PRESENCE_FILTER_ORDER.map((f) => {
@@ -718,6 +719,7 @@ function AdminDashboard({
                 })}
               </div>
             </LayoutGroup>
+          )}
             <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
               {(["flat", "department"] as DashGroupMode[]).map((g) => (
                 <button key={g} type="button" onClick={() => setDashGroupMode(g)} className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${dashGroupMode === g ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
@@ -1287,9 +1289,10 @@ export default function DashboardHome({ user }: { user: User }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const hasPresenceData = realPresence !== null && realPresence.length > 0;
   const presenceLoading = realPresence === null && hasTeamAccess;
   const presenceEmps = useMemo(() => {
-    if (realPresence) return realPresence;
+    if (hasPresenceData) return realPresence!;
     return employees.map((e) => {
       const fallbackSch = getTodaySchedule(e as unknown as Record<string, unknown>, companyTz);
       return {
@@ -1322,7 +1325,7 @@ export default function DashboardHome({ user }: { user: User }) {
       isActive: true,
     };
     });
-  }, [realPresence, employees]);
+  }, [hasPresenceData, realPresence, employees]);
 
   if (hasTeamAccess) {
       return (
