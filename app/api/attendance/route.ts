@@ -101,14 +101,13 @@ export async function GET(req: NextRequest) {
     const dailyMap = new Map<string, typeof dailyCounts[0]>();
     for (const d of dailyCounts) dailyMap.set(d._id.toString(), d);
 
-    const membershipsAbove = await Membership.find({
+    const memberships = await Membership.find({
       user: { $in: empIds },
-      direction: "above",
       isActive: true,
     }).populate("department", "title").populate("designation", "name").lean();
 
     const empDeptMap = new Map<string, { deptId: string; deptName: string; role: string }>();
-    for (const m of membershipsAbove) {
+    for (const m of memberships) {
       const uid = m.user.toString();
       if (empDeptMap.has(uid)) continue;
       const dept = m.department as unknown as { _id: mongoose.Types.ObjectId; title?: string } | null;
@@ -131,8 +130,6 @@ export async function GET(req: NextRequest) {
         department: dm?.deptName ?? "",
         departmentId: dm?.deptId ?? null,
         role: dm?.role ?? "",
-        managerId: null,
-        managerName: null,
         presentDays: dc?.presentDays ?? ms?.presentDays ?? 0,
         onTimeDays: dc?.onTimeDays ?? ms?.onTimeArrivals ?? 0,
         lateDays: dc?.lateDays ?? ms?.lateArrivals ?? 0,
@@ -186,7 +183,6 @@ export async function GET(req: NextRequest) {
 
     const dateMemberships = await Membership.find({
       user: { $in: empIds },
-      direction: "above",
       isActive: true,
     }).populate("department", "title").populate("designation", "name").lean();
 

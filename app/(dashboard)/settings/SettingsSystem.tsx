@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -144,16 +145,7 @@ function SystemSettingsDetailSection({ sys, defaultSysSettings }: { sys: SystemS
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Live Updates</h3>
               <p className="text-caption">Enable real-time push via Socket.IO. Requires self-hosted server.</p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={settings.liveUpdates}
-              onClick={() => setSettings({ ...settings, liveUpdates: !settings.liveUpdates })}
-              className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-              style={{ backgroundColor: settings.liveUpdates ? "var(--primary)" : "var(--bg-tertiary)" }}
-            >
-              <span className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform" style={{ transform: settings.liveUpdates ? "translateX(1.25rem)" : "translateX(0)" }} />
-            </button>
+            <ToggleSwitch checked={settings.liveUpdates} onChange={(v) => setSettings({ ...settings, liveUpdates: v })} size="lg" />
           </div>
         </div>
 

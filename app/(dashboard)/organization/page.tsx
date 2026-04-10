@@ -15,6 +15,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { StatusToggle } from "../components/DataTable";
 import toast from "react-hot-toast";
 import { HeaderStatPill } from "../components/StatChips";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import dynamic from "next/dynamic";
 import {
   ALL_WEEKDAYS,
@@ -510,9 +511,7 @@ export default function OrganizationPage() {
                         return (
                           <div key={day} className="flex items-center gap-2 text-[10px]">
                             <span className="w-8 font-semibold shrink-0" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{FULL_DAY_LABELS[day].slice(0, 3)}</span>
-                            <button type="button" role="switch" aria-checked={ds.isWorking} onClick={() => updateEmpDay(day, { isWorking: !ds.isWorking })} className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors" style={{ backgroundColor: ds.isWorking ? "var(--primary)" : "var(--bg-tertiary)" }}>
-                              <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(0.75rem)" : "translateX(0)" }} />
-                            </button>
+                            <ToggleSwitch checked={ds.isWorking} onChange={() => updateEmpDay(day, { isWorking: !ds.isWorking })} />
                             <input type="time" value={ds.start} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { start: e.target.value })} className="input text-[10px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
                             <span style={{ color: "var(--fg-tertiary)" }}>–</span>
                             <input type="time" value={ds.end} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { end: e.target.value })} className="input text-[10px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />

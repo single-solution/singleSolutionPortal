@@ -20,6 +20,7 @@ import {
   type SysSettings,
 } from "./SettingsSystem";
 import { SettingsPayroll } from "./SettingsPayroll";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -362,22 +363,7 @@ function PreferencesSection() {
             <p className="text-sm font-medium" style={{ color: "var(--fg)" }}>Show coordinates in time pill</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Display your current lat/lng next to the session timer.</p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={showCoords}
-            disabled={saving}
-            onClick={toggle}
-            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus-visible:outline-none disabled:opacity-50"
-            style={{ background: showCoords ? "var(--primary)" : "var(--border-strong, #d1d5db)" }}
-          >
-            <motion.span
-              className="inline-block h-4.5 w-4.5 rounded-full bg-white shadow-sm"
-              animate={{ x: showCoords ? 22 : 3 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              style={{ width: 18, height: 18 }}
-            />
-          </button>
+          <ToggleSwitch checked={showCoords} onChange={() => toggle()} disabled={saving} size="lg" />
         </div>
         </div>
     </FadeUp>

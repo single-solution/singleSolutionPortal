@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { Portal } from "../components/Portal";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import toast from "react-hot-toast";
 
 interface DropdownEmp {
@@ -204,19 +205,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
                   {/* Multiple days toggle */}
                   {!isHalfDay && (
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={multiDay}
-                        onClick={() => setMultiDay(!multiDay)}
-                        className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                        style={{ backgroundColor: multiDay ? "var(--primary)" : "var(--bg-tertiary)" }}
-                      >
-                        <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: multiDay ? "translateX(0.75rem)" : "translateX(0)" }} />
-                      </button>
-                      <span className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>Multiple days</span>
-                    </label>
+                    <ToggleSwitch checked={multiDay} onChange={setMultiDay} label="Multiple days" />
                   )}
 
                   {/* Date picker */}

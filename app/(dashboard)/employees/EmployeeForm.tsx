@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PasswordInput } from "@/components/PasswordInput";
 import { PasswordStrength } from "@/components/PasswordStrength";
 import { usePermissions } from "@/lib/usePermissions";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import toast from "react-hot-toast";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -453,16 +454,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
                       {WEEKDAY_LABELS[day]}
                     </td>
                     <td className="py-2 text-center">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={ds.isWorking}
-                        onClick={() => updateDay(day, { isWorking: !ds.isWorking })}
-                        className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                        style={{ backgroundColor: ds.isWorking ? "var(--primary)" : "var(--bg-tertiary)" }}
-                      >
-                        <span className="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(1rem)" : "translateX(0)" }} />
-                      </button>
+                      <ToggleSwitch checked={ds.isWorking} onChange={() => updateDay(day, { isWorking: !ds.isWorking })} size="md" />
                     </td>
                     <td className="py-2 pr-2">
                       <input
@@ -510,16 +502,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
               <div key={day} className="rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[day]}</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={ds.isWorking}
-                    onClick={() => updateDay(day, { isWorking: !ds.isWorking })}
-                    className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                    style={{ backgroundColor: ds.isWorking ? "var(--primary)" : "var(--bg-tertiary)" }}
-                  >
-                    <span className="pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: ds.isWorking ? "translateX(1rem)" : "translateX(0)" }} />
-                  </button>
+                  <ToggleSwitch checked={ds.isWorking} onChange={() => updateDay(day, { isWorking: !ds.isWorking })} size="md" />
                 </div>
                 <div className="grid grid-cols-3 gap-2" style={{ opacity: ds.isWorking ? 1 : 0.35 }}>
                   <div>

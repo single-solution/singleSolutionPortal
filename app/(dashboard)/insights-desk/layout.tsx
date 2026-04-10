@@ -8,6 +8,7 @@ import { usePermissions } from "@/lib/usePermissions";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 import { HeaderStatPill } from "../components/StatChips";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import { LeavesModal } from "./LeavesModal";
 import { PayrollModal } from "./PayrollModal";
 import toast from "react-hot-toast";
@@ -304,17 +305,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                               <input type="date" className="input text-xs" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
                             </div>
                             <div className="flex items-center justify-between">
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <button
-                                  type="button" role="switch" aria-checked={formRecurring}
-                                  onClick={() => setFormRecurring(!formRecurring)}
-                                  className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                                  style={{ backgroundColor: formRecurring ? "#8b5cf6" : "var(--bg-tertiary)" }}
-                                >
-                                  <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: formRecurring ? "translateX(0.75rem)" : "translateX(0)" }} />
-                                </button>
-                                <span className="text-[11px] font-medium" style={{ color: "var(--fg-secondary)" }}>Recurring yearly</span>
-                              </label>
+                              <ToggleSwitch checked={formRecurring} onChange={setFormRecurring} color="#8b5cf6" label="Recurring yearly" />
                               <div className="flex gap-2">
                                 <button type="button" onClick={() => { setShowForm(false); setFormName(""); setFormDate(""); setFormRecurring(false); }} className="rounded-lg px-3 py-1.5 text-[11px] font-semibold" style={{ color: "var(--fg-secondary)" }}>Cancel</button>
                                 <button type="button" disabled={saving || !formName.trim() || !formDate} onClick={handleAdd} className="rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50" style={{ background: "var(--primary)" }}>{saving ? "Saving…" : "Add"}</button>
@@ -359,13 +350,13 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 {canManageHolidays ? (
-                                  <button type="button" role="switch" aria-checked={h.isRecurring} disabled={togglingId === h._id} onClick={() => handleToggleRecurring(h)}
+                                  <ToggleSwitch
+                                    checked={h.isRecurring}
+                                    onChange={() => handleToggleRecurring(h)}
+                                    disabled={togglingId === h._id}
+                                    color="#8b5cf6"
                                     title={h.isRecurring ? "Recurring — click to make one-time" : "One-time — click to make recurring"}
-                                    className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-50"
-                                    style={{ backgroundColor: h.isRecurring ? "#8b5cf6" : "var(--bg-tertiary)" }}
-                                  >
-                                    <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: h.isRecurring ? "translateX(0.75rem)" : "translateX(0)" }} />
-                                  </button>
+                                  />
                                 ) : h.isRecurring ? (
                                   <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ color: "#8b5cf6", background: "color-mix(in srgb, #8b5cf6 12%, transparent)" }}>Recurring</span>
                                 ) : null}

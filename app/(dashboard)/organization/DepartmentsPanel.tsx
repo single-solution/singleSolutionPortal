@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainerFast, cardVariants } from "@/lib/motion";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 
 interface DeptItem {
   _id: string;
@@ -147,18 +148,13 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
                     {(canEdit || canDelete) && (
                       <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                         {canEdit && (
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={d.isActive}
+                          <ToggleSwitch
+                            checked={d.isActive}
+                            onChange={() => handleToggleActive(d)}
                             disabled={togglingId === d._id}
-                            onClick={() => handleToggleActive(d)}
-                            className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-50"
-                            style={{ backgroundColor: d.isActive ? "var(--green)" : "var(--bg-tertiary)" }}
+                            color="var(--green)"
                             title={d.isActive ? "Active — click to deactivate" : "Inactive — click to activate"}
-                          >
-                            <span className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-white shadow transform transition-transform" style={{ transform: d.isActive ? "translateX(0.75rem)" : "translateX(0)" }} />
-                          </button>
+                          />
                         )}
                         {canEdit && (
                           <button type="button" onClick={() => openEdit(d)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--primary)" }} title="Edit">
