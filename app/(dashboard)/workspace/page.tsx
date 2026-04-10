@@ -10,7 +10,6 @@ import { Portal } from "../components/Portal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import toast from "react-hot-toast";
 import { HeaderStatPill, StatusPill } from "../components/StatChips";
-import { ToggleSwitch } from "../components/ToggleSwitch";
 import { timeAgo, formatShortDate } from "@/lib/formatters";
 
 /* ─── types ─── */
@@ -163,7 +162,7 @@ export default function WorkspacePage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [feedOpen, setFeedOpen] = useState(true);
+  
 
   const toggleCollapse = useCallback((key: string) => setCollapsed((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; }), []);
 
@@ -390,36 +389,29 @@ export default function WorkspacePage() {
 
       {/* ── toolbar ── */}
       <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="relative min-w-0 w-52 shrink-0">
-            <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input w-full text-xs" style={{ paddingLeft: "36px" }} />
-          </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative min-w-0 w-52 shrink-0">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="input w-full text-xs" style={{ paddingLeft: "36px" }} />
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
             {(Object.keys(GROUP_LABELS) as GroupMode[]).map((g) => (
               <button key={g} type="button" onClick={() => setGroupMode(g)}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap"
-                style={{ borderColor: groupMode === g ? "var(--primary)" : "var(--border)", background: groupMode === g ? "color-mix(in srgb, var(--primary) 14%, transparent)" : "var(--bg-elevated)", color: groupMode === g ? "var(--primary)" : "var(--fg-secondary)" }}>
-                <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={GROUP_ICONS[g]} /></svg>
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${groupMode === g ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
                 {GROUP_LABELS[g]}
               </button>
             ))}
-            <span className="h-5 w-px shrink-0" style={{ background: "var(--border)" }} />
-            {(["all", "pending", "inProgress", "completed"] as StatusFilter[]).map((s) => (
-              <button key={s} type="button" onClick={() => setStatusFilter(s)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap"
-                style={{ borderColor: statusFilter === s ? "var(--primary)" : "var(--border)", background: statusFilter === s ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent", color: statusFilter === s ? "var(--primary)" : "var(--fg-tertiary)" }}>
-                {s === "all" ? "All" : TASK_STATUS_LABELS[s]}
-                <span className="tabular-nums text-[10px]" style={{ opacity: 0.7 }}>{statusCounts[s] ?? 0}</span>
-              </button>
-            ))}
           </div>
+          <span className="h-5 w-px shrink-0" style={{ background: "var(--border)" }} />
+          {(["all", "pending", "inProgress", "completed"] as StatusFilter[]).map((s) => (
+            <button key={s} type="button" onClick={() => setStatusFilter(s)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap"
+              style={{ borderColor: statusFilter === s ? "var(--primary)" : "var(--border)", background: statusFilter === s ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent", color: statusFilter === s ? "var(--primary)" : "var(--fg-tertiary)" }}>
+              {s === "all" ? "All" : TASK_STATUS_LABELS[s]}
+              <span className="tabular-nums text-[10px]" style={{ opacity: 0.7 }}>{statusCounts[s] ?? 0}</span>
+            </button>
+          ))}
         </div>
-        {canViewLogs && (
-          <div className="shrink-0">
-            <ToggleSwitch checked={feedOpen} onChange={setFeedOpen} label="Activity" />
-          </div>
-        )}
       </div>
 
       {/* ── campaign summary cards ── */}
@@ -574,15 +566,8 @@ export default function WorkspacePage() {
         </div>
 
         {/* ── activity feed sidebar ── */}
-        <AnimatePresence>
-          {feedOpen && canViewLogs && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0"
-            >
+        {canViewLogs && (
+            <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[300px]">
               <div className="flex w-[300px] min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
                 <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 border-b" style={{ borderColor: "var(--border)" }}>
                   <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Activity</h3>
@@ -622,9 +607,8 @@ export default function WorkspacePage() {
                   )}
                 </div>
               </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+            </aside>
+        )}
       </div>
 
       {/* ── task modal ── */}
