@@ -90,8 +90,7 @@ export function SettingsProfile({
   const designationLabel = profileDesignationLabel(profile);
   return (
     <FadeUp delay={0.08} className="card-xl p-6 sm:p-8">
-      <div data-tour="settings-profile" />
-      <h2 className="text-headline mb-4">Profile</h2>
+      <h2 data-tour="settings-profile" className="text-headline mb-4">Profile</h2>
       <div className="mb-5 flex items-center gap-4">
         <motion.div
           whileHover={{ scale: 1.05 }}

@@ -175,7 +175,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
   return (
     <InsightsCtx.Provider value={ctxValue}>
       <div>
-        <div className="flex items-center justify-between gap-4 mb-6">
+        <div data-tour="insights-header" className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Insights Desk</h1>
             {teamCount > 0 && (

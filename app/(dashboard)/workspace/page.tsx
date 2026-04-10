@@ -389,7 +389,7 @@ export default function WorkspacePage() {
       </div>
 
       {/* ── toolbar ── */}
-      <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="relative min-w-0 w-52 shrink-0">
             <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
@@ -462,12 +462,31 @@ export default function WorkspacePage() {
         {/* ── main content ── */}
         <div className="min-w-0 min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
           {loading ? (
-            <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <motion.div key={i} variants={cardVariants} custom={i} className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
-                  <div className="shimmer mb-3 h-3 w-2/3 rounded" />
-                  <div className="shimmer mb-2 h-8 w-full rounded" />
-                  <div className="flex gap-2"><div className="shimmer h-5 w-16 rounded-full" /><div className="shimmer h-5 w-12 rounded-full" /></div>
+            <motion.div className="space-y-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+              {[1, 2, 3].map((g) => (
+                <motion.div key={g} variants={cardVariants} custom={g} className="card-xl overflow-hidden">
+                  <div className="flex items-center gap-3 p-3">
+                    <div className="shimmer h-3.5 w-3.5 rounded" />
+                    <div className="shimmer h-4 w-36 rounded" />
+                    <div className="shimmer h-4 w-14 rounded-full" />
+                    <div className="shimmer h-1.5 flex-1 max-w-[100px] rounded-full" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 pt-0">
+                    {[1, 2, 3].map((t) => (
+                      <div key={t} className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="shimmer h-3 w-3 shrink-0 rounded-full mt-0.5" />
+                          <div className="shimmer h-4 w-full rounded" />
+                        </div>
+                        <div className="shimmer mb-2 h-3 w-4/5 rounded" />
+                        <div className="flex gap-1.5">
+                          <div className="shimmer h-4 w-16 rounded-full" />
+                          <div className="shimmer h-4 w-12 rounded-full" />
+                          <div className="shimmer h-4 w-14 rounded-full" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </motion.div>
               ))}
             </motion.div>

@@ -109,15 +109,18 @@ export function SpotlightTour({ steps, tourKey, onComplete, onSkip }: SpotlightT
     }
 
     const elRect = el.getBoundingClientRect();
+    const margin = 80;
     const inView =
-      elRect.top >= 0 &&
-      elRect.bottom <= window.innerHeight;
+      elRect.top >= margin &&
+      elRect.bottom <= window.innerHeight - margin;
 
     if (inView) {
       positionTooltip(el, step);
     } else {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-      setTimeout(() => positionTooltip(el, step), 450);
+      const settle = () => positionTooltip(el, step);
+      setTimeout(settle, 500);
+      setTimeout(settle, 900);
     }
   }, [step, currentStep, steps.length, onComplete, positionTooltip]);
 

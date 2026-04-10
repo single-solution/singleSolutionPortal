@@ -436,9 +436,8 @@ export default function AttendancePage() {
       </div>
 
       {/* Employee pills (admins) — skeleton while session or team data loads */}
-      <div data-tour="attendance-pills" />
       {pillsLoading ? (
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="attendance-pills" className="flex flex-wrap gap-2">
           <div className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
             <div className="space-y-1">
@@ -457,11 +456,11 @@ export default function AttendancePage() {
           ))}
         </div>
       ) : hasTeamAccess && filteredSummary.length === 0 ? (
-        <div className="card p-8 text-center">
+        <div data-tour="attendance-pills" className="card p-8 text-center">
           <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
         </div>
       ) : hasTeamAccess ? (
-        <div className="space-y-3">
+        <div data-tour="attendance-pills" className="space-y-3">
             {grouped.map((group) => (
               <div key={group.key}>
                 {groupMode !== "flat" && (

@@ -301,7 +301,7 @@ export default function OrganizationPage() {
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(90dvh - 80px)" }}>
       {/* ── Title row ── */}
-      <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div data-tour="org-header" className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="shrink-0">
             <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
@@ -368,7 +368,7 @@ export default function OrganizationPage() {
       </div>
 
       {/* ── Main layout: sidebar + flow ── */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch">
+      <div data-tour="org-tree" className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch">
         {/* Left sidebar: separate cards */}
         <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[280px]">
           {/* Departments card */}
@@ -385,7 +385,7 @@ export default function OrganizationPage() {
         </aside>
 
         {/* Flow diagram */}
-        <main className="min-h-0 min-w-0 flex-1">
+        <main data-tour="org-context" className="min-h-0 min-w-0 flex-1">
           <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={activeDesignations} canEditCanvas={canManageOrganization} canAssignDesignation={canPerm("members_assignDesignation")} canCustomizePermissions={canPerm("members_customizePermissions")} canAddToDepartment={canPerm("members_addToDepartment")} canRemoveFromDepartment={canPerm("members_removeFromDepartment")} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployeePreview(empId)} />
         </main>
       </div>

@@ -110,22 +110,22 @@ export const attendanceTour: TourStep[] = [
   {
     target: "attendance-header",
     title: "Attendance Tracking",
-    description: "View detailed attendance data for employees in your hierarchy. Use month navigation to browse different periods and the group toggles to organize by Flat, Manager, or Department.",
+    description: "View detailed attendance data for employees in your hierarchy. Use month navigation to browse different periods and group toggles to organize by Flat or Department.",
   },
   {
     target: "attendance-pills",
     title: "Employee Pills",
-    description: "Click 'All Employees' to see aggregate stats for everyone. Click an individual employee pill to see their detailed attendance — calendar dots, daily timeline, and monthly insights.",
+    description: "Click 'All Employees' for aggregate stats. Click an individual to see their calendar, daily timeline, and monthly records in card format.",
   },
   {
     target: "attendance-calendar",
     title: "Calendar & Details",
-    description: "The calendar shows attendance dots (green = on time, red = late, gray = absent). Click any date to see the detailed breakdown for that day. The right panel shows daily or monthly stats.",
+    description: "The calendar shows attendance dots (green = on time, red = late, gray = absent, blue = leave). Click any date to see detailed stats on the right panel and session timeline below.",
   },
   {
     target: "attendance-overview",
     title: "Employee Overview",
-    description: "In aggregate mode, this grid shows each employee's monthly summary — attendance percentage, present days, total hours, and on-time rate. Click any card to drill into their details.",
+    description: "In aggregate mode, this grid shows each employee's monthly summary — attendance %, present days, total hours, and on-time rate. Click any card to drill into their details.",
     placement: "top",
   },
 ];
@@ -157,21 +157,21 @@ export const organizationTour: TourStep[] = [
 export const workspaceTour: TourStep[] = [
   {
     target: "workspace-toolbar",
-    title: "Workspace",
-    description: "Your unified workspace for campaigns, tasks, and activity. Group tasks by campaign, employee, or hierarchy, filter by status, and search across everything.",
+    title: "Search & Organize",
+    description: "Search tasks by keyword, group them by campaign, employee, or hierarchy, and filter by status. Toggle the Activity panel on the right to see recent team activity.",
   },
 ];
 
 export const insightsDeskTour: TourStep[] = [
   {
-    target: "insights-tabs",
+    target: "insights-header",
     title: "Insights Desk",
-    description: "Your analytics hub for attendance, calendar, leave management, and payroll. Switch between tabs to access different insight areas.",
+    description: "Your unified hub for attendance, leaves, holidays, and payroll. Use the action buttons to manage holidays, apply leaves, or view payroll estimates.",
   },
   {
-    target: "insights-content",
-    title: "Data & Reports",
-    description: "Each section provides detailed reports and analytics — attendance tracking with calendars, leave approval workflows, and payroll calculations.",
+    target: "attendance-header",
+    title: "Attendance & Calendar",
+    description: "Browse attendance data by month and year. Use employee pills to drill into individuals, or view aggregate stats for the whole team.",
   },
 ];
 
