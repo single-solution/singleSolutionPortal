@@ -187,7 +187,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Leaves — always visible; every employee can apply for their own */}
+            {/* Leaves — modal handles SuperAdmin exempt state internally */}
             <motion.button
                 type="button"
                 onClick={() => openLeavesModal()}
@@ -202,7 +202,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 Leaves
               </motion.button>
 
-            {/* Payroll — always visible; every employee can view their own estimate */}
+            {/* Payroll — modal handles SuperAdmin exempt state internally */}
             <motion.button
                 type="button"
                 onClick={() => openPayrollModal()}

@@ -202,6 +202,10 @@ export async function POST(req: NextRequest) {
   const reason = typeof body.reason === "string" ? body.reason : "";
   const targetUserId = typeof body.userId === "string" ? body.userId : actor.id;
 
+  if (isSuperAdmin(actor) && targetUserId === actor.id) {
+    return forbidden("SuperAdmin is exempt from leave tracking.");
+  }
+
   if (!startDateRaw) {
     return badRequest("date (or startDate) is required");
   }

@@ -52,6 +52,11 @@ export async function GET(req: NextRequest) {
   if (!isValidId(targetUserId)) return badRequest("Invalid userId");
 
   const isSelf = targetUserId === actor.id;
+
+  if (isSuperAdmin(actor) && isSelf) {
+    return NextResponse.json({ exempt: true, message: "SuperAdmin is exempt from payroll tracking." });
+  }
+
   if (!isSelf) {
     if (!hasPermission(actor, "payroll_viewTeam")) return forbidden();
     if (!isSuperAdmin(actor)) {

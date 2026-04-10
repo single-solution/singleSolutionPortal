@@ -113,7 +113,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: "#ef4444",
 };
 
-const TABS: { id: TabId; label: string }[] = [
+const ALL_TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "attendance", label: "Attendance" },
   { id: "profile", label: "Profile" },
@@ -121,6 +121,8 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "leaves", label: "Leaves" },
   { id: "payroll", label: "Payroll" },
 ];
+
+const EXEMPT_TABS: Set<TabId> = new Set(["attendance", "leaves", "payroll"]);
 
 const TZ = "Asia/Karachi";
 
@@ -191,6 +193,10 @@ export default function EmployeeDetailHub({
   const lastName = employee.about?.lastName ?? "";
   const displaySlug = employee.username || id.slice(-6);
 
+  const visibleTabs = useMemo(
+    () => targetIsSuperAdmin ? ALL_TABS.filter((t) => !EXEMPT_TABS.has(t.id)) : ALL_TABS,
+    [targetIsSuperAdmin],
+  );
   const [tab, setTab] = useState<TabId>("overview");
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -384,7 +390,7 @@ export default function EmployeeDetailHub({
           style={{ borderColor: "var(--border)" }}
           aria-label="Employee sections"
         >
-          {TABS.map((t) => {
+          {visibleTabs.map((t) => {
             const active = tab === t.id;
             return (
               <button

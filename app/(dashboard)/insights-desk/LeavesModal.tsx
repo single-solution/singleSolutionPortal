@@ -35,7 +35,7 @@ interface Props {
 
 export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const { data: session } = useSession();
-  const { can: canPerm } = usePermissions();
+  const { can: canPerm, isSuperAdmin } = usePermissions();
   const canViewTeam = canPerm("leaves_viewTeam");
 
   const [employees, setEmployees] = useState<DropdownEmp[]>([]);
@@ -63,6 +63,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   }, [open, canViewTeam]);
 
   const loadBalance = useCallback(async () => {
+    if (isSuperAdmin && !userId) { setBalance(null); return; }
     const uid = userId || session?.user?.id;
     if (!uid) return;
     setBalLoading(true);
@@ -73,7 +74,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
       if (res.ok) setBalance(await res.json());
     } catch { /* ignore */ }
     setBalLoading(false);
-  }, [userId, session?.user?.id]);
+  }, [userId, session?.user?.id, isSuperAdmin]);
 
   useEffect(() => {
     if (open) loadBalance();
@@ -110,6 +111,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     setSubmitting(false);
   }
 
+  const selfExempt = isSuperAdmin && !userId;
+
   const balPct = balance && balance.total > 0 ? Math.round((balance.used / balance.total) * 100) : 0;
   const barColor = balPct > 80 ? "var(--rose)" : balPct > 50 ? "var(--amber)" : "var(--teal)";
 
@@ -132,8 +135,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
               {/* Header */}
               <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
                 <div>
-                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Apply Leave</h2>
-                  {balance && !balLoading && (
+                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>{selfExempt ? "Leaves" : "Apply Leave"}</h2>
+                  {!selfExempt && balance && !balLoading && (
                     <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
                       {balance.used} / {balance.total} used · {balance.remaining} remaining
                     </p>
@@ -145,6 +148,32 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* Employee picker — always show for SuperAdmin so they can switch to a team member */}
+                {canViewTeam && employees.length > 0 && (
+                  <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                    Employee
+                    <select
+                      className="input text-sm"
+                      value={userId}
+                      onChange={(e) => setUserId(e.target.value)}
+                    >
+                      {!isSuperAdmin && <option value="">Yourself</option>}
+                      {employees.map((emp) => (
+                        <option key={emp._id} value={emp._id}>{nameOf(emp)}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {selfExempt ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>SuperAdmin is exempt</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                      Select an employee above to apply leave on their behalf.
+                    </p>
+                  </div>
+                ) : (
+                  <>
                 {/* Balance bar */}
                 {balance && (
                   <div>
@@ -165,8 +194,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                 )}
 
                 <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
-                  {/* Employee picker */}
-                  {canViewTeam && employees.length > 0 && (
+                  {/* Employee picker (non-SuperAdmin — already shown above for SuperAdmin) */}
+                  {!isSuperAdmin && canViewTeam && employees.length > 0 && (
                     <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                       Employee
                       <select
@@ -255,6 +284,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                     {submitting ? "Submitting…" : "Submit request"}
                   </button>
                 </form>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>

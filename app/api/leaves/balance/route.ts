@@ -28,6 +28,10 @@ export async function GET(req: NextRequest) {
   }
 
   const targetUserId = userIdParam ?? actor.id;
+
+  if (isSuperAdmin(actor) && targetUserId === actor.id) {
+    return NextResponse.json({ total: 0, used: 0, remaining: 0, exempt: true });
+  }
   if (!isValidId(targetUserId)) {
     return badRequest("Invalid userId");
   }

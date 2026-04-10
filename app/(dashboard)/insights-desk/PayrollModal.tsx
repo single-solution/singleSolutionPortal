@@ -45,7 +45,7 @@ interface Props {
 
 export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const { data: session } = useSession();
-  const { can: canPerm } = usePermissions();
+  const { can: canPerm, isSuperAdmin } = usePermissions();
   const canViewTeam = canPerm("payroll_viewTeam");
 
   const [employees, setEmployees] = useState<DropdownEmp[]>([]);
@@ -66,6 +66,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   }, [open, canViewTeam]);
 
   const loadEstimate = useCallback(async () => {
+    if (isSuperAdmin && !userId) { setEstimate(null); return; }
     const uid = userId || session?.user?.id;
     if (!uid) return;
     setLoading(true);
@@ -77,7 +78,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
       else setEstimate(null);
     } catch { setEstimate(null); }
     setLoading(false);
-  }, [userId, session?.user?.id]);
+  }, [userId, session?.user?.id, isSuperAdmin]);
 
   useEffect(() => {
     if (open) loadEstimate();
@@ -143,7 +144,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
               <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
                 <div>
                   <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Payroll</h2>
-                  {estimate && (
+                  {!(isSuperAdmin && !userId) && estimate && (
                     <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
                       {MONTH_NAMES[estimate.month - 1]} {estimate.year} · Live estimate
                     </p>
@@ -160,7 +161,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
                   <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                     Employee
                     <select className="input text-sm" value={userId} onChange={(e) => setUserId(e.target.value)}>
-                      <option value="">Yourself</option>
+                      {!isSuperAdmin && <option value="">Yourself</option>}
                       {employees.map((emp) => (
                         <option key={emp._id} value={emp._id}>{nameOf(emp)}</option>
                       ))}
@@ -168,7 +169,14 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
                   </label>
                 )}
 
-                {loading ? (
+                {isSuperAdmin && !userId ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>SuperAdmin is exempt</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                      Select an employee above to view their payroll estimate.
+                    </p>
+                  </div>
+                ) : loading ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-2">
                       {[1, 2, 3].map((i) => (

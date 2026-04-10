@@ -23,12 +23,12 @@ export async function GET() {
   const today = startOfDay(new Date(), tz);
 
   const hasTeamPerm = hasPermission(actor, "attendance_viewTeam");
+  const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
 
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (actor.isSuperAdmin) {
     // superadmin sees all non–super-admin employees
-  } else if (hasTeamPerm) {
-    const subordinateIds = await getSubordinateUserIds(actor.id);
+  } else if (hasTeamPerm || subordinateIds.length > 0) {
     empFilter._id = { $in: [actor.id, ...subordinateIds] };
   } else {
     empFilter._id = actor.id;

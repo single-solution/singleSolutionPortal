@@ -516,43 +516,42 @@ export default function WorkspacePage() {
 
         {/* ── activity feed sidebar ── */}
         {canViewLogs && (
-            <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[300px]">
-              <div className="flex w-[300px] min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-                <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 border-b" style={{ borderColor: "var(--border)" }}>
+            <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
+              <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+                <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
                   <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Activity</h3>
                   <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={() => void refetchLogs()} className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>Refresh</motion.button>
                 </div>
-                <div className="flex-1 min-h-0 overflow-y-auto p-3" style={{ scrollbarWidth: "thin" }}>
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2" style={{ scrollbarWidth: "thin" }}>
                   {logs.length === 0 ? (
                     <p className="text-center text-xs py-8" style={{ color: "var(--fg-tertiary)" }}>No activity yet</p>
                   ) : (
-                    <div className="relative pl-8">
-                      <div className="absolute bottom-0 left-[13px] top-0 w-px" style={{ background: "var(--border)" }} aria-hidden />
-                      <ul className="space-y-0">
-                        {logs.map((log) => {
-                          const lc = LOG_ENTITY_COLORS[log.entity] ?? LOG_DEFAULT_COLOR;
-                          return (
-                            <li key={log._id} className="relative py-2.5 pl-2">
-                              <div className="absolute -left-5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full text-[8px] font-bold"
-                                style={{ background: lc.bg, color: lc.fg, border: "2px solid var(--bg-elevated)" }}>
-                                {logAvatarLabel(log)}
-                              </div>
-                              <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
+                    logs.map((log) => {
+                      const lc = LOG_ENTITY_COLORS[log.entity] ?? LOG_DEFAULT_COLOR;
+                      return (
+                        <div key={log._id} className="rounded-xl border p-3 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_2%,transparent)]" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                          <div className="flex items-start gap-2.5">
+                            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[9px] font-bold"
+                              style={{ background: lc.bg, color: lc.fg }}>
+                              {logAvatarLabel(log)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[12px] leading-snug" style={{ color: "var(--fg)" }}>
                                 <span className="font-semibold">{log.userName?.trim() || log.userEmail}</span>{" "}
                                 <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
                               </p>
                               {log.details && log.entity !== "security" && (
-                                <p className="text-[10px] line-clamp-1 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                <p className="text-[10px] line-clamp-2 mt-1" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                               )}
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="inline-block rounded-full px-1.5 py-px text-[8px] font-semibold uppercase" style={{ background: lc.bg, color: lc.fg }}>{log.entity}</span>
-                                <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase" style={{ background: lc.bg, color: lc.fg }}>{log.entity}</span>
+                                <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                               </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
