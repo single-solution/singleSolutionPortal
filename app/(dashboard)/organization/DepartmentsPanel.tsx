@@ -118,7 +118,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
             <motion.button
               type="button" onClick={openCreate} whileTap={{ scale: 0.96 }}
               className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-              style={{ background: "#8b5cf6", color: "white" }} title="Add Department">
+              style={{ background: "var(--purple)", color: "white" }} title="Add Department">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             </motion.button>
           )}
@@ -136,7 +136,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
               sorted.map((d, i) => (
                 <motion.div key={d._id} variants={cardVariants} custom={i} layout layoutId={`dept-panel-${d._id}`} exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }} className="group">
                   <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${!d.isActive ? "opacity-40 grayscale" : ""}`} style={{ background: "var(--bg-grouped)" }}>
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "#8b5cf6", color: "white" }}>
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "var(--purple)", color: "white" }}>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                     </span>
                     <div className="min-w-0 flex-1">
@@ -158,12 +158,12 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
                         )}
                         {canEdit && (
                           <button type="button" onClick={() => openEdit(d)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--primary)" }} title="Edit">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                           </button>
                         )}
                         {canDelete && (
                           <button type="button" onClick={() => setDeleteTarget(d)} className="flex h-5 w-5 items-center justify-center rounded transition-colors" style={{ color: "var(--rose)" }} title="Delete">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                           </button>
                         )}
                       </div>

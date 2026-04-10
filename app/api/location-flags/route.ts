@@ -13,10 +13,6 @@ export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  if (!hasPermission(actor, "attendance_viewTeam")) {
-    return ok({ flags: [], total: 0 });
-  }
-
   await connectDB();
 
   const { searchParams } = new URL(req.url);
@@ -24,20 +20,24 @@ export async function GET(req: Request) {
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "50", 10), 200);
   const skip = parseInt(searchParams.get("skip") ?? "0", 10);
 
+  const hasTeamPerm = hasPermission(actor, "attendance_viewTeam");
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filter: Record<string, any> = {};
 
-  if (!isSuperAdmin(actor)) {
+  if (isSuperAdmin(actor)) {
+    if (userId) filter.user = userId;
+  } else if (hasTeamPerm) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (subordinateIds.length === 0) return ok({ flags: [], total: 0 });
+    const visibleIds = [actor.id, ...subordinateIds];
     if (userId) {
-      if (!subordinateIds.includes(userId)) return ok({ flags: [], total: 0 });
+      if (!visibleIds.includes(userId)) return ok({ flags: [], total: 0 });
       filter.user = userId;
     } else {
-      filter.user = { $in: subordinateIds };
+      filter.user = { $in: visibleIds };
     }
-  } else if (userId) {
-    filter.user = userId;
+  } else {
+    filter.user = actor.id;
   }
 
   const [flags, total] = await Promise.all([

@@ -11,22 +11,21 @@ import {
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "employees_view")) return ok([]);
 
   await connectDB();
 
+  const hasViewPerm = hasPermission(actor, "employees_view");
   const filter: Record<string, unknown> = { isSuperAdmin: { $ne: true } };
 
   if (isSuperAdmin(actor)) {
     // SuperAdmin sees all
-  } else {
+  } else if (hasViewPerm) {
     filter.isActive = true;
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (subordinateIds.length === 0) {
-      filter._id = actor.id;
-    } else {
-      filter._id = { $in: [actor.id, ...subordinateIds] };
-    }
+    filter._id = { $in: [actor.id, ...subordinateIds] };
+  } else {
+    filter.isActive = true;
+    filter._id = actor.id;
   }
 
   const canSeeSalary = hasPermission(actor, "payroll_manageSalary");

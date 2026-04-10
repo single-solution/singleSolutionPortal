@@ -2,14 +2,14 @@
 
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
-import { useMemo, useState, useCallback, useEffect, type ReactNode } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { Portal } from "../components/Portal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import toast from "react-hot-toast";
-import { HeaderStatPill, StatusPill } from "../components/StatChips";
+import { HeaderStatPill } from "../components/StatChips";
 import { timeAgo, formatShortDate } from "@/lib/formatters";
 
 /* ─── types ─── */
@@ -47,21 +47,16 @@ interface SelectOption { _id: string; label: string }
 
 /* ─── constants ─── */
 
-const STATUS_CONFIG: Record<CampaignStatus, { label: string; color: string; bg: string; icon: string }> = {
-  active:    { label: "Active",    color: "var(--teal)",    bg: "color-mix(in srgb, var(--teal) 12%, transparent)",    icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" },
-  paused:    { label: "Paused",    color: "var(--amber)",   bg: "color-mix(in srgb, var(--amber) 12%, transparent)",   icon: "M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-  completed: { label: "Completed", color: "var(--primary)", bg: "color-mix(in srgb, var(--primary) 12%, transparent)", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
-  cancelled: { label: "Cancelled", color: "var(--rose)",    bg: "color-mix(in srgb, var(--rose) 12%, transparent)",    icon: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" },
+const STATUS_CONFIG: Record<CampaignStatus, { label: string; color: string; bg: string }> = {
+  active:    { label: "Active",    color: "var(--teal)",    bg: "color-mix(in srgb, var(--teal) 12%, transparent)" },
+  paused:    { label: "Paused",    color: "var(--amber)",   bg: "color-mix(in srgb, var(--amber) 12%, transparent)" },
+  completed: { label: "Completed", color: "var(--primary)", bg: "color-mix(in srgb, var(--primary) 12%, transparent)" },
+  cancelled: { label: "Cancelled", color: "var(--rose)",    bg: "color-mix(in srgb, var(--rose) 12%, transparent)" },
 };
 const PRIORITY_COLORS: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
 const PRIORITY_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
 const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgress: "In Progress", completed: "Completed" };
-const GROUP_LABELS: Record<GroupMode, string> = { campaign: "By Campaign", employee: "By Employee", hierarchy: "By Hierarchy" };
-const GROUP_ICONS: Record<GroupMode, string> = {
-  campaign: "M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z",
-  employee: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
-  hierarchy: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm10 0a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z",
-};
+const GROUP_LABELS: Record<GroupMode, string> = { campaign: "Campaign", employee: "Employee", hierarchy: "Hierarchy" };
 
 const LOG_ENTITY_COLORS: Record<string, { bg: string; fg: string }> = {
   task:       { bg: "color-mix(in srgb, var(--primary) 14%, transparent)", fg: "var(--primary)" },
@@ -127,15 +122,12 @@ function CampaignProgress({ done, total }: { done: number; total: number }) {
 
 export default function WorkspacePage() {
   const { data: session, status: sessionStatus } = useSession();
-  const { can: canPerm, canAny: canAnyPerm } = usePermissions();
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
+  const { can: canPerm } = usePermissions();
 
-  const canViewTasks = canPerm("tasks_view");
   const canCreateTasks = canPerm("tasks_create");
   const canEditTasks = canPerm("tasks_edit");
   const canDeleteTasks = canPerm("tasks_delete");
   const canReassignTasks = canPerm("tasks_reassign");
-  const canViewCampaigns = canPerm("campaigns_view");
   const canCreateCampaigns = canPerm("campaigns_create");
   const canEditCampaigns = canPerm("campaigns_edit");
   const canDeleteCampaigns = canPerm("campaigns_delete");
@@ -143,12 +135,12 @@ export default function WorkspacePage() {
   const canViewLogs = canPerm("activityLogs_view");
 
   /* ── data ── */
-  const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>(canViewTasks ? "/api/tasks" : null, "ws-tasks");
-  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>(canViewCampaigns ? "/api/campaigns" : null, "ws-campaigns");
+  const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "ws-tasks");
+  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "ws-campaigns");
   const needsDropdown = canCreateTasks || canReassignTasks || canTagEntities;
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>(needsDropdown ? "/api/employees/dropdown" : null, "ws-emp");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>(canTagEntities ? "/api/departments" : null, "ws-dept");
-  const { data: hierarchyScope } = useQuery<HierarchyScope>((canViewTasks || canViewCampaigns) ? "/api/organization/scope" : null, "ws-hierarchy");
+  const { data: hierarchyScope } = useQuery<HierarchyScope>("/api/organization/scope", "ws-hierarchy");
   const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=30" : null, "ws-activity");
 
   const taskList = useMemo(() => tasks ?? [], [tasks]);
@@ -339,14 +331,6 @@ export default function WorkspacePage() {
     return m;
   }, [taskList]);
 
-  const campaignStats = useMemo(() => {
-    return campaignList.map((c) => {
-      const cTasks = taskList.filter((t) => taskCampaignId(t, campaignList) === c._id);
-      const done = cTasks.filter((t) => t.status === "completed").length;
-      return { ...c, taskCount: cTasks.length, doneCount: done };
-    });
-  }, [campaignList, taskList]);
-
   const loading = tasksLoading || campaignsLoading;
   const ready = sessionStatus !== "loading";
 
@@ -413,41 +397,6 @@ export default function WorkspacePage() {
           ))}
         </div>
       </div>
-
-      {/* ── campaign summary cards ── */}
-      {!loading && canViewCampaigns && campaignStats.length > 0 && (
-        <motion.div
-          className="mb-4 shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
-          variants={staggerContainerFast} initial="hidden" animate="visible"
-        >
-          {campaignStats.map((cs) => {
-            const pct = cs.taskCount === 0 ? 0 : Math.round((cs.doneCount / cs.taskCount) * 100);
-            return (
-              <motion.div
-                key={cs._id} variants={cardVariants} custom={0}
-                className="card-xl p-3 flex flex-col gap-2 cursor-pointer transition-shadow hover:shadow-md"
-                onClick={() => { setGroupMode("campaign"); setSearch(""); setStatusFilter("all"); }}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[13px] font-semibold truncate flex-1" style={{ color: "var(--fg)" }}>{cs.name}</span>
-                  <StatusPill status={cs.status} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: "var(--bg-grouped)" }}>
-                    <motion.div className="h-full rounded-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ type: "spring", stiffness: 200, damping: 28 }} />
-                  </div>
-                  <span className="text-[10px] tabular-nums font-medium whitespace-nowrap" style={{ color: "var(--fg-tertiary)" }}>{cs.doneCount}/{cs.taskCount}</span>
-                </div>
-                {(cs.startDate || cs.endDate) && (
-                  <p className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                    {formatDate(cs.startDate)} — {formatDate(cs.endDate)}
-                  </p>
-                )}
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      )}
 
       {/* ── main + feed ── */}
       <div className="flex min-h-0 flex-1 gap-4">
@@ -577,14 +526,14 @@ export default function WorkspacePage() {
                   {logs.length === 0 ? (
                     <p className="text-center text-xs py-8" style={{ color: "var(--fg-tertiary)" }}>No activity yet</p>
                   ) : (
-                    <div className="relative pl-6">
-                      <div className="absolute bottom-0 left-[11px] top-0 w-px" style={{ background: "var(--border)" }} aria-hidden />
+                    <div className="relative pl-8">
+                      <div className="absolute bottom-0 left-[13px] top-0 w-px" style={{ background: "var(--border)" }} aria-hidden />
                       <ul className="space-y-0">
                         {logs.map((log) => {
                           const lc = LOG_ENTITY_COLORS[log.entity] ?? LOG_DEFAULT_COLOR;
                           return (
-                            <li key={log._id} className="relative py-2.5 pl-3">
-                              <div className="absolute left-0 top-2.5 flex h-6 w-6 items-center justify-center rounded-full text-[8px] font-bold"
+                            <li key={log._id} className="relative py-2.5 pl-2">
+                              <div className="absolute -left-5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full text-[8px] font-bold"
                                 style={{ background: lc.bg, color: lc.fg, border: "2px solid var(--bg-elevated)" }}>
                                 {logAvatarLabel(log)}
                               </div>
@@ -767,12 +716,12 @@ function TaskCard({ task, showCampaign, showAssignee, canEdit, canDelete, onEdit
         <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {canEdit && (
             <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={onEdit} className="h-6 w-6 flex items-center justify-center rounded-md transition-colors" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }} title="Edit task">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
             </motion.button>
           )}
           {canDelete && (
             <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={onDelete} className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete task">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
             </motion.button>
           )}
         </div>

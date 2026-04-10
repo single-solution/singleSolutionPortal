@@ -21,6 +21,7 @@ export interface ILeave extends Document {
   days: number;
   isHalfDay: boolean;
   reason: string;
+  createdBy?: Types.ObjectId;
   reviewedBy?: Types.ObjectId;
   reviewedAt?: Date;
   reviewNote?: string;
@@ -48,6 +49,7 @@ const leaveSchema = new Schema<ILeave>(
     days: { type: Number, required: true, min: 0.5 },
     isHalfDay: { type: Boolean, default: false },
     reason: { type: String, default: "" },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
     reviewedAt: { type: Date },
     reviewNote: { type: String, default: "" },

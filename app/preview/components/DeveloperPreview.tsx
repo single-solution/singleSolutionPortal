@@ -250,7 +250,7 @@ function AttendanceContent() {
       <motion.section className="card-static p-5" variants={fadeInItem}>
         <h3 className="text-headline mb-4" style={{ color: "var(--fg)" }}>Recent Records</h3>
         <div className="flex flex-col gap-2">
-          {weeklySorted.map((day, i) => {
+          {weeklySorted.map((day) => {
             const d = new Date(day.date + "T12:00:00");
             const isToday = day.date === PREVIEW_TODAY;
             return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
@@ -12,7 +12,6 @@ import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { StatusToggle } from "../components/DataTable";
 import toast from "react-hot-toast";
 import { HeaderStatPill } from "../components/StatChips";
 import { ToggleSwitch } from "../components/ToggleSwitch";
@@ -102,7 +101,7 @@ export default function OrganizationPage() {
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>(canViewOrg ? "/api/departments" : null, "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>(canViewOrg ? "/api/employees?includeSelf=true" : null, "org-employees");
-  const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean; defaultPermissions?: Record<string, boolean> }[]>(canViewOrg ? "/api/designations" : null, "org-designations");
+  const { data: designationsData } = useQuery<{ _id: string; name: string; color: string; isActive: boolean; defaultPermissions?: Record<string, boolean> }[]>(canViewOrg ? "/api/designations" : null, "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
   const { data: presenceData } = useQuery<PresenceRow[]>(canViewOrg ? "/api/attendance/presence" : null, "org-presence");
 
@@ -309,7 +308,7 @@ export default function OrganizationPage() {
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <HeaderStatPill label={scopedEmps.length === 1 ? "employee" : "employees"} value={scopedEmps.length} dotColor="var(--teal)" />
-            <HeaderStatPill label={scopedDepts.length === 1 ? "department" : "departments"} value={scopedDepts.length} dotColor="#8b5cf6" />
+            <HeaderStatPill label={scopedDepts.length === 1 ? "department" : "departments"} value={scopedDepts.length} dotColor="var(--purple)" />
             {scopedEmps.filter((e) => e.isActive).length !== scopedEmps.length && (
               <HeaderStatPill label="active" value={scopedEmps.filter((e) => e.isActive).length} dotColor="var(--green)" />
             )}
@@ -322,8 +321,8 @@ export default function OrganizationPage() {
           </button>
           <div className="invisible absolute right-0 top-full z-30 mt-1 w-72 rounded-xl border p-3 shadow-lg group-hover/legend:visible" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
             <div className="space-y-2">
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#8b5cf6" }}>
-                <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: "#8b5cf6" }} />
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--purple)" }}>
+                <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: "var(--purple)" }} />
                 Department node
               </span>
               <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--teal)" }}>
@@ -338,7 +337,7 @@ export default function OrganizationPage() {
                 <svg className="shrink-0" width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
                 Dashed line = reporting to another employee
               </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#10b981" }}>
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--green)" }}>
                 <svg className="shrink-0" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                 Above = manages / supervises
               </span>
@@ -370,15 +369,15 @@ export default function OrganizationPage() {
       {/* ── Main layout: sidebar + flow ── */}
       <div data-tour="org-tree" className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch">
         {/* Left sidebar: separate cards */}
-        <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[280px]">
+        <aside className="flex w-full shrink-0 flex-col gap-3 min-h-0 lg:w-[280px]">
           {/* Departments card */}
-          <div className="card-xl flex-1 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
+          <div className="card-xl flex-1 min-h-0 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
             <DepartmentsPanel departments={scopedDepts} loading={deptsLoading} refetch={refetchDepts} canCreate={canCreateDepts} canEdit={canEditDepts} canDelete={canDeleteDepts} />
           </div>
 
           {/* Designations card */}
           {canViewDesignations && (
-            <div className="card-xl p-3" style={{ borderColor: "var(--border)" }}>
+            <div className="card-xl flex-1 min-h-0 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
               <DesignationsPanel canManage={canManageDesignations} />
             </div>
           )}
@@ -449,7 +448,7 @@ export default function OrganizationPage() {
                       }}
                       footerSlot={
                         <div className="flex flex-wrap items-center gap-2">
-                          {canToggleStatus && notSA && <StatusToggle active={emp.isActive} onChange={() => toggleEmployeeActive(emp)} />}
+                          {canToggleStatus && notSA && <ToggleSwitch size="sm" checked={emp.isActive} onChange={() => toggleEmployeeActive(emp)} />}
                           <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                             Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                           </span>

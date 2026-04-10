@@ -127,7 +127,7 @@ export function SettingsProfile({
               <input type="file" accept="image/*" className="hidden" onChange={onImageSelect} />
             </label>
             {profileImage && (
-              <button type="button" className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-white text-xs opacity-0 transition-opacity group-hover:opacity-100" onClick={() => onProfileImageChange("")}>×</button>
+              <button type="button" className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-white text-xs opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "var(--rose)" }} onClick={() => onProfileImageChange("")}>×</button>
             )}
           </div>
         </motion.div>

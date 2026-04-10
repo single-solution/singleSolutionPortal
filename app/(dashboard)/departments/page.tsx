@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
-import { StatusToggle } from "../components/DataTable";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
@@ -31,7 +31,7 @@ interface Department {
 type SortMode = "most" | "name";
 
 export default function DepartmentsPage() {
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("departments", departmentsTour); }, [registerTour]);
   const { can: canPerm, canAny: canAnyPerm } = usePermissions();
@@ -438,7 +438,7 @@ export default function DepartmentsPage() {
 
                   {/* Footer: toggle left, actions right (matches employee card) */}
                   <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
-                    {canManageDepts && <StatusToggle active={dept.isActive !== false} onChange={() => toggleActive(dept)} />}
+                    {canManageDepts && <ToggleSwitch size="sm" checked={dept.isActive !== false} onChange={() => toggleActive(dept)} />}
                     {canManageDepts && (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => startEdit(dept)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--primary)" }} title="Edit">

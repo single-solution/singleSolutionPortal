@@ -17,13 +17,14 @@ import { logActivity } from "@/lib/activityLogger";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "campaigns_view")) return ok([]);
 
   await connectDB();
   void Department;
   void User;
 
-  const filter = await getCampaignScopeFilter(actor);
+  const filter = hasPermission(actor, "campaigns_view")
+    ? await getCampaignScopeFilter(actor)
+    : { "tags.employees": actor.id };
 
   const campaigns = await Campaign.find(filter)
     .populate("tags.employees", "about.firstName about.lastName email")
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
     details: body.name.trim(),
     targetUserIds: tagEmployees,
     targetDepartmentId: tagDepartments[0] || undefined,
-    visibility: tagEmployees.length === 0 && tagDepartments.length === 0 ? "all" : "targeted",
+    visibility: "targeted",
   });
 
   return ok(populated);

@@ -26,7 +26,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   void Department;
   void User;
 
-  const scopeFilter = await getCampaignScopeFilter(actor);
+  const scopeFilter = hasPermission(actor, "campaigns_view")
+    ? await getCampaignScopeFilter(actor)
+    : { "tags.employees": actor.id };
+
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter })
     .populate("tags.employees", "about.firstName about.lastName email")
     .populate("tags.departments", "title slug")
@@ -115,7 +118,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     details: campaign.name,
     targetUserIds: updatedEmps,
     targetDepartmentId: updatedDepts[0] || undefined,
-    visibility: updatedEmps.length === 0 && updatedDepts.length === 0 ? "all" : "targeted",
+    visibility: "targeted",
   });
 
   return ok(populated);

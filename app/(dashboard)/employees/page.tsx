@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
-import { StatusToggle } from "../components/DataTable";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -101,7 +101,7 @@ function shiftSummaryLine(emp: Employee) {
 export default function EmployeesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("employees", employeesTour); }, [registerTour]);
   const scopeDept = searchParams.get("dept") ?? "all";
@@ -462,7 +462,7 @@ export default function EmployeesPage() {
                   }}
                   footerSlot={
                     <div className="flex flex-wrap items-center gap-2">
-                        {canToggleEmployeeStatus && !emp.isSuperAdmin && <StatusToggle active={emp.isActive} onChange={() => toggleActive(emp)} />}
+                        {canToggleEmployeeStatus && !emp.isSuperAdmin && <ToggleSwitch size="sm" checked={emp.isActive} onChange={() => toggleActive(emp)} />}
                         <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                           Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                         </span>

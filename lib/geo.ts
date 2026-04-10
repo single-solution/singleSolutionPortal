@@ -62,7 +62,7 @@ export function validateLocation(
   prevLng: number | undefined,
   prevTime: Date | undefined,
   now: Date,
-  consecutiveIdentical: number,
+  _consecutiveIdentical: number,
 ): LocationValidation {
   const reasons: string[] = [];
 
@@ -98,8 +98,6 @@ export function validateLocation(
   // visible. An employee at their desk will get byte-identical coords
   // for their entire workday. This layer was designed for phone GPS
   // micro-drift and is incompatible with laptop geolocation.
-  // (consecutiveIdentical param kept for API compatibility but ignored)
-
   // Layer 4 — Round / low-precision coordinates
   // Wi-Fi triangulation on laptops typically gives 4-6 decimal places.
   // Only flag at < 2 to catch truly crude spoofs like "31.5, 74.3".

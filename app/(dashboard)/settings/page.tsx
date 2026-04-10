@@ -82,7 +82,6 @@ function useSystemSettings(enabled: boolean) {
 }
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("settings", settingsTour); }, [registerTour]);
   const { can: canPerm } = usePermissions();

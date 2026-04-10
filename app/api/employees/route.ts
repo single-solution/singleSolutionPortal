@@ -17,7 +17,8 @@ import { sendMail, getBaseUrl } from "@/lib/mail";
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "employees_view")) return ok([]);
+
+  const hasViewPerm = hasPermission(actor, "employees_view");
 
   const url = new URL(req.url);
   const includeSelf = url.searchParams.get("includeSelf") === "true";
@@ -30,11 +31,13 @@ export async function GET(req: Request) {
 
   if (isSuperAdmin(actor)) {
     // SuperAdmin sees all employees
-  } else {
+  } else if (hasViewPerm) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
     const visibleIds = includeSelf ? [actor.id, ...subordinateIds] : subordinateIds;
     if (visibleIds.length === 0) return ok([]);
     filter._id = { $in: visibleIds };
+  } else {
+    filter._id = actor.id;
   }
 
   const users = await User.find(filter)

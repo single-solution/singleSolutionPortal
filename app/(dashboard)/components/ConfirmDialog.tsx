@@ -8,7 +8,7 @@ interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
-  variant?: "danger" | "default";
+  variant?: "danger" | "warning" | "default";
   loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -58,8 +58,10 @@ export function ConfirmDialog({
                 whileTap={{ scale: 0.98 }}
                 className={`btn text-sm text-white disabled:opacity-50 ${
                   variant === "danger"
-                    ? "bg-[var(--rose)] hover:bg-red-600"
-                    : "btn-primary"
+                    ? "bg-[var(--rose)] hover:bg-[color-mix(in_srgb,var(--rose)_80%,black)]"
+                    : variant === "warning"
+                      ? "bg-[var(--amber)] hover:bg-[color-mix(in_srgb,var(--amber)_80%,black)]"
+                      : "btn-primary"
                 }`}
               >
                 {loading ? "Working..." : confirmLabel}

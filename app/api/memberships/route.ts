@@ -106,9 +106,11 @@ export async function POST(req: Request) {
   await connectDB();
 
   if (!isSuperAdmin(actor)) {
+    if (user === actor.id) {
+      return forbidden("Cannot add yourself to a department");
+    }
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    const allowedUsers = [actor.id, ...subordinateIds];
-    if (!allowedUsers.includes(user)) {
+    if (!subordinateIds.includes(user)) {
       return forbidden("Target user is not within your hierarchy");
     }
   }

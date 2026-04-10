@@ -24,6 +24,7 @@ import "@xyflow/react/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { PERMISSION_CATEGORIES, PERMISSION_KEYS, PERMISSION_META } from "@/lib/permissions.shared";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 
 /* ────────── Types ────────── */
@@ -57,10 +58,10 @@ function idStr(x: unknown): string {
 
 function DeptNode({ data }: NodeProps) {
   return (
-    <div className="rounded-2xl border-2 px-5 py-3 shadow-lg min-w-[180px]" style={{ background: "var(--bg-elevated)", borderColor: "#8b5cf6" }}>
-      <Handle type="source" position={Position.Top} id="top" className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
+    <div className="rounded-2xl border-2 px-5 py-3 shadow-lg min-w-[180px]" style={{ background: "var(--bg-elevated)", borderColor: "var(--purple)" }}>
+      <Handle type="source" position={Position.Top} id="top" className="!bg-[var(--purple)] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "#8b5cf6", color: "white" }}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--purple)", color: "white" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
         </div>
         <div className="min-w-0 text-left">
@@ -68,7 +69,7 @@ function DeptNode({ data }: NodeProps) {
           {data.sub ? <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[#8b5cf6] !w-3 !h-3 !border-2 !border-white" />
+      <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[var(--purple)] !w-3 !h-3 !border-2 !border-white" />
     </div>
   );
 }
@@ -630,7 +631,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       const srcHandle = isAbove ? "top" : "bottom";
       const tgtHandle = isAbove ? "bottom" : "top";
 
-      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: isAbove ? (m.designation?.color ?? "#8b5cf6") : "#8b5cf6", strokeWidth: isAbove ? 2 : 1.5, ...(isAbove ? {} : { strokeDasharray: "4 3" }) } });
+      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: isAbove ? (m.designation?.color ?? "var(--purple)") : "var(--purple)", strokeWidth: isAbove ? 2 : 1.5, ...(isAbove ? {} : { strokeDasharray: "4 3" }) } });
     });
 
     // Emp ↔ Emp hierarchy links (with pill for designation + privileges)
@@ -729,7 +730,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
               <p className="text-xs mb-3" style={{ color: "var(--fg-secondary)" }}>
                 <span className="font-semibold" style={{ color: "var(--teal)" }}>{connEmpLabel}</span>
                 {" managing "}
-                <span className="font-semibold" style={{ color: "#8b5cf6" }}>{connDeptLabel}</span>
+                <span className="font-semibold" style={{ color: "var(--purple)" }}>{connDeptLabel}</span>
               </p>
               <div className="space-y-3">
                 <div>
@@ -776,7 +777,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                   )}
                   <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setPrivPerms(p); }}
                     className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
-                    style={{ color: "#10b981", borderColor: "rgba(16,185,129,0.3)" }}>
+                    style={{ color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 30%, transparent)" }}>
                     All On
                   </button>
                   <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setPrivPerms(p); }}
@@ -833,74 +834,28 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         )}
       </AnimatePresence>
 
-      {/* ── Remove Confirmation Modal ── */}
-      <AnimatePresence>
-        {removeOpen && (
-          <motion.div className="fixed inset-0 z-[80] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !removeDeleting && setRemoveOpen(false)} />
-            <motion.div className="relative w-full max-w-sm mx-4 rounded-2xl border p-6 shadow-xl"
-              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center shrink-0">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                </div>
-                <div>
-                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Remove Assignment</h2>
-                  <p className="text-xs" style={{ color: "var(--fg-secondary)" }}>This action cannot be undone.</p>
-                </div>
-              </div>
-              <p className="text-sm mb-5 rounded-lg p-3" style={{ color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}>
-                Remove <span className="font-semibold" style={{ color: "var(--fg)" }}>{removeLabel}</span>?
-              </p>
-              <div className="flex gap-2">
-                <motion.button type="button" onClick={confirmDelete} disabled={removeDeleting} whileTap={{ scale: 0.98 }}
-                  className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors"
-                  style={{ background: "var(--rose)" }}>
-                  {removeDeleting ? "Removing…" : "Remove"}
-                </motion.button>
-                <button type="button" onClick={() => setRemoveOpen(false)} disabled={removeDeleting}
-                  className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors"
-                  style={{ color: "var(--fg-secondary)", borderColor: "var(--border)" }}>
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Remove Confirmation ── */}
+      <ConfirmDialog
+        open={removeOpen}
+        title="Remove Assignment"
+        description={`Remove ${removeLabel}? This action cannot be undone.`}
+        confirmLabel={removeDeleting ? "Removing…" : "Remove"}
+        variant="danger"
+        loading={removeDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setRemoveOpen(false)}
+      />
 
-      {/* ── Restriction Modal ── */}
-      <AnimatePresence>
-        {restrictOpen && (
-          <motion.div className="fixed inset-0 z-[80] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRestrictOpen(false)} />
-            <motion.div className="relative w-full max-w-sm mx-4 rounded-2xl border p-6 shadow-xl"
-              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(245,158,11,0.12)" }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86l-8.01 14A2 2 0 004.09 21h15.82a2 2 0 001.81-3.14l-8.01-14a2 2 0 00-3.42 0z" /></svg>
-                </div>
-                <div>
-                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Not Allowed</h2>
-                  <p className="text-xs" style={{ color: "var(--fg-secondary)" }}>Connection restricted</p>
-                </div>
-              </div>
-              <p className="text-sm mb-5 rounded-lg p-3" style={{ color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}>
-                {restrictMsg}
-              </p>
-              <button type="button" onClick={() => setRestrictOpen(false)}
-                className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors"
-                style={{ color: "var(--fg-secondary)", borderColor: "var(--border)" }}>
-                OK
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Restriction Warning ── */}
+      <ConfirmDialog
+        open={restrictOpen}
+        title="Not Allowed"
+        description={restrictMsg}
+        confirmLabel="OK"
+        variant="warning"
+        onConfirm={() => setRestrictOpen(false)}
+        onCancel={() => setRestrictOpen(false)}
+      />
     </>
   );
 }

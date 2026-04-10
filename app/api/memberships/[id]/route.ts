@@ -5,7 +5,7 @@ import "@/lib/models/User";
 import "@/lib/models/Department";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import User from "@/lib/models/User";
-import { getVerifiedSession, isSuperAdmin, hasPermission, invalidateHierarchyCache } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds, invalidateHierarchyCache } from "@/lib/permissions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function populateMembership(q: any) {
@@ -53,10 +53,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const doc = await populateMembership(Membership.findById(id)).lean();
   if (!doc) return notFound("Membership not found");
 
-  const deptId = (doc.department as { _id?: { toString(): string } })?._id?.toString()
-    ?? String(doc.department);
+  const memberUserId = (doc.user as { _id?: { toString(): string } })?._id?.toString()
+    ?? String(doc.user);
+  const isSelf = memberUserId === actor.id;
 
-  if (!canViewMembership(actor, deptId)) return forbidden();
+  if (!isSelf) {
+    const deptId = (doc.department as { _id?: { toString(): string } })?._id?.toString()
+      ?? String(doc.department);
+    if (!canViewMembership(actor, deptId)) return forbidden();
+  }
 
   return ok(doc);
 }
@@ -80,6 +85,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   if (!isSuperAdmin(actor)) {
+    const targetUserId = membership.user.toString();
+    if (targetUserId === actor.id) {
+      return forbidden("Cannot modify your own membership");
+    }
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(targetUserId)) {
+      return forbidden("Can only modify memberships for employees within your hierarchy");
+    }
     const targetUser = await User.findById(membership.user).select("isSuperAdmin").lean();
     if (targetUser && (targetUser as Record<string, unknown>).isSuperAdmin === true) {
       return forbidden("Cannot modify a superadmin's membership");
@@ -141,6 +154,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 
   if (!isSuperAdmin(actor)) {
+    const targetUserId = membership.user.toString();
+    if (targetUserId === actor.id) {
+      return forbidden("Cannot remove your own membership");
+    }
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(targetUserId)) {
+      return forbidden("Can only remove memberships for employees within your hierarchy");
+    }
     const targetUser = await User.findById(membership.user).select("isSuperAdmin").lean();
     if (targetUser && (targetUser as Record<string, unknown>).isSuperAdmin === true) {
       return forbidden("Cannot remove a superadmin's membership");

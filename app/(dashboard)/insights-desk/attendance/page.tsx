@@ -157,8 +157,8 @@ export default function AttendancePage() {
   const sessionReady = sessionStatus !== "loading";
   const { can: canPerm, isSuperAdmin, hasSubordinates } = usePermissions();
   const hasTeamAccess = canPerm("attendance_viewTeam") || hasSubordinates;
-  const canViewHolidays = canPerm("holidays_view");
-  const canViewLeaves = canPerm("leaves_viewTeam");
+  
+  const canViewTeamLeaves = canPerm("leaves_viewTeam");
   const { setTeamCount, openLeavesModal } = useInsightsContext();
 
   /* ── Team overview state ── */
@@ -281,22 +281,24 @@ export default function AttendancePage() {
   }, [teamSummary.length, teamLoading, setTeamCount]);
 
   useEffect(() => {
-    if (!canViewLeaves) return;
+    const selfId = authSession?.user?.id;
+    const isSelf = !viewingUserId || viewingUserId === selfId;
+    if (!isSelf && !canViewTeamLeaves) { setCalendarLeaves([]); return; }
     const q = new URLSearchParams({ year: String(year), month: String(month), status: "approved" });
     if (viewingUserId) q.set("userId", viewingUserId);
+    else if (selfId) q.set("userId", selfId);
     fetch(`/api/leaves?${q}`)
       .then((r) => r.ok ? r.json() : [])
       .then((data: LeaveRecord[]) => setCalendarLeaves(Array.isArray(data) ? data : []))
       .catch(() => setCalendarLeaves([]));
-  }, [year, month, viewingUserId, canViewLeaves]);
+  }, [year, month, viewingUserId, canViewTeamLeaves, authSession?.user?.id]);
 
   useEffect(() => {
-    if (!canViewHolidays) return;
     fetch(`/api/payroll/holidays?year=${year}`)
       .then((r) => r.ok ? r.json() : [])
       .then((data) => setCalendarHolidays(Array.isArray(data) ? data : []))
       .catch(() => setCalendarHolidays([]));
-  }, [year, canViewHolidays]);
+  }, [year]);
 
   const mountRef = useRef(true);
   useEffect(() => {
@@ -600,7 +602,7 @@ export default function AttendancePage() {
                   const offBg = isLeaveDay
                     ? "color-mix(in srgb, var(--teal) 10%, transparent)"
                     : isHoliday
-                      ? "color-mix(in srgb, #8b5cf6 8%, transparent)"
+                      ? "color-mix(in srgb, var(--purple) 8%, transparent)"
                       : "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)";
 
                   return (
@@ -640,7 +642,7 @@ export default function AttendancePage() {
               )}
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }} /> Weekend</span>
               {holidayDays.size > 0 && (
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, #8b5cf6 8%, transparent)", border: "1px solid color-mix(in srgb, #8b5cf6 20%, transparent)" }} /> Holiday</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--purple) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--purple) 20%, transparent)" }} /> Holiday</span>
               )}
               {leaveDays.size > 0 && (
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--teal) 25%, transparent)" }} /> Leave</span>

@@ -32,41 +32,6 @@ export function StatChip({ label, value, color }: { label: string; value: string
   );
 }
 
-export function AnalyticChip({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="rounded-xl p-2.5" style={{ background: "var(--bg-grouped)" }}>
-      <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
-      <p className="mt-0.5 text-sm font-bold" style={{ color }}>{value}</p>
-    </div>
-  );
-}
-
-export function StatusPill({ status, config }: { status: string; config?: Record<string, { bg: string; color: string; label?: string }> }) {
-  const defaults: Record<string, { bg: string; color: string; label?: string }> = {
-    draft: { bg: "var(--bg-grouped)", color: "var(--fg-tertiary)" },
-    pending: { bg: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" },
-    approved: { bg: "rgba(34, 197, 94, 0.15)", color: "var(--green)" },
-    finalized: { bg: "color-mix(in srgb, var(--primary) 14%, transparent)", color: "var(--primary)" },
-    paid: { bg: "rgba(34, 197, 94, 0.15)", color: "var(--green)" },
-    rejected: { bg: "color-mix(in srgb, var(--rose) 15%, transparent)", color: "var(--rose)" },
-    cancelled: { bg: "var(--bg-grouped)", color: "var(--fg-tertiary)" },
-    active: { bg: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" },
-    paused: { bg: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" },
-    completed: { bg: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" },
-    inProgress: { bg: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" },
-  };
-  const map = config ?? defaults;
-  const s = map[status] ?? { bg: "var(--bg-grouped)", color: "var(--fg-tertiary)" };
-  return (
-    <span
-      className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold capitalize"
-      style={{ background: s.bg, color: s.color }}
-    >
-      {s.label ?? status.replace(/([A-Z])/g, " $1").trim()}
-    </span>
-  );
-}
-
 export function HeaderStatPill({ label, value, color, dotColor }: { label: string; value: string | number; color?: string; dotColor?: string }) {
   return (
     <span

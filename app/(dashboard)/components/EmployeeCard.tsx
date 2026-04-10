@@ -168,9 +168,9 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
       style={{
         background: s.bg,
         color: s.color,
-        borderColor: emp.locationFlagged ? "#ef4444" : s.border,
+        borderColor: emp.locationFlagged ? "var(--rose)" : s.border,
         boxShadow: emp.locationFlagged
-          ? "0 0 0 1px rgba(239,68,68,0.35)"
+          ? "0 0 0 1px color-mix(in srgb, var(--rose) 35%, transparent)"
           : "0 1px 3px rgba(0,0,0,0.08)",
       }}
     >
@@ -218,12 +218,12 @@ function ActivityStrip({ emp, todayMinutes, shiftStart, shiftEnd, shiftBreakTime
             animate={{ width: `${cappedFillPct}%` }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           >
-            {officePct > 0 && <div className="h-full shrink-0" style={{ width: `${(officePct / cappedFillPct) * 100}%`, background: "#10b981" }} />}
+            {officePct > 0 && <div className="h-full shrink-0" style={{ width: `${(officePct / cappedFillPct) * 100}%`, background: "var(--green)" }} />}
             {remotePct > 0 && <div className="h-full shrink-0" style={{ width: `${(remotePct / cappedFillPct) * 100}%`, background: "#007aff" }} />}
-            {breakPct > 0 && <div className="h-full shrink-0" style={{ width: `${(breakPct / cappedFillPct) * 100}%`, background: "#8b5cf6" }} />}
+            {breakPct > 0 && <div className="h-full shrink-0" style={{ width: `${(breakPct / cappedFillPct) * 100}%`, background: "var(--purple)" }} />}
           </motion.div>
         </div>
-        <span className="text-[10px] shrink-0 tabular-nums font-bold" style={{ color: pctRaw >= 100 ? "#10b981" : "var(--fg-secondary)" }}>
+        <span className="text-[10px] shrink-0 tabular-nums font-bold" style={{ color: pctRaw >= 100 ? "var(--green)" : "var(--fg-secondary)" }}>
           {pctRaw}%
         </span>
       </div>
@@ -240,17 +240,17 @@ function ActivityStrip({ emp, todayMinutes, shiftStart, shiftEnd, shiftBreakTime
           </span>
         )}
         {breakMins > 0 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#8b5cf612", color: "#8b5cf6" }}>
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>
             {formatMinutesShort(breakMins)} break
           </span>
         )}
         {(emp.lateBy ?? 0) > 0 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#f59e0b12", color: "#f59e0b" }}>
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--amber) 7%, transparent)", color: "var(--amber)" }}>
             +{formatMinutesShort(emp.lateBy ?? 0)} late
           </span>
         )}
         {emp.isLateToOffice && (emp.lateToOfficeBy ?? 0) > 0 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#ef444412", color: "#ef4444" }}>
+          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--rose) 7%, transparent)", color: "var(--rose)" }}>
             +{formatMinutesShort(emp.lateToOfficeBy ?? 0)} late to office
           </span>
         )}
@@ -463,13 +463,13 @@ export const EmployeeCard = memo(function EmployeeCard({
             <ActivityStrip emp={emp} todayMinutes={todayM} shiftStart={shiftStart} shiftEnd={shiftEnd} shiftBreakTime={shiftBreak} />
 
             {showLocationFlags && emp.locationFlagged && (
-              <div className="rounded-lg border p-2 text-[9px] space-y-1" style={{ borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }}>
+              <div className="rounded-lg border p-2 text-[9px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
                 <div className="flex items-center gap-1">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  <span className="font-bold" style={{ color: "#ef4444" }}>Location Flagged</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <span className="font-bold" style={{ color: "var(--rose)" }}>Location Flagged</span>
                 </div>
                 {emp.flagReason && (
-                  <p className="leading-snug" style={{ color: "#ef4444" }}>{emp.flagReason}</p>
+                  <p className="leading-snug" style={{ color: "var(--rose)" }}>{emp.flagReason}</p>
                 )}
                 {emp.flagCoords && (
                   <a
@@ -477,7 +477,7 @@ export const EmployeeCard = memo(function EmployeeCard({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="pointer-events-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors"
-                    style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444" }}
+                    style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -503,9 +503,9 @@ export const EmployeeCard = memo(function EmployeeCard({
                 <span
                   className="rounded-full border px-1.5 py-0.5 font-semibold"
                   style={{
-                    background: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b15" : "var(--bg-grouped)",
-                    color: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b" : "var(--fg-tertiary)",
-                    borderColor: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b30" : "var(--border)",
+                    background: (emp.pendingTasks ?? 0) > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)",
+                    color: (emp.pendingTasks ?? 0) > 0 ? "var(--amber)" : "var(--fg-tertiary)",
+                    borderColor: (emp.pendingTasks ?? 0) > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)",
                   }}
                 >
                   {emp.pendingTasks ?? 0} pending

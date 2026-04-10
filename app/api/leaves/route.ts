@@ -120,8 +120,10 @@ export async function GET(req: NextRequest) {
   const yearParam = url.searchParams.get("year");
   const monthParam = url.searchParams.get("month");
 
-  if (!userIdParam || userIdParam !== actor.id) {
-    if (!hasPermission(actor, "leaves_viewTeam")) return NextResponse.json([]);
+  const hasTeamPerm = hasPermission(actor, "leaves_viewTeam");
+
+  if (userIdParam && userIdParam !== actor.id) {
+    if (!hasTeamPerm) return forbidden("You can only view your own leaves.");
   }
 
   const subordinateIds = isSuperAdmin(actor) ? null : await getSubordinateUserIds(actor.id);
@@ -136,8 +138,10 @@ export async function GET(req: NextRequest) {
   if (!isSuperAdmin(actor)) {
     if (userIdParam) {
       filter.user = new mongoose.Types.ObjectId(userIdParam);
-    } else {
+    } else if (hasTeamPerm) {
       filter.user = { $in: [...accessibleIds!].map((id) => new mongoose.Types.ObjectId(id)) };
+    } else {
+      filter.user = new mongoose.Types.ObjectId(actor.id);
     }
   } else if (userIdParam) {
     filter.user = new mongoose.Types.ObjectId(userIdParam);
@@ -263,6 +267,7 @@ export async function POST(req: NextRequest) {
     days,
     isHalfDay,
     reason,
+    createdBy: new mongoose.Types.ObjectId(actor.id),
     isPastCorrection,
   });
 

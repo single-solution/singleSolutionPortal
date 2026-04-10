@@ -120,10 +120,11 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
   const prev = leave.status;
 
   if (nextStatus === "cancelled") {
-    const isOwner = leaveUserId === actor.id;
+    const creatorId = leave.createdBy?.toString() ?? leaveUserId;
+    const isCreator = creatorId === actor.id;
     if (prev === "pending") {
-      if (!isSuperAdmin(actor) && !isOwner) {
-        return forbidden("Only the requester can cancel a pending leave.");
+      if (!isSuperAdmin(actor) && !isCreator && !hasPermission(actor, "leaves_approve")) {
+        return forbidden("Only the requester or an approver can cancel this leave.");
       }
     } else if (prev === "approved") {
       if (!isSuperAdmin(actor)) {
@@ -210,6 +211,9 @@ export async function DELETE(_req: NextRequest, context: RouteCtx) {
   if (!leave) return notFound();
 
   const leaveUserId = leave.user.toString();
+  if (leaveUserId === actor.id && !isSuperAdmin(actor)) {
+    return forbidden("Cannot delete your own leave records.");
+  }
   if (!(await isInActorHierarchy(actor, leaveUserId))) {
     return forbidden("Can only delete leaves within your hierarchy.");
   }

@@ -23,22 +23,6 @@ interface DataTableProps<T> {
   loading?: boolean;
 }
 
-export function StatusToggle({ active, onChange }: { active: boolean; onChange?: () => void }) {
-  return (
-    <div
-      className="relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors"
-      style={{ background: active ? "var(--primary)" : "var(--fg-tertiary)" }}
-      onClick={onChange}
-    >
-      <motion.div
-        className="absolute top-[3px] h-3.5 w-3.5 rounded-full bg-white shadow-sm"
-        animate={{ left: active ? "calc(100% - 14px - 3px)" : "3px" }}
-        transition={{ type: "spring", stiffness: 500, damping: 35 }}
-      />
-    </div>
-  );
-}
-
 export default function DataTable<T>({
   columns,
   data,

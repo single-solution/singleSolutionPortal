@@ -29,18 +29,6 @@ interface Employee {
   email: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained for consistency / future use
-const AVATAR_GRADIENTS = [
-  "from-blue-500 to-cyan-400",
-  "from-emerald-500 to-teal-400",
-  "from-purple-500 to-pink-400",
-  "from-amber-500 to-orange-400",
-  "from-rose-500 to-red-400",
-  "from-indigo-500 to-blue-400",
-  "from-green-500 to-lime-400",
-  "from-fuchsia-500 to-purple-400",
-];
-
 type PriorityFilter = "all" | "low" | "medium" | "high" | "urgent";
 type SortMode = "recent" | "deadline" | "priority";
 const PRIORITY_COLORS: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
@@ -53,7 +41,6 @@ export default function TasksPage() {
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("tasks", tasksTour); }, [registerTour]);
   const { can: canPerm, canAny: canAnyPerm } = usePermissions();
-  const isSuperAdmin = session?.user?.isSuperAdmin === true;
   const canCreateTasks = canPerm("tasks_create");
   const canEditTasks = canPerm("tasks_edit");
   const canDeleteTasks = canPerm("tasks_delete");
@@ -343,7 +330,7 @@ export default function TasksPage() {
                         )}
                         {task.deadline && (
                           <div className="flex items-center gap-1.5">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                             <span className="tabular-nums text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                               {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                             </span>

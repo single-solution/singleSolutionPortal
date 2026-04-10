@@ -135,7 +135,25 @@ export function SettingsSecurity({
 
           <AnimatePresence>
             {message && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`rounded-xl p-4 text-sm font-medium flex items-center gap-2 ${message.type === "success" ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-rose-50 border border-rose-200 text-rose-800"}`}>
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-xl border p-4 text-sm font-medium flex items-center gap-2"
+                style={
+                  message.type === "success"
+                    ? {
+                        background: "color-mix(in srgb, var(--green) 10%, transparent)",
+                        borderColor: "color-mix(in srgb, var(--green) 28%, transparent)",
+                        color: "color-mix(in srgb, var(--green) 42%, var(--fg))",
+                      }
+                    : {
+                        background: "color-mix(in srgb, var(--rose) 10%, transparent)",
+                        borderColor: "color-mix(in srgb, var(--rose) 28%, transparent)",
+                        color: "color-mix(in srgb, var(--rose) 42%, var(--fg))",
+                      }
+                }
+              >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={message.type === "success" ? "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" : "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"} /></svg>
                 {message.text}
               </motion.div>

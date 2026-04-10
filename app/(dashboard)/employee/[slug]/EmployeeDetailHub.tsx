@@ -202,8 +202,8 @@ export default function EmployeeDetailHub({
   const canViewAttendance = isOwnProfile || canPerm("attendance_viewTeam");
   const dailyUrl = canViewAttendance ? `/api/attendance?type=daily&year=${calYear}&month=${calMonth}&userId=${encodeURIComponent(id)}` : null;
   const monthlyUrl = canViewAttendance ? `/api/attendance?type=monthly&year=${calYear}&month=${calMonth}&userId=${encodeURIComponent(id)}` : null;
-  const tasksUrl = canPerm("tasks_view") ? "/api/tasks" : null;
-  const campaignsUrl = canPerm("campaigns_view") ? "/api/campaigns" : null;
+  const tasksUrl = (isOwnProfile || canPerm("tasks_view")) ? "/api/tasks" : null;
+  const campaignsUrl = (isOwnProfile || canPerm("campaigns_view")) ? "/api/campaigns" : null;
   const logsUrl = canPerm("activityLogs_view") ? "/api/activity-logs?limit=40" : null;
 
   const { data: sessionState, loading: sessionLoading } = useQuery<SessionApi>(sessionUrl);
@@ -276,7 +276,7 @@ export default function EmployeeDetailHub({
         ? "Checked in"
         : "Off shift";
   const statusColor =
-    !employee.isActive ? "var(--fg-tertiary)" : hasActive ? "#10b981" : todayMinutes > 0 ? "var(--primary)" : "var(--fg-secondary)";
+    !employee.isActive ? "var(--fg-tertiary)" : hasActive ? "var(--green)" : todayMinutes > 0 ? "var(--primary)" : "var(--fg-secondary)";
 
   const empRec = employee as unknown as Record<string, unknown>;
   const weeklyResolved = resolveWeeklySchedule(empRec);
@@ -340,7 +340,7 @@ export default function EmployeeDetailHub({
                   <span
                     className="badge inline-flex items-center gap-1.5"
                     style={{
-                      background: `${statusColor}18`,
+                      background: `color-mix(in srgb, ${statusColor} 9%, transparent)`,
                       color: statusColor,
                       border: `1px solid color-mix(in srgb, ${statusColor} 35%, transparent)`,
                     }}
@@ -570,7 +570,7 @@ export default function EmployeeDetailHub({
                           const key = `${calYear}-${String(calMonth).padStart(2, "0")}-${String(c.day).padStart(2, "0")}`;
                           const rec = dailyByKey.get(key);
                           const dot =
-                            !rec || !rec.isPresent ? "#f43f5e" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "#f59e0b" : "#10b981";
+                            !rec || !rec.isPresent ? "#f43f5e" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "var(--amber)" : "var(--green)";
                           const isToday = key === todayStrKarachi();
                           return (
                             <div
@@ -846,7 +846,7 @@ export default function EmployeeDetailHub({
                       {empTasks.map((task, ti) => {
                         const pc = PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)";
                         const statusColor2 =
-                          task.status === "inProgress" ? "var(--primary)" : task.status === "completed" ? "#10b981" : "var(--amber)";
+                          task.status === "inProgress" ? "var(--primary)" : task.status === "completed" ? "var(--green)" : "var(--amber)";
                         const statusLbl =
                           task.status === "inProgress" ? "In Progress" : task.status === "completed" ? "Done" : "Pending";
                         return (

@@ -62,14 +62,14 @@ const ENTITY_ICONS: Record<string, string> = {
 };
 
 const ENTITY_COLORS: Record<string, string> = {
-  employee: "text-blue-500",
-  department: "text-emerald-500",
+  employee: "text-[var(--primary)]",
+  department: "text-[var(--green)]",
   task: "text-amber-500",
   campaign: "text-indigo-500",
-  attendance: "text-purple-500",
+  attendance: "text-[var(--purple)]",
   settings: "text-gray-500",
-  auth: "text-rose-500",
-  security: "text-red-500",
+  auth: "text-[var(--rose)]",
+  security: "text-[var(--rose)]",
 };
 
 function getEntityHref(entity: string, entityId?: string): string | null {
@@ -613,7 +613,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                             className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase"
                                             style={{
                                               background: isViolation ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
-                                              color: isViolation ? "#ef4444" : "#d97706",
+                                              color: isViolation ? "var(--rose)" : "var(--amber)",
                                             }}
                                           >
                                             {isViolation ? "Violation" : "Warning"}
@@ -625,7 +625,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                         {secMeta.reasons && secMeta.reasons.length > 0 && (
                                           <div className="mt-1 space-y-0.5">
                                             {secMeta.reasons.map((r, ri) => (
-                                              <p key={ri} className="text-[10px] leading-snug" style={{ color: isViolation ? "#ef4444" : "#d97706" }}>
+                                              <p key={ri} className="text-[10px] leading-snug" style={{ color: isViolation ? "var(--rose)" : "var(--amber)" }}>
                                                 {r}
                                               </p>
                                             ))}
@@ -763,19 +763,17 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
               </AnimatePresence>
             </div>
 
-            {/* Settings link */}
-            {canPerm("settings_view") && (
-              <Link
-                href="/settings"
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
-                  pathname.startsWith("/settings")
-                    ? "bg-[var(--primary)] text-white shadow-sm"
-                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--hover-bg)]"
-                }`}
-              >
-                Settings
-              </Link>
-            )}
+            {/* Settings — always accessible for profile/password/security */}
+            <Link
+              href="/settings"
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
+                pathname.startsWith("/settings")
+                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--hover-bg)]"
+              }`}
+            >
+              Settings
+            </Link>
 
             {/* Sign out */}
             <button
@@ -916,19 +914,17 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                   Help &amp; Guides
                 </button>
 
-                {canPerm("settings_view") && (
-                  <Link
-                    href="/settings"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
-                    style={{ color: pathname.startsWith("/settings") ? "var(--primary)" : "var(--fg-secondary)" }}
-                  >
-                    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    </svg>
-                    Settings
-                  </Link>
-                )}
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-medium transition-colors"
+                  style={{ color: pathname.startsWith("/settings") ? "var(--primary)" : "var(--fg-secondary)" }}
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  </svg>
+                  Settings
+                </Link>
               </div>
 
               {/* Sign out */}

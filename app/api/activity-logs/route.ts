@@ -7,7 +7,6 @@ import { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "activityLogs_view")) return ok({ logs: [] });
 
   await connectDB();
 
@@ -22,18 +21,28 @@ export async function GET(req: NextRequest) {
     return ok({ logs });
   }
 
+  const hasLogsPerm = hasPermission(actor, "activityLogs_view");
+
+  if (!hasLogsPerm) {
+    const logs = await ActivityLog.find({
+      $or: [{ targetUserIds: actor.id }, { userEmail: actor.email }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    return ok({ logs });
+  }
+
   const subordinateIds = await getSubordinateUserIds(actor.id);
   const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
 
+  const scopedUserIds = [actor.id, ...subordinateIds];
+
   const conditions: Record<string, unknown>[] = [
-    { visibility: "all" },
-    { targetUserIds: actor.id },
+    { targetUserIds: { $in: scopedUserIds } },
     { userEmail: actor.email },
   ];
 
-  if (subordinateIds.length > 0) {
-    conditions.push({ targetUserIds: { $in: subordinateIds } });
-  }
   if (hierarchyDeptIds.length > 0) {
     conditions.push({ targetDepartmentId: { $in: hierarchyDeptIds } });
   }

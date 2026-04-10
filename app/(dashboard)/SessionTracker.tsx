@@ -622,19 +622,24 @@ export default function SessionTracker() {
 
   const pillStyle: React.CSSProperties = flagged
     ? {
-        background: "linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)",
-        boxShadow: "0 0 20px rgba(239,68,68,0.5), 0 0 60px rgba(220,38,38,0.2), inset 0 1px 0 rgba(255,255,255,0.2)",
+        background:
+          "linear-gradient(135deg, var(--rose) 0%, color-mix(in srgb, var(--rose) 88%, black) 50%, color-mix(in srgb, var(--rose) 72%, black) 100%)",
+        boxShadow:
+          "0 0 20px color-mix(in srgb, var(--rose) 50%, transparent), 0 0 60px color-mix(in srgb, var(--rose) 20%, transparent), inset 0 1px 0 rgba(255,255,255,0.2)",
       }
     : warned
       ? {
-          background: "linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)",
-          boxShadow: "0 0 20px rgba(245,158,11,0.4), 0 0 60px rgba(217,119,6,0.15), inset 0 1px 0 rgba(255,255,255,0.2)",
-        }
-    : isActive
+        background:
+          "linear-gradient(135deg, var(--amber) 0%, color-mix(in srgb, var(--amber) 88%, black) 50%, color-mix(in srgb, var(--amber) 72%, black) 100%)",
+        boxShadow:
+          "0 0 20px color-mix(in srgb, var(--amber) 40%, transparent), 0 0 60px color-mix(in srgb, var(--amber) 15%, transparent), inset 0 1px 0 rgba(255,255,255,0.2)",
+      }
+      : isActive
       ? session.inOffice
         ? {
-            background: "linear-gradient(135deg, #00c6a7 0%, #00d68f 50%, #34d399 100%)",
-            boxShadow: "0 0 20px rgba(0,198,167,0.4), 0 0 60px rgba(0,214,143,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
+            background: "linear-gradient(135deg, var(--cyan) 0%, var(--teal) 50%, var(--green) 100%)",
+            boxShadow:
+              "0 0 20px color-mix(in srgb, var(--teal) 40%, transparent), 0 0 60px color-mix(in srgb, var(--green) 15%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)",
           }
         : {
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #a855f7 100%)",
@@ -675,7 +680,8 @@ export default function SessionTracker() {
             <div
               className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl"
               style={{
-                background: "linear-gradient(135deg, rgba(255,159,10,0.9), rgba(245,158,11,0.85))",
+                background:
+                  "linear-gradient(135deg, color-mix(in srgb, var(--amber) 90%, white), color-mix(in srgb, var(--amber) 85%, transparent))",
                 border: "1px solid rgba(255,255,255,0.2)",
               }}
             >
@@ -763,23 +769,23 @@ export default function SessionTracker() {
               className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-3xl p-8 text-center"
               style={{
                 background: "var(--bg-elevated, rgba(30,30,40,0.92))",
-                border: "1px solid rgba(239,68,68,0.4)",
-                boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 40px rgba(239,68,68,0.15)",
+                border: "1px solid color-mix(in srgb, var(--rose) 40%, transparent)",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 40px color-mix(in srgb, var(--rose) 15%, transparent)",
               }}
             >
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                 className="flex h-16 w-16 items-center justify-center rounded-full text-3xl"
-                style={{ background: "rgba(239,68,68,0.15)" }}
+                style={{ background: "color-mix(in srgb, var(--rose) 15%, transparent)" }}
               >
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                   <line x1="12" y1="9" x2="12" y2="13"/>
                   <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
               </motion.div>
-              <h3 className="text-lg font-bold" style={{ color: "#ef4444" }}>
+              <h3 className="text-lg font-bold" style={{ color: "var(--rose)" }}>
                 Location appears to be spoofed
               </h3>
               <p className="text-sm leading-relaxed" style={{ color: "var(--fg-secondary, #aaa)" }}>
@@ -792,7 +798,7 @@ export default function SessionTracker() {
                 animate={{ scale: [1, 1.03, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 className="mt-1 rounded-full px-6 py-2 text-sm font-bold text-white"
-                style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}
+                style={{ background: "linear-gradient(135deg, var(--rose), color-mix(in srgb, var(--rose) 82%, black))" }}
               >
                 {formatElapsed(pausedAtRef.current || elapsed)} paused
               </motion.div>
@@ -823,7 +829,8 @@ export default function SessionTracker() {
             <div
               className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl"
               style={{
-                background: "linear-gradient(135deg, rgba(245,158,11,0.92), rgba(217,119,6,0.88))",
+                background:
+                  "linear-gradient(135deg, color-mix(in srgb, var(--amber) 92%, transparent), color-mix(in srgb, var(--amber) 88%, transparent))",
                 border: "1px solid rgba(255,255,255,0.2)",
               }}
             >

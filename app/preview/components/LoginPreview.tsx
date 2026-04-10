@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import {
   slideUpItem,
   staggerContainer,
-  buttonHover,
   fadeInItem,
 } from "@/lib/motion";
 

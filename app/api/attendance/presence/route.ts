@@ -15,7 +15,6 @@ import { resolveTimezone } from "@/lib/tz";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "attendance_viewTeam")) return ok([]);
 
   await connectDB();
 
@@ -23,12 +22,16 @@ export async function GET() {
   const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
   const today = startOfDay(new Date(), tz);
 
+  const hasTeamPerm = hasPermission(actor, "attendance_viewTeam");
+
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (actor.isSuperAdmin) {
     // superadmin sees all non–super-admin employees
-  } else {
+  } else if (hasTeamPerm) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
     empFilter._id = { $in: [actor.id, ...subordinateIds] };
+  } else {
+    empFilter._id = actor.id;
   }
 
   const employees = await User.find(empFilter)

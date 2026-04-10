@@ -33,7 +33,6 @@ function holidayToCalendarRow(h: {
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "holidays_view")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const yearParam = req.nextUrl.searchParams.get("year");
   if (yearParam === null || yearParam === "") {

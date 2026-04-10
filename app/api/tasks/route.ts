@@ -16,7 +16,6 @@ import { logActivity } from "@/lib/activityLogger";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "tasks_view")) return ok([]);
 
   await connectDB();
 
@@ -24,9 +23,11 @@ export async function GET() {
 
   if (isSuperAdmin(actor)) {
     // SuperAdmin sees all tasks
-  } else {
+  } else if (hasPermission(actor, "tasks_view")) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
     filter.assignedTo = { $in: [actor.id, ...subordinateIds] };
+  } else {
+    filter.assignedTo = actor.id;
   }
 
   const tasks = await ActivityTask.find(filter)

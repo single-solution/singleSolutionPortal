@@ -108,7 +108,7 @@ export default function EmployeeDetailClient({
   const shiftMins = getShiftMinutes(emp.shiftStart, emp.shiftEnd, emp.shiftBreak);
   const shiftPct = Math.min(100, Math.round((today.todayMinutes / shiftMins) * 100));
   const isPresent = today.hasRecord && today.todayMinutes > 0;
-  const statusColor = isPresent ? (today.isOnTime ? "#10b981" : "#f59e0b") : "#f43f5e";
+  const statusColor = isPresent ? (today.isOnTime ? "var(--green)" : "var(--amber)") : "#f43f5e";
   const statusLabel = isPresent ? (today.isOnTime ? "Present" : "Late") : "Absent";
 
   const firstEntryLabel = today.firstEntry
@@ -145,7 +145,24 @@ export default function EmployeeDetailClient({
             </div>
             <h1 className="text-title" style={{ color: "var(--fg)" }}>{emp.firstName} {emp.lastName}</h1>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
-              <span className="badge" style={{ background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}30` }}>
+              <span
+                className="badge"
+                style={
+                  isPresent && today.isOnTime
+                    ? {
+                        background: "color-mix(in srgb, var(--green) 8%, transparent)",
+                        color: "var(--green)",
+                        border: "1px solid color-mix(in srgb, var(--green) 30%, transparent)",
+                      }
+                    : isPresent && !today.isOnTime
+                      ? {
+                          background: "color-mix(in srgb, var(--amber) 8%, transparent)",
+                          color: "var(--amber)",
+                          border: "1px solid color-mix(in srgb, var(--amber) 30%, transparent)",
+                        }
+                      : { background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}30` }
+                }
+              >
                 {isPresent && (
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full mr-1" style={{ background: statusColor }}>
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: statusColor }} />
@@ -226,14 +243,14 @@ export default function EmployeeDetailClient({
                       initial={{ width: 0 }}
                       animate={{ width: `${shiftPct}%` }}
                       transition={{ duration: 0.8, ease }}
-                      style={{ background: shiftPct >= 100 ? "#8b5cf6" : "var(--primary)" }}
+                      style={{ background: shiftPct >= 100 ? "var(--purple)" : "var(--primary)" }}
                     />
                   </div>
                 </div>
 
                 {today.lateBy > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "#f59e0b15", color: "#f59e0b" }}>
+                    <span className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 8%, transparent)", color: "var(--amber)" }}>
                       Late +{formatMinutes(today.lateBy)}
                     </span>
                   </div>
@@ -301,8 +318,8 @@ export default function EmployeeDetailClient({
             <div className="flex items-center gap-2 mb-4">
               {isPresent && (
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "#10b981" }} />
-                  <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: "#10b981" }} />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--green)" }} />
+                  <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: "var(--green)" }} />
                 </span>
               )}
               <h3 className="text-section-header">Today&apos;s Activity</h3>
@@ -320,7 +337,7 @@ export default function EmployeeDetailClient({
                     ? start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true })
                     : "—";
                   const where = s.inOffice ? "Office" : "Remote";
-                  const dotColor = s.status === "active" ? "#10b981" : "var(--fg-tertiary)";
+                  const dotColor = s.status === "active" ? "var(--green)" : "var(--fg-tertiary)";
                   return (
                     <motion.li
                       key={s._id || i}
@@ -358,13 +375,13 @@ export default function EmployeeDetailClient({
               <h3 className="text-headline" style={{ color: "var(--fg)" }}>Tasks</h3>
               <div className="flex items-center gap-2">
                 {pendingTasks.length > 0 && (
-                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "#f59e0b15", color: "#f59e0b" }}>{pendingTasks.length} pending</span>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--amber) 8%, transparent)", color: "var(--amber)" }}>{pendingTasks.length} pending</span>
                 )}
                 {inProgressTasks.length > 0 && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{inProgressTasks.length} active</span>
                 )}
                 {completedTasks.length > 0 && (
-                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "#10b98115", color: "#10b981" }}>{completedTasks.length} done</span>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)" }}>{completedTasks.length} done</span>
                 )}
               </div>
             </div>
@@ -373,7 +390,7 @@ export default function EmployeeDetailClient({
                 <p className="text-caption py-4 text-center" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned</p>
               ) : tasks.slice(0, 8).map((task, ti) => {
                 const pc = PRIORITY_COLORS[task.priority] ?? "var(--fg-tertiary)";
-                const statusColor2 = task.status === "inProgress" ? "var(--primary)" : task.status === "completed" ? "#10b981" : "var(--amber)";
+                const statusColor2 = task.status === "inProgress" ? "var(--primary)" : task.status === "completed" ? "var(--green)" : "var(--amber)";
                 const statusLbl = task.status === "inProgress" ? "In Progress" : task.status === "completed" ? "Done" : "Pending";
                 return (
                   <motion.div
@@ -417,7 +434,7 @@ export default function EmployeeDetailClient({
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
               const isToday = day.date === todayStr;
-              const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "#f59e0b" : "#10b981";
+              const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "var(--amber)" : "var(--green)";
               return (
                 <motion.div
                   key={day.date}

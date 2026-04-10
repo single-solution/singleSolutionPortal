@@ -250,8 +250,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                   <button
                     type="submit"
                     disabled={submitting || !date}
-                    className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
-                    style={{ background: "var(--primary)" }}
+                    className="btn btn-primary w-full"
                   >
                     {submitting ? "Submitting…" : "Submit request"}
                   </button>

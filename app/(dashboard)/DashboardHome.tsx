@@ -62,14 +62,6 @@ interface ApiTask {
   createdBy?: { _id?: string; about?: { firstName: string; lastName: string }; email?: string };
 }
 
-interface ApiDepartment {
-  _id: string;
-  title: string;
-  slug?: string;
-  employeeCount: number;
-}
-
-
 interface PersonalAttendance {
   todayMinutes: number;
   todaySessions: number;
@@ -171,44 +163,11 @@ interface UserProfile {
 
 /* ──────────────────────── CONSTANTS ──────────────────────── */
 
-const STATUS_COLORS: Record<PresenceStatus, string> = {
-  office: "#10b981",
-  remote: "#007aff",
-  late: "#f59e0b",
-  overtime: "#8b5cf6",
-  absent: "#f43f5e",
-};
-
-const STATUS_LABELS: Record<PresenceStatus, string> = {
-  office: "In Office",
-  remote: "Remote",
-  late: "Late",
-  overtime: "Overtime",
-  absent: "Absent",
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  low: "var(--primary)",
-  medium: "var(--amber)",
-  high: "var(--rose)",
-  urgent: "#ef4444",
-};
-
 const PRIORITY_LABELS: Record<string, string> = {
   low: "Low",
   medium: "Medium",
   high: "High",
   urgent: "Urgent",
-};
-
-const STATUS_ORDER: PresenceStatus[] = ["office", "remote", "late", "overtime", "absent"];
-
-const STATUS_BADGE_CLASS: Record<PresenceStatus, string> = {
-  office: "badge-office",
-  remote: "badge-remote",
-  late: "badge-late",
-  overtime: "badge-overtime",
-  absent: "badge-absent",
 };
 
 /* ──────────────────────── HELPERS ──────────────────────── */
@@ -248,10 +207,6 @@ function formatClock(d: Date) {
 
 function formatClockDate(d: Date) {
   return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-}
-
-function formatTimeStr(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 function getShiftMinutes(start: string, end: string, breakTime: number) {
@@ -417,7 +372,17 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
   const todayHours = pa.todayMinutes / 60;
   const shiftPct = Math.min(100, Math.round((pa.todayMinutes / shiftTarget) * 100));
   const isPresent = pa.todaySessions > 0 || pa.todayMinutes > 0;
-  const statusColor = isPresent ? (pa.isOnTime ? "#10b981" : "#f59e0b") : "#f43f5e";
+  const statusColor = isPresent ? (pa.isOnTime ? "var(--green)" : "var(--amber)") : "#f43f5e";
+  const statusBadgeBg = isPresent
+    ? pa.isOnTime
+      ? "color-mix(in srgb, var(--green) 7%, transparent)"
+      : "color-mix(in srgb, var(--amber) 7%, transparent)"
+    : `${statusColor}15`;
+  const statusBadgeBorder = isPresent
+    ? pa.isOnTime
+      ? "1px solid color-mix(in srgb, var(--green) 19%, transparent)"
+      : "1px solid color-mix(in srgb, var(--amber) 19%, transparent)"
+    : `1px solid ${statusColor}30`;
   const statusLabel = isPresent ? (pa.isOnTime ? "Present" : "Late") : "Absent";
   const profileName = userProfile?.firstName ?? user.firstName;
   const profileLast = userProfile?.lastName ?? user.lastName;
@@ -433,7 +398,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
           ) : (
             <div className="flex h-20 w-20 items-center justify-center rounded-full text-xl font-semibold text-white shadow-lg sm:h-24 sm:w-24 sm:text-2xl" style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}>{initials(profileName, profileLast)}</div>
           )}
-          <span className="badge" style={{ background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}30` }}>{statusLabel}</span>
+          <span className="badge" style={{ background: statusBadgeBg, color: statusColor, border: statusBadgeBorder }}>{statusLabel}</span>
         </div>
         <div className="min-w-0 flex-1 space-y-4">
           <div>
@@ -473,7 +438,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
             </div>
           {/* Office / Remote split */}
           <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
-            <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#10b98112", color: "#10b981" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
+            <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--green) 7%, transparent)", color: "var(--green)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
             <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
               </div>
           <div className="space-y-2">
@@ -495,7 +460,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
 
 function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null; dataLoading?: boolean }) {
   const isLive = pa && (pa.todaySessions > 0 || pa.todayMinutes > 0);
-  const statusColor = isLive ? "#10b981" : "var(--fg-tertiary)";
+  const statusColor = isLive ? "var(--green)" : "var(--fg-tertiary)";
   const isLoading = !pa && dataLoading;
 
   const events = useMemo(() => {
@@ -700,7 +665,7 @@ function AdminDashboard({
               <Bone w="w-20" h="h-3.5" />
             ) : (
               <>
-                <span className="text-caption font-semibold" style={{ color: "#10b981" }}>{liveCount} live</span>
+                <span className="text-caption font-semibold" style={{ color: "var(--green)" }}>{liveCount} live</span>
                 <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
               </>
               ))}
@@ -854,7 +819,7 @@ function AdminDashboard({
             ) : activeCampaigns.map((camp, ci) => (
               <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" /></svg>
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
@@ -980,7 +945,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
                 const isToday = day.date === new Intl.DateTimeFormat("en-CA", { timeZone: companyTz }).format(now);
-                const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "#f59e0b" : "#10b981";
+                const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "var(--amber)" : "var(--green)";
               return (
                   <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
                   <div className="flex items-center justify-between gap-2">
@@ -1049,7 +1014,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
 export default function DashboardHome({ user }: { user: User }) {
   const [employees, setEmployees] = useState<ApiEmployee[]>([]);
   const [tasks, setTasks] = useState<ApiTask[]>([]);
-  const [departments, setDepartments] = useState<ApiDepartment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [realPresence, setRealPresence] = useState<PresenceEmployee[] | null>(null);
@@ -1064,9 +1028,6 @@ export default function DashboardHome({ user }: { user: User }) {
   const { can: canPermRoot, hasSubordinates } = usePermissions();
   const hasTeamAccess = canPermRoot("attendance_viewTeam") || hasSubordinates;
   const canViewEmployees = canPermRoot("employees_view");
-  const canViewTasks = canPermRoot("tasks_view");
-  const canViewCampaigns = canPermRoot("campaigns_view");
-  const canViewDepts = canPermRoot("departments_view");
   const initialDone = useRef(false);
 
   /* ── Helper: parse presence array ── */
@@ -1254,23 +1215,18 @@ export default function DashboardHome({ user }: { user: User }) {
     try {
       const fetches: Promise<unknown>[] = [
         canViewEmployees ? fetch("/api/employees").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
-        canViewTasks ? fetch("/api/tasks").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
-        canViewDepts ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
+        fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
+        fetch("/api/campaigns").then((r) => r.ok ? r.json() : []),
       ];
-      if (canViewCampaigns) {
-        fetches.push(fetch("/api/campaigns").then((r) => r.ok ? r.json() : []));
-      }
-      const [empRes, taskRes, deptRes, ...rest] = await Promise.all(fetches);
-      const campaignRes = canViewCampaigns ? rest[0] : undefined;
+      const [empRes, taskRes, campaignRes] = await Promise.all(fetches);
 
       setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
       setTasks(Array.isArray(taskRes) ? taskRes as ApiTask[] : []);
-      setDepartments(Array.isArray(deptRes) ? deptRes as ApiDepartment[] : []);
       if (Array.isArray(campaignRes)) setCampaigns(campaignRes as ApiCampaign[]);
 
       if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [canViewEmployees, canViewTasks, canViewDepts, canViewCampaigns, isSuperAdmin, fetchPersonalData]);
+  }, [canViewEmployees, isSuperAdmin, fetchPersonalData]);
 
   /* ── Initial load ── */
   useEffect(() => {

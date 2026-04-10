@@ -57,10 +57,7 @@ export function useInsightsContext() {
 export default function InsightsDeskLayout({ children }: { children: React.ReactNode }) {
   const { registerTour } = useGuide();
   const { can: canPerm } = usePermissions();
-  const canViewHolidays = canPerm("holidays_view");
   const canManageHolidays = canPerm("holidays_manage");
-  const canViewLeaves = canPerm("leaves_viewTeam");
-  const canViewPayroll = canPerm("payroll_viewTeam");
 
   useEffect(() => { registerTour("insights-desk", insightsDeskTour); }, [registerTour]);
 
@@ -117,7 +114,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
     setHolidaysLoading(false);
   }, [displayYear]);
 
-  useEffect(() => { if (canViewHolidays) fetchHolidays(); }, [canViewHolidays, fetchHolidays]);
+  useEffect(() => { fetchHolidays(); }, [fetchHolidays]);
   useEffect(() => { if (holidaysOpen) fetchHolidays(); }, [holidaysOpen, fetchHolidays]);
 
   async function handleAdd() {
@@ -183,15 +180,15 @@ export default function InsightsDeskLayout({ children }: { children: React.React
             )}
             {holidays.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap">
-                {upcoming.length > 0 && <HeaderStatPill label={upcoming.length === 1 ? "upcoming holiday" : "upcoming holidays"} value={upcoming.length} dotColor="#8b5cf6" />}
+                {upcoming.length > 0 && <HeaderStatPill label={upcoming.length === 1 ? "upcoming holiday" : "upcoming holidays"} value={upcoming.length} dotColor="var(--purple)" />}
                 <HeaderStatPill label={holidays.length === 1 ? "holiday this year" : "holidays this year"} value={holidays.length} dotColor="var(--fg-tertiary)" />
               </div>
             )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {canViewLeaves && (
-              <motion.button
+            {/* Leaves — always visible; every employee can apply for their own */}
+            <motion.button
                 type="button"
                 onClick={() => openLeavesModal()}
                 whileHover={{ scale: 1.02 }}
@@ -200,14 +197,13 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}
               >
                 <svg className="h-3.5 w-3.5" style={{ color: "var(--teal)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Leaves
               </motion.button>
-            )}
 
-            {canViewPayroll && (
-              <motion.button
+            {/* Payroll — always visible; every employee can view their own estimate */}
+            <motion.button
                 type="button"
                 onClick={() => openPayrollModal()}
                 whileHover={{ scale: 1.02 }}
@@ -220,10 +216,8 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 </svg>
                 Payroll
               </motion.button>
-            )}
 
-            {canViewHolidays && (
-              <motion.button
+            <motion.button
                 type="button"
                 onClick={() => setHolidaysOpen(true)}
                 whileHover={{ scale: 1.02 }}
@@ -231,17 +225,16 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}
               >
-                <svg className="h-3.5 w-3.5" style={{ color: "#8b5cf6" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                 </svg>
                 Holidays
                 {upcoming.length > 0 && !holidaysOpen && (
-                  <span className="ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ background: "#8b5cf6" }}>
+                  <span className="ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ background: "var(--purple)" }}>
                     {upcoming.length}
                   </span>
                 )}
               </motion.button>
-            )}
           </div>
         </div>
 
@@ -305,7 +298,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                               <input type="date" className="input text-xs" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
                             </div>
                             <div className="flex items-center justify-between">
-                              <ToggleSwitch checked={formRecurring} onChange={setFormRecurring} color="#8b5cf6" label="Recurring yearly" />
+                              <ToggleSwitch checked={formRecurring} onChange={setFormRecurring} color="var(--purple)" label="Recurring yearly" />
                               <div className="flex gap-2">
                                 <button type="button" onClick={() => { setShowForm(false); setFormName(""); setFormDate(""); setFormRecurring(false); }} className="rounded-lg px-3 py-1.5 text-[11px] font-semibold" style={{ color: "var(--fg-secondary)" }}>Cancel</button>
                                 <button type="button" disabled={saving || !formName.trim() || !formDate} onClick={handleAdd} className="rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50" style={{ background: "var(--primary)" }}>{saving ? "Saving…" : "Add"}</button>
@@ -340,7 +333,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                           const isPast = d < new Date();
                           return (
                             <div key={h._id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors" style={{ background: "var(--bg-grouped)", opacity: isPast ? 0.55 : 1 }}>
-                              <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg text-white" style={{ background: h.isRecurring ? "#8b5cf6" : "var(--primary)" }}>
+                              <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg text-white" style={{ background: h.isRecurring ? "var(--purple)" : "var(--primary)" }}>
                                 <span className="text-[8px] font-semibold leading-none uppercase">{SHORT_MONTHS[d.getUTCMonth()]}</span>
                                 <span className="text-sm font-bold leading-tight">{d.getUTCDate()}</span>
                               </div>
@@ -354,15 +347,15 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                                     checked={h.isRecurring}
                                     onChange={() => handleToggleRecurring(h)}
                                     disabled={togglingId === h._id}
-                                    color="#8b5cf6"
+                                    color="var(--purple)"
                                     title={h.isRecurring ? "Recurring — click to make one-time" : "One-time — click to make recurring"}
                                   />
                                 ) : h.isRecurring ? (
-                                  <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ color: "#8b5cf6", background: "color-mix(in srgb, #8b5cf6 12%, transparent)" }}>Recurring</span>
+                                  <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ color: "var(--purple)", background: "color-mix(in srgb, var(--purple) 12%, transparent)" }}>Recurring</span>
                                 ) : null}
                                 {canManageHolidays && (
                                   <button type="button" onClick={() => setDeleteTarget(h)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-tertiary)" }} title="Remove holiday">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                   </button>
                                 )}
                               </div>

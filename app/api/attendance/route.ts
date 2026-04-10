@@ -11,7 +11,6 @@ import { startOfDay } from "@/lib/dayBoundary";
 import { resolveTimezone, dateInTz } from "@/lib/tz";
 import {
   getVerifiedSession,
-  isSuperAdmin,
   hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
