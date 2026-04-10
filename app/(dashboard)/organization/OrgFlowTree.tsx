@@ -27,7 +27,7 @@ import { PERMISSION_CATEGORIES, PERMISSION_KEYS, PERMISSION_META } from "@/lib/p
 
 /* ────────── Types ────────── */
 
-interface DesigOption { _id: string; name: string; color: string }
+interface DesigOption { _id: string; name: string; color: string; defaultPermissions?: Record<string, boolean> }
 
 interface MembershipRow {
   _id: string;
@@ -259,6 +259,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
   const [privPerms, setPrivPerms] = useState<Record<string, boolean>>({});
   const [privSaving, setPrivSaving] = useState(false);
   const [privLabel, setPrivLabel] = useState("");
+  const [privDesigDefaults, setPrivDesigDefaults] = useState<Record<string, boolean> | null>(null);
 
   /* ── Remove modal (shared for memberships & emp links) ── */
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -477,7 +478,20 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     setPrivLabel(`${name} → ${mem.department?.title ?? ""}`);
     try {
       const res = await fetch(`/api/memberships/${membershipId}`);
-      if (res.ok) { const full = await res.json(); const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = !!full.permissions?.[k]; setPrivPerms(p); }
+      if (res.ok) {
+        const full = await res.json();
+        const p: Record<string, boolean> = {};
+        for (const k of PERMISSION_KEYS) p[k] = !!full.permissions?.[k];
+        setPrivPerms(p);
+        const dp = full.designation?.defaultPermissions;
+        if (dp && typeof dp === "object") {
+          const defaults: Record<string, boolean> = {};
+          for (const k of PERMISSION_KEYS) defaults[k] = !!dp[k];
+          setPrivDesigDefaults(defaults);
+        } else {
+          setPrivDesigDefaults(null);
+        }
+      }
     } catch { /* ignore */ }
     setPrivOpen(true);
   }, [memberships]);
@@ -493,8 +507,16 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     const p: Record<string, boolean> = {};
     for (const k of PERMISSION_KEYS) p[k] = !!link.permissions?.[k];
     setPrivPerms(p);
+    const desig = link.designationId ? designations.find((d) => d._id === link.designationId) : null;
+    if (desig?.defaultPermissions) {
+      const defaults: Record<string, boolean> = {};
+      for (const k of PERMISSION_KEYS) defaults[k] = !!desig.defaultPermissions[k];
+      setPrivDesigDefaults(defaults);
+    } else {
+      setPrivDesigDefaults(null);
+    }
     setPrivOpen(true);
-  }, [empLinks, departments, employees]);
+  }, [empLinks, departments, employees, designations]);
 
   const handleSavePrivileges = useCallback(async () => {
     setPrivSaving(true);
@@ -740,6 +762,13 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                   <p className="text-sm truncate mt-0.5" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {privDesigDefaults && (
+                    <button type="button" onClick={() => setPrivPerms({ ...privDesigDefaults })}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                      style={{ color: "var(--primary)", borderColor: "rgba(99,102,241,0.3)" }}>
+                      Reset to Original
+                    </button>
+                  )}
                   <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setPrivPerms(p); }}
                     className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
                     style={{ color: "#10b981", borderColor: "rgba(16,185,129,0.3)" }}>
