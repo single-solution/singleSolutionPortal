@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import SystemSettings from "@/lib/models/SystemSettings";
-import { unauthorized, forbidden, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
 import { getVerifiedSession, canManageSettings, hasPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -29,7 +29,9 @@ export async function PUT(req: Request) {
   if (!canManageSettings(actor)) return forbidden();
 
   await connectDB();
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
 

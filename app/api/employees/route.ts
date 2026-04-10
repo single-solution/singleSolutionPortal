@@ -7,6 +7,7 @@ import {
   isSuperAdmin,
   hasPermission,
   getSubordinateUserIds,
+  getHierarchyDepartmentIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
@@ -16,6 +17,7 @@ import { sendMail, getBaseUrl } from "@/lib/mail";
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "employees_view")) return ok([]);
 
   const url = new URL(req.url);
   const includeSelf = url.searchParams.get("includeSelf") === "true";
@@ -50,7 +52,9 @@ export async function POST(req: Request) {
 
   await connectDB();
 
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
   const { email, fullName, weeklySchedule, graceMinutes, shiftType, salary } = body;
 
   if (!email || !fullName) {
@@ -90,10 +94,16 @@ export async function POST(req: Request) {
   const user = await User.create(createPayload);
 
   if (Array.isArray(body.managedDepartments)) {
+    let allowedDeptIds: string[] = body.managedDepartments;
+    if (!isSuperAdmin(actor) && allowedDeptIds.length > 0) {
+      const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
+      const hierarchySet = new Set(hierarchyDeptIds);
+      allowedDeptIds = allowedDeptIds.filter((d: string) => hierarchySet.has(d));
+    }
     await Department.updateMany({ manager: user._id }, { $unset: { manager: 1 } });
-    if (body.managedDepartments.length > 0) {
+    if (allowedDeptIds.length > 0) {
       await Department.updateMany(
-        { _id: { $in: body.managedDepartments } },
+        { _id: { $in: allowedDeptIds } },
         { $set: { manager: user._id } },
       );
     }

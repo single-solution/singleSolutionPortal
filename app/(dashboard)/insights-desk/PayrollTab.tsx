@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@/lib/useQuery";
+import { StatusPill as SharedStatusPill, HeaderStatPill } from "../components/StatChips";
 
 interface PopulatedUser {
   _id?: string;
@@ -66,20 +67,8 @@ function nameOf(u: PopulatedUser | string | undefined): string {
   return n || u.email || u.username || "—";
 }
 
-function StatusPill({ status }: { status: PayslipRow["status"] }) {
-  const map: Record<PayslipRow["status"], React.CSSProperties> = {
-    draft: { background: "var(--bg-grouped)", color: "var(--fg-tertiary)" },
-    finalized: { background: "var(--primary-light)", color: "var(--primary)" },
-    paid: { background: "rgba(34, 197, 94, 0.15)", color: "var(--green)" },
-  };
-  return (
-    <span
-      className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
-      style={map[status]}
-    >
-      {status}
-    </span>
-  );
+function StatusPill({ status }: { status: string }) {
+  return <SharedStatusPill status={status} />;
 }
 
 export function PayrollTab() {
@@ -132,7 +121,7 @@ export function PayrollTab() {
   );
 
   const { data: configData, refetch: refetchConfig } = useQuery<PayrollConfigDoc>(
-    sessionOk ? "/api/payroll/config" : null,
+    sessionOk && canViewTeamPayroll ? "/api/payroll/config" : null,
   );
 
   const holidaysUrl =
@@ -145,7 +134,7 @@ export function PayrollTab() {
   if (filterMonth) payslipParams.set("month", filterMonth);
   if (filterYear) payslipParams.set("year", filterYear);
   if (filterStatus) payslipParams.set("status", filterStatus);
-  const payslipsUrl = sessionOk
+  const payslipsUrl = sessionOk && canViewTeamPayroll
     ? `/api/payroll/payslips${payslipParams.toString() ? `?${payslipParams}` : ""}`
     : null;
   const {
@@ -333,6 +322,15 @@ export function PayrollTab() {
     background: "var(--bg)",
   };
 
+  const payslipSummary = useMemo(() => {
+    if (!payslips?.length) return null;
+    const total = payslips.reduce((s, r) => s + r.netPay, 0);
+    const draft = payslips.filter((r) => r.status === "draft").length;
+    const finalized = payslips.filter((r) => r.status === "finalized").length;
+    const paid = payslips.filter((r) => r.status === "paid").length;
+    return { total, draft, finalized, paid, count: payslips.length };
+  }, [payslips]);
+
   return (
     <div className="space-y-6">
       {error && (
@@ -460,7 +458,7 @@ export function PayrollTab() {
                     </div>
                     <div className="space-y-2">
                       {(configDraft.latePenaltyTiers ?? defaultTiers).map((tier, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs">
+                        <div key={idx} className="flex items-center gap-2 rounded-lg p-2 text-xs" style={{ background: "var(--bg-grouped)" }}>
                           <label className="flex flex-col gap-0.5" style={{ color: "var(--fg-tertiary)" }}>
                             <span className="text-[10px]">From (min)</span>
                             <input type="number" min={0} className={`${inputClass} !w-20`} style={inputStyle} value={tier.minMinutes} onChange={(e) => setConfigDraft((d) => {
@@ -839,9 +837,20 @@ export function PayrollTab() {
       )}
 
       <div style={cardStyle}>
-        <h2 className="text-sm font-bold mb-4" style={{ color: "var(--fg)" }}>
-          Payslips
-        </h2>
+        <div className="flex items-center gap-3 flex-wrap mb-4">
+          <h2 className="text-sm font-bold" style={{ color: "var(--fg)" }}>
+            Payslips
+          </h2>
+          {payslipSummary && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <HeaderStatPill label="total" value={formatMoney(payslipSummary.total)} dotColor="var(--teal)" />
+              <HeaderStatPill label={payslipSummary.count === 1 ? "slip" : "slips"} value={payslipSummary.count} dotColor="var(--fg-tertiary)" />
+              {payslipSummary.draft > 0 && <HeaderStatPill label="draft" value={payslipSummary.draft} dotColor="var(--amber)" />}
+              {payslipSummary.finalized > 0 && <HeaderStatPill label="finalized" value={payslipSummary.finalized} dotColor="var(--primary)" />}
+              {payslipSummary.paid > 0 && <HeaderStatPill label="paid" value={payslipSummary.paid} dotColor="var(--green)" />}
+            </div>
+          )}
+        </div>
         <div className="flex flex-wrap items-end gap-3 mb-4">
           <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
             Month

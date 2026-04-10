@@ -3,7 +3,14 @@ import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin, hasPermission, getHierarchyDepartmentIds } from "@/lib/permissions";
+import {
+  getVerifiedSession,
+  isSuperAdmin,
+  hasPermission,
+  getHierarchyDepartmentIds,
+  getSubordinateUserIds,
+  invalidateHierarchyCache,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,11 +28,26 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!hierarchyDeptIds.includes(id)) return forbidden("Can only edit departments within your hierarchy");
   }
 
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   if (body.managerId) {
     const mgr = await User.findById(body.managerId).select("isSuperAdmin").lean();
     if (mgr?.isSuperAdmin === true) return badRequest("Superadmin cannot be set as department manager");
+    if (!isSuperAdmin(actor)) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      if (!subordinateIds.includes(body.managerId) && body.managerId !== actor.id) {
+        return badRequest("Manager must be within your hierarchy");
+      }
+    }
+  }
+
+  if (body.parentId && !isSuperAdmin(actor)) {
+    const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
+    if (!hierarchyDeptIds.includes(body.parentId)) {
+      return badRequest("Parent department must be within your hierarchy");
+    }
   }
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
@@ -54,6 +76,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     visibility: "targeted",
   });
 
+  invalidateHierarchyCache();
   return ok(dept);
 }
 
@@ -88,5 +111,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     visibility: "targeted",
   });
 
+  invalidateHierarchyCache();
   return ok({ message: "Department deleted" });
 }

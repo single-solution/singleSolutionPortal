@@ -58,23 +58,22 @@ export default function TasksPage() {
   const canEditTasks = canPerm("tasks_edit");
   const canDeleteTasks = canPerm("tasks_delete");
   const canManageTasks = canAnyPerm("tasks_create", "tasks_edit");
+  const canViewTasks = canPerm("tasks_view");
   const canAssignTasks = canPerm("tasks_reassign");
 
   const [prioFilter, setPrioFilter] = useState<PriorityFilter>("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
 
-  // Centered modal for create/edit
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", priority: "medium", status: "pending", assignedTo: "", deadline: "" });
 
-  // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "tasks");
+  const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>(canViewTasks ? "/api/tasks" : null, "tasks");
   const { data: employeesRaw } = useQuery<Employee[]>(canAssignTasks ? "/api/employees/dropdown" : null, "employees");
 
   const taskList = tasks ?? [];

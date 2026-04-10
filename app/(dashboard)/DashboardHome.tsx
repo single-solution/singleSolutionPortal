@@ -586,6 +586,9 @@ function AdminDashboard({
   const isSuperAdmin = user.isSuperAdmin === true;
   const { can: canPerm } = usePermissions();
   const hasTeamAccess = canPerm("attendance_viewTeam");
+  const canViewAttendanceDetail = canPerm("attendance_viewDetail");
+  const canViewTasks = canPerm("tasks_view");
+  const canViewCampaigns = canPerm("campaigns_view");
   const canSendPing = canPerm("ping_send");
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("dashboard", dashboardTour); }, [registerTour]);
@@ -752,6 +755,11 @@ function AdminDashboard({
                   idx={idx}
                   attendanceLoading={presenceLoading}
                   onPing={liveUpdates && canSendPing ? handlePing : undefined}
+                  showAttendance={hasTeamAccess}
+                  showAttendanceDetail={canViewAttendanceDetail}
+                  showLocationFlags={canViewAttendanceDetail}
+                  showTasks={canViewTasks}
+                  showCampaigns={canViewCampaigns}
                   emp={{
                     _id: emp._id,
                     username: emp.username,
@@ -780,9 +788,9 @@ function AdminDashboard({
                     shiftStart: emp.shiftStart,
                     shiftEnd: emp.shiftEnd,
                     shiftBreakTime: emp.shiftBreakTime,
-                    pendingTasks: pendingCount,
-                    inProgressTasks: inProgressCount,
-                    campaigns: activeCampNames,
+                    pendingTasks: canViewTasks ? pendingCount : 0,
+                    inProgressTasks: canViewTasks ? inProgressCount : 0,
+                    campaigns: canViewCampaigns ? activeCampNames : [],
                   }}
                 />
               );
@@ -1049,6 +1057,8 @@ export default function DashboardHome({ user }: { user: User }) {
   const isSuperAdmin = user.isSuperAdmin === true;
   const { can: canPermRoot, hasSubordinates } = usePermissions();
   const hasTeamAccess = canPermRoot("attendance_viewTeam") || hasSubordinates;
+  const canViewEmployees = canPermRoot("employees_view");
+  const canViewTasks = canPermRoot("tasks_view");
   const canViewCampaigns = canPermRoot("campaigns_view");
   const canViewDepts = canPermRoot("departments_view");
   const initialDone = useRef(false);
@@ -1235,8 +1245,8 @@ export default function DashboardHome({ user }: { user: User }) {
   const fetchFull = useCallback(async () => {
     try {
       const fetches: Promise<unknown>[] = [
-        fetch("/api/employees").then((r) => r.ok ? r.json() : []),
-        fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
+        canViewEmployees ? fetch("/api/employees").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
+        canViewTasks ? fetch("/api/tasks").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
         canViewDepts ? fetch("/api/departments").then((r) => r.ok ? r.json() : []) : Promise.resolve([]),
       ];
       if (canViewCampaigns) {
@@ -1252,7 +1262,7 @@ export default function DashboardHome({ user }: { user: User }) {
 
       if (!isSuperAdmin) await fetchPersonalData();
     } catch (err) { console.error("Dashboard fetch error:", err); }
-  }, [canViewDepts, canViewCampaigns, isSuperAdmin, fetchPersonalData]);
+  }, [canViewEmployees, canViewTasks, canViewDepts, canViewCampaigns, isSuperAdmin, fetchPersonalData]);
 
   /* ── Initial load ── */
   useEffect(() => {

@@ -149,34 +149,42 @@ export function hasAnyPermission(actor: VerifiedUser, permissions: (keyof IPermi
 }
 
 /* ================================================================ */
-/* HIERARCHY TRAVERSAL                                               */
+/* HIERARCHY TRAVERSAL  (with request-level memoization)             */
 /* ================================================================ */
 
-/**
- * Walk the full org chart hierarchy downward from a given user, traversing
- * both emp-to-emp links (FlowLayout) AND department memberships where the
- * employee is "above" a department.  Returns all transitive subordinate IDs.
- *
- * Traversal:
- *  1.  emp → (bottom handle) → emp   (direct subordinate)
- *  2.  emp is "above" dept  →  every other employee in that dept
- *  3.  repeat recursively for every newly discovered employee
- */
-export async function getSubordinateUserIds(userId: string): Promise<string[]> {
-  await connectDB();
+type OrgGraphData = {
+  empLinks: { source: string; target: string; sourceHandle: string; targetHandle: string }[];
+  allMemberships: { user?: { toString(): string }; department?: { toString(): string }; direction?: string }[];
+};
 
+const _orgGraphCache: { data: OrgGraphData | null; expiry: number } = { data: null, expiry: 0 };
+const _subordinateCache = new Map<string, { result: string[]; expiry: number }>();
+const _hierarchyDeptCache = new Map<string, { result: string[]; expiry: number }>();
+const HIERARCHY_TTL_MS = 10_000;
+
+async function loadOrgGraph(): Promise<OrgGraphData> {
+  const now = Date.now();
+  if (_orgGraphCache.data && now < _orgGraphCache.expiry) return _orgGraphCache.data;
+
+  await connectDB();
   const [layout, allMemberships] = await Promise.all([
-    FlowLayout.findOne({ canvasId: "org" }).lean(),
+    FlowLayout.findOne({ canvasId: "org" }).select("links").lean(),
     Membership.find({ isActive: { $ne: false } })
       .select("user department direction")
       .lean(),
   ]);
 
-  const empLinks = (layout?.links ?? []) as {
-    source: string; target: string;
-    sourceHandle: string; targetHandle: string;
-  }[];
+  const data: OrgGraphData = {
+    empLinks: (layout?.links ?? []) as OrgGraphData["empLinks"],
+    allMemberships,
+  };
+  _orgGraphCache.data = data;
+  _orgGraphCache.expiry = now + HIERARCHY_TTL_MS;
+  return data;
+}
 
+function walkSubordinates(userId: string, graph: OrgGraphData): string[] {
+  const { empLinks, allMemberships } = graph;
   const startNode = `emp-${userId}`;
   const visited = new Set<string>();
   const visitedDepts = new Set<string>();
@@ -229,10 +237,34 @@ export async function getSubordinateUserIds(userId: string): Promise<string[]> {
 }
 
 /**
+ * Walk the full org chart hierarchy downward from a given user, traversing
+ * both emp-to-emp links (FlowLayout) AND department memberships where the
+ * employee is "above" a department.  Returns all transitive subordinate IDs.
+ *
+ * Results are cached for 10 seconds to avoid duplicate DB reads within the
+ * same request or rapid successive requests.
+ */
+export async function getSubordinateUserIds(userId: string): Promise<string[]> {
+  const now = Date.now();
+  const cached = _subordinateCache.get(userId);
+  if (cached && now < cached.expiry) return cached.result;
+
+  const graph = await loadOrgGraph();
+  const result = walkSubordinates(userId, graph);
+  _subordinateCache.set(userId, { result, expiry: now + HIERARCHY_TTL_MS });
+  return result;
+}
+
+/**
  * Return department IDs visible to a non-SuperAdmin user based on hierarchy:
  * departments the user belongs to + departments their subordinates belong to.
+ * Reuses the cached subordinate results from getSubordinateUserIds.
  */
 export async function getHierarchyDepartmentIds(userId: string): Promise<string[]> {
+  const now = Date.now();
+  const cached = _hierarchyDeptCache.get(userId);
+  if (cached && now < cached.expiry) return cached.result;
+
   await connectDB();
   const subordinateIds = await getSubordinateUserIds(userId);
   const allVisibleUsers = [userId, ...subordinateIds];
@@ -247,7 +279,9 @@ export async function getHierarchyDepartmentIds(userId: string): Promise<string[
     const dId = m.department?.toString();
     if (dId) deptIds.add(dId);
   }
-  return [...deptIds];
+  const result = [...deptIds];
+  _hierarchyDeptCache.set(userId, { result, expiry: now + HIERARCHY_TTL_MS });
+  return result;
 }
 
 /* ================================================================ */
@@ -289,4 +323,12 @@ export async function getCampaignScopeFilter(actor: VerifiedUser): Promise<Recor
   }
 
   return { $or: orClauses };
+}
+
+/** Evict all hierarchy caches (call after org structure changes). */
+export function invalidateHierarchyCache(): void {
+  _orgGraphCache.data = null;
+  _orgGraphCache.expiry = 0;
+  _subordinateCache.clear();
+  _hierarchyDeptCache.clear();
 }

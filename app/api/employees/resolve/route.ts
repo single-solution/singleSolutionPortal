@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin, getSubordinateUserIds } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
@@ -17,9 +17,12 @@ export async function GET(req: Request) {
 
   const resolvedId = user._id.toString();
 
-  if (resolvedId !== actor.id && !isSuperAdmin(actor)) {
-    const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (!subordinateIds.includes(resolvedId)) return forbidden("User is not in your hierarchy");
+  if (resolvedId !== actor.id) {
+    if (!hasPermission(actor, "employees_view")) return forbidden("You don't have permission to resolve employees");
+    if (!isSuperAdmin(actor)) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      if (!subordinateIds.includes(resolvedId)) return forbidden("User is not in your hierarchy");
+    }
   }
 
   return ok({ _id: resolvedId });

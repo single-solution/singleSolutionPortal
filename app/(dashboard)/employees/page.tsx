@@ -115,9 +115,14 @@ export default function EmployeesPage() {
   const canEditEmployees = canPerm("employees_edit");
   const canDeleteEmployees = canPerm("employees_delete");
   const canToggleEmployeeStatus = canPerm("employees_toggleStatus");
+  const canViewEmployees = canPerm("employees_view");
+  const canViewTeamAttendance = canPerm("attendance_viewTeam");
+  const canViewAttendanceDetail = canPerm("attendance_viewDetail");
+  const canViewTasksList = canPerm("tasks_view");
+  const canViewCampaignsList = canPerm("campaigns_view");
   const canResendInvite = canPerm("employees_resendInvite");
-  const { data: employees, loading: employeesLoading, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>("/api/employees", "employees");
-  const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "presence");
+  const { data: employees, loading: employeesLoading, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>(canViewEmployees ? "/api/employees" : null, "employees");
+  const { data: presenceData } = useQuery<PresenceRow[]>(canViewEmployees && canViewTeamAttendance ? "/api/attendance/presence" : null, "presence");
 
   const presenceById = useMemo(() => {
     const map = new Map<string, PresenceRow>();
@@ -420,6 +425,11 @@ export default function EmployeesPage() {
                   selected={isSelected}
                   onSelect={() => toggleSelect(emp._id)}
                   showEmployeeMeta
+                  showAttendance={canViewTeamAttendance}
+                  showAttendanceDetail={canViewAttendanceDetail}
+                  showLocationFlags={canViewAttendanceDetail}
+                  showTasks={canViewTasksList}
+                  showCampaigns={canViewCampaignsList}
                   showActions={(canEditEmployees || canDeleteEmployees) && !emp.isSuperAdmin}
                   onEdit={canEditEmployees && !emp.isSuperAdmin ? () => router.push(`/employees/${emp.username}/edit`) : undefined}
                   onDelete={canDeleteEmployees && !emp.isSuperAdmin ? () => setDeleteTarget(emp) : undefined}

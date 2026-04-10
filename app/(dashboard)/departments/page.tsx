@@ -34,10 +34,11 @@ export default function DepartmentsPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("departments", departmentsTour); }, [registerTour]);
-  const { canAny: canAnyPerm } = usePermissions();
+  const { can: canPerm, canAny: canAnyPerm } = usePermissions();
+  const canViewDepts = canPerm("departments_view");
   const canManageDepts = canAnyPerm("departments_create", "departments_edit");
-  const { data: departments, loading: deptsLoading, refetch: refetchDepts, mutate: mutateDepts } = useQuery<Department[]>("/api/departments", "departments");
-  const { data: managersRaw } = useQuery<Employee[]>("/api/employees/dropdown", "employees");
+  const { data: departments, loading: deptsLoading, refetch: refetchDepts, mutate: mutateDepts } = useQuery<Department[]>(canViewDepts ? "/api/departments" : null, "departments");
+  const { data: managersRaw } = useQuery<Employee[]>(canManageDepts ? "/api/employees/dropdown" : null, "employees");
 
   const deptList = departments ?? [];
   const managers = useMemo(() => managersRaw ?? [], [managersRaw]);

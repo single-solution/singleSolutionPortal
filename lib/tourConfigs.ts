@@ -4,7 +4,7 @@ export const dashboardTour: TourStep[] = [
   {
     target: "dashboard-welcome",
     title: "Welcome Header",
-    description: "This greeting bar shows your name, the current time, and quick status badges showing how many team members are in office, remote, late, or absent right now.",
+    description: "This greeting bar shows your name, the current time, and quick status badges showing how many employees are in office, remote, late, or absent right now.",
   },
   {
     target: "dashboard-team-status",
@@ -38,17 +38,17 @@ export const employeesTour: TourStep[] = [
   {
     target: "employees-search",
     title: "Search & Add",
-    description: "Search employees by name or email. Admin users can click 'Add Employee' to create new team members.",
+    description: "Search employees by name or email. Authorized users can click 'Add Employee' to create new employees.",
   },
   {
     target: "employees-filters",
     title: "Role Filters",
-    description: "Filter employees by their role — only roles that exist in your team are shown. Click a pill to filter, click again to clear.",
+    description: "Filter employees by designation — only designations that exist in your organization are shown. Click a pill to filter, click again to clear.",
   },
   {
     target: "employees-grid",
     title: "Employee Cards",
-    description: "Each card shows the employee's name, role, department, and active status. Click a card to view their full profile. Use the toggle in the footer to activate/deactivate.",
+    description: "Each card shows the employee's name, designation, department, and active status. Click a card to view their full profile. Use the toggle in the footer to activate/deactivate.",
   },
 ];
 
@@ -84,7 +84,7 @@ export const campaignsTour: TourStep[] = [
   {
     target: "campaigns-grid",
     title: "Campaign Cards",
-    description: "Each card shows the campaign name, status, date range, budget, and tagged team members. Use the quick-action buttons to change status (Active → Paused → Completed).",
+    description: "Each card shows the campaign name, status, date range, budget, and tagged employees. Use the quick-action buttons to change status (Active → Paused → Completed).",
   },
 ];
 
@@ -110,7 +110,7 @@ export const attendanceTour: TourStep[] = [
   {
     target: "attendance-header",
     title: "Attendance Tracking",
-    description: "View detailed attendance data for your team. Use month navigation to browse different periods and the group toggles to organize by Flat, Manager, or Department.",
+    description: "View detailed attendance data for employees in your hierarchy. Use month navigation to browse different periods and the group toggles to organize by Flat, Manager, or Department.",
   },
   {
     target: "attendance-pills",
@@ -134,17 +134,17 @@ export const organizationTour: TourStep[] = [
   {
     target: "org-header",
     title: "Organization Hub",
-    description: "Manage your entire organizational structure from one place — employees, departments, and teams. Use the search bar and view toggles to navigate.",
+    description: "Manage your entire organizational structure from one place — employees, departments, and designations. Use the search bar and chart legend to navigate.",
   },
   {
     target: "org-tree",
     title: "Org Tree",
-    description: "The sidebar shows your organizational hierarchy — departments, teams, and unassigned employees. Click any node to focus the main view on that group.",
+    description: "The sidebar shows departments and designations. The main area displays the interactive org chart with employee and department nodes connected by hierarchy links.",
   },
   {
     target: "org-context",
     title: "Context View",
-    description: "The main panel shows details for the selected department, team, or all employees. View employee cards, manage memberships, and assign roles from here.",
+    description: "The flow chart shows employee and department connections. Click designation pills to edit privileges, and click employee nodes to view their profile card.",
   },
   {
     target: "dock-nav",
@@ -179,7 +179,7 @@ export const settingsTour: TourStep[] = [
   {
     target: "settings-profile",
     title: "Your Profile",
-    description: "Update your name, phone number, and profile picture. Your username, role, and department are shown as info pills below your avatar.",
+    description: "Update your name, phone number, and profile picture. Your username, designation, and department are shown as info pills below your avatar.",
   },
   {
     target: "settings-security",

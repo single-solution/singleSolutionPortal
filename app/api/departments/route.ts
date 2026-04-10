@@ -6,14 +6,18 @@ import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
   canManageDepartments,
+  hasPermission,
   isSuperAdmin,
   getHierarchyDepartmentIds,
+  getSubordinateUserIds,
+  invalidateHierarchyCache,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "departments_view")) return ok([]);
 
   await connectDB();
 
@@ -56,13 +60,28 @@ export async function POST(req: Request) {
   if (!canManageDepartments(actor)) return forbidden();
 
   await connectDB();
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   if (!body.title?.trim()) return badRequest("Department title is required");
 
   if (body.managerId) {
     const mgr = await User.findById(body.managerId).select("isSuperAdmin").lean();
     if (mgr?.isSuperAdmin === true) return badRequest("Superadmin cannot be set as department manager");
+    if (!isSuperAdmin(actor)) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      if (!subordinateIds.includes(body.managerId) && body.managerId !== actor.id) {
+        return badRequest("Manager must be within your hierarchy");
+      }
+    }
+  }
+
+  if (body.parentId && !isSuperAdmin(actor)) {
+    const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
+    if (!hierarchyDeptIds.includes(body.parentId)) {
+      return badRequest("Parent department must be within your hierarchy");
+    }
   }
 
   const dept = await Department.create({
@@ -91,5 +110,6 @@ export async function POST(req: Request) {
     visibility: "targeted",
   });
 
+  invalidateHierarchyCache();
   return ok(populated);
 }

@@ -27,11 +27,12 @@ async function consumeBalance(leave: {
 }) {
   if (!BALANCE_TYPES.has(leave.type)) return;
   const year = new Date(leave.startDate).getFullYear();
-  const bal = await ensureLeaveBalance(leave.user, year);
-  const key = leave.type as "annual" | "sick" | "casual";
-  bal.used[key] += leave.days;
-  bal.markModified("used");
-  await bal.save();
+  await ensureLeaveBalance(leave.user, year);
+  const key = `used.${leave.type}`;
+  await LeaveBalance.updateOne(
+    { user: leave.user, year },
+    { $inc: { [key]: leave.days } },
+  );
 }
 
 async function releaseBalance(leave: {
@@ -42,12 +43,17 @@ async function releaseBalance(leave: {
 }) {
   if (!BALANCE_TYPES.has(leave.type)) return;
   const year = new Date(leave.startDate).getFullYear();
-  const bal = await LeaveBalance.findOne({ user: leave.user, year });
-  if (!bal) return;
-  const key = leave.type as "annual" | "sick" | "casual";
-  bal.used[key] = Math.max(0, bal.used[key] - leave.days);
-  bal.markModified("used");
-  await bal.save();
+  const key = `used.${leave.type}`;
+  const result = await LeaveBalance.updateOne(
+    { user: leave.user, year, [key]: { $gte: leave.days } },
+    { $inc: { [key]: -leave.days } },
+  );
+  if (result.modifiedCount === 0) {
+    await LeaveBalance.updateOne(
+      { user: leave.user, year },
+      { $set: { [key]: 0 } },
+    );
+  }
 }
 
 async function isInActorHierarchy(actor: Awaited<ReturnType<typeof getVerifiedSession>>, targetUserId: string): Promise<boolean> {
@@ -131,13 +137,13 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
       if (!isSuperAdmin(actor)) {
         return forbidden("Only a SuperAdmin can cancel an approved leave.");
       }
-      await releaseBalance(leave);
     } else {
       return badRequest("This leave cannot be cancelled.");
     }
     leave.status = "cancelled";
     leave.reviewNote = reviewNote;
     await leave.save();
+    if (prev === "approved") await releaseBalance(leave);
     const populated = await Leave.findById(leave._id)
       .populate("user", "about email username")
       .populate("reviewedBy", "about email username")
@@ -148,6 +154,9 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
   if (nextStatus === "approved" || nextStatus === "rejected") {
     if (!hasPermission(actor, "leaves_approve")) {
       return forbidden("You don't have permission to approve or reject leaves.");
+    }
+    if (leaveUserId === actor.id && !isSuperAdmin(actor)) {
+      return forbidden("You cannot approve or reject your own leave request.");
     }
   }
 
@@ -172,14 +181,12 @@ export async function PUT(req: NextRequest, context: RouteCtx) {
     if (prev !== "pending" && prev !== "approved") {
       return badRequest("Invalid transition to rejected.");
     }
-    if (prev === "approved") {
-      await releaseBalance(leave);
-    }
     leave.status = "rejected";
     leave.reviewedBy = new mongoose.Types.ObjectId(actor.id) as unknown as typeof leave.reviewedBy;
     leave.reviewedAt = new Date();
     leave.reviewNote = reviewNote;
     await leave.save();
+    if (prev === "approved") await releaseBalance(leave);
     const populated = await Leave.findById(leave._id)
       .populate("user", "about email username")
       .populate("reviewedBy", "about email username")
@@ -209,6 +216,11 @@ export async function DELETE(_req: NextRequest, context: RouteCtx) {
 
   const leave = await Leave.findById(id);
   if (!leave) return notFound();
+
+  const leaveUserId = leave.user.toString();
+  if (!(await isInActorHierarchy(actor, leaveUserId))) {
+    return forbidden("Can only delete leaves within your hierarchy.");
+  }
 
   if (leave.status === "approved" && BALANCE_TYPES.has(leave.type)) {
     await releaseBalance(leave);

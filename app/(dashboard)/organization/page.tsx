@@ -14,6 +14,7 @@ import { EmployeeCard } from "../components/EmployeeCard";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { StatusToggle } from "../components/DataTable";
 import toast from "react-hot-toast";
+import { HeaderStatPill } from "../components/StatChips";
 import dynamic from "next/dynamic";
 import {
   ALL_WEEKDAYS,
@@ -98,11 +99,11 @@ export default function OrganizationPage() {
   const canEditDepts = canPerm("departments_edit");
   const canDeleteDepts = canPerm("departments_delete");
 
-  const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>("/api/departments", "org-departments");
-  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>("/api/employees?includeSelf=true", "org-employees");
-  const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>("/api/designations", "org-designations");
+  const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>(canViewOrg ? "/api/departments" : null, "org-departments");
+  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>(canViewOrg ? "/api/employees?includeSelf=true" : null, "org-employees");
+  const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean }[]>(canViewOrg ? "/api/designations" : null, "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
-  const { data: presenceData } = useQuery<PresenceRow[]>("/api/attendance/presence", "org-presence");
+  const { data: presenceData } = useQuery<PresenceRow[]>(canViewOrg ? "/api/attendance/presence" : null, "org-presence");
 
   const presenceById = useMemo(() => {
     const map = new Map<string, PresenceRow>();
@@ -123,6 +124,10 @@ export default function OrganizationPage() {
   const canDeleteEmployees = canPerm("employees_delete");
   const canToggleStatus = canPerm("employees_toggleStatus");
   const canResendInvite = canPerm("employees_resendInvite");
+  const canViewTeamAttendance = canPerm("attendance_viewTeam");
+  const canViewAttendanceDetail = canPerm("attendance_viewDetail");
+  const canViewOrgTasks = canPerm("tasks_view");
+  const canViewOrgCampaigns = canPerm("campaigns_view");
 
   function openEmployeePreview(empId: string) {
     const emp = scopedEmps.find((e) => e._id === empId);
@@ -258,7 +263,8 @@ export default function OrganizationPage() {
   }, [isSuperAdmin]);
 
   const scopedEmps = useMemo(() => {
-    if (isSuperAdmin || !hierarchyScope) return empList;
+    if (isSuperAdmin) return empList;
+    if (!hierarchyScope) return [];
     const selfId = session?.user?.id;
     const visible = new Set<string>([
       ...(selfId ? [selfId] : []),
@@ -269,7 +275,8 @@ export default function OrganizationPage() {
   }, [empList, isSuperAdmin, hierarchyScope, session?.user?.id]);
 
   const scopedDepts = useMemo(() => {
-    if (isSuperAdmin || !hierarchyScope) return deptList;
+    if (isSuperAdmin) return deptList;
+    if (!hierarchyScope) return [];
     const visibleDeptIds = new Set(hierarchyScope.departmentIds);
     return deptList.filter((d) => visibleDeptIds.has(d._id));
   }, [deptList, isSuperAdmin, hierarchyScope]);
@@ -294,45 +301,57 @@ export default function OrganizationPage() {
     <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(90dvh - 80px)" }}>
       {/* ── Title row ── */}
       <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="shrink-0">
-          <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
-          <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments and people.</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="shrink-0">
+            <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
+            <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments and people.</p>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <HeaderStatPill label={scopedEmps.length === 1 ? "employee" : "employees"} value={scopedEmps.length} dotColor="var(--teal)" />
+            <HeaderStatPill label={scopedDepts.length === 1 ? "department" : "departments"} value={scopedDepts.length} dotColor="#8b5cf6" />
+            {scopedEmps.filter((e) => e.isActive).length !== scopedEmps.length && (
+              <HeaderStatPill label="active" value={scopedEmps.filter((e) => e.isActive).length} dotColor="var(--green)" />
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border px-3 py-2 shadow-sm" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#8b5cf6" }}>
-            <span className="inline-block h-2.5 w-2.5 rounded-sm border-2" style={{ borderColor: "#8b5cf6" }} />
-            Department
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
-          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--teal)" }}>
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--teal)" }} />
-            Employee
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
-          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
-            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" /></svg>
-            Solid line = department membership
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
-          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
-            <svg width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
-            Dashed line = reporting to another employee
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
-          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#10b981" }}>
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-            Above = manages / supervises
-          </span>
-          <span className="text-[9px]" style={{ color: "var(--border)" }}>|</span>
-          <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-            <span className="inline-block h-3 rounded-full border px-1.5 text-[7px] font-bold leading-[12px]" style={{ background: "var(--primary)", color: "white", borderColor: "var(--primary)" }}>Pill</span>
-            Designation &amp; privileges (click to edit)
-          </span>
+        <div className="relative group/legend">
+          <button type="button" className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[var(--bg-grouped)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Chart Legend
+          </button>
+          <div className="invisible absolute right-0 top-full z-30 mt-1 w-72 rounded-xl border p-3 shadow-lg group-hover/legend:visible" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+            <div className="space-y-2">
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#8b5cf6" }}>
+                <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: "#8b5cf6" }} />
+                Department node
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--teal)" }}>
+                <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ background: "var(--teal)" }} />
+                Employee node
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
+                <svg className="shrink-0" width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" /></svg>
+                Solid line = department membership
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
+                <svg className="shrink-0" width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
+                Dashed line = reporting to another employee
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "#10b981" }}>
+                <svg className="shrink-0" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                Above = manages / supervises
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                <span className="inline-block h-3 rounded-full border px-1.5 text-[7px] font-bold leading-[12px] shrink-0" style={{ background: "var(--primary)", color: "white", borderColor: "var(--primary)" }}>Pill</span>
+                Designation &amp; privileges (click to edit)
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Search + Add Employee card ── */}
-      <div className="card-xl mb-4 flex shrink-0 items-center gap-3 p-4">
+      {/* ── Search + Add Employee ── */}
+      <div className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
         <div className="relative w-full flex-1">
           <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -366,7 +385,7 @@ export default function OrganizationPage() {
 
         {/* Flow diagram */}
         <main className="min-h-0 min-w-0 flex-1">
-          <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={activeDesignations} canEditCanvas={canManageOrganization} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployeePreview(empId)} />
+          <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={activeDesignations} canEditCanvas={canManageOrganization} canAssignDesignation={canPerm("members_assignDesignation")} canCustomizePermissions={canPerm("members_customizePermissions")} canAddToDepartment={canPerm("members_addToDepartment")} canRemoveFromDepartment={canPerm("members_removeFromDepartment")} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployeePreview(empId)} />
         </main>
       </div>
 
@@ -393,6 +412,11 @@ export default function OrganizationPage() {
                       embedded
                       idx={0}
                       showEmployeeMeta
+                      showAttendance={canViewTeamAttendance}
+                      showAttendanceDetail={canViewAttendanceDetail}
+                      showLocationFlags={canViewAttendanceDetail}
+                      showTasks={canViewOrgTasks}
+                      showCampaigns={canViewOrgCampaigns}
                       showActions={(canEditEmployees || canDeleteEmployees) && notSA}
                       onEdit={canEditEmployees && notSA ? () => { setPreviewEmp(null); openEditEmployee(emp); } : undefined}
                       onDelete={canDeleteEmployees && notSA ? () => setDeleteTarget(emp) : undefined}

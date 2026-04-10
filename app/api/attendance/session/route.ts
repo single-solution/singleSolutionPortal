@@ -6,7 +6,7 @@ import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
-import { getVerifiedSession, getSubordinateUserIds } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { unauthorized, badRequest, ok } from "@/lib/helpers";
 import { isInOffice, validateLocation } from "@/lib/geo";
 import { emitSocket } from "@/lib/socket";
@@ -39,10 +39,15 @@ export async function GET(req: NextRequest) {
     return ok({ activeSession: null, todayMinutes: 0, isStale: false });
   }
 
-  if (targetUserId !== actor.id && !actor.isSuperAdmin) {
-    const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (!subordinateIds.includes(targetUserId)) {
-      return ok({ activeSession: null });
+  if (targetUserId !== actor.id) {
+    if (!hasPermission(actor, "attendance_viewTeam")) {
+      return ok({ activeSession: null, todayMinutes: 0, isStale: false });
+    }
+    if (!actor.isSuperAdmin) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      if (!subordinateIds.includes(targetUserId)) {
+        return ok({ activeSession: null });
+      }
     }
   }
 
@@ -88,12 +93,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    const text = await req.text();
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = { action: "checkout" };
-    }
+    return badRequest("Invalid JSON body. Provide { action: 'checkin' | 'checkout' }.");
   }
   const action = body.action as string;
 
@@ -149,12 +149,12 @@ export async function PATCH(req: Request) {
     return ok({ updated: false, sessionClosed: true, sleepDetected: true });
   }
 
+  const prevTime = active.lastActivity ? new Date(active.lastActivity) : undefined;
   active.lastActivity = now;
 
   if (latitude != null && longitude != null) {
     const prevLat = active.location?.latitude;
     const prevLng = active.location?.longitude;
-    const prevTime = active.lastActivity ? new Date(active.lastActivity) : undefined;
 
     let consecutive = active.location?.consecutiveIdentical ?? 0;
     if (

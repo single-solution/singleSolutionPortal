@@ -7,7 +7,10 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
+const STALE_MS = 30_000;
+
 const cache = new Map<string, CacheEntry<unknown>>();
+const inflightRequests = new Map<string, Promise<unknown>>();
 
 export interface UseQueryResult<T> {
   data: T | null;
@@ -48,11 +51,37 @@ export function useQuery<T>(
       const currentUrl = urlRef.current;
       if (showLoading) setLoading(true);
 
-      try {
-        const res = await fetch(currentUrl);
+      const inflight = inflightRequests.get(currentUrl);
+      if (inflight) {
+        try {
+          const json = (await inflight) as T;
+          if (mountedRef.current && urlRef.current === currentUrl) {
+            setData(json);
+            setError(null);
+          }
+        } catch (err) {
+          if (mountedRef.current && urlRef.current === currentUrl) {
+            setError(err instanceof Error ? err.message : "Fetch failed");
+          }
+        } finally {
+          if (mountedRef.current && urlRef.current === currentUrl) {
+            setLoading(false);
+          }
+        }
+        return;
+      }
+
+      const promise = fetch(currentUrl).then(async (res) => {
         if (!res.ok) throw new Error(`${res.status}`);
-        const json = (await res.json()) as T;
+        const json = await res.json();
         cache.set(currentUrl, { data: json, timestamp: Date.now() });
+        return json;
+      });
+
+      inflightRequests.set(currentUrl, promise);
+
+      try {
+        const json = (await promise) as T;
         if (mountedRef.current && urlRef.current === currentUrl) {
           setData(json);
           setError(null);
@@ -62,6 +91,7 @@ export function useQuery<T>(
           setError(err instanceof Error ? err.message : "Fetch failed");
         }
       } finally {
+        inflightRequests.delete(currentUrl);
         if (mountedRef.current && urlRef.current === currentUrl) {
           setLoading(false);
         }
@@ -71,11 +101,20 @@ export function useQuery<T>(
   );
 
   useEffect(() => {
-    if (!enabled || !url) return;
-
-    if (cache.has(url)) {
-      setData((cache.get(url) as CacheEntry<T>).data);
+    if (!enabled || !url) {
+      setData(null);
       setLoading(false);
+      setError(null);
+      return;
+    }
+
+    const entry = cache.get(url) as CacheEntry<T> | undefined;
+    if (entry) {
+      setData(entry.data);
+      setLoading(false);
+      if (Date.now() - entry.timestamp > STALE_MS) {
+        fetchData(false);
+      }
     } else {
       fetchData(true);
     }
@@ -100,8 +139,9 @@ export function useQuery<T>(
   );
 
   const refetch = useCallback(async () => {
+    if (url) cache.delete(url);
     await fetchData(false);
-  }, [fetchData]);
+  }, [fetchData, url]);
 
   return { data, loading, error, mutate, refetch };
 }

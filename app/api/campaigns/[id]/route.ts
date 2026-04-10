@@ -6,6 +6,7 @@ import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/
 import {
   getVerifiedSession,
   isSuperAdmin,
+  hasPermission,
   canManageCampaigns,
   canDeleteCampaign,
   getCampaignScopeFilter,
@@ -51,7 +52,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter });
   if (!campaign) return notFound("Campaign not found or outside your scope");
 
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   const validStatuses = ["active", "paused", "completed", "cancelled"];
   if (body.status !== undefined && !validStatuses.includes(body.status)) {
@@ -60,6 +63,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const tagEmployees: string[] | undefined = body.tagEmployees;
   const tagDepartments: string[] | undefined = body.tagDepartments;
+
+  if ((tagEmployees?.length || tagDepartments?.length) && !hasPermission(actor, "campaigns_tagEntities")) {
+    return forbidden("You don't have permission to tag employees or departments to campaigns");
+  }
 
   if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);

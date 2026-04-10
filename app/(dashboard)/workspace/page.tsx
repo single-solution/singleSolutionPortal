@@ -8,6 +8,9 @@ import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { Portal } from "../components/Portal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import toast from "react-hot-toast";
+import { HeaderStatPill, StatusPill } from "../components/StatChips";
+import { timeAgo, formatShortDate } from "@/lib/formatters";
 
 /* ─── types ─── */
 
@@ -62,7 +65,7 @@ const GROUP_ICONS: Record<GroupMode, string> = {
 
 /* ─── helpers ─── */
 
-function formatDate(d?: string) { if (!d) return "—"; return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+const formatDate = formatShortDate;
 function assigneeName(t: Task) { return t.assignedTo?.about ? `${t.assignedTo.about.firstName} ${t.assignedTo.about.lastName}` : "Unassigned"; }
 
 function taskCampaignId(task: Task, campaigns: Campaign[]): string | null {
@@ -80,16 +83,6 @@ function deadlineUrgency(deadline?: string): "overdue" | "soon" | "normal" | "no
   if (diff < 0) return "overdue";
   if (diff < 2 * 86400000) return "soon";
   return "normal";
-}
-
-function timeAgo(dateStr: string) {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const mins = Math.floor(seconds / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function logAvatarLabel(log: LogEntry) {
@@ -140,9 +133,10 @@ export default function WorkspacePage() {
   /* ── data ── */
   const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>(canViewTasks ? "/api/tasks" : null, "ws-tasks");
   const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>(canViewCampaigns ? "/api/campaigns" : null, "ws-campaigns");
-  const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "ws-emp");
+  const needsDropdown = canCreateTasks || canReassignTasks || canTagEntities;
+  const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>(needsDropdown ? "/api/employees/dropdown" : null, "ws-emp");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>(canTagEntities ? "/api/departments" : null, "ws-dept");
-  const { data: hierarchyScope } = useQuery<HierarchyScope>("/api/organization/scope", "ws-hierarchy");
+  const { data: hierarchyScope } = useQuery<HierarchyScope>((canViewTasks || canViewCampaigns) ? "/api/organization/scope" : null, "ws-hierarchy");
   const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=30" : null, "ws-activity");
 
   const taskList = useMemo(() => tasks ?? [], [tasks]);
@@ -189,10 +183,12 @@ export default function WorkspacePage() {
     setTaskSaving(true);
     try {
       const payload: Record<string, unknown> = { title: fTitle.trim(), description: fDesc, priority: fPriority, status: fStatus, assignedTo: fAssignee || undefined, campaign: fCampaign || null, deadline: fDeadline || undefined };
-      if (editingTask) await fetch(`/api/tasks/${editingTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      else await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = editingTask
+        ? await fetch(`/api/tasks/${editingTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        : await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save task"); return; }
       setTaskModalOpen(false); await refetchTasks();
-    } catch { /* ignore */ }
+    } catch { toast.error("Network error"); }
     setTaskSaving(false);
   }
 
@@ -221,10 +217,12 @@ export default function WorkspacePage() {
     setCampaignSaving(true);
     try {
       const payload: Record<string, unknown> = { name: cName.trim(), description: cDesc, status: cStatus, startDate: cStart || null, endDate: cEnd || null, budget: cBudget, notes: cNotes, tagEmployees: cTagEmployees, tagDepartments: cTagDepts };
-      if (editingCampaign) await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      else await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = editingCampaign
+        ? await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        : await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save campaign"); return; }
       setCampaignModalOpen(false); await refetchCampaigns();
-    } catch { /* ignore */ }
+    } catch { toast.error("Network error"); }
     setCampaignSaving(false);
   }
   function toggleArr(arr: string[], item: string): string[] { return arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item]; }
@@ -237,11 +235,12 @@ export default function WorkspacePage() {
     setDeleting(true);
     try {
       const endpoint = deleteTarget.type === "task" ? `/api/tasks/${deleteTarget.id}` : `/api/campaigns/${deleteTarget.id}`;
-      await fetch(endpoint, { method: "DELETE" });
+      const res = await fetch(endpoint, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Delete failed"); return; }
       setDeleteTarget(null);
       if (deleteTarget.type === "task") await refetchTasks();
       else await refetchCampaigns();
-    } catch { /* ignore */ }
+    } catch { toast.error("Network error"); }
     setDeleting(false);
   }
 
@@ -249,7 +248,8 @@ export default function WorkspacePage() {
   async function cycleTaskStatus(task: Task) {
     const nextMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
     const next = nextMap[task.status] ?? "pending";
-    await fetch(`/api/tasks/${task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+    const res = await fetch(`/api/tasks/${task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+    if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to update status"); return; }
     await refetchTasks();
   }
 
@@ -327,6 +327,14 @@ export default function WorkspacePage() {
     return m;
   }, [taskList]);
 
+  const campaignStats = useMemo(() => {
+    return campaignList.map((c) => {
+      const cTasks = taskList.filter((t) => taskCampaignId(t, campaignList) === c._id);
+      const done = cTasks.filter((t) => t.status === "completed").length;
+      return { ...c, taskCount: cTasks.length, doneCount: done };
+    });
+  }, [campaignList, taskList]);
+
   const loading = tasksLoading || campaignsLoading;
   const ready = sessionStatus !== "loading";
 
@@ -335,9 +343,19 @@ export default function WorkspacePage() {
     <div className="mx-auto max-w-[1600px]">
       {/* ── header ── */}
       <div className="flex items-center justify-between gap-4 mb-5">
-        <div>
-          <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Workspace</h1>
-          <p className="text-xs mt-0.5" style={{ color: "var(--fg-secondary)" }}>Campaigns, tasks, and activity in one place.</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div>
+            <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Workspace</h1>
+            <p className="text-xs mt-0.5" style={{ color: "var(--fg-secondary)" }}>Campaigns, tasks, and activity in one place.</p>
+          </div>
+          {!loading && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <HeaderStatPill label="tasks" value={statusCounts.all} dotColor="var(--fg-tertiary)" />
+              {statusCounts.inProgress > 0 && <HeaderStatPill label="in progress" value={statusCounts.inProgress} dotColor="var(--amber)" />}
+              {statusCounts.completed > 0 && <HeaderStatPill label="done" value={statusCounts.completed} dotColor="var(--teal)" />}
+              {campaignList.length > 0 && <HeaderStatPill label={campaignList.length === 1 ? "campaign" : "campaigns"} value={campaignList.length} dotColor="var(--primary)" />}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {ready && canCreateTasks && (
@@ -390,16 +408,52 @@ export default function WorkspacePage() {
         </div>
       </div>
 
+      {/* ── campaign summary cards ── */}
+      {!loading && canViewCampaigns && campaignStats.length > 0 && (
+        <motion.div
+          className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+          variants={staggerContainerFast} initial="hidden" animate="visible"
+        >
+          {campaignStats.map((cs) => {
+            const pct = cs.taskCount === 0 ? 0 : Math.round((cs.doneCount / cs.taskCount) * 100);
+            return (
+              <motion.div
+                key={cs._id} variants={cardVariants} custom={0}
+                className="card-xl p-3 flex flex-col gap-2 cursor-pointer transition-shadow hover:shadow-md"
+                onClick={() => { setGroupMode("campaign"); setSearch(""); setStatusFilter("all"); }}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[13px] font-semibold truncate flex-1" style={{ color: "var(--fg)" }}>{cs.name}</span>
+                  <StatusPill status={cs.status} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: "var(--bg-grouped)" }}>
+                    <motion.div className="h-full rounded-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ type: "spring", stiffness: 200, damping: 28 }} />
+                  </div>
+                  <span className="text-[10px] tabular-nums font-medium whitespace-nowrap" style={{ color: "var(--fg-tertiary)" }}>{cs.doneCount}/{cs.taskCount}</span>
+                </div>
+                {(cs.startDate || cs.endDate) && (
+                  <p className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                    {formatDate(cs.startDate)} — {formatDate(cs.endDate)}
+                  </p>
+                )}
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
+
       {/* ── main + feed ── */}
       <div className="flex gap-4 items-start">
         {/* ── main content ── */}
         <div className="min-w-0 flex-1">
           {loading ? (
-            <motion.div className="space-y-3" variants={staggerContainerFast} initial="hidden" animate="visible">
-              {[1, 2, 3].map((i) => (
-                <motion.div key={i} variants={cardVariants} custom={i} className="card-xl overflow-hidden p-4">
-                  <div className="shimmer mb-3 h-4 w-1/3 rounded" />
-                  <div className="space-y-2">{[1, 2, 3].map((j) => <div key={j} className="shimmer h-10 w-full rounded-lg" />)}</div>
+            <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <motion.div key={i} variants={cardVariants} custom={i} className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+                  <div className="shimmer mb-3 h-3 w-2/3 rounded" />
+                  <div className="shimmer mb-2 h-8 w-full rounded" />
+                  <div className="flex gap-2"><div className="shimmer h-5 w-16 rounded-full" /><div className="shimmer h-5 w-12 rounded-full" /></div>
                 </motion.div>
               ))}
             </motion.div>
@@ -453,16 +507,16 @@ export default function WorkspacePage() {
                       </div>
                     </button>
 
-                    {/* task rows */}
+                    {/* task card grid */}
                     <AnimatePresence initial={false}>
                       {!isCollapsed && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
                           {taskCount === 0 ? (
                             <div className="px-4 pb-3 text-xs" style={{ color: "var(--fg-tertiary)" }}>No tasks{groupMode === "campaign" && c ? " in this campaign" : ""}</div>
                           ) : (
-                            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3">
                               {group.items.map((task) => (
-                                <TaskRow
+                                <TaskCard
                                   key={task._id}
                                   task={task}
                                   showCampaign={groupMode !== "campaign"}
@@ -635,9 +689,9 @@ export default function WorkspacePage() {
   );
 }
 
-/* ─── TaskRow component ─── */
+/* ─── TaskCard component ─── */
 
-function TaskRow({ task, showCampaign, showAssignee, canEdit, canDelete, onEdit, onDelete, onCycleStatus }: {
+function TaskCard({ task, showCampaign, showAssignee, canEdit, canDelete, onEdit, onDelete, onCycleStatus }: {
   task: Task; showCampaign: boolean; showAssignee: boolean;
   canEdit: boolean; canDelete: boolean;
   onEdit: () => void; onDelete: () => void; onCycleStatus?: () => void;
@@ -648,48 +702,56 @@ function TaskRow({ task, showCampaign, showAssignee, canEdit, canDelete, onEdit,
   const deadlineColor = urgency === "overdue" ? "var(--rose)" : urgency === "soon" ? "var(--amber)" : "var(--fg-tertiary)";
 
   return (
-    <div className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_2%,transparent)]">
-      {/* status dot / toggle */}
-      <button type="button" onClick={onCycleStatus} disabled={!onCycleStatus} className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full transition-transform hover:scale-110 disabled:cursor-default" title={onCycleStatus ? "Change status" : undefined}>
-        <StatusDot status={task.status} />
-      </button>
-
-      {/* title + desc */}
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium leading-snug truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</p>
-        {task.description && <p className="text-[11px] leading-snug line-clamp-1 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{task.description}</p>}
+    <div
+      className="group relative rounded-xl border p-3 transition-all hover:shadow-md"
+      style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}
+    >
+      {/* top: status + title */}
+      <div className="flex items-start gap-2 mb-1.5">
+        <button type="button" onClick={onCycleStatus} disabled={!onCycleStatus} className="shrink-0 mt-0.5 flex items-center justify-center w-5 h-5 rounded-full transition-transform hover:scale-110 disabled:cursor-default" title={onCycleStatus ? "Change status" : undefined}>
+          <StatusDot status={task.status} />
+        </button>
+        <p className="text-[13px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</p>
       </div>
 
-      {/* meta pills */}
-      <div className="hidden sm:flex items-center gap-2 shrink-0">
+      {/* description snippet */}
+      {task.description && (
+        <p className="text-[11px] leading-relaxed line-clamp-2 mb-2" style={{ color: "var(--fg-tertiary)" }}>{task.description}</p>
+      )}
+
+      {/* bottom: meta pills */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {showAssignee && (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
+            <svg className="h-2.5 w-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zm-4 7a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            {name}
+          </span>
+        )}
+        <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority]}</span>
         {showCampaign && task.campaign && (
           <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)", color: "var(--primary)" }}>
-            <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" /></svg>
             {task.campaign.name}
           </span>
         )}
-        {showAssignee && (
-          <span className="text-[11px] font-medium truncate max-w-[100px]" style={{ color: "var(--fg-secondary)" }}>{name}</span>
-        )}
-        <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority]}</span>
         {task.deadline && (
-          <span className="text-[10px] tabular-nums font-medium" style={{ color: deadlineColor }}>
-            {urgency === "overdue" && "! "}{formatDate(task.deadline)}
+          <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums font-medium" style={{ color: deadlineColor, background: urgency === "overdue" ? "color-mix(in srgb, var(--rose) 10%, transparent)" : "transparent" }}>
+            {urgency === "overdue" && <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            {formatDate(task.deadline)}
           </span>
         )}
       </div>
 
-      {/* actions */}
+      {/* hover actions */}
       {(canEdit || canDelete) && (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {canEdit && (
-            <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={onEdit} className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit task">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+            <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={onEdit} className="h-6 w-6 flex items-center justify-center rounded-md transition-colors" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }} title="Edit task">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
             </motion.button>
           )}
           {canDelete && (
             <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={onDelete} className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete task">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
             </motion.button>
           )}
         </div>

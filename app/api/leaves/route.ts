@@ -122,6 +122,10 @@ export async function GET(req: NextRequest) {
   const yearParam = url.searchParams.get("year");
   const monthParam = url.searchParams.get("month");
 
+  if (!userIdParam || userIdParam !== actor.id) {
+    if (!hasPermission(actor, "leaves_viewTeam")) return NextResponse.json([]);
+  }
+
   const subordinateIds = isSuperAdmin(actor) ? null : await getSubordinateUserIds(actor.id);
   const accessibleIds = isSuperAdmin(actor) ? null : new Set<string>([actor.id, ...(subordinateIds ?? [])]);
 

@@ -6,6 +6,7 @@ import User, { resolveWeeklySchedule, type Weekday } from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
+  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
@@ -14,6 +15,7 @@ import { resolveTimezone } from "@/lib/tz";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "attendance_viewTeam")) return ok([]);
 
   await connectDB();
 
@@ -37,31 +39,41 @@ export async function GET() {
   const localNow = new Date(new Date().toLocaleString("en-US", { timeZone: tz.replace(/-/g, "/") }));
   const todayDayKey = dayMap[localNow.getDay()];
 
-  const activeSessions = await ActivitySession.find({
-    sessionDate: today,
-    status: "active",
-  }).sort({ lastActivity: 1 }).lean();
+  const empIds = employees.map((e) => e._id);
 
-  const dailyRecords = await DailyAttendance.find({
-    date: today,
-  }).lean();
+  const [activeSessions, dailyRecords, sessionAgg] = await Promise.all([
+    ActivitySession.find({
+      user: { $in: empIds },
+      sessionDate: today,
+      status: "active",
+    }).sort({ lastActivity: 1 }).lean(),
+    DailyAttendance.find({
+      user: { $in: empIds },
+      date: today,
+    }).lean(),
+    ActivitySession.aggregate([
+      { $match: { user: { $in: empIds }, sessionDate: today } },
+      { $group: {
+        _id: "$user",
+        firstStart: { $min: "$sessionTime.start" },
+        lastEnd: { $max: { $ifNull: ["$sessionTime.end", "$lastActivity"] } },
+      }},
+    ]),
+  ]);
 
   const STALE_MS = 3 * 60 * 1000;
   const nowMs = Date.now();
-
-  const sessionAgg = await ActivitySession.aggregate([
-    { $match: { sessionDate: today } },
-    { $group: {
-      _id: "$user",
-      firstStart: { $min: "$sessionTime.start" },
-      lastEnd: { $max: { $ifNull: ["$sessionTime.end", "$lastActivity"] } },
-    }},
-  ]);
   const firstStartMap = new Map(sessionAgg.map((r) => [r._id.toString(), r.firstStart as Date]));
   const lastEndMap = new Map(sessionAgg.map((r) => [r._id.toString(), r.lastEnd as Date]));
 
   const activeMap = new Map(activeSessions.map((s) => [s.user.toString(), s]));
   const dailyMap = new Map(dailyRecords.map((r) => [r.user.toString(), r]));
+
+  const scheduleMap = new Map(employees.map((emp) => {
+    const s = resolveWeeklySchedule(emp as unknown as Record<string, unknown>);
+    const day = s[todayDayKey];
+    return [emp._id.toString(), day] as const;
+  }));
 
   const presence = employees.map((emp) => {
     const id = emp._id.toString();
@@ -132,9 +144,9 @@ export async function GET() {
         ?? (daily?.lastSessionEnd ? new Date(daily.lastSessionEnd as unknown as string).toISOString() : null)
         ?? (lastEndMap.get(id) ? new Date(lastEndMap.get(id)!).toISOString() : null)
         ?? (daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null),
-      shiftStart: (() => { const s = resolveWeeklySchedule(emp as unknown as Record<string, unknown>); return s[todayDayKey].start; })(),
-      shiftEnd: (() => { const s = resolveWeeklySchedule(emp as unknown as Record<string, unknown>); return s[todayDayKey].end; })(),
-      shiftBreakTime: (() => { const s = resolveWeeklySchedule(emp as unknown as Record<string, unknown>); return s[todayDayKey].breakMinutes; })(),
+      shiftStart: scheduleMap.get(id)?.start ?? "10:00",
+      shiftEnd: scheduleMap.get(id)?.end ?? "19:00",
+      shiftBreakTime: scheduleMap.get(id)?.breakMinutes ?? 60,
       isLive,
       locationFlagged: active?.location?.locationFlagged ?? false,
       flagReason: active?.location?.flagReason ?? null,

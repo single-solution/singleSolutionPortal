@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { cardVariants, cardHover } from "@/lib/motion";
@@ -63,6 +64,16 @@ export interface EmployeeCardProps {
   /** When true, omit outer card chrome (parent supplies `.card`). */
   embedded?: boolean;
   className?: string;
+  /** Show attendance data (clock in/out, hours, arrived/left). Defaults to true. */
+  showAttendance?: boolean;
+  /** Show detailed activity strip (sessions, breaks, late, idle, progress bar). Defaults to true. */
+  showAttendanceDetail?: boolean;
+  /** Show location flag alerts. Defaults to true. */
+  showLocationFlags?: boolean;
+  /** Show task count chips. Defaults to true. */
+  showTasks?: boolean;
+  /** Show campaign count chips. Defaults to true. */
+  showCampaigns?: boolean;
 }
 
 const AVATAR_GRADIENTS = [
@@ -253,7 +264,7 @@ function ActivityStrip({ emp, todayMinutes, shiftStart, shiftEnd, shiftBreakTime
   );
 }
 
-export function EmployeeCard({
+export const EmployeeCard = memo(function EmployeeCard({
   emp,
   idx = 0,
   attendanceLoading,
@@ -269,6 +280,11 @@ export function EmployeeCard({
   footerSlot,
   embedded,
   className,
+  showAttendance = true,
+  showAttendanceDetail = true,
+  showLocationFlags = true,
+  showTasks = true,
+  showCampaigns = true,
 }: EmployeeCardProps) {
   const avatarGradIdx = idx % AVATAR_GRADIENTS.length;
   const todayM = emp.todayMinutes ?? 0;
@@ -294,9 +310,11 @@ export function EmployeeCard({
         aria-label={`View ${emp.firstName} ${emp.lastName}`}
       />
 
-      <div className="pointer-events-none absolute right-0 z-50 max-w-[55%] text-right hidden sm:block" style={{ top: -13 }}>
-        <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
-      </div>
+      {showAttendance && (
+        <div className="pointer-events-none absolute right-0 z-50 max-w-[55%] text-right hidden sm:block" style={{ top: -13 }}>
+          <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
+        </div>
+      )}
 
       <div className={`relative z-10 flex flex-1 flex-col gap-2 sm:gap-2.5 ${embedded ? "p-2 sm:p-3" : "p-2.5 sm:p-3.5"} pointer-events-none`}>
         {selectable && (
@@ -325,7 +343,7 @@ export function EmployeeCard({
               <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
                 {emp.firstName} {emp.lastName}
               </p>
-              <span className="sm:hidden"><StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} /></span>
+              {showAttendance && <span className="sm:hidden"><StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} /></span>}
               {onPing && (
                 <motion.button
                   type="button"
@@ -398,27 +416,29 @@ export function EmployeeCard({
         )}
 
         {/* Clock In · Hours · Clock Out */}
-        <div className="mt-auto grid grid-cols-3 gap-1 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
-          <div>
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
-            <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{firstArrival}</p>
+        {showAttendance && (
+          <div className="mt-auto grid grid-cols-3 gap-1 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
+            <div>
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{firstArrival}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
+                {attendanceLoading ? "—" : formatMinutesShort(todayM)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
+                {attendanceLoading ? "—" : emp.isLive ? "—" : emp.lastExit ? formatTimeStr(emp.lastExit) : "—"}
+              </p>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
-            <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
-              {attendanceLoading ? "—" : formatMinutesShort(todayM)}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
-            <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>
-              {attendanceLoading ? "—" : emp.isLive ? "—" : emp.lastExit ? formatTimeStr(emp.lastExit) : "—"}
-            </p>
-          </div>
-        </div>
+        )}
 
-        {/* Arrived · Office · Left — always visible */}
-        {!attendanceLoading && (
+        {/* Arrived · Office · Left */}
+        {showAttendance && !attendanceLoading && (
           <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
             <div>
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Arrived</p>
@@ -438,11 +458,11 @@ export function EmployeeCard({
         )}
 
         {/* Activity strip — segmented bar + detail chips */}
-        {!attendanceLoading && (
+        {showAttendanceDetail && !attendanceLoading && (
           <>
             <ActivityStrip emp={emp} todayMinutes={todayM} shiftStart={shiftStart} shiftEnd={shiftEnd} shiftBreakTime={shiftBreak} />
 
-            {emp.locationFlagged && (
+            {showLocationFlags && emp.locationFlagged && (
               <div className="rounded-lg border p-2 text-[9px] space-y-1" style={{ borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }}>
                 <div className="flex items-center gap-1">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -475,39 +495,45 @@ export function EmployeeCard({
           </>
         )}
 
-        {/* Tasks & Campaigns — always visible */}
-        {!attendanceLoading && (
+        {/* Tasks & Campaigns */}
+        {!attendanceLoading && (showTasks || showCampaigns) && (
           <div className="flex flex-wrap gap-1 border-t pt-2 text-[9px]" style={{ borderColor: "var(--border)" }}>
-            <span
-              className="rounded-full border px-1.5 py-0.5 font-semibold"
-              style={{
-                background: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b15" : "var(--bg-grouped)",
-                color: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b" : "var(--fg-tertiary)",
-                borderColor: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b30" : "var(--border)",
-              }}
-            >
-              {emp.pendingTasks ?? 0} pending
-            </span>
-            <span
-              className="rounded-full border px-1.5 py-0.5 font-semibold"
-              style={{
-                background: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary-light)" : "var(--bg-grouped)",
-                color: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary)" : "var(--fg-tertiary)",
-                borderColor: (emp.inProgressTasks ?? 0) > 0 ? "rgba(0,122,255,0.2)" : "var(--border)",
-              }}
-            >
-              {emp.inProgressTasks ?? 0} active
-            </span>
-            <span
-              className="rounded-full border px-1.5 py-0.5 font-semibold"
-              style={{
-                background: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.1)" : "var(--bg-grouped)",
-                color: (emp.campaigns?.length ?? 0) > 0 ? "var(--teal)" : "var(--fg-tertiary)",
-                borderColor: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.2)" : "var(--border)",
-              }}
-            >
-              {emp.campaigns?.length ?? 0} campaign{(emp.campaigns?.length ?? 0) !== 1 ? "s" : ""}
-            </span>
+            {showTasks && (
+              <>
+                <span
+                  className="rounded-full border px-1.5 py-0.5 font-semibold"
+                  style={{
+                    background: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b15" : "var(--bg-grouped)",
+                    color: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b" : "var(--fg-tertiary)",
+                    borderColor: (emp.pendingTasks ?? 0) > 0 ? "#f59e0b30" : "var(--border)",
+                  }}
+                >
+                  {emp.pendingTasks ?? 0} pending
+                </span>
+                <span
+                  className="rounded-full border px-1.5 py-0.5 font-semibold"
+                  style={{
+                    background: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary-light)" : "var(--bg-grouped)",
+                    color: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary)" : "var(--fg-tertiary)",
+                    borderColor: (emp.inProgressTasks ?? 0) > 0 ? "rgba(0,122,255,0.2)" : "var(--border)",
+                  }}
+                >
+                  {emp.inProgressTasks ?? 0} active
+                </span>
+              </>
+            )}
+            {showCampaigns && (
+              <span
+                className="rounded-full border px-1.5 py-0.5 font-semibold"
+                style={{
+                  background: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.1)" : "var(--bg-grouped)",
+                  color: (emp.campaigns?.length ?? 0) > 0 ? "var(--teal)" : "var(--fg-tertiary)",
+                  borderColor: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.2)" : "var(--border)",
+                }}
+              >
+                {emp.campaigns?.length ?? 0} campaign{(emp.campaigns?.length ?? 0) !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
         )}
 
@@ -610,4 +636,4 @@ export function EmployeeCard({
       {shell}
     </motion.div>
   );
-}
+});

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
+import { StatusPill } from "../components/StatChips";
 
 type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
 type LeaveTypeOpt =
@@ -88,6 +89,7 @@ export function LeavesTab() {
   const { can: canPerm } = usePermissions();
   const canViewTeamLeaves = canPerm("leaves_viewTeam");
   const canApproveReject = canPerm("leaves_approve");
+  const canEditPastLeaves = canPerm("leaves_editPast");
   const canDeleteLeaves = canPerm("leaves_manageBulk");
 
   const loadBalance = useCallback(async () => {
@@ -295,19 +297,28 @@ export function LeavesTab() {
 
       {balance && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {(["annual", "sick", "casual"] as const).map((k) => (
-            <div key={k} style={cardStyle}>
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>
-                {k} leave
-              </p>
-              <p className="text-2xl font-bold mt-1" style={{ color: "var(--fg)" }}>
-                {balance.remaining[k]} <span className="text-sm font-normal" style={{ color: "var(--fg-tertiary)" }}>days left</span>
-              </p>
-              <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                Used {balance.used[k]} / {balance[k]}
-              </p>
-            </div>
-          ))}
+          {(["annual", "sick", "casual"] as const).map((k) => {
+            const total = balance[k] as number;
+            const used = balance.used[k] as number;
+            const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+            const barColor = pct > 80 ? "var(--rose)" : pct > 50 ? "var(--amber)" : "var(--teal)";
+            return (
+              <div key={k} style={cardStyle}>
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)" }}>
+                  {k} leave
+                </p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "var(--fg)" }}>
+                  {balance.remaining[k]} <span className="text-sm font-normal" style={{ color: "var(--fg-tertiary)" }}>days left</span>
+                </p>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--bg-grouped)" }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
+                </div>
+                <p className="text-[10px] mt-1 tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                  Used {used} / {total}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -437,7 +448,7 @@ export function LeavesTab() {
                         {new Date(row.startDate).toLocaleDateString()} – {new Date(row.endDate).toLocaleDateString()}
                       </td>
                       <td className="py-2 pr-3">{row.days}</td>
-                      <td className="py-2 pr-3 capitalize">{row.status}</td>
+                      <td className="py-2 pr-3"><StatusPill status={row.status} /></td>
                       <td className="py-2">
                         <div className="flex flex-wrap gap-1">
                           {row.status === "pending" && canApproveReject && (canViewTeamLeaves || uid !== session?.user?.id) && (
@@ -470,7 +481,7 @@ export function LeavesTab() {
                               Cancel
                             </button>
                           )}
-                          {canDeleteLeaves && (
+                          {(canEditPastLeaves || canDeleteLeaves) && (
                             <button
                               type="button"
                               className="rounded-md px-2 py-1 text-xs font-semibold"

@@ -1,19 +1,22 @@
 import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
-import "@/lib/models/Campaign";
+import Campaign from "@/lib/models/Campaign";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
+  hasPermission,
   canManageTasks,
   getSubordinateUserIds,
+  getCampaignScopeFilter,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "tasks_view")) return ok([]);
 
   await connectDB();
 
@@ -42,7 +45,9 @@ export async function POST(req: Request) {
   if (!canManageTasks(actor)) return forbidden();
 
   await connectDB();
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   if (!body.title?.trim() || !body.assignedTo) {
     return badRequest("Title and assignedTo are required");
@@ -59,11 +64,18 @@ export async function POST(req: Request) {
     }
   }
 
+  let campaignId = body.campaign || undefined;
+  if (campaignId && !isSuperAdmin(actor)) {
+    const scopeFilter = await getCampaignScopeFilter(actor);
+    const campaignDoc = await Campaign.findOne({ _id: campaignId, ...scopeFilter }).select("_id").lean();
+    if (!campaignDoc) return badRequest("Campaign not found or outside your hierarchy");
+  }
+
   const task = await ActivityTask.create({
     title: body.title.trim(),
     description: body.description ?? "",
     assignedTo: body.assignedTo,
-    campaign: body.campaign || undefined,
+    campaign: campaignId,
     deadline: body.deadline || undefined,
     priority: body.priority ?? "medium",
     status: body.status ?? "pending",

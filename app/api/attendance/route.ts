@@ -11,6 +11,7 @@ import { resolveTimezone, dateInTz } from "@/lib/tz";
 import {
   getVerifiedSession,
   isSuperAdmin,
+  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import type { VerifiedUser } from "@/lib/permissions";
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
   const userId = url.searchParams.get("userId") ?? actor.id;
 
   if (type === "team") {
+    if (!hasPermission(actor, "attendance_viewTeam")) return ok([]);
     const empFilter = await buildSubordinateEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
@@ -69,6 +71,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === "team-monthly") {
+    if (!hasPermission(actor, "attendance_viewTeam")) return ok([]);
     const empFilter = await buildSubordinateEmployeeFilter(actor);
 
     const employees = await User.find(empFilter)
@@ -119,6 +122,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === "team-date") {
+    if (!hasPermission(actor, "attendance_viewTeam")) return ok([]);
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok([]);
 
@@ -184,6 +188,11 @@ export async function GET(req: NextRequest) {
   const isSubordinate = subordinateIds.includes(userId);
   const allowed = actor.isSuperAdmin || isSelf || isSubordinate;
   if (!allowed) {
+    if (type === "detail" || type === "monthly") return ok(null);
+    return ok([]);
+  }
+
+  if (!isSelf && !hasPermission(actor, "attendance_viewTeam")) {
     if (type === "detail" || type === "monthly") return ok(null);
     return ok([]);
   }

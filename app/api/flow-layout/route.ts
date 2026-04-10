@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import FlowLayout from "@/lib/models/FlowLayout";
 import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
-import { getVerifiedSession, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission, invalidateHierarchyCache } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
@@ -50,5 +50,6 @@ export async function PUT(req: Request) {
     { upsert: true, new: true },
   );
 
+  invalidateHierarchyCache();
   return ok({ saved: true });
 }

@@ -21,7 +21,9 @@ export async function PATCH(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
   const { tour, completed } = body as { tour?: string; completed?: boolean };
 
   if (!tour || !VALID_TOURS.includes(tour as typeof VALID_TOURS[number])) {

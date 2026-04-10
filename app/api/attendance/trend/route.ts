@@ -5,6 +5,7 @@ import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
+  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
@@ -13,6 +14,7 @@ import { resolveTimezone, dateParts } from "@/lib/tz";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "attendance_viewTeam")) return ok([]);
 
   await connectDB();
 

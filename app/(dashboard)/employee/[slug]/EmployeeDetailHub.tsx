@@ -196,13 +196,15 @@ export default function EmployeeDetailHub({
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth() + 1);
 
-  const sessionUrl = `/api/attendance/session?userId=${encodeURIComponent(id)}`;
-  const membershipsUrl = `/api/memberships?userId=${encodeURIComponent(id)}`;
-  const dailyUrl = `/api/attendance?type=daily&year=${calYear}&month=${calMonth}&userId=${encodeURIComponent(id)}`;
-  const monthlyUrl = `/api/attendance?type=monthly&year=${calYear}&month=${calMonth}&userId=${encodeURIComponent(id)}`;
-  const tasksUrl = "/api/tasks";
-  const campaignsUrl = "/api/campaigns";
-  const logsUrl = "/api/activity-logs?limit=40";
+  const canViewOther = isOwnProfile || canPerm("employees_view");
+  const sessionUrl = canViewOther ? `/api/attendance/session?userId=${encodeURIComponent(id)}` : null;
+  const membershipsUrl = canViewOther ? `/api/memberships?userId=${encodeURIComponent(id)}` : null;
+  const canViewAttendance = isOwnProfile || canPerm("attendance_viewTeam");
+  const dailyUrl = canViewAttendance ? `/api/attendance?type=daily&year=${calYear}&month=${calMonth}&userId=${encodeURIComponent(id)}` : null;
+  const monthlyUrl = canViewAttendance ? `/api/attendance?type=monthly&year=${calYear}&month=${calMonth}&userId=${encodeURIComponent(id)}` : null;
+  const tasksUrl = canPerm("tasks_view") ? "/api/tasks" : null;
+  const campaignsUrl = canPerm("campaigns_view") ? "/api/campaigns" : null;
+  const logsUrl = canPerm("activityLogs_view") ? "/api/activity-logs?limit=40" : null;
 
   const { data: sessionState, loading: sessionLoading } = useQuery<SessionApi>(sessionUrl);
   const { data: memberships, loading: memLoading } = useQuery<MembershipRow[]>(membershipsUrl);
@@ -213,13 +215,13 @@ export default function EmployeeDetailHub({
     enabled: tab === "attendance",
   });
   const { data: tasksRaw, loading: tasksLoading } = useQuery<TaskRow[]>(tasksUrl, undefined, {
-    enabled: tab === "overview" || tab === "activity",
+    enabled: !!tasksUrl && (tab === "overview" || tab === "activity"),
   });
   const { data: campaignsRaw, loading: campLoading } = useQuery<CampaignRow[]>(campaignsUrl, undefined, {
-    enabled: tab === "overview",
+    enabled: !!campaignsUrl && tab === "overview",
   });
   const { data: logsPayload, loading: logsLoading } = useQuery<{ logs: ActivityLogRow[] }>(logsUrl, undefined, {
-    enabled: tab === "activity",
+    enabled: !!logsUrl && tab === "activity",
   });
 
   const designation = useMemo(() => primaryDesignation(memberships ?? null, employee.isSuperAdmin), [memberships, employee.isSuperAdmin]);

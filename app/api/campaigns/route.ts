@@ -6,6 +6,7 @@ import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
+  hasPermission,
   canManageCampaigns,
   getCampaignScopeFilter,
   getSubordinateUserIds,
@@ -16,6 +17,7 @@ import { logActivity } from "@/lib/activityLogger";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "campaigns_view")) return ok([]);
 
   await connectDB();
   void Department;
@@ -39,7 +41,9 @@ export async function POST(req: Request) {
   if (!canManageCampaigns(actor)) return forbidden();
 
   await connectDB();
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   if (!body.name?.trim()) {
     return badRequest("Campaign name is required");
@@ -52,6 +56,10 @@ export async function POST(req: Request) {
 
   const tagEmployees: string[] = body.tagEmployees ?? [];
   const tagDepartments: string[] = body.tagDepartments ?? [];
+
+  if ((tagEmployees.length > 0 || tagDepartments.length > 0) && !hasPermission(actor, "campaigns_tagEntities")) {
+    return forbidden("You don't have permission to tag employees or departments to campaigns");
+  }
 
   if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);

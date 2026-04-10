@@ -1,14 +1,14 @@
 import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
-import "@/lib/models/Campaign";
+import Campaign from "@/lib/models/Campaign";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
   hasPermission,
-  canManageTasks,
   getSubordinateUserIds,
+  getCampaignScopeFilter,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -20,14 +20,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!isValidId(id)) return badRequest("Invalid ID");
 
   await connectDB();
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   const task = await ActivityTask.findById(id);
   if (!task) return notFound("Task not found");
 
-  const isOwner = task.assignedTo.toString() === actor.id;
+  const assigneeId = task.assignedTo.toString();
+  const isOwner = assigneeId === actor.id;
   const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_edit");
   if (!isPrivileged && !isOwner) return forbidden();
+
+  if (isPrivileged && !isSuperAdmin(actor) && !isOwner) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    if (!subordinateIds.includes(assigneeId)) {
+      return forbidden("Can only edit tasks assigned to employees within your hierarchy");
+    }
+  }
 
   const validStatuses = ["pending", "in-progress", "completed", "cancelled"];
   const validPriorities = ["low", "medium", "high", "urgent"];
@@ -53,8 +63,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.description !== undefined) task.description = body.description;
     if (body.priority !== undefined) task.priority = body.priority;
     if (body.deadline !== undefined) task.deadline = body.deadline;
-    if (body.campaign !== undefined) task.campaign = body.campaign || undefined;
+    if (body.campaign !== undefined) {
+      if (body.campaign) {
+        if (!isSuperAdmin(actor)) {
+          const scopeFilter = await getCampaignScopeFilter(actor);
+          const campaignDoc = await Campaign.findOne({ _id: body.campaign, ...scopeFilter }).select("_id").lean();
+          if (!campaignDoc) return badRequest("Campaign not found or outside your hierarchy");
+        }
+        task.campaign = body.campaign;
+      } else {
+        task.campaign = undefined;
+      }
+    }
     if (body.assignedTo) {
+      if (!isSuperAdmin(actor) && !hasPermission(actor, "tasks_reassign")) {
+        return forbidden("You don't have permission to reassign tasks");
+      }
       const target = await User.findById(body.assignedTo).select("isSuperAdmin").lean();
       if (target?.isSuperAdmin === true) return badRequest("Cannot assign tasks to superadmin");
 
@@ -96,7 +120,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!canManageTasks(actor)) return forbidden();
+  if (!hasPermission(actor, "tasks_delete")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");

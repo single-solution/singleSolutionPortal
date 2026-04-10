@@ -4,7 +4,8 @@ import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/De
 import "@/lib/models/User";
 import "@/lib/models/Department";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
+import User from "@/lib/models/User";
+import { getVerifiedSession, isSuperAdmin, hasPermission, invalidateHierarchyCache } from "@/lib/permissions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function populateMembership(q: any) {
@@ -78,6 +79,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return forbidden();
   }
 
+  if (!isSuperAdmin(actor)) {
+    const targetUser = await User.findById(membership.user).select("isSuperAdmin").lean();
+    if (targetUser && (targetUser as Record<string, unknown>).isSuperAdmin === true) {
+      return forbidden("Cannot modify a superadmin's membership");
+    }
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -107,6 +115,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   await membership.save();
+  invalidateHierarchyCache();
 
   const populated = await populateMembership(Membership.findById(id)).lean();
 
@@ -131,7 +140,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return forbidden();
   }
 
+  if (!isSuperAdmin(actor)) {
+    const targetUser = await User.findById(membership.user).select("isSuperAdmin").lean();
+    if (targetUser && (targetUser as Record<string, unknown>).isSuperAdmin === true) {
+      return forbidden("Cannot remove a superadmin's membership");
+    }
+  }
+
   await membership.deleteOne();
+  invalidateHierarchyCache();
 
   return ok({ deleted: true });
 }

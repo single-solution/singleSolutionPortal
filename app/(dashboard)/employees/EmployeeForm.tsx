@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { PasswordInput } from "@/components/PasswordInput";
 import { PasswordStrength } from "@/components/PasswordStrength";
+import { usePermissions } from "@/lib/usePermissions";
 import toast from "react-hot-toast";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -48,11 +49,13 @@ const INITIAL: FormState = {
 export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   const router = useRouter();
   const isEdit = !!employeeId;
+  const { can: canPerm } = usePermissions();
+  const hasAccess = isEdit ? canPerm("employees_edit") : canPerm("employees_create");
+
   const [form, setForm] = useState<FormState>(INITIAL);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  /** Multi-department management UI (replaces legacy single-department manager role). */
   const [multiDeptUi, setMultiDeptUi] = useState(false);
 
   const isLeadOrManager = multiDeptUi;
@@ -63,6 +66,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
   }, [form.email]);
 
   const load = useCallback(async () => {
+    if (!hasAccess) { setLoading(false); return; }
     const deptRes = await fetch("/api/departments").then((r) => (r.ok ? r.json() : []));
     setDepartments(Array.isArray(deptRes) ? deptRes : []);
 
@@ -95,9 +99,20 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       setMultiDeptUi(false);
     }
     setLoading(false);
-  }, [employeeId]);
+  }, [employeeId, hasAccess]);
 
   useEffect(() => { load(); }, [load]);
+
+  if (!hasAccess) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold" style={{ color: "var(--fg)" }}>Access Restricted</p>
+          <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>You don&apos;t have permission to {isEdit ? "edit" : "create"} employees.</p>
+        </div>
+      </div>
+    );
+  }
 
   function toggleManagedDept(deptId: string) {
     setForm((f) => ({

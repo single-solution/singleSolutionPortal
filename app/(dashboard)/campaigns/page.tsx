@@ -11,6 +11,7 @@ import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
 import { campaignsTour } from "@/lib/tourConfigs";
+import { formatShortDate } from "@/lib/formatters";
 
 type CampaignStatus = "active" | "paused" | "completed" | "cancelled";
 
@@ -60,10 +61,7 @@ const STATUS_CONFIG: Record<CampaignStatus, { label: string; color: string; bg: 
 type StatusFilter = "all" | CampaignStatus;
 type SortMode = "recent" | "name";
 
-function formatDate(d?: string) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
+const formatDate = formatShortDate;
 
 export default function CampaignsPage() {
   const { status: sessionStatus } = useSession();
@@ -72,10 +70,11 @@ export default function CampaignsPage() {
   const { can: canPerm, canAny: canAnyPerm } = usePermissions();
   const canManageCampaigns = canAnyPerm("campaigns_create", "campaigns_edit");
   const canDeleteCampaigns = canPerm("campaigns_delete");
+  const canViewCampaigns = canPerm("campaigns_view");
   const canTagEntities = canPerm("campaigns_tagEntities");
-  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>("/api/campaigns", "campaigns");
-  const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>("/api/employees/dropdown", "employees");
-  const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>("/api/departments", "departments");
+  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>(canViewCampaigns ? "/api/campaigns" : null, "campaigns");
+  const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>(canTagEntities ? "/api/employees/dropdown" : null, "employees");
+  const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>(canTagEntities ? "/api/departments" : null, "departments");
 
   const campaignList = campaigns ?? [];
   const allEmployees: SelectOption[] = useMemo(

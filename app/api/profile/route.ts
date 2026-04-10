@@ -27,7 +27,9 @@ export async function PUT(req: Request) {
   if (!actor) return unauthorized();
 
   await connectDB();
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   const update: Record<string, unknown> = {};
   if (body.fullName !== undefined) {

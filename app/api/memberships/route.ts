@@ -4,7 +4,7 @@ import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/De
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
 import { unauthorized, forbidden, badRequest, ok, isValidId } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds, invalidateHierarchyCache } from "@/lib/permissions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function populateMembership(q: any) {
@@ -55,13 +55,17 @@ export async function GET(req: Request) {
   if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
     const visibleUserIds = [actor.id, ...subordinateIds];
-    filter.user = { $in: visibleUserIds };
+    if (userId) {
+      if (!visibleUserIds.includes(userId)) return ok([]);
+      filter.user = userId;
+    } else {
+      filter.user = { $in: visibleUserIds };
+    }
     if (departmentId) filter.department = departmentId;
-  } else if (departmentId) {
-    filter.department = departmentId;
+  } else {
+    if (userId) filter.user = userId;
+    if (departmentId) filter.department = departmentId;
   }
-
-  if (userId) filter.user = userId;
 
   const list = await populateMembership(Membership.find(filter))
     .sort({ createdAt: -1 })
@@ -101,8 +105,16 @@ export async function POST(req: Request) {
 
   await connectDB();
 
+  if (!isSuperAdmin(actor)) {
+    const subordinateIds = await getSubordinateUserIds(actor.id);
+    const allowedUsers = [actor.id, ...subordinateIds];
+    if (!allowedUsers.includes(user)) {
+      return forbidden("Target user is not within your hierarchy");
+    }
+  }
+
   const [userDoc, deptDoc, desigDoc] = await Promise.all([
-    User.findById(user).select("_id").lean(),
+    User.findById(user).select("_id isSuperAdmin").lean(),
     Department.findById(department).select("_id").lean(),
     Designation.findById(designationId).select("defaultPermissions").lean(),
   ]);
@@ -110,6 +122,10 @@ export async function POST(req: Request) {
   if (!userDoc) return badRequest("User not found");
   if (!deptDoc) return badRequest("Department not found");
   if (!desigDoc) return badRequest("Designation not found");
+
+  if ((userDoc as Record<string, unknown>).isSuperAdmin === true && !isSuperAdmin(actor)) {
+    return forbidden("Cannot add a superadmin to a department");
+  }
 
   const basePerms = clonePermissionsFromDesignation(
     (desigDoc.defaultPermissions ?? {}) as IPermissions,
@@ -135,6 +151,7 @@ export async function POST(req: Request) {
 
     const populated = await populateMembership(Membership.findById(created._id)).lean();
 
+    invalidateHierarchyCache();
     return ok(populated);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

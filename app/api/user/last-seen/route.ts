@@ -18,7 +18,10 @@ export async function PUT(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  const { lastSeenLogId } = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const { lastSeenLogId } = body as { lastSeenLogId?: string };
   if (!lastSeenLogId || typeof lastSeenLogId !== "string") {
     return badRequest("lastSeenLogId required");
   }

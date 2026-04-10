@@ -21,9 +21,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   await connectDB();
 
-  if (id !== actor.id && !isSuperAdmin(actor)) {
-    const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (!subordinateIds.includes(id)) return forbidden();
+  if (id !== actor.id) {
+    if (!hasPermission(actor, "employees_view")) return forbidden("You don't have permission to view employee profiles");
+    if (!isSuperAdmin(actor)) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      if (!subordinateIds.includes(id)) return forbidden();
+    }
   }
 
   const user = await User.findById(id)
@@ -56,7 +59,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const target = await User.findById(id).select("isSuperAdmin").lean();
   if (target?.isSuperAdmin && !actor.isSuperAdmin) return forbidden("Cannot modify a superadmin account");
 
-  const body = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any;
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
   delete body.isSuperAdmin;
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
@@ -75,9 +80,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     update.salary = body.salary;
   }
 
-  if (isSuperAdmin(actor)) {
-    if (body.isActive !== undefined) update.isActive = body.isActive;
+  if (body.isActive !== undefined && (isSuperAdmin(actor) || hasPermission(actor, "employees_toggleStatus"))) {
+    update.isActive = body.isActive;
+  }
 
+  if (isSuperAdmin(actor)) {
     if (body.email) {
       const dup = await User.findOne({ email: body.email.toLowerCase(), _id: { $ne: id } });
       if (dup) return badRequest("Email already in use");

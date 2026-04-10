@@ -34,10 +34,15 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  if (targetUserId !== actor.id && !isSuperAdmin(actor)) {
-    const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (!subordinateIds.includes(targetUserId)) {
-      return forbidden("You can only view leave balance for yourself or employees in your hierarchy.");
+  if (targetUserId !== actor.id) {
+    if (!hasPermission(actor, "leaves_viewTeam")) {
+      return forbidden("You don't have permission to view others' leave balances.");
+    }
+    if (!isSuperAdmin(actor)) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      if (!subordinateIds.includes(targetUserId)) {
+        return forbidden("You can only view leave balance for yourself or employees in your hierarchy.");
+      }
     }
   }
 

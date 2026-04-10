@@ -5,6 +5,7 @@ import Membership from "@/lib/models/Membership";
 import "@/lib/models/Department";
 import {
   getVerifiedSession,
+  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 
@@ -17,6 +18,9 @@ import {
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasPermission(actor, "organization_view")) {
+    return NextResponse.json({ subordinateIds: [], managerIds: [], departmentIds: [] });
+  }
 
   if (actor.isSuperAdmin) {
     return NextResponse.json({ subordinateIds: [], managerIds: [], departmentIds: [], all: true });

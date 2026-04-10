@@ -4,12 +4,14 @@ import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
+  hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
 
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
+  if (!hasPermission(actor, "employees_view")) return ok([]);
 
   await connectDB();
 
@@ -27,8 +29,13 @@ export async function GET() {
     }
   }
 
+  const canSeeSalary = hasPermission(actor, "payroll_manageSalary");
+  const selectFields = canSeeSalary
+    ? "_id email about.firstName about.lastName salary"
+    : "_id email about.firstName about.lastName";
+
   const users = await User.find(filter)
-    .select("_id email about.firstName about.lastName salary")
+    .select(selectFields)
     .sort({ "about.firstName": 1 })
     .lean();
 

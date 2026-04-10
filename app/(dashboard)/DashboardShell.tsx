@@ -9,6 +9,7 @@ import { dockEntrance, tabIndicatorTransition } from "@/lib/motion";
 import { useGuide } from "@/lib/useGuide";
 import { usePermissions } from "@/lib/usePermissions";
 import { LiveProvider } from "@/lib/useLive";
+import { timeAgo } from "@/lib/formatters";
 import SessionTracker from "./SessionTracker";
 
 interface NavLink {
@@ -108,17 +109,6 @@ async function checkoutSession(): Promise<Response | undefined> {
   }
 }
 
-function timeAgo(dateStr: string) {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const mins = Math.floor(seconds / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
 function RefreshBtn({ onRefresh }: { onRefresh: () => void }) {
   const [spinning, setSpinning] = useState(false);
   return (
@@ -180,6 +170,8 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
   const themeRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const { can: canPerm } = usePermissions();
+
   /* ── Ping inbox state ── */
   const [pingsOpen, setPingsOpen] = useState(false);
   const [pings, setPings] = useState<{ _id: string; from: { about: { firstName: string; lastName: string } }; message: string; read: boolean; createdAt: string }[]>([]);
@@ -226,7 +218,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
     setLogsLoaded(true);
   }, []);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => { if (canPerm("activityLogs_view")) fetchLogs(); }, [fetchLogs, canPerm]);
 
   useEffect(() => {
     const isStandalone =
@@ -295,9 +287,6 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-
-
-  const { can: canPerm } = usePermissions();
   const visibleLinks = NAV_LINKS.filter(
     (l) => !l.permission || canPerm(l.permission as keyof import("@/lib/permissions.shared").IPermissions),
   );
@@ -582,8 +571,9 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                         </div>
                       ) : logs.length === 0 ? (
                         <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No activity yet</div>
-                      ) : logs.map((log, i) => {
+                      ) : (() => {
                         const seenIdx = lastSeenRef.current ? logs.findIndex((l) => l._id === lastSeenRef.current) : -1;
+                        return logs.map((log, i) => {
                         const isSeen = seenIdx !== -1 && i >= seenIdx;
                         const href = getEntityHref(log.entity, log.entityId) || getEntityPageHref(log.entity);
                         const isSecurity = log.entity === "security";
@@ -702,7 +692,8 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                             </div>
                           </div>
                         );
-                      })}
+                      });
+                      })()}
                     </div>
                     </motion.div>
                   )}

@@ -9,6 +9,7 @@ import { insightsDeskTour } from "@/lib/tourConfigs";
 import { usePermissions } from "@/lib/usePermissions";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
+import { HeaderStatPill } from "../components/StatChips";
 import toast from "react-hot-toast";
 
 type Tab = "attendance" | "leaves" | "payroll";
@@ -42,8 +43,18 @@ export default function InsightsDeskLayout({ children }: { children: React.React
   const activeTab = resolveTab(pathname);
   const { registerTour } = useGuide();
   const { can: canPerm } = usePermissions();
+  const canViewAttendance = canPerm("attendance_viewTeam");
+  const canViewLeaves = canPerm("leaves_viewTeam");
+  const canViewPayroll = canPerm("payroll_viewTeam");
   const canViewHolidays = canPerm("holidays_view");
   const canManageHolidays = canPerm("holidays_manage");
+
+  const tabPermissions: Record<Tab, boolean> = {
+    attendance: canViewAttendance,
+    leaves: canViewLeaves,
+    payroll: canViewPayroll,
+  };
+  const visibleTabs = TABS.filter((t) => tabPermissions[t.id]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -74,6 +85,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
     setHolidaysLoading(false);
   }, [displayYear]);
 
+  useEffect(() => { if (canViewHolidays) fetchHolidays(); }, [canViewHolidays, fetchHolidays]);
   useEffect(() => { if (holidaysOpen) fetchHolidays(); }, [holidaysOpen, fetchHolidays]);
 
   async function handleAdd() {
@@ -131,7 +143,15 @@ export default function InsightsDeskLayout({ children }: { children: React.React
   return (
     <div>
       <div className="flex items-center justify-between gap-4 mb-6">
-        <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Insights Desk</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Insights Desk</h1>
+          {holidays.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {upcoming.length > 0 && <HeaderStatPill label={upcoming.length === 1 ? "upcoming holiday" : "upcoming holidays"} value={upcoming.length} dotColor="#8b5cf6" />}
+              <HeaderStatPill label={holidays.length === 1 ? "holiday this year" : "holidays this year"} value={holidays.length} dotColor="var(--fg-tertiary)" />
+            </div>
+          )}
+        </div>
 
         {canViewHolidays && (
           <motion.button
@@ -157,7 +177,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
 
       <LayoutGroup>
         <div data-tour="insights-tabs" className="flex gap-1 rounded-xl p-1 mb-6" style={{ background: "var(--bg-grouped)" }}>
-          {TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"

@@ -21,14 +21,11 @@ export async function GET(req: NextRequest) {
       if (!isValidId(userId)) return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
       if (!isSuperAdmin(actor)) {
         const subordinateIds = await getSubordinateUserIds(actor.id);
-        if (!subordinateIds.includes(userId)) {
-          filter.user = new mongoose.Types.ObjectId(actor.id);
-        } else {
-          filter.user = new mongoose.Types.ObjectId(userId);
+        if (!subordinateIds.includes(userId) && userId !== actor.id) {
+          return NextResponse.json({ error: "Forbidden — user is not in your hierarchy" }, { status: 403 });
         }
-      } else {
-        filter.user = new mongoose.Types.ObjectId(userId);
       }
+      filter.user = new mongoose.Types.ObjectId(userId);
     } else if (!isSuperAdmin(actor)) {
       const subordinateIds = await getSubordinateUserIds(actor.id);
       filter.user = { $in: [actor.id, ...subordinateIds].map((id) => new mongoose.Types.ObjectId(id)) };

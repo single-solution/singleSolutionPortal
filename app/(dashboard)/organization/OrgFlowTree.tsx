@@ -104,6 +104,9 @@ interface DesigEdgeData {
   onDeleteMembership?: (mId: string) => void;
   hidePill?: boolean;
   readOnly?: boolean;
+  canAssignDesig?: boolean;
+  canCustomize?: boolean;
+  canRemove?: boolean;
   isCustomPermissions?: boolean;
 }
 
@@ -121,11 +124,13 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
+  const showRemove = data?.canRemove !== false && !data?.readOnly;
+
   if (data?.hidePill) {
     return (
       <>
         <BaseEdge path={edgePath} style={style} />
-        {!data?.readOnly && data?.onDeleteMembership && data?.membershipId && (
+        {showRemove && data?.onDeleteMembership && data?.membershipId && (
           <EdgeLabelRenderer>
             <div style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all", zIndex: 1 }} className="nodrag nopan">
               <button
@@ -144,23 +149,28 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
     );
   }
 
+  const canInteract = !data?.readOnly && (data?.canAssignDesig !== false || data?.canCustomize !== false || data?.canRemove !== false);
+  const showDesigList = data?.canAssignDesig !== false;
+  const showPrivileges = data?.canCustomize !== false;
+
   return (
     <>
       <BaseEdge path={edgePath} style={style} />
       <EdgeLabelRenderer>
         <div ref={ref} style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all", zIndex: open ? 100 : 1 }} className="nodrag nopan">
-          <button type="button" onClick={() => { if (!data?.readOnly) setOpen(!open); }}
+          <button type="button" onClick={() => { if (canInteract) setOpen(!open); }}
             className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm transition-all hover:shadow-md"
-            style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)", cursor: data?.readOnly ? "default" : "pointer" }}>
+            style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)", cursor: canInteract ? "pointer" : "default" }}>
             {desig?.name ?? "Assign"}
             {data?.isCustomPermissions && desig && <span className="rounded-sm px-1 py-px text-[8px] font-bold uppercase leading-none" style={{ background: "rgba(255,255,255,0.25)" }}>Custom</span>}
-            {!data?.readOnly && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
+            {canInteract && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
           </button>
           <AnimatePresence>
             {open && data?.membershipId && (
               <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.12 }}
                 className="absolute left-1/2 top-full mt-1.5 -translate-x-1/2 z-50 rounded-xl border shadow-xl overflow-hidden min-w-[190px]"
                 style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+                {showDesigList && (
                 <div className="p-1.5 max-h-44 overflow-y-auto border-b" style={{ borderColor: "var(--border)" }}>
                   <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
                   {(data.designations ?? []).map((d) => (
@@ -174,17 +184,22 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
                     </button>
                   ))}
                 </div>
+                )}
                 <div className="p-1.5">
+                  {showPrivileges && (
                   <button type="button" onClick={() => { data.onOpenPrivileges?.(data.membershipId!); setOpen(false); }}
                     className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     Edit Privileges
                   </button>
+                  )}
+                  {showRemove && (
                   <button type="button" onClick={() => { setOpen(false); data.onDeleteMembership?.(data.membershipId!); }}
                     className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--rose)" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                     Remove
                   </button>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -203,12 +218,16 @@ const edgeTypes = { designation: DesignationEdge };
 interface Props {
   departments: Department[]; employees: Employee[];
   designations: DesigOption[]; canEditCanvas: boolean;
+  canAssignDesignation?: boolean;
+  canCustomizePermissions?: boolean;
+  canAddToDepartment?: boolean;
+  canRemoveFromDepartment?: boolean;
   /** When set, only these employee IDs can be edited/connected. Undefined = all (SuperAdmin). */
   editableEmployeeIds?: string[];
   onEditEmployee?: (empId: string) => void;
 }
 
-export function OrgFlowTree({ departments, employees, designations, canEditCanvas, editableEmployeeIds, onEditEmployee }: Props) {
+export function OrgFlowTree({ departments, employees, designations, canEditCanvas, canAssignDesignation = false, canCustomizePermissions = false, canAddToDepartment = false, canRemoveFromDepartment = false, editableEmployeeIds, onEditEmployee }: Props) {
   interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string }
 
   const canEditEmp = useCallback((empId: string) => {
@@ -379,6 +398,11 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       setRestrictOpen(true);
       return;
     }
+    if (!canAddToDepartment) {
+      setRestrictMsg("You don't have permission to add employees to departments.");
+      setRestrictOpen(true);
+      return;
+    }
 
     // Employee's bottom handle used → employee is above the department
     const isAbove = empHandle === "bottom";
@@ -402,7 +426,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     setConnDesig(designations[0]?._id ?? "");
     setConnAbove(true);
     setConnOpen(true);
-  }, [canEditCanvas, departments, employees, designations, empLinks, saveEmpLinks, wouldCycle, canEditEmp, syncHierarchy, refetchMemberships]);
+  }, [canEditCanvas, canAddToDepartment, departments, employees, designations, empLinks, saveEmpLinks, wouldCycle, canEditEmp, syncHierarchy, refetchMemberships]);
 
   const handleCreateConnection = useCallback(async () => {
     if (!connDesig) return;
@@ -566,7 +590,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       }
       const empEditable = m.user?._id ? canEditEmp(idStr(m.user._id)) : false;
       const isAboveDirection = m.direction === "above";
-      return { designation: isAboveDirection ? (m.designation ?? null) : null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: !isAboveDirection, readOnly: !canEditCanvas || !empEditable, isCustomPermissions: isAboveDirection && isCustom } as DesigEdgeData as unknown as Record<string, unknown>;
+      return { designation: isAboveDirection ? (m.designation ?? null) : null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: !isAboveDirection, readOnly: !canEditCanvas || !empEditable, canAssignDesig: canAssignDesignation, canCustomize: canCustomizePermissions, canRemove: canRemoveFromDepartment, isCustomPermissions: isAboveDirection && isCustom } as DesigEdgeData as unknown as Record<string, unknown>;
     };
 
     memberships.forEach((m) => {
@@ -603,13 +627,14 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
           onOpenPrivileges: () => openLinkPrivileges(linkIdx),
           onDeleteMembership: () => handleDeleteLink(linkIdx),
           readOnly: !canEditCanvas || !linkEditable,
+          canAssignDesig: canAssignDesignation, canCustomize: canCustomizePermissions, canRemove: canRemoveFromDepartment,
         } as DesigEdgeData as unknown as Record<string, unknown>,
         style: { stroke: linkDesig?.color ?? "var(--teal)", strokeWidth: 1.5, strokeDasharray: "6 3" },
       });
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee, canEditEmp]);
+  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee, canEditEmp, canEditCanvas, canAssignDesignation, canCustomizePermissions, canRemoveFromDepartment]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);

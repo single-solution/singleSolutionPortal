@@ -3,7 +3,7 @@ import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS } from "@/lib/models/Designation";
 import FlowLayout from "@/lib/models/FlowLayout";
 import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
-import { getVerifiedSession, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission, invalidateHierarchyCache } from "@/lib/permissions";
 
 interface EmpLink {
   source: string;
@@ -202,5 +202,6 @@ export async function POST(req: Request) {
     }
   }
 
+  invalidateHierarchyCache();
   return ok({ created, updated, removed, skipped });
 }
