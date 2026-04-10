@@ -595,8 +595,9 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                               </div>
                               <div className="flex-1 min-w-0">
                                 {(() => {
-                                  const isSelf = log.userEmail === user.email;
-                                  const displayName = isSelf ? "You" : (log.userName || log.userEmail.split("@")[0]);
+                                  const isSelf = log.userEmail?.toLowerCase() === user.email?.toLowerCase();
+                                  const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
+                                  const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName || log.userEmail.split("@")[0]);
 
                                   if (isSecurity && secMeta) {
                                     const isViolation = secMeta.severity === "violation";
@@ -951,7 +952,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
       </AnimatePresence>
 
       {/* ── Main content with page transition ── */}
-      <main className="mx-auto max-w-[1600px] px-5 py-4 pb-40 sm:px-8 sm:py-5 sm:pb-40 lg:px-14">
+      <main className="mx-auto max-w-[1600px] px-5 py-4 pb-30 sm:px-8 sm:py-5 sm:pb-30 lg:px-14">
         <LiveProvider enabled={liveUpdates}>
           <motion.div
             key={pathname}

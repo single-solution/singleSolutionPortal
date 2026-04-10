@@ -528,6 +528,9 @@ export default function WorkspacePage() {
                   ) : (
                     logs.map((log) => {
                       const lc = LOG_ENTITY_COLORS[log.entity] ?? LOG_DEFAULT_COLOR;
+                      const isSelf = session?.user?.email && log.userEmail?.toLowerCase() === session.user.email.toLowerCase();
+                      const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
+                      const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName?.trim() || log.userEmail);
                       return (
                         <div key={log._id} className="rounded-xl border p-3 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_2%,transparent)]" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
                           <div className="flex items-start gap-2.5">
@@ -537,7 +540,7 @@ export default function WorkspacePage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-[12px] leading-snug" style={{ color: "var(--fg)" }}>
-                                <span className="font-semibold">{log.userName?.trim() || log.userEmail}</span>{" "}
+                                <span className="font-semibold">{displayName}</span>{" "}
                                 <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
                               </p>
                               {log.details && log.entity !== "security" && (

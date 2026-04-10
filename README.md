@@ -10,7 +10,14 @@ Every request — whether a page load, a button click, or a direct API call — 
 
 ### 1. SuperAdmin
 
-One person has the SuperAdmin flag. They can do everything — no restrictions, no scoping. SuperAdmin is set through direct database access only (no UI). SuperAdmin is also excluded from attendance tracking entirely.
+One person has the SuperAdmin flag. They can do everything — no restrictions, no scoping. SuperAdmin is set through direct database access only (no UI).
+
+**SuperAdmin is exempt from:**
+- Attendance tracking (no sessions, no timer, no heartbeats)
+- Leave tracking (cannot apply leave for themselves, no leave balance)
+- Payroll tracking (no payslips generated, no estimates shown)
+
+SuperAdmin can still manage all of the above for other employees. When viewing their own employee detail page, the attendance, leaves, and payroll tabs are hidden.
 
 **Hard rule:** No one except a SuperAdmin can edit or remove another SuperAdmin.
 
@@ -22,9 +29,9 @@ Every user can always see their own data and perform limited self-service action
 
 | Action | Example |
 |--------|---------|
-| **View** own attendance, payroll, tasks, campaigns, leaves, activity logs, location flags | Seeing your own attendance calendar |
+| **View** own attendance, payroll, tasks, campaigns, leaves, activity logs, location flags | Seeing your own attendance calendar (not applicable to SuperAdmin for attendance/leaves/payroll) |
 | **Update own task status** | Marking an assigned task as "in-progress" or "completed" |
-| **Apply for leave** | Submitting a new leave request for yourself |
+| **Apply for leave** | Submitting a new leave request for yourself (SuperAdmin exempt) |
 | **Cancel own-created pending leave** | Cancelling a leave you applied for (not one a manager applied on your behalf) |
 | **Update profile** | Changing your name, phone, email, profile image |
 | **Change password** | With current password verification |
@@ -215,7 +222,7 @@ The default schedule is applied when creating new employees and can be customize
 
 The dashboard adapts to what you have access to.
 
-### Team View (users with `attendance_viewTeam` or any subordinates)
+### Team View (users with `attendance_viewTeam` or subordinates in their hierarchy)
 
 - Welcome greeting with live status counts: In Office, Remote, Late, Absent
 - Department scope strip for filtering
@@ -233,7 +240,7 @@ The dashboard adapts to what you have access to.
 
 ### Background Data Loading
 
-The dashboard batch-fetches employees (if permitted), tasks, campaigns, attendance presence, and personal data in parallel on mount. A secondary live-data refresh updates presence state after initial load.
+The dashboard batch-fetches employees (if permitted), tasks, campaigns, attendance presence, and personal data in parallel on mount. The presence API returns subordinate employees for any user who has them in their hierarchy, regardless of whether they have the `attendance_viewTeam` permission explicitly — this keeps the team view consistent with who the user actually manages.
 
 ---
 
@@ -249,9 +256,9 @@ Card grid for browsing campaigns with a sidebar tree grouped by status. Users wi
 
 Task list with sidebar grouping by status, assignee, campaign, or priority. Users with task privileges can create, edit, reassign, and delete tasks. Assignees can update the **status** of their own tasks (self-assessment) but cannot edit other fields or delete.
 
-### Updates
+### Activity Sidebar
 
-Activity feed timeline with avatars, descriptions, and timestamps. Auto-refreshes.
+A vertical list of activity cards (wider panel at 380px) showing recent actions across the workspace. Each entry is its own card with avatar, action description, entity badge, and relative timestamp. Auto-refreshes on tab focus. Self-authored entries display "You" (or "Your" for possessive contexts like location flags) instead of the user's full name.
 
 ---
 
@@ -269,6 +276,7 @@ The calendar highlights weekends, declared holidays, and off-days. A legend expl
 ### Leaves
 
 - **Self-service**: leave request form, balance tracking. Leave types include Annual, Sick, Casual, Unpaid, Maternity, Paternity, Bereavement, and Other.
+- **SuperAdmin exemption**: SuperAdmins cannot apply leave for themselves. The leave modal hides the form and shows an exempt message, but still allows selecting a subordinate to apply leave on their behalf. The API also blocks self-targeted leave requests from SuperAdmins.
 - **Approval workflow**: supervisors with `leaves_approve` can approve/reject pending requests from subordinates. Balances auto-deduct on approval and restore on cancellation.
 - **Self-cancel rule**: you can only cancel a pending leave you created yourself. If a manager applied leave on your behalf, only an approver or super-admin can cancel it. The system tracks `createdBy` on every leave to enforce this.
 - **Delete**: requires `leaves_editPast` privilege + hierarchy. You cannot delete your own leave records.
@@ -276,7 +284,8 @@ The calendar highlights weekends, declared holidays, and off-days. A legend expl
 ### Payroll
 
 - **Payroll config** (with `payroll_manageSalary`): working days, late thresholds, penalties, overtime multiplier, currency, pay day
-- **Slip generation** (with `payroll_generateSlips`): auto-generate monthly payslips from attendance data for subordinates
+- **Slip generation** (with `payroll_generateSlips`): auto-generate monthly payslips from attendance data for subordinates. SuperAdmins are automatically excluded from payslip generation.
+- **SuperAdmin exemption**: SuperAdmins see an exempt message instead of their own payroll estimate. They can still select a subordinate to view their payroll.
 - **Pipeline**: Draft → Finalized → Paid (finalization requires `payroll_finalizeSlips`)
 - **Personal view** (everyone): own payslips only
 
@@ -291,11 +300,11 @@ A "Holidays" button in the Insights Desk header opens a modal listing all declar
 Each employee has a dedicated page with tabbed sections:
 
 - **Overview** — today's attendance, active tasks and campaigns, department memberships
-- **Attendance** — monthly calendar with color-coded dots and stats
+- **Attendance** — monthly calendar with color-coded dots and stats (hidden for SuperAdmin employees)
 - **Profile** — personal details, weekly schedule, shift configuration (editable by the employee via self-service or anyone with `employees_edit` for subordinates only)
 - **Activity** — recent activity log and task list
-- **Leaves** — leave balance and request history
-- **Payroll** — salary info and payslips
+- **Leaves** — leave balance and request history (hidden for SuperAdmin employees)
+- **Payroll** — salary info and payslips (hidden for SuperAdmin employees)
 
 Clicking an employee node in the Organization chart opens their edit modal directly.
 
@@ -321,7 +330,7 @@ Every action (create, edit, delete) is logged as an ActivityLog entry with scope
 - **Self** — visible only to the actor
 - **All** — broadcast to everyone
 
-Notifications appear via a bell icon with unread badge and "Mark all read." Security events (location violations) include severity badges and are automatically pushed to all super-admins. Viewing the full activity log requires `activityLogs_view`; without it, users see only logs that target them or were authored by them.
+Notifications appear via a bell icon with unread badge and "Mark all read." Security events (location violations) include severity badges and are automatically pushed to all super-admins. Self-authored entries show "You" (or "Your" for possessive contexts like "Your location flagged") instead of the user's full name. Viewing the full activity log requires `activityLogs_view`; without it, users see only logs that target them or were authored by them.
 
 ---
 
@@ -331,10 +340,20 @@ Notifications appear via a bell icon with unread badge and "Mark all read." Secu
 - **Email change** — requires current password, 24-hour cooldown
 - **Password change** — with strength meter
 - **Security** — active session info and trusted device status
-- **System Settings** (requires `settings_manage`) — company name, timezone, office geofence coordinates, Live Updates toggle
+- **Preferences** — show/hide coordinates in time pill
 - **Theme** — Dark, Light, or System
 
-All users can access their own profile, password, and security settings. System settings require the specific privilege.
+### Admin Configuration (3-column grid on large screens)
+
+Users with the appropriate privileges see a row of three cards:
+
+- **Payroll** (requires `payroll_manageSalary`) — late penalty tiers, absence penalty, overtime multiplier, pay day
+- **System** (requires `settings_manage`) — company name, timezone
+- **Office** (requires `settings_manage`) — geofence center coordinates, radius, Live Updates toggle
+
+Below the grid, a **Test Email** card (requires `settings_manage`) lets admins verify SMTP configuration by sending invite, reset, or alert test emails.
+
+All users can access their own profile, password, preferences, and security settings. The admin cards appear only when the user has the required privilege.
 
 ---
 

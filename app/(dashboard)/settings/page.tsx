@@ -14,7 +14,9 @@ import {
 } from "./SettingsProfile";
 import { SettingsSecurity } from "./SettingsSecurity";
 import {
-  SettingsSystem,
+  SystemCard,
+  OfficeConfigCard,
+  TestEmailCard,
   DEFAULT_SYS_SETTINGS,
   type TestEmailType,
   type SysSettings,
@@ -304,27 +306,29 @@ export default function SettingsPage() {
       {/* Preferences */}
       <PreferencesSection />
 
-      {/* Payroll Configuration */}
-      {canManagePayroll && (
+      {/* Payroll + System + Office in a 3-col grid */}
+      {(canManagePayroll || canManageSettings) && (
         <FadeUp delay={0.22}>
-          <SettingsPayroll />
+          <div data-tour="settings-system" className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {canManagePayroll && <SettingsPayroll />}
+            {canManageSettings && <SystemCard sys={sys} />}
+            {canManageSettings && <OfficeConfigCard sys={sys} defaultSysSettings={DEFAULT_SYS_SETTINGS} />}
+          </div>
         </FadeUp>
       )}
 
-      {/* SuperAdmin row: Test Email + System Settings side by side */}
+      {/* Test Email */}
       {canManageSettings && (
-        <div data-tour="settings-system">
-          <SettingsSystem
+        <FadeUp delay={0.26}>
+          <TestEmailCard
             testEmail={testEmail}
             onTestEmailChange={setTestEmail}
             testType={testType}
             onTestTypeChange={setTestType}
             sendingTestEmail={sendingTestEmail}
             onTestEmailSend={handleTestEmail}
-            sys={sys}
-            defaultSysSettings={DEFAULT_SYS_SETTINGS}
           />
-          </div>
+        </FadeUp>
       )}
     </div>
   );
