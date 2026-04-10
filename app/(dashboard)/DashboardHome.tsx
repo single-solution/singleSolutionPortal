@@ -329,7 +329,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasT
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    const id = window.setInterval(() => setNow(new Date()), 1_000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -942,7 +942,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
 
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(id); }, []);
+  useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 1_000); return () => window.clearInterval(id); }, []);
 
   const monthlyOfficePct = ms && (ms.totalOfficeHours + ms.totalRemoteHours > 0) ? (ms.totalOfficeHours / (ms.totalOfficeHours + ms.totalRemoteHours)) * 100 : 0;
   const monthlyRemotePct = 100 - monthlyOfficePct;
