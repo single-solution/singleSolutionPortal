@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   const userId = url.searchParams.get("userId") ?? actor.id;
 
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
-  const canTeam = actor.isSuperAdmin || hasPermission(actor, "attendance_viewTeam") || subordinateIds.length > 0;
+  const canTeam = actor.isSuperAdmin || hasPermission(actor, "attendance_viewTeam");
 
   if (type === "team") {
     if (!canTeam) return ok([]);
