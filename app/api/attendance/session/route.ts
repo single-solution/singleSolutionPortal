@@ -20,9 +20,16 @@ const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
 const FLAG_TOLERANCE_WINDOW_DAYS = 30;
 const FLAG_TOLERANCE_THRESHOLD = 2;
 
+let cachedTz: string | null = null;
+let tzCacheTime = 0;
+const TZ_CACHE_TTL = 60_000;
+
 async function loadTz(): Promise<string> {
+  if (cachedTz && Date.now() - tzCacheTime < TZ_CACHE_TTL) return cachedTz;
   const s = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
-  return resolveTimezone((s?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+  cachedTz = resolveTimezone((s?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+  tzCacheTime = Date.now();
+  return cachedTz;
 }
 
 // ─── GET: session state ────────────────────────────────────────────
@@ -72,12 +79,18 @@ export async function GET(req: NextRequest) {
   const daily = await DailyAttendance.findOne({ user: targetUserId, date: today }).lean();
   if (daily) todayMinutes = daily.totalWorkingMinutes ?? 0;
 
+  const locFlagged = activeSession?.location?.locationFlagged ?? false;
+  let flagSeverity: "warning" | "violation" | null = null;
+  if (locFlagged) flagSeverity = "violation";
+
   return ok({
     activeSession,
     todayMinutes,
     isStale,
-    locationFlagged: activeSession?.location?.locationFlagged ?? false,
+    locationFlagged: locFlagged,
+    flagSeverity,
     flagReason: activeSession?.location?.flagReason ?? null,
+    companyTimezone: tz,
   });
 }
 

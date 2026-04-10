@@ -376,15 +376,16 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasT
 
 /* ──────────────────────── SELF OVERVIEW CARD (DeveloperPreview style) ──────────────────────── */
 
-function SelfOverviewCard({ pa, userProfile, user }: {
+function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }: {
   pa: PersonalAttendance | null;
   userProfile: UserProfile | null;
   user: User;
+  companyTz?: string;
 }) {
   const todayForShift = userProfile?.weeklySchedule
     ? getTodaySchedule(
         { weeklySchedule: userProfile.weeklySchedule } as Record<string, unknown>,
-        "Asia/Karachi",
+        companyTz,
       )
     : null;
   const shiftTarget = todayForShift
@@ -570,6 +571,7 @@ function AdminDashboard({
   dataLoading,
   onRefreshLive,
   onRefreshFull,
+  companyTz,
 }: {
   user: User;
   presenceEmps: PresenceEmployee[];
@@ -581,6 +583,7 @@ function AdminDashboard({
   dataLoading: boolean;
   onRefreshLive: () => void;
   onRefreshFull: () => void;
+  companyTz: string;
 }) {
   const liveUpdates = useLive();
   const isSuperAdmin = user.isSuperAdmin === true;
@@ -679,7 +682,7 @@ function AdminDashboard({
       {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} />
+          <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} companyTz={companyTz} />
           <TodayTimelineCard pa={personalAttendance} dataLoading={dataLoading} />
             </div>
       )}
@@ -931,7 +934,7 @@ function AdminDashboard({
 
 /* ──────────────────────── OTHER ROLES OVERVIEW ──────────────────────── */
 
-function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, monthlyStats: ms, userProfile, dataLoading }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null; weeklyRecords: WeeklyDay[]; monthlyStats: FullMonthlyStats | null; userProfile: UserProfile | null; dataLoading: boolean }) {
+function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, monthlyStats: ms, userProfile, dataLoading, companyTz = "Asia/Karachi" }: { user: User; tasks: ApiTask[]; personalAttendance: PersonalAttendance | null; weeklyRecords: WeeklyDay[]; monthlyStats: FullMonthlyStats | null; userProfile: UserProfile | null; dataLoading: boolean; companyTz?: string }) {
   const pa = personalAttendance;
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
@@ -961,7 +964,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
 
         {/* Self overview + Activity timeline */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} />
+          <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} companyTz={companyTz} />
           <TodayTimelineCard pa={pa} dataLoading={dataLoading} />
       </div>
 
@@ -974,7 +977,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             ) : weeklyRecords.map((day, i) => {
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
-                const isToday = day.date === new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(now);
+                const isToday = day.date === new Intl.DateTimeFormat("en-CA", { timeZone: companyTz }).format(now);
                 const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "#f59e0b" : "#10b981";
               return (
                   <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
@@ -1053,6 +1056,7 @@ export default function DashboardHome({ user }: { user: User }) {
   const [weeklyRecords, setWeeklyRecords] = useState<WeeklyDay[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<FullMonthlyStats | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [companyTz, setCompanyTz] = useState("Asia/Karachi");
 
   const isSuperAdmin = user.isSuperAdmin === true;
   const { can: canPermRoot, hasSubordinates } = usePermissions();
@@ -1105,7 +1109,7 @@ export default function DashboardHome({ user }: { user: User }) {
   /* ── Helper: fetch today's attendance detail (lightweight, for presence updates) ── */
   const fetchTodayDetail = useCallback(async () => {
     try {
-      const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
+      const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: companyTz }).format(new Date());
       const dailyRes = await fetch(`/api/attendance?type=detail&date=${todayStr}`).then((r) => r.ok ? r.json() : null);
       if (dailyRes) {
         setPersonalAttendance((prev) => {
@@ -1128,7 +1132,8 @@ export default function DashboardHome({ user }: { user: User }) {
         });
       }
     } catch { /* optional */ }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyTz]);
 
   /* ── FAST POLL: presence + today's detail ── */
   const fetchLive = useCallback(async () => {
@@ -1148,7 +1153,7 @@ export default function DashboardHome({ user }: { user: User }) {
   const fetchPersonalData = useCallback(async () => {
     if (isSuperAdmin) return;
     try {
-      const pktNow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const pktNow = new Intl.DateTimeFormat("en-CA", { timeZone: companyTz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
       const [y, m] = pktNow.split("-").map(Number);
       const todayStr = pktNow;
 
@@ -1239,7 +1244,8 @@ export default function DashboardHome({ user }: { user: User }) {
         });
       }
     } catch { /* optional data */ }
-  }, [isSuperAdmin, user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperAdmin, user, companyTz]);
 
   /* ── SLOW POLL: full data set ── */
   const fetchFull = useCallback(async () => {
@@ -1268,6 +1274,9 @@ export default function DashboardHome({ user }: { user: User }) {
   useEffect(() => {
     if (initialDone.current) return;
       initialDone.current = true;
+    fetch("/api/attendance/session").then((r) => r.ok ? r.json() : null).then((d) => {
+      if (d?.companyTimezone) setCompanyTz(d.companyTimezone);
+    }).catch(() => {});
     Promise.all([fetchFull(), fetchLive()]).then(() => {
       if (hasTeamAccess && !realPresence) {
         setTimeout(fetchLive, 1500);
@@ -1282,7 +1291,7 @@ export default function DashboardHome({ user }: { user: User }) {
   const presenceEmps = useMemo(() => {
     if (realPresence) return realPresence;
     return employees.map((e) => {
-      const fallbackSch = getTodaySchedule(e as unknown as Record<string, unknown>, "Asia/Karachi");
+      const fallbackSch = getTodaySchedule(e as unknown as Record<string, unknown>, companyTz);
       return {
       _id: e._id,
       username: e.username ?? "",
@@ -1328,9 +1337,10 @@ export default function DashboardHome({ user }: { user: User }) {
         dataLoading={loading}
         onRefreshLive={fetchLive}
         onRefreshFull={fetchFull}
+        companyTz={companyTz}
       />
     );
   }
 
-  return <OtherRoleOverview user={user} tasks={tasks} personalAttendance={personalAttendance} weeklyRecords={weeklyRecords} monthlyStats={monthlyStats} userProfile={userProfile} dataLoading={loading} />;
+  return <OtherRoleOverview user={user} tasks={tasks} personalAttendance={personalAttendance} weeklyRecords={weeklyRecords} monthlyStats={monthlyStats} userProfile={userProfile} dataLoading={loading} companyTz={companyTz} />;
 }

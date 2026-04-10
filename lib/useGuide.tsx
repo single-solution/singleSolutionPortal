@@ -55,7 +55,7 @@ export function GuideProvider({ userName, children }: Props) {
 
   useEffect(() => {
     fetch("/api/guide")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data) => {
         const gt = data.guideTours ?? {};
         setCompleted(gt);

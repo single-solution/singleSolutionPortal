@@ -185,7 +185,9 @@ export default function AttendancePage() {
     if (!hasTeamAccess) { setTeamLoading(false); return; }
     setTeamLoading(true);
     try {
-      const res = await fetch(`/api/attendance?type=team-monthly&year=${year}&month=${month}`).then((r) => r.json());
+      const r = await fetch(`/api/attendance?type=team-monthly&year=${year}&month=${month}`);
+      if (!r.ok) throw new Error();
+      const res = await r.json();
       setTeamSummary(Array.isArray(res) ? res : []);
     } catch { setTeamSummary([]); }
     setTeamLoading(false);
@@ -195,9 +197,13 @@ export default function AttendancePage() {
     if (!sessionReady) return;
     if (!userIdParam && hasTeamAccess) return;
     setLoading(true);
-    const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
-    const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
-    setRecords(Array.isArray(res) ? res : []);
+    try {
+      const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
+      const r = await fetch(`/api/attendance?${qs}`);
+      if (!r.ok) throw new Error();
+      const res = await r.json();
+      setRecords(Array.isArray(res) ? res : []);
+    } catch { setRecords([]); }
     setLoading(false);
   }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
 
@@ -206,7 +212,9 @@ export default function AttendancePage() {
     if (!userIdParam && hasTeamAccess) return;
     const qs = `type=monthly&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     try {
-      const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
+      const r = await fetch(`/api/attendance?${qs}`);
+      if (!r.ok) throw new Error();
+      const res = await r.json();
       setMonthlyStats(res ?? null);
     } catch { setMonthlyStats(null); }
   }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
@@ -214,7 +222,9 @@ export default function AttendancePage() {
   const loadSelfMonthlyStats = useCallback(async () => {
     if (!sessionReady || !hasTeamAccess || isSuperAdmin) return;
     try {
-      const res = await fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`).then((r) => r.json());
+      const r = await fetch(`/api/attendance?type=monthly&year=${year}&month=${month}`);
+      if (!r.ok) throw new Error();
+      const res = await r.json();
       setSelfMonthlyStats(res ?? null);
     } catch { setSelfMonthlyStats(null); }
   }, [sessionReady, hasTeamAccess, isSuperAdmin, year, month]);
@@ -224,7 +234,9 @@ export default function AttendancePage() {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const qs = `type=detail&date=${dateStr}${userIdParam ? `&userId=${userIdParam}` : ""}`;
     try {
-      const res = await fetch(`/api/attendance?${qs}`).then((r) => r.json());
+      const r = await fetch(`/api/attendance?${qs}`);
+      if (!r.ok) throw new Error();
+      const res = await r.json();
       setDetailData(res ?? null);
     } catch { setDetailData(null); }
     setDetailLoading(false);
@@ -235,7 +247,9 @@ export default function AttendancePage() {
     setTeamDateLoading(true);
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     try {
-      const res = await fetch(`/api/attendance?type=team-date&date=${dateStr}`).then((r) => r.json());
+      const r = await fetch(`/api/attendance?type=team-date&date=${dateStr}`);
+      if (!r.ok) throw new Error();
+      const res = await r.json();
       setTeamDateData(Array.isArray(res) ? res : []);
     } catch { setTeamDateData([]); }
     setTeamDateLoading(false);

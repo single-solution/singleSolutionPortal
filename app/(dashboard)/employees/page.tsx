@@ -186,10 +186,11 @@ export default function EmployeesPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await fetch(`/api/employees/${deleteTarget._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/employees/${deleteTarget._id}`, { method: "DELETE" });
+      if (!res.ok) { toast.error("Failed to delete employee"); setDeleting(false); return; }
       setDeleteTarget(null);
       await refetchEmployees();
-    } catch { /* ignore */ }
+    } catch { toast.error("Network error"); }
     setDeleting(false);
   }
 

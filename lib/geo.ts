@@ -77,11 +77,17 @@ export function validateLocation(
   // Layer 2 — Teleportation (impossible speed between heartbeats)
   // Only checked within an active session. Sleep/wake creates a new
   // session, so location jumps from office→home don't trigger this.
+  // Laptops use WiFi triangulation (accuracy 50–200 m) which can
+  // jump significantly when networks change (office → home WiFi,
+  // hotspot handoff, etc.). Use a generous threshold for WiFi to
+  // avoid false positives while still catching clear spoofing.
   if (prevLat != null && prevLng != null && prevTime) {
     const distMeters = haversineMeters(prevLat, prevLng, lat, lng);
     const elapsedSec = Math.max(1, (now.getTime() - prevTime.getTime()) / 1000);
     const speedMs = distMeters / elapsedSec;
-    if (speedMs > 55) {
+    const isWifi = accuracy != null && accuracy > 50;
+    const threshold = isWifi ? 300 : 55;
+    if (speedMs > threshold) {
       reasons.push("Impossible location jump detected");
     }
   }

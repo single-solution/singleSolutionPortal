@@ -79,7 +79,7 @@ function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null
         accuracy: pos.coords.accuracy,
       }),
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+      { enableHighAccuracy: false, timeout: 8_000, maximumAge: 25_000 },
     );
   });
 }
@@ -132,6 +132,7 @@ export default function SessionTracker() {
   }> => {
     try {
       const res = await fetch("/api/attendance/session");
+      if (!res.ok) throw new Error("session fetch failed");
       const data = await res.json();
       const a = data.activeSession;
       if (a) {
@@ -142,7 +143,7 @@ export default function SessionTracker() {
           todayMinutes: data.todayMinutes ?? 0,
           isStale: data.isStale ?? false,
           locationFlagged: data.locationFlagged ?? false,
-          flagSeverity: a.location?.locationFlagged ? "violation" : null,
+          flagSeverity: data.flagSeverity ?? null,
           flagReason: data.flagReason ?? null,
         };
         setSession(state);
@@ -344,8 +345,23 @@ export default function SessionTracker() {
           startSyncPolling();
         }
       } else {
-        updateMode("readonly");
-        startSyncPolling();
+        // Session exists and is fresh — claim it by sending a heartbeat
+        // so the server keeps lastActivity alive after page reload.
+        const geo = await getGeo();
+        if (geo) { lastCoordsRef.current = { lat: geo.lat, lng: geo.lng }; setLiveCoords({ lat: geo.lat, lng: geo.lng }); }
+        try {
+          await fetch("/api/attendance/session", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              latitude: geo?.lat ?? lastCoordsRef.current?.lat,
+              longitude: geo?.lng ?? lastCoordsRef.current?.lng,
+              accuracy: geo?.accuracy,
+            }),
+          });
+        } catch { /* best-effort */ }
+        updateMode("active");
+        startHeartbeat();
       }
     }
 
@@ -481,10 +497,12 @@ export default function SessionTracker() {
       });
       const data = await res.json();
       if (data.locationFlagged != null) {
+        const severity = data.flagSeverity as "warning" | "violation" | null;
         setSession((s) => ({
           ...s,
           locationFlagged: data.locationFlagged,
-          flagReason: data.flagReasons?.join("; ") ?? s.flagReason,
+          flagSeverity: data.locationFlagged ? (severity ?? s.flagSeverity) : null,
+          flagReason: data.flagReasons?.join("; ") ?? (data.locationFlagged ? s.flagReason : null),
         }));
       }
       if (!data.locationFlagged) {
@@ -501,6 +519,27 @@ export default function SessionTracker() {
       heartbeatRef.current = null;
     }
   }, [isViolation]);
+
+  // ─── Repeat notification every 30s while violation modal is open ──
+  const violationNotifRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (isViolation && modeRef.current === "active") {
+      const reason = session.flagReason || "Location issue detected";
+      violationNotifRef.current = setInterval(() => {
+        sendBrowserNotification("Timer Paused", reason + ". Open the app and click Re-check.");
+      }, HEARTBEAT_MS);
+      return () => {
+        if (violationNotifRef.current) {
+          clearInterval(violationNotifRef.current);
+          violationNotifRef.current = null;
+        }
+      };
+    }
+    if (violationNotifRef.current) {
+      clearInterval(violationNotifRef.current);
+      violationNotifRef.current = null;
+    }
+  }, [isViolation, session.flagReason]);
 
   // ─── Idle detection (active mode, visibility-aware + nudges) ──
   const nudgeCountRef = useRef(0);

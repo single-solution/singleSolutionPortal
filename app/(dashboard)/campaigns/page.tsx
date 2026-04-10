@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { StatusToggle } from "../components/DataTable";
@@ -177,23 +178,14 @@ export default function CampaignsPage() {
         tagEmployees: formTagEmployees,
         tagDepartments: formTagDepts,
       };
-      if (editingCampaign) {
-        await fetch(`/api/campaigns/${editingCampaign._id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/campaigns", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
+      const res = editingCampaign
+        ? await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        : await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); toast.error((e as Record<string, string>).error ?? "Failed to save campaign"); setSaving(false); return; }
       setModalOpen(false);
       await refetchCampaigns();
     } catch {
-      /* ignore */
+      toast.error("Network error");
     }
     setSaving(false);
   }
@@ -202,11 +194,12 @@ export default function CampaignsPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await fetch(`/api/campaigns/${deleteTarget._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/campaigns/${deleteTarget._id}`, { method: "DELETE" });
+      if (!res.ok) { toast.error("Failed to delete campaign"); setDeleting(false); return; }
       setDeleteTarget(null);
       await refetchCampaigns();
     } catch {
-      /* ignore */
+      toast.error("Network error");
     }
     setDeleting(false);
   }
@@ -235,12 +228,15 @@ export default function CampaignsPage() {
   }
 
   async function quickStatus(c: Campaign, newStatus: CampaignStatus) {
-    await fetch(`/api/campaigns/${c._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    await refetchCampaigns();
+    try {
+      const res = await fetch(`/api/campaigns/${c._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) { toast.error("Failed to update status"); return; }
+      await refetchCampaigns();
+    } catch { toast.error("Network error"); }
   }
 
   function toggleArrayItem(arr: string[], item: string): string[] {

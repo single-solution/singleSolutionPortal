@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import ActivitySession from "@/lib/models/ActivitySession";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
+import Membership from "@/lib/models/Membership";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
@@ -100,13 +101,38 @@ export async function GET(req: NextRequest) {
     const dailyMap = new Map<string, typeof dailyCounts[0]>();
     for (const d of dailyCounts) dailyMap.set(d._id.toString(), d);
 
+    const membershipsAbove = await Membership.find({
+      user: { $in: empIds },
+      direction: "above",
+      isActive: true,
+    }).populate("department", "title").populate("designation", "name").lean();
+
+    const empDeptMap = new Map<string, { deptId: string; deptName: string; role: string }>();
+    for (const m of membershipsAbove) {
+      const uid = m.user.toString();
+      if (empDeptMap.has(uid)) continue;
+      const dept = m.department as unknown as { _id: mongoose.Types.ObjectId; title?: string } | null;
+      const desig = m.designation as unknown as { name?: string } | null;
+      empDeptMap.set(uid, {
+        deptId: dept?._id?.toString() ?? "",
+        deptName: dept?.title ?? "",
+        role: desig?.name ?? "",
+      });
+    }
+
     const result = employees.map((emp) => {
       const id = emp._id.toString();
       const ms = statsMap.get(id);
       const dc = dailyMap.get(id);
+      const dm = empDeptMap.get(id);
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
+        department: dm?.deptName ?? "",
+        departmentId: dm?.deptId ?? null,
+        role: dm?.role ?? "",
+        managerId: null,
+        managerName: null,
         presentDays: dc?.presentDays ?? ms?.presentDays ?? 0,
         onTimeDays: dc?.onTimeDays ?? ms?.onTimeArrivals ?? 0,
         lateDays: dc?.lateDays ?? ms?.lateArrivals ?? 0,
@@ -158,13 +184,36 @@ export async function GET(req: NextRequest) {
     const sessMap = new Map<string, { firstStart: Date; lastEnd: Date }>();
     for (const s of sessionAgg) sessMap.set(s._id.toString(), { firstStart: s.firstStart, lastEnd: s.lastEnd });
 
+    const dateMemberships = await Membership.find({
+      user: { $in: empIds },
+      direction: "above",
+      isActive: true,
+    }).populate("department", "title").populate("designation", "name").lean();
+
+    const dateDeptMap = new Map<string, { deptId: string; deptName: string; role: string }>();
+    for (const m of dateMemberships) {
+      const uid = m.user.toString();
+      if (dateDeptMap.has(uid)) continue;
+      const dept = m.department as unknown as { _id: mongoose.Types.ObjectId; title?: string } | null;
+      const desig = m.designation as unknown as { name?: string } | null;
+      dateDeptMap.set(uid, {
+        deptId: dept?._id?.toString() ?? "",
+        deptName: dept?.title ?? "",
+        role: desig?.name ?? "",
+      });
+    }
+
     const result = employees.map((emp) => {
       const id = emp._id.toString();
       const rec = dailyMap.get(id);
       const st = sessMap.get(id);
+      const dm = dateDeptMap.get(id);
       return {
         _id: id,
         name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
+        department: dm?.deptName ?? "",
+        departmentId: dm?.deptId ?? null,
+        role: dm?.role ?? "",
         isPresent: rec?.isPresent ?? false,
         isOnTime: rec?.isOnTime ?? false,
         totalWorkingMinutes: rec?.totalWorkingMinutes ?? 0,

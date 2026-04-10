@@ -22,6 +22,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import { PERMISSION_CATEGORIES, PERMISSION_KEYS, PERMISSION_META } from "@/lib/permissions.shared";
 
 
@@ -124,7 +125,8 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const showRemove = data?.canRemove !== false && !data?.readOnly;
+  const isReadOnly = data?.readOnly === true;
+  const showRemove = data?.canRemove === true && !isReadOnly;
 
   if (data?.hidePill) {
     return (
@@ -149,9 +151,9 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
     );
   }
 
-  const canInteract = !data?.readOnly && (data?.canAssignDesig !== false || data?.canCustomize !== false || data?.canRemove !== false);
-  const showDesigList = data?.canAssignDesig !== false;
-  const showPrivileges = data?.canCustomize !== false;
+  const showDesigList = data?.canAssignDesig === true && !isReadOnly;
+  const showPrivileges = data?.canCustomize === true && !isReadOnly;
+  const canInteract = showDesigList || showPrivileges || showRemove;
 
   return (
     <>
@@ -231,10 +233,9 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
   interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string }
 
   const canEditEmp = useCallback((empId: string) => {
-    if (canEditCanvas) return true;
     if (!editableEmployeeIds) return true;
     return editableEmployeeIds.includes(empId);
-  }, [canEditCanvas, editableEmployeeIds]);
+  }, [editableEmployeeIds]);
 
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
   const [empLinks, setEmpLinks] = useState<EmpLink[]>([]);
@@ -283,7 +284,8 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
 
   const saveEmpLinks = useCallback(async (newLinks: EmpLink[]) => {
     setEmpLinks(newLinks);
-    await fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", links: newLinks }) });
+    const res = await fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", links: newLinks }) });
+    if (!res.ok) { toast.error("Failed to save layout"); return; }
     await syncHierarchy();
     refetchMemberships();
   }, [syncHierarchy, refetchMemberships]);
@@ -436,15 +438,16 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       const userId = connEmpId.replace(/^emp-/, "");
       const deptId = connDeptId.replace(/^dept-/, "");
 
-      await fetch("/api/memberships", {
+      const res = await fetch("/api/memberships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user: userId, department: deptId, designation: connDesig, direction: connAbove ? "above" : "below" }),
       });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); toast.error((err as Record<string, string>).error ?? "Failed to create connection"); setConnSaving(false); return; }
       await syncHierarchy();
       await refetchMemberships();
       setConnOpen(false);
-    } catch { /* ignore */ }
+    } catch { toast.error("Network error"); }
     setConnSaving(false);
   }, [connEmpId, connDeptId, connDesig, connAbove, refetchMemberships, syncHierarchy]);
 
@@ -531,10 +534,11 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         });
         setPrivOpen(false);
       } else if (privMembershipId) {
-        await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) });
+        const res = await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) });
+        if (!res.ok) { toast.error("Failed to save privileges"); setPrivSaving(false); return; }
         setPrivOpen(false);
       }
-    } catch { /* ignore */ }
+    } catch { toast.error("Network error"); }
     setPrivSaving(false);
   }, [privMembershipId, privLinkIdx, privPerms, saveEmpLinks]);
 
@@ -698,6 +702,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
           nodes={nodes} edges={edgesState}
           onNodesChange={handleNodesChange} onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
+          nodesConnectable={canEditCanvas}
           connectionMode={"loose" as never}
           nodeTypes={nodeTypes} edgeTypes={edgeTypes}
           fitView fitViewOptions={{ padding: 0.3 }} minZoom={0.1} maxZoom={3}
