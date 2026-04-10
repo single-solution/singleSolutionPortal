@@ -85,8 +85,14 @@ export interface IUser extends Document {
     settings: boolean;
   };
   isActive: boolean;
-  /** Monthly gross salary for payroll (optional). */
   salary?: number;
+  salaryHistory: {
+    previousSalary: number;
+    newSalary: number;
+    incrementPercent: number;
+    effectiveDate: Date;
+    changedAt: Date;
+  }[];
   isVerified: boolean;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -166,6 +172,13 @@ const userSchema = new Schema<IUser>(
     },
     isActive: { type: Boolean, default: true },
     salary: { type: Number, min: 0 },
+    salaryHistory: [{
+      previousSalary: { type: Number, required: true },
+      newSalary: { type: Number, required: true },
+      incrementPercent: { type: Number, required: true },
+      effectiveDate: { type: Date, required: true },
+      changedAt: { type: Date, default: Date.now },
+    }],
     isVerified: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },

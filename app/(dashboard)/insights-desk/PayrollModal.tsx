@@ -27,7 +27,6 @@ interface EstimateData {
   totalDeductions: number;
   netPay: number;
   deductions: { label: string; amount: number }[];
-  currency: string;
   ytd: { earned: number; deductions: number; netPay: number; months: number };
 }
 
@@ -85,14 +84,8 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   }, [open, loadEstimate]);
 
   const fmt = useCallback((n: number) => {
-    const currency = estimate?.currency ?? "PKR";
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(n);
-  }, [estimate?.currency]);
+    return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }, []);
 
   function handleExport() {
     if (!estimate) return;

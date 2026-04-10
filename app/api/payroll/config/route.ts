@@ -4,11 +4,8 @@ import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import PayrollConfig, { type ILatePenaltyTier } from "@/lib/models/PayrollConfig";
 
 const SCALAR_FIELDS = [
-  "workingDaysPerMonth",
-  "lateThresholdMinutes",
   "absencePenaltyPerDay",
   "overtimeRateMultiplier",
-  "currency",
   "payDay",
 ] as const;
 
@@ -18,11 +15,9 @@ function validateTiers(tiers: unknown): tiers is ILatePenaltyTier[] {
     (t) =>
       typeof t === "object" &&
       t !== null &&
-      Number.isFinite(t.minMinutes) &&
-      Number.isFinite(t.maxMinutes) &&
+      Number.isFinite(t.minutes) &&
       Number.isFinite(t.penaltyPercent) &&
-      t.minMinutes >= 0 &&
-      t.maxMinutes > t.minMinutes &&
+      t.minutes >= 0 &&
       t.penaltyPercent >= 0,
   );
 }
@@ -61,13 +56,6 @@ export async function PUT(req: Request) {
 
   for (const key of SCALAR_FIELDS) {
     if (!(key in body) || body[key] === undefined) continue;
-    if (key === "currency") {
-      if (typeof body[key] !== "string") {
-        return NextResponse.json({ error: "currency must be a string" }, { status: 400 });
-      }
-      $set[key] = body[key];
-      continue;
-    }
     const n = Number(body[key]);
     if (!Number.isFinite(n)) {
       return NextResponse.json({ error: `Invalid number for ${key}` }, { status: 400 });
@@ -81,7 +69,7 @@ export async function PUT(req: Request) {
   if ("latePenaltyTiers" in body && body.latePenaltyTiers !== undefined) {
     if (!validateTiers(body.latePenaltyTiers)) {
       return NextResponse.json(
-        { error: "latePenaltyTiers must be a non-empty array of { minMinutes, maxMinutes, penaltyPercent }" },
+        { error: "latePenaltyTiers must be a non-empty array of { minutes, penaltyPercent }" },
         { status: 400 },
       );
     }

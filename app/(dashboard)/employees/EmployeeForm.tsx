@@ -28,6 +28,14 @@ interface EmployeeFormProps {
   employeeId?: string;
 }
 
+interface SalaryHistoryEntry {
+  previousSalary: number;
+  newSalary: number;
+  incrementPercent: number;
+  effectiveDate: string;
+  changedAt: string;
+}
+
 interface FormState {
   fullName: string;
   email: string;
@@ -37,6 +45,7 @@ interface FormState {
   shiftType: string;
   graceMinutes: number;
   weeklySchedule: WeeklySchedule;
+  salary: string;
 }
 
 const INITIAL: FormState = {
@@ -45,6 +54,7 @@ const INITIAL: FormState = {
   managedDepartments: [],
   shiftType: "fullTime", graceMinutes: 30,
   weeklySchedule: makeDefaultWeeklySchedule(),
+  salary: "",
 };
 
 export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
@@ -55,9 +65,11 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
 
   const [form, setForm] = useState<FormState>(INITIAL);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [salaryHistory, setSalaryHistory] = useState<SalaryHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [multiDeptUi, setMultiDeptUi] = useState(false);
+  const canManageSalary = canPerm("payroll_manageSalary");
 
   const isLeadOrManager = multiDeptUi;
 
@@ -92,7 +104,9 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           shiftType: empRes.shiftType ?? "fullTime",
           graceMinutes: resolveGraceMinutes(empRes),
           weeklySchedule: resolveWeeklySchedule(empRes),
+          salary: empRes.salary != null ? String(empRes.salary) : "",
         });
+        setSalaryHistory(Array.isArray(empRes.salaryHistory) ? empRes.salaryHistory : []);
         setMultiDeptUi(managed.length > 0);
       }
     } else {
@@ -161,6 +175,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           ...schedulePayload,
         };
         if (form.password) body.password = form.password;
+        if (canManageSalary && form.salary !== "") body.salary = Number(form.salary);
         const res = await fetch(`/api/employees/${employeeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (res.ok) {
           toast.success("Employee updated");
@@ -170,16 +185,18 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           toast.error(data.error || "Failed to update");
         }
       } else {
+        const createBody: Record<string, unknown> = {
+          email: form.email,
+          fullName: form.fullName,
+          department: form.department || undefined,
+          managedDepartments: isLeadOrManager ? form.managedDepartments : [],
+          ...schedulePayload,
+        };
+        if (canManageSalary && form.salary !== "") createBody.salary = Number(form.salary);
         const res = await fetch("/api/employees", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: form.email,
-            fullName: form.fullName,
-            department: form.department || undefined,
-            managedDepartments: isLeadOrManager ? form.managedDepartments : [],
-            ...schedulePayload,
-          }),
+          body: JSON.stringify(createBody),
         });
         if (res.ok) {
           toast.success("Employee invited");
@@ -523,23 +540,86 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
           })}
         </div>
 
-        {/* Shift type + Grace minutes row */}
+        {/* Shift type + Grace minutes + Salary row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
-            <div>
-              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Shift Type</label>
-              <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
-                <option value="fullTime">Full Time</option>
-                <option value="partTime">Part Time</option>
-                <option value="contract">Contract</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Shift Type</label>
+            <select className="input" value={form.shiftType} onChange={(e) => setForm({ ...form, shiftType: e.target.value })}>
+              <option value="fullTime">Full Time</option>
+              <option value="partTime">Part Time</option>
+              <option value="contract">Contract</option>
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Grace Minutes</label>
             <input className="input" type="number" min={0} value={form.graceMinutes} onChange={(e) => setForm({ ...form, graceMinutes: Number(e.target.value) || 0 })} />
             <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>Allowed minutes after shift start before marking late.</p>
           </div>
+          {canManageSalary && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Base Salary (Monthly)</label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                placeholder="e.g. 50000"
+                value={form.salary}
+                onChange={(e) => setForm({ ...form, salary: e.target.value })}
+              />
+              <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>Gross monthly salary used for payroll calculations.</p>
+            </div>
+          )}
         </div>
       </motion.div>
+
+      {/* Salary History (edit mode only) */}
+      {isEdit && canManageSalary && salaryHistory.length > 0 && (
+        <motion.div
+          className="card-xl p-6 mb-5"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.25, ease }}
+        >
+          <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--fg)" }}>Salary History</h2>
+          <div className="space-y-2">
+            {[...salaryHistory].reverse().map((entry, i) => {
+              const isIncrease = entry.incrementPercent > 0;
+              const isDecrease = entry.incrementPercent < 0;
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 text-xs"
+                  style={{ background: "var(--bg-grouped)" }}
+                >
+                  <div
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                    style={{
+                      background: isIncrease ? "rgba(34,197,94,0.12)" : isDecrease ? "rgba(239,68,68,0.12)" : "var(--bg-tertiary)",
+                      color: isIncrease ? "var(--green)" : isDecrease ? "var(--rose, #e11d48)" : "var(--fg-tertiary)",
+                    }}
+                  >
+                    {isIncrease ? "↑" : isDecrease ? "↓" : "→"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span style={{ color: "var(--fg)" }} className="font-medium">
+                      {entry.previousSalary.toLocaleString()} → {entry.newSalary.toLocaleString()}
+                    </span>
+                    <span
+                      className="ml-2 text-[11px] font-semibold"
+                      style={{ color: isIncrease ? "var(--green)" : isDecrease ? "var(--rose, #e11d48)" : "var(--fg-tertiary)" }}
+                    >
+                      {isIncrease ? "+" : ""}{entry.incrementPercent}%
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                    {new Date(entry.effectiveDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* Mobile-only action row */}
       <div className="flex gap-3 sm:hidden">

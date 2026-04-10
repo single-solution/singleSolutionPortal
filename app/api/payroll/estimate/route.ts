@@ -75,11 +75,11 @@ export async function GET(req: NextRequest) {
   const absencePenaltyPct = config.absencePenaltyPerDay ?? 100;
   const otMult = config.overtimeRateMultiplier ?? 1.5;
   const latePenaltyTiers: ILatePenaltyTier[] = Array.isArray(config.latePenaltyTiers) && config.latePenaltyTiers.length > 0
-    ? config.latePenaltyTiers
+    ? [...config.latePenaltyTiers].sort((a, b) => b.minutes - a.minutes)
     : [
-        { minMinutes: 0, maxMinutes: 15, penaltyPercent: 0 },
-        { minMinutes: 16, maxMinutes: 30, penaltyPercent: 50 },
-        { minMinutes: 31, maxMinutes: 9999, penaltyPercent: 100 },
+        { minutes: 60, penaltyPercent: 100 },
+        { minutes: 30, penaltyPercent: 50 },
+        { minutes: 15, penaltyPercent: 0 },
       ];
 
   const holidayRows = await Holiday.find({ $or: [{ year }, { isRecurring: true }] }).lean();
@@ -118,9 +118,7 @@ export async function GET(req: NextRequest) {
       presentKeys.add(key);
       const lateMinutes = Math.max(Number(row.lateToOfficeBy) || 0, Number(row.lateBy) || 0);
       if (lateMinutes > 0) {
-        const matchingTier = latePenaltyTiers.find(
-          (t) => lateMinutes >= t.minMinutes && lateMinutes <= t.maxMinutes,
-        );
+        const matchingTier = latePenaltyTiers.find((t) => lateMinutes >= t.minutes);
         if (matchingTier && matchingTier.penaltyPercent > 0) {
           lateDays += 1;
           tieredLatePenaltyTotal += dailyRate * (matchingTier.penaltyPercent / 100);
@@ -183,7 +181,6 @@ export async function GET(req: NextRequest) {
       ...(absenceDeduction > 0 ? [{ label: "Absence penalty", amount: absenceDeduction }] : []),
       ...(lateDeduction > 0 ? [{ label: "Late arrival penalty", amount: lateDeduction }] : []),
     ],
-    currency: config.currency ?? "PKR",
     ytd,
   });
 }

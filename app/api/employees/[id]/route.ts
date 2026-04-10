@@ -76,8 +76,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (typeof body.graceMinutes === "number") update.graceMinutes = body.graceMinutes;
   if (body.shiftType) update.shiftType = body.shiftType;
 
+  let salaryHistoryEntry: Record<string, unknown> | null = null;
   if (typeof body.salary === "number" && Number.isFinite(body.salary) && hasPermission(actor, "payroll_manageSalary")) {
-    update.salary = body.salary;
+    const currentEmp = await User.findById(id).select("salary").lean();
+    const oldSalary = currentEmp?.salary ?? 0;
+    const newSalary = body.salary;
+    if (oldSalary !== newSalary) {
+      update.salary = newSalary;
+      if (oldSalary > 0) {
+        const incrementPercent = Math.round(((newSalary - oldSalary) / oldSalary) * 100 * 100) / 100;
+        salaryHistoryEntry = {
+          previousSalary: oldSalary,
+          newSalary,
+          incrementPercent,
+          effectiveDate: body.salaryEffectiveDate ? new Date(body.salaryEffectiveDate) : new Date(),
+          changedAt: new Date(),
+        };
+      }
+    }
   }
 
   if (body.isActive !== undefined && (isSuperAdmin(actor) || hasPermission(actor, "employees_toggleStatus"))) {
@@ -113,7 +129,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
+  const updateOps: Record<string, unknown> = { $set: update };
+  if (salaryHistoryEntry) {
+    updateOps.$push = { salaryHistory: salaryHistoryEntry };
+  }
+
+  const user = await User.findByIdAndUpdate(id, updateOps, { new: true })
     .select("-password")
     .lean();
 
