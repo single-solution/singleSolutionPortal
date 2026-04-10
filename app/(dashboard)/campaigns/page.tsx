@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
-import { StatusToggle } from "../components/DataTable";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
 import { useSession } from "next-auth/react";
@@ -475,7 +475,7 @@ export default function CampaignsPage() {
                     {/* Footer */}
                     <div className="flex items-center justify-between px-2.5 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
                       <div className="flex items-center gap-2">
-                        {canManageCampaigns && <StatusToggle active={c.isActive !== false} onChange={() => toggleActive(c)} />}
+                        {canManageCampaigns && <ToggleSwitch checked={c.isActive !== false} onChange={() => toggleActive(c)} />}
                         <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                           {c.updatedAt && c.updatedAt !== c.createdAt
                             ? `Updated ${new Date(c.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
