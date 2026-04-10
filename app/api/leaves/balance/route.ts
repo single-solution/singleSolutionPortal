@@ -48,19 +48,17 @@ export async function GET(req: NextRequest) {
 
   const bal = await ensureLeaveBalance(new mongoose.Types.ObjectId(targetUserId), year);
 
+  const total = bal.total ?? (bal.annual + bal.sick + bal.casual);
+  const used = bal.totalUsed ?? (bal.used.annual + bal.used.sick + bal.used.casual);
+  const remaining = Math.max(0, total - used);
+
   return NextResponse.json({
     _id: bal._id,
     user: bal.user,
     year: bal.year,
-    annual: bal.annual,
-    sick: bal.sick,
-    casual: bal.casual,
-    used: bal.used,
-    remaining: {
-      annual: Math.max(0, bal.annual - bal.used.annual),
-      sick: Math.max(0, bal.sick - bal.used.sick),
-      casual: Math.max(0, bal.casual - bal.used.casual),
-    },
+    total,
+    used,
+    remaining,
     createdAt: bal.createdAt,
     updatedAt: bal.updatedAt,
   });
@@ -87,16 +85,9 @@ export async function PUT(req: NextRequest) {
     return badRequest("userId and year are required");
   }
 
-  const annual = body.annual != null ? Number(body.annual) : undefined;
-  const sick = body.sick != null ? Number(body.sick) : undefined;
-  const casual = body.casual != null ? Number(body.casual) : undefined;
-
-  if (
-    (annual != null && (Number.isNaN(annual) || annual < 0)) ||
-    (sick != null && (Number.isNaN(sick) || sick < 0)) ||
-    (casual != null && (Number.isNaN(casual) || casual < 0))
-  ) {
-    return badRequest("Allocations must be non-negative numbers");
+  const total = body.total != null ? Number(body.total) : undefined;
+  if (total != null && (Number.isNaN(total) || total < 0)) {
+    return badRequest("total must be a non-negative number");
   }
 
   await connectDB();
@@ -110,12 +101,10 @@ export async function PUT(req: NextRequest) {
 
   const oid = new mongoose.Types.ObjectId(userId);
   const update: Record<string, number> = {};
-  if (annual != null) update.annual = annual;
-  if (sick != null) update.sick = sick;
-  if (casual != null) update.casual = casual;
+  if (total != null) update.total = total;
 
   if (Object.keys(update).length === 0) {
-    return badRequest("Provide at least one of annual, sick, casual");
+    return badRequest("Provide total allocation");
   }
 
   const bal = await LeaveBalance.findOneAndUpdate(
@@ -124,5 +113,15 @@ export async function PUT(req: NextRequest) {
     { upsert: true, new: true },
   );
 
-  return NextResponse.json(bal);
+  const totalVal = bal.total ?? (bal.annual + bal.sick + bal.casual);
+  const usedVal = bal.totalUsed ?? (bal.used.annual + bal.used.sick + bal.used.casual);
+
+  return NextResponse.json({
+    _id: bal._id,
+    user: bal.user,
+    year: bal.year,
+    total: totalVal,
+    used: usedVal,
+    remaining: Math.max(0, totalVal - usedVal),
+  });
 }

@@ -19,6 +19,7 @@ import {
   type TestEmailType,
   type SysSettings,
 } from "./SettingsSystem";
+import { SettingsPayroll } from "./SettingsPayroll";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -85,6 +86,7 @@ export default function SettingsPage() {
   useEffect(() => { registerTour("settings", settingsTour); }, [registerTour]);
   const { can: canPerm } = usePermissions();
   const canManageSettings = canPerm("settings_manage");
+  const canManagePayroll = canPerm("payroll_manageSalary");
 
   const sys = useSystemSettings(canManageSettings);
 
@@ -301,6 +303,13 @@ export default function SettingsPage() {
 
       {/* Preferences */}
       <PreferencesSection />
+
+      {/* Payroll Configuration */}
+      {canManagePayroll && (
+        <FadeUp delay={0.22}>
+          <SettingsPayroll />
+        </FadeUp>
+      )}
 
       {/* SuperAdmin row: Test Email + System Settings side by side */}
       {canManageSettings && (

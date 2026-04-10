@@ -34,8 +34,6 @@ const PATH_TO_TOUR: Record<string, TourName> = {
   "/workspace": "workspace",
   "/insights-desk": "insights-desk",
   "/insights-desk/attendance": "attendance",
-  "/insights-desk/leaves": "insights-desk",
-  "/insights-desk/payroll": "insights-desk",
   "/settings": "settings",
 };
 

@@ -4,11 +4,9 @@ import { connectDB } from "@/lib/db";
 import Leave from "@/lib/models/Leave";
 import LeaveBalance from "@/lib/models/LeaveBalance";
 import "@/lib/models/User";
-import type { LeaveStatus, LeaveType } from "@/lib/models/Leave";
+import type { LeaveStatus } from "@/lib/models/Leave";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
 import { badRequest, forbidden, notFound, unauthorized, isValidId } from "@/lib/helpers";
-
-const BALANCE_TYPES = new Set<LeaveType>(["annual", "sick", "casual"]);
 
 async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number) {
   const doc = await LeaveBalance.findOneAndUpdate(
@@ -21,37 +19,31 @@ async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number)
 
 async function consumeBalance(leave: {
   user: mongoose.Types.ObjectId;
-  type: LeaveType;
   startDate: Date;
   days: number;
 }) {
-  if (!BALANCE_TYPES.has(leave.type)) return;
   const year = new Date(leave.startDate).getFullYear();
   await ensureLeaveBalance(leave.user, year);
-  const key = `used.${leave.type}`;
   await LeaveBalance.updateOne(
     { user: leave.user, year },
-    { $inc: { [key]: leave.days } },
+    { $inc: { totalUsed: leave.days } },
   );
 }
 
 async function releaseBalance(leave: {
   user: mongoose.Types.ObjectId;
-  type: LeaveType;
   startDate: Date;
   days: number;
 }) {
-  if (!BALANCE_TYPES.has(leave.type)) return;
   const year = new Date(leave.startDate).getFullYear();
-  const key = `used.${leave.type}`;
   const result = await LeaveBalance.updateOne(
-    { user: leave.user, year, [key]: { $gte: leave.days } },
-    { $inc: { [key]: -leave.days } },
+    { user: leave.user, year, totalUsed: { $gte: leave.days } },
+    { $inc: { totalUsed: -leave.days } },
   );
   if (result.modifiedCount === 0) {
     await LeaveBalance.updateOne(
       { user: leave.user, year },
-      { $set: { [key]: 0 } },
+      { $set: { totalUsed: 0 } },
     );
   }
 }
@@ -222,7 +214,7 @@ export async function DELETE(_req: NextRequest, context: RouteCtx) {
     return forbidden("Can only delete leaves within your hierarchy.");
   }
 
-  if (leave.status === "approved" && BALANCE_TYPES.has(leave.type)) {
+  if (leave.status === "approved") {
     await releaseBalance(leave);
   }
 

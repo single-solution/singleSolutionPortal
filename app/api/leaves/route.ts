@@ -10,6 +10,7 @@ import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds 
 import { badRequest, forbidden, unauthorized } from "@/lib/helpers";
 
 const LEAVE_TYPES: LeaveType[] = [
+  "leave",
   "annual",
   "sick",
   "casual",
@@ -19,8 +20,6 @@ const LEAVE_TYPES: LeaveType[] = [
   "bereavement",
   "other",
 ];
-
-const BALANCE_TYPES = new Set<LeaveType>(["annual", "sick", "casual"]);
 
 export async function countBusinessDays(start: Date, end: Date): Promise<number> {
   const s = new Date(start);
@@ -83,12 +82,11 @@ async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number)
   return doc!;
 }
 
-async function pendingDaysForType(userId: string, type: LeaveType, year: number): Promise<number> {
+async function pendingDaysTotal(userId: string, year: number): Promise<number> {
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
   const leaves = await Leave.find({
     user: userId,
-    type,
     status: "pending",
     startDate: { $lte: yearEnd },
     endDate: { $gte: yearStart },
@@ -191,22 +189,21 @@ export async function POST(req: NextRequest) {
     return badRequest("Invalid JSON");
   }
 
-  const type = body.type as string;
-  const startDateRaw = body.startDate;
-  const endDateRaw = body.endDate;
+  const type = (typeof body.type === "string" && LEAVE_TYPES.includes(body.type as LeaveType))
+    ? body.type as LeaveType
+    : "leave";
+  const isHalfDay = body.isHalfDay === true;
+  const startDateRaw = body.startDate ?? body.date;
+  const endDateRaw = body.endDate ?? body.date;
   const reason = typeof body.reason === "string" ? body.reason : "";
   const targetUserId = typeof body.userId === "string" ? body.userId : actor.id;
 
-  if (!LEAVE_TYPES.includes(type as LeaveType)) {
-    return badRequest("Invalid leave type");
-  }
-
-  if (!startDateRaw || !endDateRaw) {
-    return badRequest("startDate and endDate are required");
+  if (!startDateRaw) {
+    return badRequest("date (or startDate) is required");
   }
 
   const startDate = new Date(startDateRaw as string);
-  const endDate = new Date(endDateRaw as string);
+  const endDate = new Date((endDateRaw ?? startDateRaw) as string);
   if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
     return badRequest("Invalid dates");
   }
@@ -214,9 +211,14 @@ export async function POST(req: NextRequest) {
     return badRequest("endDate must be on or after startDate");
   }
 
-  const days = await countBusinessDays(startDate, endDate);
-  if (days < 0.5) {
-    return badRequest("Leave must include at least one business day");
+  let days: number;
+  if (isHalfDay) {
+    days = 0.5;
+  } else {
+    days = await countBusinessDays(startDate, endDate);
+    if (days < 0.5) {
+      return badRequest("Leave must include at least one business day");
+    }
   }
 
   if (targetUserId !== actor.id && !isSuperAdmin(actor)) {
@@ -239,30 +241,27 @@ export async function POST(req: NextRequest) {
   }
 
   const leaveUserId = new mongoose.Types.ObjectId(targetUserId);
-
-  if (BALANCE_TYPES.has(type as LeaveType)) {
-    const year = startDate.getFullYear();
-    const balance = await ensureLeaveBalance(leaveUserId, year);
-    const t = type as "annual" | "sick" | "casual";
-    const allocated = balance[t];
-    const used = balance.used[t];
-    const pendingExtra = await pendingDaysForType(targetUserId, t, year);
-    const remaining = allocated - used - pendingExtra;
-    if (remaining < days) {
-      return NextResponse.json(
-        { error: `Insufficient ${t} leave balance for this request.` },
-        { status: 400 },
-      );
-    }
+  const year = startDate.getFullYear();
+  const balance = await ensureLeaveBalance(leaveUserId, year);
+  const total = balance.total ?? (balance.annual + balance.sick + balance.casual);
+  const used = balance.totalUsed ?? (balance.used.annual + balance.used.sick + balance.used.casual);
+  const pendingExtra = await pendingDaysTotal(targetUserId, year);
+  const remaining = total - used - pendingExtra;
+  if (remaining < days) {
+    return NextResponse.json(
+      { error: `Insufficient leave balance (${remaining} remaining, ${days} requested).` },
+      { status: 400 },
+    );
   }
 
   const leave = await Leave.create({
     user: leaveUserId,
-    type: type as LeaveType,
+    type,
     status: "pending",
     startDate,
     endDate,
     days,
+    isHalfDay,
     reason,
     isPastCorrection,
   });

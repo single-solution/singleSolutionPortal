@@ -3,6 +3,9 @@ import mongoose, { Schema, Types, Document } from "mongoose";
 export interface ILeaveBalance extends Document {
   user: Types.ObjectId;
   year: number;
+  total: number;
+  totalUsed: number;
+  /** @deprecated kept for backward compat — use total/totalUsed instead */
   annual: number;
   sick: number;
   casual: number;
@@ -15,6 +18,8 @@ const leaveBalanceSchema = new Schema<ILeaveBalance>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     year: { type: Number, required: true },
+    total: { type: Number, default: 30 },
+    totalUsed: { type: Number, default: 0 },
     annual: { type: Number, default: 15 },
     sick: { type: Number, default: 10 },
     casual: { type: Number, default: 5 },

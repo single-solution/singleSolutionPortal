@@ -9,6 +9,7 @@ import { useGuide } from "@/lib/useGuide";
 import { attendanceTour } from "@/lib/tourConfigs";
 import { Pill as SharedPill, StatChip as SharedStatChip, AnalyticChip as SharedAnalyticChip } from "../../components/StatChips";
 import { timeAgo } from "@/lib/formatters";
+import { useInsightsContext } from "../layout";
 
 /* ───── Types ───── */
 
@@ -110,6 +111,17 @@ interface TeamDateRecord {
   lateToOfficeBy?: number;
 }
 
+interface LeaveRecord {
+  _id: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  isHalfDay?: boolean;
+  status: string;
+  reason?: string;
+  user?: { _id?: string; about?: { firstName?: string; lastName?: string } };
+}
+
 type GroupMode = "flat" | "manager" | "department";
 
 /* ───── Constants ───── */
@@ -148,6 +160,8 @@ export default function AttendancePage() {
   const { can: canPerm, isSuperAdmin, hasSubordinates } = usePermissions();
   const hasTeamAccess = canPerm("attendance_viewTeam") || hasSubordinates;
   const canViewHolidays = canPerm("holidays_view");
+  const canViewLeaves = canPerm("leaves_viewTeam");
+  const { setTeamCount, openLeavesModal } = useInsightsContext();
 
   /* ── Team overview state ── */
   const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
@@ -173,6 +187,9 @@ export default function AttendancePage() {
 
   /* ── Holidays for calendar highlighting ── */
   const [calendarHolidays, setCalendarHolidays] = useState<{ date: string }[]>([]);
+
+  /* ── Leaves for calendar + list ── */
+  const [calendarLeaves, setCalendarLeaves] = useState<LeaveRecord[]>([]);
 
   const userIdParam = viewingUserId || "";
   const hasSelectedEmployee = !!viewingUserId;
@@ -262,6 +279,20 @@ export default function AttendancePage() {
   useEffect(() => { loadSelfMonthlyStats(); }, [loadSelfMonthlyStats]);
 
   useEffect(() => {
+    if (!teamLoading) setTeamCount(teamSummary.length);
+  }, [teamSummary.length, teamLoading, setTeamCount]);
+
+  useEffect(() => {
+    if (!canViewLeaves) return;
+    const q = new URLSearchParams({ year: String(year), month: String(month), status: "approved" });
+    if (viewingUserId) q.set("userId", viewingUserId);
+    fetch(`/api/leaves?${q}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: LeaveRecord[]) => setCalendarLeaves(Array.isArray(data) ? data : []))
+      .catch(() => setCalendarLeaves([]));
+  }, [year, month, viewingUserId, canViewLeaves]);
+
+  useEffect(() => {
     if (!canViewHolidays) return;
     fetch(`/api/payroll/holidays?year=${year}`)
       .then((r) => r.ok ? r.json() : [])
@@ -335,6 +366,22 @@ export default function AttendancePage() {
     return days;
   }, [calendarHolidays, year, month]);
 
+  const leaveDays = useMemo(() => {
+    const days = new Set<number>();
+    for (const l of calendarLeaves) {
+      const s = new Date(l.startDate);
+      const e = new Date(l.endDate);
+      const cur = new Date(s);
+      while (cur <= e) {
+        if (cur.getFullYear() === year && cur.getMonth() + 1 === month) {
+          days.add(cur.getDate());
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return days;
+  }, [calendarLeaves, year, month]);
+
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
   const today = new Date();
@@ -372,13 +419,12 @@ export default function AttendancePage() {
       {/* Header */}
       <div data-tour="attendance-header" className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-title">{sessionReady && hasTeamAccess ? "Team Attendance" : "Attendance"}</h1>
           {pillsLoading ? (
             <span className="shimmer mt-1 block h-4 w-28 rounded" />
           ) : (
             <p className="text-subhead">
               {hasTeamAccess
-                ? (hasSelectedEmployee && viewingMember ? viewingMember.name : `${filteredSummary.length} employee${filteredSummary.length !== 1 ? "s" : ""}`)
+                ? (hasSelectedEmployee && viewingMember ? viewingMember.name : `${MONTH_NAMES[month - 1]} ${year}`)
                 : `${MONTH_NAMES[month - 1]} ${year}`}
             </p>
           )}
@@ -559,6 +605,7 @@ export default function AttendancePage() {
                   const dayOfWeek = dateObj.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                   const isHoliday = holidayDays.has(day);
+                  const isLeaveDay = leaveDays.has(day);
                   const isOff = isWeekend || isHoliday;
                   const isToday = isCurrentMonth && day === today.getDate();
                   const isSelected = selectedDay === day;
@@ -570,9 +617,11 @@ export default function AttendancePage() {
                   }
                   if (isOff && dotColor === "transparent") dotColor = "color-mix(in srgb, var(--fg-tertiary) 25%, transparent)";
 
-                  const offBg = isHoliday
-                    ? "color-mix(in srgb, #8b5cf6 8%, transparent)"
-                    : "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)";
+                  const offBg = isLeaveDay
+                    ? "color-mix(in srgb, var(--teal) 10%, transparent)"
+                    : isHoliday
+                      ? "color-mix(in srgb, #8b5cf6 8%, transparent)"
+                      : "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)";
 
                   return (
                     <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
@@ -581,8 +630,8 @@ export default function AttendancePage() {
                         ...(isSelected
                           ? { background: "var(--primary)", borderRadius: "0.5rem" }
                           : isToday
-                            ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem", background: isOff ? offBg : undefined }
-                            : isOff
+                            ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem", background: isOff || isLeaveDay ? offBg : undefined }
+                            : isOff || isLeaveDay
                               ? { background: offBg }
                               : {}),
                         cursor: isFuture ? "default" : "pointer",
@@ -612,6 +661,9 @@ export default function AttendancePage() {
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }} /> Weekend</span>
               {holidayDays.size > 0 && (
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, #8b5cf6 8%, transparent)", border: "1px solid color-mix(in srgb, #8b5cf6 20%, transparent)" }} /> Holiday</span>
+              )}
+              {leaveDays.size > 0 && (
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--teal) 25%, transparent)" }} /> Leave</span>
               )}
             </div>
           )}
@@ -1140,6 +1192,53 @@ export default function AttendancePage() {
             })}
           </motion.div>
         </div>
+      )}
+
+      {/* Leave list for selected employee */}
+      {sessionReady && !isAggregateMode && calendarLeaves.length > 0 && (
+        <motion.div className="card-static overflow-hidden" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+            <h3 className="text-headline text-sm">Leaves · {calendarLeaves.length}</h3>
+            <button
+              type="button"
+              onClick={() => openLeavesModal(viewingUserId || undefined)}
+              className="text-[11px] font-semibold"
+              style={{ color: "var(--primary)" }}
+            >
+              + Apply Leave
+            </button>
+          </div>
+          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+            {calendarLeaves.map((l) => {
+              const statusColor = l.status === "approved" ? "var(--green)" : l.status === "pending" ? "var(--amber)" : "var(--rose)";
+              return (
+                <div key={l._id} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-3">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor }} />
+                    <div>
+                      <p className="text-xs font-medium" style={{ color: "var(--fg)" }}>
+                        {new Date(l.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        {l.startDate !== l.endDate && ` – ${new Date(l.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                      </p>
+                      {l.reason && <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{l.reason}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                      {l.isHalfDay ? "Half day" : `${l.days}d`}
+                    </span>
+                    <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold capitalize" style={{
+                      background: `color-mix(in srgb, ${statusColor} 12%, transparent)`,
+                      color: statusColor,
+                    }}>
+                      {l.status}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
       )}
 
       {/* Monthly records list — individual mode only */}

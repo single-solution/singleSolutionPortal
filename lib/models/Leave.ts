@@ -1,6 +1,7 @@
 import mongoose, { Schema, type Document, type Types } from "mongoose";
 
 export type LeaveType =
+  | "leave"
   | "annual"
   | "sick"
   | "casual"
@@ -18,6 +19,7 @@ export interface ILeave extends Document {
   startDate: Date;
   endDate: Date;
   days: number;
+  isHalfDay: boolean;
   reason: string;
   reviewedBy?: Types.ObjectId;
   reviewedAt?: Date;
@@ -32,8 +34,8 @@ const leaveSchema = new Schema<ILeave>(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     type: {
       type: String,
-      enum: ["annual", "sick", "casual", "unpaid", "maternity", "paternity", "bereavement", "other"],
-      required: true,
+      enum: ["leave", "annual", "sick", "casual", "unpaid", "maternity", "paternity", "bereavement", "other"],
+      default: "leave",
     },
     status: {
       type: String,
@@ -44,6 +46,7 @@ const leaveSchema = new Schema<ILeave>(
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     days: { type: Number, required: true, min: 0.5 },
+    isHalfDay: { type: Boolean, default: false },
     reason: { type: String, default: "" },
     reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
     reviewedAt: { type: Date },
