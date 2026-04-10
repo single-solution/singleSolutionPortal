@@ -194,23 +194,6 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                 )}
 
                 <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
-                  {/* Employee picker (non-SuperAdmin — already shown above for SuperAdmin) */}
-                  {!isSuperAdmin && canViewTeam && employees.length > 0 && (
-                    <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                      Employee
-                      <select
-                        className="input text-sm"
-                        value={userId}
-                        onChange={(e) => setUserId(e.target.value)}
-                      >
-                        <option value="">Yourself</option>
-                        {employees.map((emp) => (
-                          <option key={emp._id} value={emp._id}>{nameOf(emp)}</option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-
                   {/* Half day / Full day toggle */}
                   <div>
                     <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--fg-tertiary)" }}>Duration</p>

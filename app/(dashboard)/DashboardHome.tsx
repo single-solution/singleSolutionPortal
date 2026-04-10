@@ -669,7 +669,7 @@ function AdminDashboard({
                 <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
               </>
               ))}
-            </div>
+                    </div>
           {hasTeamAccess && (
           <LayoutGroup id="admin-presence-filter">
             <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
@@ -691,8 +691,8 @@ function AdminDashboard({
                   {g === "flat" ? "Flat" : "By Dept"}
                 </button>
               ))}
-        </div>
             </div>
+          </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
           {presenceLoading && filteredPresence.length === 0 ? (
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
@@ -703,14 +703,14 @@ function AdminDashboard({
                     <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
                     <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
                     <Bone w="w-12" h="h-3.5" />
-          </div>
+                  </div>
                   <Bone w="w-24" h="h-2" />
                   <div className="mt-1.5 flex justify-between"><Bone w="w-10" h="h-2" /><Bone w="w-14" h="h-2" /></div>
                   <div className="mt-1"><Bone w="w-full" h="h-1.5" /></div>
-                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+          </div>
         ) : filteredPresence.length > 0 ? (
           (() => {
             function renderPresenceCard(emp: PresenceEmployee, idx: number) {
