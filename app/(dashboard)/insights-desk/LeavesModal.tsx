@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
@@ -12,6 +12,7 @@ interface DropdownEmp {
   _id: string;
   about?: { firstName?: string; lastName?: string };
   email?: string;
+  department?: { id: string; title: string } | null;
 }
 
 interface BalancePayload {
@@ -20,11 +21,59 @@ interface BalancePayload {
   remaining: number;
 }
 
+interface LeaveRecord {
+  _id: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  isHalfDay?: boolean;
+  status: string;
+  reason?: string;
+  type?: string;
+  createdAt?: string;
+  user?: { _id?: string; about?: { firstName?: string; lastName?: string }; email?: string };
+  reviewedBy?: { about?: { firstName?: string; lastName?: string }; email?: string };
+}
+
 function nameOf(u: DropdownEmp): string {
   const f = u.about?.firstName ?? "";
   const l = u.about?.lastName ?? "";
   const n = `${f} ${l}`.trim();
   return n || u.email || "—";
+}
+
+function initials(u: DropdownEmp): string {
+  const f = u.about?.firstName?.[0] ?? "";
+  const l = u.about?.lastName?.[0] ?? "";
+  return (f + l).toUpperCase() || "?";
+}
+
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  approved: "var(--green)",
+  pending: "var(--amber)",
+  rejected: "var(--rose)",
+  cancelled: "var(--fg-tertiary)",
+};
+
+const AVATAR_COLORS = [
+  "var(--primary)", "var(--teal)", "var(--purple)", "var(--amber)",
+  "var(--rose)", "var(--green)", "var(--fg-secondary)",
+];
+
+function avatarColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+interface DeptGroup {
+  id: string;
+  title: string;
+  employees: DropdownEmp[];
 }
 
 interface Props {
@@ -42,13 +91,20 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const [userId, setUserId] = useState(selectedUserId || "");
   const [balance, setBalance] = useState<BalancePayload | null>(null);
   const [balLoading, setBalLoading] = useState(false);
+  const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
+  const [leavesLoading, setLeavesLoading] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState("");
+  const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
 
+  const [showForm, setShowForm] = useState(false);
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [multiDay, setMultiDay] = useState(false);
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (selectedUserId) setUserId(selectedUserId);
@@ -76,20 +132,81 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     setBalLoading(false);
   }, [userId, session?.user?.id, isSuperAdmin]);
 
+  const loadLeaves = useCallback(async () => {
+    if (isSuperAdmin && !userId) { setLeaves([]); return; }
+    const uid = userId || session?.user?.id;
+    if (!uid) return;
+    setLeavesLoading(true);
+    try {
+      const q = new URLSearchParams({ year: String(new Date().getFullYear()) });
+      if (userId) q.set("userId", userId);
+      const res = await fetch(`/api/leaves?${q}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLeaves(Array.isArray(data) ? data : []);
+      }
+    } catch { setLeaves([]); }
+    setLeavesLoading(false);
+  }, [userId, session?.user?.id, isSuperAdmin]);
+
   useEffect(() => {
-    if (open) loadBalance();
-  }, [open, loadBalance]);
+    if (open) { loadBalance(); loadLeaves(); }
+  }, [open, loadBalance, loadLeaves]);
+
+  useEffect(() => {
+    if (detailRef.current) detailRef.current.scrollTop = 0;
+  }, [userId]);
+
+  const filteredEmployees = useMemo(() => {
+    if (!sidebarSearch.trim()) return employees;
+    const q = sidebarSearch.toLowerCase();
+    return employees.filter((e) =>
+      nameOf(e).toLowerCase().includes(q) ||
+      (e.department?.title ?? "").toLowerCase().includes(q)
+    );
+  }, [employees, sidebarSearch]);
+
+  const deptGroups = useMemo(() => {
+    const grouped = new Map<string, DeptGroup>();
+    const ungrouped: DropdownEmp[] = [];
+    for (const emp of filteredEmployees) {
+      if (emp.department) {
+        const existing = grouped.get(emp.department.id);
+        if (existing) existing.employees.push(emp);
+        else grouped.set(emp.department.id, { id: emp.department.id, title: emp.department.title, employees: [emp] });
+      } else {
+        ungrouped.push(emp);
+      }
+    }
+    const groups = [...grouped.values()].sort((a, b) => a.title.localeCompare(b.title));
+    if (ungrouped.length > 0) groups.push({ id: "__none", title: "Unassigned", employees: ungrouped });
+    return groups;
+  }, [filteredEmployees]);
+
+  const toggleDept = (id: string) => {
+    setCollapsedDepts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedEmployee = useMemo(() => employees.find((e) => e._id === userId), [employees, userId]);
+
+  const leaveSummary = useMemo(() => {
+    const pending = leaves.filter((l) => l.status === "pending").length;
+    const approved = leaves.filter((l) => l.status === "approved").length;
+    const rejected = leaves.filter((l) => l.status === "rejected").length;
+    const totalDays = leaves.filter((l) => l.status === "approved").reduce((s, l) => s + l.days, 0);
+    return { pending, approved, rejected, totalDays };
+  }, [leaves]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!date) return;
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = {
-        date,
-        isHalfDay,
-        reason,
-      };
+      const body: Record<string, unknown> = { date, isHalfDay, reason };
       if (multiDay && endDate) body.endDate = endDate;
       if (canViewTeam && userId) body.userId = userId;
       const res = await fetch("/api/leaves", {
@@ -103,7 +220,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
       } else {
         toast.success("Leave request submitted");
         setDate(""); setEndDate(""); setReason(""); setIsHalfDay(false); setMultiDay(false);
-        await loadBalance();
+        setShowForm(false);
+        await Promise.all([loadBalance(), loadLeaves()]);
       }
     } catch {
       toast.error("Something went wrong");
@@ -112,9 +230,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   }
 
   const selfExempt = isSuperAdmin && !userId;
-
   const balPct = balance && balance.total > 0 ? Math.round((balance.used / balance.total) * 100) : 0;
   const barColor = balPct > 80 ? "var(--rose)" : balPct > 50 ? "var(--amber)" : "var(--teal)";
+  const showSidebar = canViewTeam && employees.length > 0;
+
+  const detailLabel = userId
+    ? (selectedEmployee ? nameOf(selectedEmployee) : "Employee")
+    : (isSuperAdmin ? "" : "Yourself");
 
   return (
     <Portal>
@@ -126,7 +248,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className="relative w-full max-w-md mx-4 max-h-[85vh] flex flex-col rounded-2xl border shadow-xl overflow-hidden"
+              className={`relative mx-4 flex flex-col rounded-2xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-5xl max-h-[90vh]" : "w-full max-w-2xl max-h-[90vh]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -135,140 +257,369 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
               {/* Header */}
               <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
                 <div>
-                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>{selfExempt ? "Leaves" : "Apply Leave"}</h2>
+                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Leaves</h2>
                   {!selfExempt && balance && !balLoading && (
                     <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
-                      {balance.used} / {balance.total} used · {balance.remaining} remaining
+                      {detailLabel && <>{detailLabel} · </>}
+                      {balance.remaining} of {balance.total} remaining · {new Date().getFullYear()}
                     </p>
                   )}
                 </div>
-                <button type="button" onClick={onClose} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  {!selfExempt && (
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowForm((p) => !p)}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                      style={{ background: "var(--primary)" }}
+                    >
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M12 4v16m8-8H4" /></svg>
+                      Apply
+                    </motion.button>
+                  )}
+                  <button type="button" onClick={onClose} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                {/* Employee picker — always show for SuperAdmin so they can switch to a team member */}
-                {canViewTeam && employees.length > 0 && (
-                  <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                    Employee
-                    <select
-                      className="input text-sm"
-                      value={userId}
-                      onChange={(e) => setUserId(e.target.value)}
-                    >
-                      {!isSuperAdmin && <option value="">Yourself</option>}
-                      {employees.map((emp) => (
-                        <option key={emp._id} value={emp._id}>{nameOf(emp)}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-
-                {selfExempt ? (
-                  <div className="py-8 text-center">
-                    <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>SuperAdmin is exempt</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                      Select an employee above to apply leave on their behalf.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                {/* Balance bar */}
-                {balance && (
-                  <div>
-                    <div className="flex justify-between text-[10px] font-semibold mb-1" style={{ color: "var(--fg-tertiary)" }}>
-                      <span>{balance.used} days used</span>
-                      <span>{balance.remaining} remaining</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--bg-grouped)" }}>
-                      <motion.div
-                        className="h-full rounded-full"
-                        style={{ background: barColor }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${balPct}%` }}
-                        transition={{ duration: 0.6 }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
-                  {/* Half day / Full day toggle */}
-                  <div>
-                    <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--fg-tertiary)" }}>Duration</p>
-                    <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                      <button
-                        type="button"
-                        onClick={() => setIsHalfDay(false)}
-                        className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${!isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
-                      >
-                        Full day
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setIsHalfDay(true); setMultiDay(false); }}
-                        className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
-                      >
-                        Half day
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Multiple days toggle */}
-                  {!isHalfDay && (
-                    <ToggleSwitch checked={multiDay} onChange={setMultiDay} label="Multiple days" />
-                  )}
-
-                  {/* Date picker */}
-                  <div className={multiDay && !isHalfDay ? "grid grid-cols-2 gap-2" : ""}>
-                    <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                      {multiDay && !isHalfDay ? "Start date" : "Date"}
-                      <input
-                        type="date"
-                        required
-                        className="input text-sm"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                      />
-                    </label>
-                    {multiDay && !isHalfDay && (
-                      <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                        End date
-                        <input
-                          type="date"
-                          required
-                          className="input text-sm"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          min={date}
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* Reason */}
-                  <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                    Reason <span className="font-normal">(optional)</span>
-                    <input
-                      type="text"
-                      className="input text-sm"
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      placeholder="Personal, health, etc."
-                    />
-                  </label>
-
-                  <button
-                    type="submit"
-                    disabled={submitting || !date}
-                    className="btn btn-primary w-full"
+              <div className="flex flex-1 overflow-hidden">
+                {/* ── Left sidebar ── */}
+                {showSidebar && (
+                  <div
+                    className="flex flex-col border-r"
+                    style={{ width: 260, minWidth: 260, borderColor: "var(--border)", background: "var(--bg)" }}
                   >
-                    {submitting ? "Submitting…" : "Submit request"}
-                  </button>
-                </form>
-                  </>
+                    {/* Search */}
+                    <div className="p-3 border-b" style={{ borderColor: "var(--border)" }}>
+                      <div className="relative">
+                        <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
+                        <input
+                          type="text"
+                          value={sidebarSearch}
+                          onChange={(e) => setSidebarSearch(e.target.value)}
+                          placeholder="Search employees…"
+                          className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
+                          style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg)" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Scrollable list */}
+                    <div className="flex-1 overflow-y-auto py-1.5" style={{ scrollbarWidth: "thin" }}>
+                      {/* "Yourself" option */}
+                      {!isSuperAdmin && !sidebarSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setUserId("")}
+                          className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                          style={{
+                            background: !userId ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent",
+                          }}
+                        >
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: "var(--green)" }}>
+                            ME
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold truncate" style={{ color: !userId ? "var(--primary)" : "var(--fg)" }}>Yourself</p>
+                            <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>My leave data</p>
+                          </div>
+                          {!userId && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                        </button>
+                      )}
+
+                      {/* "All Team" option */}
+                      {!sidebarSearch && employees.length > 1 && (
+                        <div className="mx-3 my-1 border-b" style={{ borderColor: "var(--border)" }} />
+                      )}
+
+                      {/* Department groups */}
+                      {deptGroups.map((g) => {
+                        const isCollapsed = collapsedDepts.has(g.id);
+                        return (
+                          <div key={g.id}>
+                            <button
+                              type="button"
+                              onClick={() => toggleDept(g.id)}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--hover-bg)]"
+                            >
+                              <svg
+                                className="h-3 w-3 shrink-0 transition-transform"
+                                style={{ color: "var(--fg-tertiary)", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)" }}
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                              >
+                                <path strokeLinecap="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                              <span className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: "var(--fg-tertiary)" }}>
+                                {g.title}
+                              </span>
+                              <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{g.employees.length}</span>
+                            </button>
+                            <AnimatePresence initial={false}>
+                              {!isCollapsed && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="overflow-hidden"
+                                >
+                                  {g.employees.map((emp) => {
+                                    const isSel = userId === emp._id;
+                                    return (
+                                      <button
+                                        key={emp._id}
+                                        type="button"
+                                        onClick={() => setUserId(emp._id)}
+                                        className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left transition-colors"
+                                        style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
+                                      >
+                                        <span
+                                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                                          style={{ background: avatarColor(emp._id) }}
+                                        >
+                                          {initials(emp)}
+                                        </span>
+                                        <span className="flex-1 min-w-0 text-xs font-medium truncate" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>
+                                          {nameOf(emp)}
+                                        </span>
+                                        {isSel && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                                      </button>
+                                    );
+                                  })}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+
+                      {filteredEmployees.length === 0 && sidebarSearch && (
+                        <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>
+                      )}
+                    </div>
+
+                    {/* Sidebar footer: employee count */}
+                    <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                        {employees.length} employee{employees.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  </div>
                 )}
+
+                {/* ── Right detail panel ── */}
+                <div ref={detailRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                  {selfExempt ? (
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <div className="rounded-full p-4 mb-3" style={{ background: "var(--bg-grouped)" }}>
+                        <svg className="h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>Select an employee</p>
+                      <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                        Choose from the sidebar to view leave data
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Selected employee header */}
+                      {userId && selectedEmployee && (
+                        <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: avatarColor(selectedEmployee._id) }}>
+                            {initials(selectedEmployee)}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold truncate" style={{ color: "var(--fg)" }}>{nameOf(selectedEmployee)}</p>
+                            {selectedEmployee.department && (
+                              <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{selectedEmployee.department.title}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Balance card */}
+                      {balLoading ? (
+                        <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}>
+                          <div className="shimmer h-3 w-40 rounded" />
+                          <div className="shimmer h-2.5 w-full rounded-full" />
+                          <div className="grid grid-cols-3 gap-2">
+                            {[1, 2, 3].map((i) => <div key={i} className="shimmer h-12 rounded-xl" />)}
+                          </div>
+                        </div>
+                      ) : balance ? (
+                        <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}>
+                          <div className="flex justify-between text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                            <span>{balance.used} days used</span>
+                            <span>{balance.remaining} remaining</span>
+                          </div>
+                          <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                            <motion.div
+                              className="h-full rounded-full"
+                              style={{ background: barColor }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${balPct}%` }}
+                              transition={{ duration: 0.6 }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="rounded-lg p-2.5 text-center" style={{ background: "var(--bg-elevated)" }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total</p>
+                              <p className="text-sm font-bold" style={{ color: "var(--primary)" }}>{balance.total}</p>
+                            </div>
+                            <div className="rounded-lg p-2.5 text-center" style={{ background: "var(--bg-elevated)" }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Used</p>
+                              <p className="text-sm font-bold" style={{ color: barColor }}>{balance.used}</p>
+                            </div>
+                            <div className="rounded-lg p-2.5 text-center" style={{ background: "var(--bg-elevated)" }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Remaining</p>
+                              <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{balance.remaining}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Leave summary stats */}
+                      {!leavesLoading && leaves.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2">
+                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total</p>
+                            <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{leaves.length}</p>
+                          </div>
+                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Approved</p>
+                            <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{leaveSummary.approved}</p>
+                          </div>
+                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Pending</p>
+                            <p className="text-sm font-bold" style={{ color: "var(--amber)" }}>{leaveSummary.pending}</p>
+                          </div>
+                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days Taken</p>
+                            <p className="text-sm font-bold" style={{ color: "var(--teal)" }}>{leaveSummary.totalDays}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Apply form — collapsible */}
+                      <AnimatePresence>
+                        {showForm && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <form onSubmit={(e) => void handleSubmit(e)} className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Apply Leave</p>
+                              <div>
+                                <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsHalfDay(false)}
+                                    className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${!isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                                  >
+                                    Full day
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setIsHalfDay(true); setMultiDay(false); }}
+                                    className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                                  >
+                                    Half day
+                                  </button>
+                                </div>
+                              </div>
+                              {!isHalfDay && (
+                                <ToggleSwitch checked={multiDay} onChange={setMultiDay} label="Multiple days" />
+                              )}
+                              <div className={multiDay && !isHalfDay ? "grid grid-cols-2 gap-2" : ""}>
+                                <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                  {multiDay && !isHalfDay ? "Start date" : "Date"}
+                                  <input type="date" required className="input text-sm" value={date} onChange={(e) => setDate(e.target.value)} />
+                                </label>
+                                {multiDay && !isHalfDay && (
+                                  <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                    End date
+                                    <input type="date" required className="input text-sm" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={date} />
+                                  </label>
+                                )}
+                              </div>
+                              <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                Reason <span className="font-normal">(optional)</span>
+                                <input type="text" className="input text-sm" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Personal, health, etc." />
+                              </label>
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => setShowForm(false)} className="flex-1 rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Cancel</button>
+                                <button type="submit" disabled={submitting || !date} className="btn btn-primary flex-1">{submitting ? "Submitting…" : "Submit"}</button>
+                              </div>
+                            </form>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Leave history */}
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
+                          Leave History · {new Date().getFullYear()}
+                        </p>
+                        {leavesLoading ? (
+                          <div className="space-y-2">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
+                                <div className="flex items-center gap-3">
+                                  <div className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
+                                  <div className="flex-1 space-y-1"><div className="shimmer h-3 w-32 rounded" /><div className="shimmer h-2.5 w-24 rounded" /></div>
+                                  <div className="shimmer h-5 w-14 rounded-full" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : leaves.length === 0 ? (
+                          <div className="rounded-xl py-8 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p className="text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>No leave records this year</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {leaves.map((l, idx) => {
+                              const sc = STATUS_COLORS[l.status] ?? "var(--fg-tertiary)";
+                              return (
+                                <motion.div
+                                  key={l._id}
+                                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
+                                  style={{ background: "var(--bg-grouped)" }}
+                                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.2, delay: Math.min(idx * 0.03, 0.3) }}
+                                >
+                                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: sc }} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
+                                      {fmtDate(l.startDate)}
+                                      {l.startDate !== l.endDate && <> – {fmtDate(l.endDate)}</>}
+                                    </p>
+                                    <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>
+                                      {l.isHalfDay ? "Half day" : `${l.days} day${l.days !== 1 ? "s" : ""}`}
+                                      {l.reason && <> · {l.reason}</>}
+                                      {l.type && l.type !== "leave" && <> · {l.type}</>}
+                                    </p>
+                                  </div>
+                                  <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize" style={{
+                                    background: `color-mix(in srgb, ${sc} 12%, transparent)`,
+                                    color: sc,
+                                  }}>
+                                    {l.status}
+                                  </span>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>

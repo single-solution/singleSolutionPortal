@@ -1,5 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
+import Membership from "@/lib/models/Membership";
+import Department from "@/lib/models/Department";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
@@ -38,5 +40,28 @@ export async function GET() {
     .sort({ "about.firstName": 1 })
     .lean();
 
-  return ok(users);
+  const userIds = users.map((u) => u._id);
+  const [memberships, departments] = await Promise.all([
+    Membership.find({ user: { $in: userIds }, isActive: true })
+      .select("user department")
+      .lean(),
+    Department.find({ isActive: true }).select("_id title").lean(),
+  ]);
+
+  const deptMap = new Map(departments.map((d) => [String(d._id), d.title]));
+  const userDeptMap = new Map<string, { id: string; title: string }>();
+  for (const m of memberships) {
+    const uid = String(m.user);
+    if (!userDeptMap.has(uid)) {
+      const deptTitle = deptMap.get(String(m.department));
+      if (deptTitle) userDeptMap.set(uid, { id: String(m.department), title: deptTitle });
+    }
+  }
+
+  const enriched = users.map((u) => ({
+    ...u,
+    department: userDeptMap.get(String(u._id)) ?? null,
+  }));
+
+  return ok(enriched);
 }

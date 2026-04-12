@@ -120,8 +120,6 @@ interface LeaveRecord {
   user?: { _id?: string; about?: { firstName?: string; lastName?: string } };
 }
 
-type GroupMode = "flat" | "department";
-
 /* ───── Constants ───── */
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -165,7 +163,7 @@ export default function AttendancePage() {
   const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
   const [teamLoading, setTeamLoading] = useState(true);
   const [scopeDept, setScopeDept] = useState("all");
-  const [groupMode, setGroupMode] = useState<GroupMode>("flat");
+  const [pillSearch, setPillSearch] = useState("");
 
   /* ── Individual state ── */
   const [viewingUserId, setViewingUserId] = useState<string>("");
@@ -328,17 +326,11 @@ export default function AttendancePage() {
     [teamSummary, scopeDept],
   );
 
-  const grouped = useMemo(() => {
-    if (groupMode === "flat") return [{ key: "all", label: "All Employees", items: filteredSummary }];
-    const map = new Map<string, { label: string; items: TeamMonthlySummary[] }>();
-    for (const emp of filteredSummary) {
-      const key = emp.departmentId ?? "unassigned";
-      const label = emp.department || "No Department";
-      if (!map.has(key)) map.set(key, { label, items: [] });
-      map.get(key)!.items.push(emp);
-    }
-    return Array.from(map.entries()).map(([key, v]) => ({ key, label: v.label, items: v.items }));
-  }, [filteredSummary, groupMode]);
+  const searchedSummary = useMemo(() => {
+    if (!pillSearch.trim()) return filteredSummary;
+    const q = pillSearch.toLowerCase();
+    return filteredSummary.filter((e) => e.name.toLowerCase().includes(q));
+  }, [filteredSummary, pillSearch]);
 
   const viewingMember = teamSummary.find((m) => m._id === viewingUserId);
 
@@ -415,32 +407,12 @@ export default function AttendancePage() {
       {/* Header */}
       <div data-tour="attendance-header" className="flex items-center justify-end gap-2 flex-wrap">
           {sessionReady && hasTeamAccess && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
-          {sessionReady && hasTeamAccess && (
-            <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-              {(["flat", "department"] as GroupMode[]).map((g) => (
-                <motion.button
-                  key={g}
-                  type="button"
-                  onClick={() => setGroupMode(g)}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                    groupMode === g
-                      ? "bg-[var(--primary)] text-white shadow-sm"
-                      : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                  }`}
-                >
-                  {g === "flat" ? "Flat" : "By Dept"}
-                </motion.button>
-              ))}
-            </div>
-          )}
       </div>
 
       {/* Employee pills (admins) — skeleton while session or team data loads */}
       {pillsLoading ? (
-        <div data-tour="attendance-pills" className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
+        <div data-tour="attendance-pills" className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+          <div className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--primary)", background: "color-mix(in srgb, var(--primary) 10%, var(--bg))" }}>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
             <div className="space-y-1">
               <span className="shimmer block h-3 w-20 rounded" />
@@ -448,7 +420,7 @@ export default function AttendancePage() {
             </div>
           </div>
           {[1, 2, 3, 4, 5].map((j) => (
-            <div key={j} className="flex items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+            <div key={j} className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
               <span className="shimmer h-2 w-2 shrink-0 rounded-full" />
               <div className="space-y-1">
                 <span className="shimmer block h-3 w-16 rounded" />
@@ -462,93 +434,103 @@ export default function AttendancePage() {
           <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
         </div>
       ) : hasTeamAccess ? (
-        <div data-tour="attendance-pills" className="space-y-3">
-            {grouped.map((group) => (
-              <div key={group.key}>
-                {groupMode !== "flat" && (
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
-                    {group.label} <span style={{ color: "var(--fg-quaternary)" }}>· {group.items.length}</span>
+        <div data-tour="attendance-pills" className="space-y-2">
+          {/* Search */}
+          {filteredSummary.length > 5 && (
+            <div className="relative max-w-xs">
+              <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
+              <input
+                type="text"
+                value={pillSearch}
+                onChange={(e) => setPillSearch(e.target.value)}
+                placeholder="Search employees…"
+                className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
+                style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
+              />
+            </div>
+          )}
+          {/* Horizontal scrollable pills */}
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {/* "All" pill — aggregate mode */}
+            {!pillSearch && (
+              <motion.button
+                type="button"
+                onClick={() => setViewingUserId("")}
+                className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
+                style={{
+                  borderColor: !viewingUserId ? "var(--primary)" : "var(--border)",
+                  background: !viewingUserId ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
+                <div className="min-w-0">
+                  <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: !viewingUserId ? "var(--primary)" : "var(--fg)" }}>All Employees</p>
+                  <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
+                    {aggPresentDays}d · {fmtHours(aggTotalMins)} · <span style={{ color: aggAvgAttendance >= 90 ? "var(--green)" : aggAvgAttendance >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(aggAvgAttendance)}%</span>
                   </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {/* "All" pill — aggregate mode */}
-                  {groupMode === "flat" && (
-                    <motion.button
-                      type="button"
-                      onClick={() => setViewingUserId("")}
-                      className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
-                      style={{
-                        borderColor: !viewingUserId ? "var(--primary)" : "var(--border)",
-                        background: !viewingUserId ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
-                      }}
-                      whileTap={{ scale: 0.97 }}
-                    >
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold leading-tight" style={{ color: !viewingUserId ? "var(--primary)" : "var(--fg)" }}>All Employees</p>
-                        <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
-                          {aggPresentDays}d · {fmtHours(aggTotalMins)} · <span style={{ color: aggAvgAttendance >= 90 ? "var(--green)" : aggAvgAttendance >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(aggAvgAttendance)}%</span>
-                        </p>
-                      </div>
-                    </motion.button>
-                  )}
-                  {/* "My Attendance" pill — non-superadmin admins */}
-                  {!isSuperAdmin && groupMode === "flat" && (
-                    <motion.button
-                      type="button"
-                      onClick={() => toggleEmployee(authSession?.user?.id ?? "")}
-                      className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
-                      style={{
-                        borderColor: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--border)",
-                        background: viewingUserId === authSession?.user?.id ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
-                      }}
-                      whileTap={{ scale: 0.97 }}
-                    >
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: selfMonthlyStats ? "var(--green)" : "var(--fg-tertiary)" }} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold leading-tight" style={{ color: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--fg)" }}>My Attendance</p>
-                        {selfMonthlyStats ? (
-                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
-                            {selfMonthlyStats.presentDays}d · {fmtHours(selfMonthlyStats.totalWorkingHours * 60)} · <span style={{ color: selfMonthlyStats.attendancePercentage >= 90 ? "var(--green)" : selfMonthlyStats.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(selfMonthlyStats.attendancePercentage)}%</span>
-                          </p>
-                        ) : (
-                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>—</p>
-                        )}
-                      </div>
-                    </motion.button>
-                  )}
-                  {group.items.map((emp) => {
-                    const isSelected = viewingUserId === emp._id;
-                    const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
-                    const statusDot = emp.presentDays > 0
-                      ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
-                      : "var(--fg-tertiary)";
-                    return (
-                      <motion.button
-                        key={emp._id}
-                        type="button"
-                        onClick={() => toggleEmployee(emp._id)}
-                        className="flex items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
-                        style={{
-                          borderColor: isSelected ? "var(--primary)" : "var(--border)",
-                          background: isSelected ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
-                        }}
-                        whileHover={!isSelected ? { y: -1 } : undefined}
-                        whileTap={{ scale: 0.97 }}
-                      >
-                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusDot }} />
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold leading-tight" style={{ color: isSelected ? "var(--primary)" : "var(--fg)" }}>{emp.name}</p>
-                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
-                            {emp.presentDays}d · {fmtHours(emp.totalMinutes)} · <span style={{ color: attendColor }}>{Math.round(emp.attendancePercentage)}%</span>
-                          </p>
-                        </div>
-                      </motion.button>
-                    );
-                  })}
                 </div>
-              </div>
-            ))}
+              </motion.button>
+            )}
+            {/* "My Attendance" pill — non-superadmin admins */}
+            {!isSuperAdmin && !pillSearch && (
+              <motion.button
+                type="button"
+                onClick={() => toggleEmployee(authSession?.user?.id ?? "")}
+                className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
+                style={{
+                  borderColor: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--border)",
+                  background: viewingUserId === authSession?.user?.id ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: selfMonthlyStats ? "var(--green)" : "var(--fg-tertiary)" }} />
+                <div className="min-w-0">
+                  <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--fg)" }}>My Attendance</p>
+                  {selfMonthlyStats ? (
+                    <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
+                      {selfMonthlyStats.presentDays}d · {fmtHours(selfMonthlyStats.totalWorkingHours * 60)} · <span style={{ color: selfMonthlyStats.attendancePercentage >= 90 ? "var(--green)" : selfMonthlyStats.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(selfMonthlyStats.attendancePercentage)}%</span>
+                    </p>
+                  ) : (
+                    <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>—</p>
+                  )}
+                </div>
+              </motion.button>
+            )}
+            {/* Employee pills */}
+            {searchedSummary.map((emp) => {
+              const isSelected = viewingUserId === emp._id;
+              const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
+              const statusDot = emp.presentDays > 0
+                ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
+                : "var(--fg-tertiary)";
+              return (
+                <motion.button
+                  key={emp._id}
+                  type="button"
+                  onClick={() => toggleEmployee(emp._id)}
+                  className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
+                  style={{
+                    borderColor: isSelected ? "var(--primary)" : "var(--border)",
+                    background: isSelected ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                  }}
+                  whileHover={!isSelected ? { y: -1 } : undefined}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusDot }} />
+                  <div className="min-w-0">
+                    <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: isSelected ? "var(--primary)" : "var(--fg)" }}>{emp.name}</p>
+                    <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
+                      {emp.presentDays}d · {fmtHours(emp.totalMinutes)} · <span style={{ color: attendColor }}>{Math.round(emp.attendancePercentage)}%</span>
+                    </p>
+                  </div>
+                </motion.button>
+              );
+            })}
+            {pillSearch && searchedSummary.length === 0 && (
+              <p className="flex items-center px-2 text-xs" style={{ color: "var(--fg-tertiary)" }}>No matches for &ldquo;{pillSearch}&rdquo;</p>
+            )}
+          </div>
         </div>
       ) : null}
 
