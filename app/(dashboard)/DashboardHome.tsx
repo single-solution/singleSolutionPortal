@@ -17,6 +17,7 @@ import {
 import { EmployeeCard } from "./components/EmployeeCard";
 import { ScopeStrip } from "./components/ScopeStrip";
 import { RefreshBtn } from "./components/ui";
+import { EmployeeModal } from "./components/EmployeeModal";
 import { useGuide } from "@/lib/useGuide";
 import { usePermissions } from "@/lib/usePermissions";
 import { useLive } from "@/lib/useLive";
@@ -608,6 +609,8 @@ function AdminDashboard({
   }, []);
   const [markedReadEntities, setMarkedReadEntities] = useState<Set<string>>(new Set());
   const [allMarkedRead, setAllMarkedRead] = useState(false);
+  const [empModalOpen, setEmpModalOpen] = useState(false);
+  const [empModalId, setEmpModalId] = useState<string | null>(null);
 
   const logGroups = useMemo(() => {
     const lastId = lastSeenLogIdRef.current;
@@ -691,14 +694,14 @@ function AdminDashboard({
       {/* 1. Welcome header */}
       <div className="shrink-0 mb-4">
         <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
-      </div>
+            </div>
 
       {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (
         <div className="shrink-0 mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} companyTz={companyTz} />
           <TodayTimelineCard pa={personalAttendance} dataLoading={dataLoading} />
-        </div>
+              </div>
       )}
 
       {/* 3. Main content + Activity sidebar */}
@@ -718,23 +721,23 @@ function AdminDashboard({
                   <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
                 </>
               ))}
-            </div>
+                    </div>
             {hasTeamAccess && (
               <LayoutGroup id="admin-presence-filter">
                 <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
-                  {PRESENCE_FILTER_ORDER.map((f) => {
-                    const active = presenceFilter === f;
-                    return (
+                {PRESENCE_FILTER_ORDER.map((f) => {
+                  const active = presenceFilter === f;
+                  return (
                       <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-3 py-1.5 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
                         {active && <motion.span layoutId="admin-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                         <span className="relative text-caption font-semibold">{PRESENCE_FILTER_LABELS[f]}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </LayoutGroup>
-            )}
-          </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </LayoutGroup>
+          )}
+        </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {presenceLoading && filteredPresence.length === 0 ? (
               <div className="grid grid-cols-2 gap-3">
@@ -745,14 +748,14 @@ function AdminDashboard({
                         <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
                         <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
                         <Bone w="w-12" h="h-3.5" />
-                      </div>
+            </div>
                       <Bone w="w-24" h="h-2" />
                       <div className="mt-1.5 flex justify-between"><Bone w="w-10" h="h-2" /><Bone w="w-14" h="h-2" /></div>
                       <div className="mt-1"><Bone w="w-full" h="h-1.5" /></div>
-                    </div>
+          </div>
                   </div>
                 ))}
-              </div>
+            </div>
             ) : filteredPresence.length > 0 ? (
               <motion.div className="grid grid-cols-2 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
                 <AnimatePresence mode="popLayout">
@@ -768,6 +771,7 @@ function AdminDashboard({
                         idx={idx}
                         attendanceLoading={presenceLoading}
                         onPing={liveUpdates && canSendPing ? handlePing : undefined}
+                        onCardClick={(id) => { setEmpModalId(id); setEmpModalOpen(true); }}
                         showAttendance={hasTeamAccess}
                         showAttendanceDetail={canViewAttendanceDetail}
                         showLocationFlags={canViewAttendanceDetail}
@@ -794,7 +798,7 @@ function AdminDashboard({
             ) : (
               <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
             )}
-          </div>
+      </div>
         </motion.section>
 
         {/* 3b. Activity sidebar */}
@@ -810,7 +814,7 @@ function AdminDashboard({
                       {totalUnread > 99 ? "99+" : totalUnread}
                     </span>
                   )}
-                </div>
+              </div>
                 {totalUnread > 0 && (
                   <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={markAllRead}
                     className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
@@ -855,21 +859,21 @@ function AdminDashboard({
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
                               </motion.button>
                             )}
-                          </div>
+              </div>
                           {isOpen && (
                             <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-1.5" style={{ scrollbarWidth: "thin" }}>
                               {group.logs.map((log) => {
                                 const isSelf = user.email && log.userEmail?.toLowerCase() === user.email.toLowerCase();
                                 const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
                                 const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName?.trim() || log.userEmail);
-                                return (
+                return (
                                   <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
                                     <div className="flex items-start gap-2">
                                       <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[8px] font-bold"
                                         style={{ background: lc.bg, color: lc.fg }}>
                                         {logAvatarLabel(log)}
-                                      </div>
-                                      <div className="min-w-0 flex-1">
+                    </div>
+                    <div className="min-w-0 flex-1">
                                         <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
                                           <span className="font-semibold">{displayName}</span>{" "}
                                           <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
@@ -878,22 +882,22 @@ function AdminDashboard({
                                           <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
                                         <span className="text-[9px] tabular-nums mt-1 block" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+            </div>
+          </div>
+                      </div>
+                );
+              })}
                             </div>
                           )}
-                        </div>
-                      );
-                    })}
                 </div>
-              )}
+              );
+            })}
             </div>
+          )}
+        </div>
           </aside>
         )}
-      </div>
+                </div>
 
       {/* Ping toast */}
       <AnimatePresence>
@@ -903,9 +907,10 @@ function AdminDashboard({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><circle cx="12" cy="12" r="1" /></svg>
               Pinged {pingSuccess}
             </p>
-          </motion.div>
+              </motion.div>
         )}
       </AnimatePresence>
+      <EmployeeModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} initialEmployeeId={empModalId} />
     </div>
   );
 }

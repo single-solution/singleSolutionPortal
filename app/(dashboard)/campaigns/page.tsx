@@ -118,6 +118,63 @@ export default function CampaignsPage() {
     return m;
   }, [campaignList]);
 
+  const campaignInsights = useMemo(() => {
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const dayMs = 86400000;
+    const completionRate = campaignList.length > 0 ? Math.round((statusCounts.completed / campaignList.length) * 100) : 0;
+    const noTasks = campaignList.filter((c) => c.tags.employees.length === 0 && c.tags.departments.length === 0).length;
+    const nearingEnd = campaignList.filter((c) => c.endDate && c.status === "active" && new Date(c.endDate).getTime() - now > 0 && new Date(c.endDate).getTime() - now < weekMs).length;
+    const pastEnd = campaignList.filter((c) => c.endDate && c.status === "active" && new Date(c.endDate).getTime() < now).length;
+    const empSet = new Set<string>();
+    const deptSet = new Set<string>();
+    let totalTags = 0;
+    const timelinePercents: number[] = [];
+    let soonest: { name: string; end: number } | null = null;
+
+    for (const c of campaignList) {
+      for (const e of c.tags.employees) empSet.add(e._id);
+      for (const d of c.tags.departments) deptSet.add(d._id);
+      totalTags += c.tags.employees.length + c.tags.departments.length;
+
+      if (c.status === "active" && c.startDate && c.endDate) {
+        const startMs = new Date(c.startDate).getTime();
+        const endMs = new Date(c.endDate).getTime();
+        if (endMs > now && endMs > startMs) {
+          const pct = ((now - startMs) / (endMs - startMs)) * 100;
+          timelinePercents.push(Math.min(100, Math.max(0, pct)));
+        }
+      }
+      if (c.status === "active" && c.endDate) {
+        const endMs = new Date(c.endDate).getTime();
+        if (endMs > now && (!soonest || endMs < soonest.end)) {
+          soonest = { name: c.name, end: endMs };
+        }
+      }
+    }
+
+    const avgTags = campaignList.length > 0 ? Math.round(totalTags / campaignList.length) : 0;
+    const avgTimelineElapsed =
+      timelinePercents.length > 0
+        ? Math.round(timelinePercents.reduce((a, b) => a + b, 0) / timelinePercents.length)
+        : null;
+    const soonestEndName = soonest?.name ?? null;
+    const soonestEndDays = soonest !== null ? Math.max(0, Math.ceil((soonest.end - now) / dayMs)) : null;
+
+    return {
+      completionRate,
+      noTasks,
+      nearingEnd,
+      pastEnd,
+      uniqueEmployees: empSet.size,
+      uniqueDepartments: deptSet.size,
+      avgTags,
+      avgTimelineElapsed,
+      soonestEndName,
+      soonestEndDays,
+    };
+  }, [campaignList, statusCounts.completed]);
+
   const filtered = useMemo(() => {
     let list = campaignList;
     if (statusFilter !== "all") list = list.filter((c) => c.status === statusFilter);
@@ -250,7 +307,7 @@ export default function CampaignsPage() {
         <PageHeader
           title="Campaigns"
           loading={campaignsLoading && !campaigns}
-          subtitle={`${campaignList.length} campaign${campaignList.length !== 1 ? "s" : ""} · ${statusCounts.active} active`}
+          subtitle={`${campaignList.length} campaign${campaignList.length !== 1 ? "s" : ""} · ${statusCounts.active} active · ${campaignInsights.completionRate}% completed${campaignInsights.uniqueEmployees > 0 ? ` · ${campaignInsights.uniqueEmployees} people` : ""}${campaignInsights.uniqueDepartments > 0 ? ` · ${campaignInsights.uniqueDepartments} dept${campaignInsights.uniqueDepartments !== 1 ? "s" : ""}` : ""}`}
         />
         <SegmentedControl
           value={sortMode}
@@ -300,6 +357,24 @@ export default function CampaignsPage() {
           </button>
         )}
       </div>
+
+      {/* Insights strip */}
+      {!campaignsLoading && campaignList.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.avgTags} avg tags/campaign</span>
+          {campaignInsights.avgTimelineElapsed !== null && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{campaignInsights.avgTimelineElapsed}% avg timeline elapsed</span>
+          )}
+          {campaignInsights.soonestEndName !== null && campaignInsights.soonestEndDays !== null && (
+            <span className="max-w-[200px] truncate rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }} title={campaignInsights.soonestEndName}>
+              {campaignInsights.soonestEndName} · {campaignInsights.soonestEndDays}d left
+            </span>
+          )}
+          {campaignInsights.pastEnd > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{campaignInsights.pastEnd} past end date</span>}
+          {campaignInsights.nearingEnd > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{campaignInsights.nearingEnd} ending soon</span>}
+          {campaignInsights.noTasks > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.noTasks} no tags</span>}
+        </div>
+      )}
 
       {/* Cards */}
       <motion.div data-tour="campaigns-grid" className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">

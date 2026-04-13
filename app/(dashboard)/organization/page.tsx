@@ -13,6 +13,7 @@ import { Portal } from "../components/Portal";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { SearchField } from "../components/ui";
+import { EmployeeModal } from "../components/EmployeeModal";
 import toast from "react-hot-toast";
 import { HeaderStatPill } from "../components/StatChips";
 import { ToggleSwitch } from "../components/ToggleSwitch";
@@ -116,6 +117,8 @@ export default function OrganizationPage() {
 
   /* ── Employee preview modal (full card) ── */
   const [previewEmp, setPreviewEmp] = useState<Employee | null>(null);
+  const [empViewOpen, setEmpViewOpen] = useState(false);
+  const [empViewId, setEmpViewId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -407,6 +410,7 @@ export default function OrganizationPage() {
                     <EmployeeCard
                       embedded
                       idx={0}
+                      onCardClick={(id) => { setPreviewEmp(null); setEmpViewId(id); setEmpViewOpen(true); }}
                       showEmployeeMeta
                       showAttendance={canViewTeamAttendance}
                       showAttendanceDetail={canViewAttendanceDetail}
@@ -553,6 +557,8 @@ export default function OrganizationPage() {
         onConfirm={handleDeleteEmployee}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <EmployeeModal open={empViewOpen} onClose={() => setEmpViewOpen(false)} initialEmployeeId={empViewId} />
     </div>
   );
 }

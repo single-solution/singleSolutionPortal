@@ -69,6 +69,58 @@ export default function DepartmentsPage() {
 
   const totalEmployees = useMemo(() => deptList.reduce((s, d) => s + (d.employeeCount || 0), 0), [deptList]);
 
+  const deptInsights = useMemo(() => {
+    const n = deptList.length;
+    const noManagerCount = deptList.filter((d) => d.manager == null).length;
+    const inactiveCount = deptList.filter((d) => d.isActive === false).length;
+    const emptyCount = deptList.filter((d) => (d.employeeCount || 0) === 0).length;
+    const avgSize = n > 0 ? Math.round(totalEmployees / n) : 0;
+    let largestName: string | null = null;
+    let largestCount = 0;
+    let smallestName: string | null = null;
+    let smallestCount = 0;
+    if (n > 0) {
+      let maxC = -1;
+      for (const d of deptList) {
+        const c = d.employeeCount || 0;
+        if (c > maxC) {
+          maxC = c;
+          largestName = d.title;
+        }
+      }
+      largestCount = maxC;
+      const nonZero = deptList.filter((d) => (d.employeeCount || 0) > 0);
+      if (nonZero.length > 0) {
+        let minC = Infinity;
+        for (const d of nonZero) {
+          const c = d.employeeCount || 0;
+          if (c < minC) {
+            minC = c;
+            smallestName = d.title;
+          }
+        }
+        smallestCount = minC;
+      }
+    }
+    const withSubs = new Set<string>();
+    const childOf = new Map<string, string>();
+    for (const d of deptList) {
+      if (d.parentDepartment?._id) {
+        withSubs.add(d.parentDepartment._id);
+        childOf.set(d._id, d.parentDepartment._id);
+      }
+    }
+    const hasSubCount = withSubs.size;
+    let maxDepth = 0;
+    for (const d of deptList) {
+      let depth = 0, cur = d._id;
+      while (childOf.has(cur)) { cur = childOf.get(cur)!; depth++; if (depth > 20) break; }
+      if (depth > maxDepth) maxDepth = depth;
+    }
+    const rootCount = deptList.filter((d) => !d.parentDepartment?._id).length;
+    return { noManagerCount, inactiveCount, largestName, largestCount, smallestName, smallestCount, avgSize, emptyCount, hasSubCount, maxDepth, rootCount };
+  }, [deptList, totalEmployees]);
+
   const sorted = useMemo(() => {
     let list = [...deptList];
     if (search.trim()) {
@@ -165,7 +217,7 @@ export default function DepartmentsPage() {
         <PageHeader
           title="Departments"
           loading={deptsLoading && !departments}
-          subtitle={`${deptList.length} department${deptList.length !== 1 ? "s" : ""} · ${totalEmployees} team member${totalEmployees !== 1 ? "s" : ""}`}
+          subtitle={`${deptList.length} department${deptList.length !== 1 ? "s" : ""} · ${totalEmployees} team member${totalEmployees !== 1 ? "s" : ""}${deptList.length > 0 ? ` · avg ${deptInsights.avgSize} per dept` : ""}`}
         />
         <SegmentedControl
           value={sortMode}
@@ -244,6 +296,53 @@ export default function DepartmentsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Insights strip */}
+      {!deptsLoading && deptList.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+          {deptInsights.noManagerCount > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>
+              {deptInsights.noManagerCount} no manager{deptInsights.noManagerCount !== 1 ? "s" : ""}
+            </span>
+          )}
+          {deptInsights.inactiveCount > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>
+              {deptInsights.inactiveCount} inactive
+            </span>
+          )}
+          {deptInsights.largestName && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+              Largest: {deptInsights.largestName} ({deptInsights.largestCount})
+            </span>
+          )}
+          {deptInsights.smallestName && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
+              Smallest: {deptInsights.smallestName} ({deptInsights.smallestCount})
+            </span>
+          )}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
+            Avg size: {deptInsights.avgSize}
+          </span>
+          {deptInsights.emptyCount > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>
+              {deptInsights.emptyCount} empty
+            </span>
+          )}
+          {deptInsights.hasSubCount > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
+              {deptInsights.hasSubCount} with sub-depts
+            </span>
+          )}
+          {deptInsights.maxDepth > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
+              {deptInsights.maxDepth} level{deptInsights.maxDepth !== 1 ? "s" : ""} deep
+            </span>
+          )}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
+            {deptInsights.rootCount} root
+          </span>
+        </div>
+      )}
 
       {/* Department Card Grid */}
       <motion.div

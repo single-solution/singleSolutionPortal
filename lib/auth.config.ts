@@ -53,11 +53,10 @@ export const authConfig: NextAuthConfig = {
       if (!isLoggedIn) return false;
 
       // Legacy route redirects
-      if (pathname.startsWith("/employees/") && !pathname.startsWith("/employees/EmployeeForm")) {
+      if (pathname.startsWith("/employees/") && !pathname.startsWith("/employees/EmployeeForm") && !pathname.startsWith("/employees?")) {
         const rest = pathname.slice("/employees".length);
         return Response.redirect(new URL(`/employee${rest}`, nextUrl));
       }
-      if (pathname === "/employees") return Response.redirect(new URL("/organization", nextUrl));
       if (pathname.startsWith("/departments")) return Response.redirect(new URL("/organization", nextUrl));
       if (pathname === "/teams" || pathname.startsWith("/teams/")) return Response.redirect(new URL("/organization", nextUrl));
       if (pathname === "/campaigns") return Response.redirect(new URL("/workspace", nextUrl));

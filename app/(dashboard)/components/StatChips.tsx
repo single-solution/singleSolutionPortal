@@ -23,11 +23,12 @@ export function Pill({ color, label, variant = "filled", size = "md", icon }: {
   );
 }
 
-export function StatChip({ label, value, color }: { label: string; value: string; color: string }) {
+export function StatChip({ label, value, color, subtitle }: { label: string; value: string; color: string; subtitle?: string }) {
   return (
     <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
       <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
       <p className="text-sm font-bold" style={{ color }}>{value}</p>
+      {subtitle ? <p className="mt-0.5 truncate px-0.5 text-[10px] font-medium leading-tight" style={{ color: "var(--fg-secondary)" }}>{subtitle}</p> : null}
     </div>
   );
 }

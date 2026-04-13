@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import toast from "react-hot-toast";
 import { ScopeStrip } from "../components/ScopeStrip";
+import { EmployeeModal } from "../components/EmployeeModal";
 import { useGuide } from "@/lib/useGuide";
 import { employeesTour } from "@/lib/tourConfigs";
 import {
@@ -136,12 +137,79 @@ export default function EmployeesPage() {
   const [groupMode, setGroupMode] = useState<GroupMode>("flat");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  const [empModalOpen, setEmpModalOpen] = useState(false);
+  const [empModalId, setEmpModalId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const viewId = searchParams.get("view");
+    if (viewId) {
+      setEmpModalId(viewId);
+      setEmpModalOpen(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("view");
+      router.replace(params.toString() ? `?${params.toString()}` : "?", { scroll: false });
+    }
+  }, [searchParams, router]);
+
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const empList = employees ?? [];
+
+  const empInsights = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const mo = now.getMonth();
+    const monthStart = new Date(y, mo, 1);
+    const nextMonthStart = new Date(y, mo + 1, 1);
+    let inactive = 0;
+    let verified = 0;
+    let unverified = 0;
+    let noDept = 0;
+    let newThisMonth = 0;
+    for (const e of empList) {
+      if (e.isActive === false) inactive++;
+      if (e.department == null) noDept++;
+      const created = new Date(e.createdAt);
+      if (!Number.isNaN(created.getTime()) && created >= monthStart && created < nextMonthStart) newThisMonth++;
+      const ext = e as Employee & { password?: unknown };
+      const hasPassword =
+        ext.password === true ||
+        (typeof ext.password === "string" && ext.password.length > 0);
+      if (e.isVerified === true || hasPassword) verified++;
+      else unverified++;
+    }
+    const shiftCounts = new Map<string, number>();
+    const desCounts = new Map<string, number>();
+    for (const e of empList) {
+      const st = e.shiftType || "unset";
+      shiftCounts.set(st, (shiftCounts.get(st) ?? 0) + 1);
+      const des = e.memberships?.find((m) => m.designation?.name)?.designation?.name ?? "";
+      if (des) desCounts.set(des, (desCounts.get(des) ?? 0) + 1);
+    }
+    const shiftBreakdown = [...shiftCounts.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: SHIFT_TYPE_LABELS[k] ?? k, count: v }));
+    const desBreakdown = [...desCounts.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: k, count: v }));
+    const noDesCount = empList.filter((e) => !e.memberships?.some((m) => m.designation?.name)).length;
+    const len = empList.length;
+    const verificationRate = len ? Math.round((verified / len) * 100) : 0;
+    const activeRate = len ? Math.round(((len - inactive) / len) * 100) : 0;
+    const superAdminCount = empList.filter((e) => e.isSuperAdmin).length;
+    return {
+      inactive,
+      verified,
+      unverified,
+      noDept,
+      newThisMonth,
+      shiftBreakdown,
+      desBreakdown,
+      noDesignation: noDesCount,
+      verificationRate,
+      activeRate,
+      superAdminCount,
+    };
+  }, [empList]);
 
   const filtered = useMemo(() => {
     let list = empList;
@@ -281,7 +349,11 @@ export default function EmployeesPage() {
         <PageHeader
           title="Employees"
           loading={employeesLoading && !employees}
-          subtitle={`${empList.length} employee${empList.length !== 1 ? "s" : ""}`}
+          subtitle={
+            empList.length === 0
+              ? "0 employees"
+              : `${empList.length} employee${empList.length !== 1 ? "s" : ""} · ${empInsights.inactive} inactive · ${empInsights.newThisMonth} new this month`
+          }
           shimmerWidth="w-36"
         />
         <div className="flex items-center gap-2 flex-wrap">
@@ -329,6 +401,54 @@ export default function EmployeesPage() {
           </button>
         ) : null}
       </div>
+
+      {!employeesLoading && empList.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+          {empInsights.inactive > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>
+              {empInsights.inactive} inactive
+            </span>
+          )}
+          {empInsights.noDesignation > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>
+              {empInsights.noDesignation} no designation
+            </span>
+          )}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>
+            {empInsights.verificationRate}% verified
+          </span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
+            {empInsights.activeRate}% active
+          </span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
+            {empInsights.verified} verified
+          </span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
+            {empInsights.unverified} unverified
+          </span>
+          {empInsights.noDept > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>
+              {empInsights.noDept} no department
+            </span>
+          )}
+          {empInsights.newThisMonth > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+              {empInsights.newThisMonth} new this month
+            </span>
+          )}
+          {empInsights.superAdminCount > 0 && (
+            <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
+              {empInsights.superAdminCount} super admin
+            </span>
+          )}
+          {empInsights.shiftBreakdown.length > 0 && empInsights.shiftBreakdown.map((s) => (
+            <span key={s.label} className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{s.count} {s.label}</span>
+          ))}
+          {empInsights.desBreakdown.length > 0 && empInsights.desBreakdown.slice(0, 5).map((d) => (
+            <span key={d.label} className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{d.count} {d.label}</span>
+          ))}
+        </div>
+      )}
 
       {/* Batch Action Bar */}
       <AnimatePresence>
@@ -389,6 +509,7 @@ export default function EmployeesPage() {
                   selectable={canDeleteEmployees}
                   selected={isSelected}
                   onSelect={() => toggleSelect(emp._id)}
+                  onCardClick={(id) => { setEmpModalId(id); setEmpModalOpen(true); }}
                   showEmployeeMeta
                   showAttendance={canViewTeamAttendance}
                   showAttendanceDetail={canViewAttendanceDetail}
@@ -540,6 +661,8 @@ export default function EmployeesPage() {
         onConfirm={handleBulkDeactivate}
         onCancel={() => setBulkDeleteOpen(false)}
       />
+
+      <EmployeeModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} initialEmployeeId={empModalId} />
     </div>
   );
 }

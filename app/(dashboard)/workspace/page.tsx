@@ -415,6 +415,76 @@ export default function WorkspacePage() {
     return m;
   }, [taskList]);
 
+  const taskInsights = useMemo(() => {
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const weekEnd = todayStart.getTime() + weekMs;
+    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const userId = session?.user?.id;
+    let overdue = 0, dueSoon = 0, dueThisWeek = 0, noDeadline = 0;
+    let low = 0, medium = 0, high = 0, urgent = 0;
+    let assignedToMe = 0, createdByMe = 0, unassigned = 0;
+    let weeklyRecur = 0, monthlyRecur = 0, recurring = 0, oneTime = 0;
+    let completedToday = 0, completedThisWeek = 0, completedThisMonth = 0;
+    let createdToday = 0, createdThisWeek = 0, createdThisMonth = 0;
+    for (const t of taskList) {
+      if (t.deadline) {
+        const dl = new Date(t.deadline).getTime();
+        if (t.status !== "completed") {
+          if (dl < now) overdue++;
+          else if (dl - now < 2 * 86400000) dueSoon++;
+          if (dl <= weekEnd && dl >= todayStart.getTime()) dueThisWeek++;
+        }
+      } else noDeadline++;
+      if (t.priority === "low") low++;
+      else if (t.priority === "medium") medium++;
+      else if (t.priority === "high") high++;
+      else if (t.priority === "urgent") urgent++;
+      if (userId && t.assignedTo?._id === userId) assignedToMe++;
+      if (userId && t.createdBy?._id === userId) createdByMe++;
+      if (!t.assignedTo) unassigned++;
+      if (t.recurrence) { recurring++; if (t.recurrence.frequency === "weekly") weeklyRecur++; else monthlyRecur++; } else oneTime++;
+      const created = new Date(t.createdAt).getTime();
+      if (created >= todayStart.getTime()) createdToday++;
+      if (created >= weekStart.getTime()) createdThisWeek++;
+      if (created >= monthStart.getTime()) createdThisMonth++;
+      if (t.status === "completed") {
+        if (created >= todayStart.getTime()) completedToday++;
+        if (created >= weekStart.getTime()) completedThisWeek++;
+        if (created >= monthStart.getTime()) completedThisMonth++;
+      }
+    }
+    const completionRate = taskList.length > 0 ? Math.round((statusCounts.completed / taskList.length) * 100) : 0;
+    const overdueHighUrgent = taskList.filter((t) => t.status !== "completed" && t.deadline && new Date(t.deadline).getTime() < now && (t.priority === "high" || t.priority === "urgent")).length;
+    return { overdue, dueSoon, dueThisWeek, noDeadline, low, medium, high, urgent, highUrgent: high + urgent, overdueHighUrgent, assignedToMe, createdByMe, unassigned, weeklyRecur, monthlyRecur, recurring, oneTime, completionRate, completedToday, completedThisWeek, completedThisMonth, createdToday, createdThisWeek, createdThisMonth };
+  }, [taskList, statusCounts.completed, session?.user?.id]);
+
+  const campaignInsights = useMemo(() => {
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const active = campaignList.filter((c) => c.status === "active").length;
+    const completed = campaignList.filter((c) => c.status === "completed").length;
+    const completionRate = campaignList.length > 0 ? Math.round((completed / campaignList.length) * 100) : 0;
+    const noTasks = campaignList.filter((c) => (c.taskStats?.total ?? 0) === 0).length;
+    const nearingEnd = campaignList.filter((c) => c.endDate && c.status === "active" && new Date(c.endDate).getTime() - now < weekMs && new Date(c.endDate).getTime() > now).length;
+    const pastEnd = campaignList.filter((c) => c.endDate && c.status === "active" && new Date(c.endDate).getTime() < now).length;
+    let totalTasksAll = 0, totalCompletedAll = 0;
+    let todayDueAll = 0, todayDoneAll = 0;
+    const empSet = new Set<string>();
+    for (const c of campaignList) {
+      totalTasksAll += c.taskStats?.total ?? 0;
+      totalCompletedAll += c.taskStats?.completed ?? 0;
+      todayDueAll += c.todayChecklist?.length ?? 0;
+      todayDoneAll += (c.todayChecklist ?? []).filter((x) => x.done).length;
+      for (const e of c.tags.employees) empSet.add(e._id);
+    }
+    const avgTasksPerCampaign = campaignList.length > 0 ? Math.round(totalTasksAll / campaignList.length * 10) / 10 : 0;
+    const todayChecklistPct = todayDueAll > 0 ? Math.round((todayDoneAll / todayDueAll) * 100) : 0;
+    return { active, completed, completionRate, noTasks, nearingEnd, pastEnd, avgTasksPerCampaign, uniqueEmployees: empSet.size, todayDueAll, todayDoneAll, todayChecklistPct };
+  }, [campaignList]);
+
   const visibleCampaigns = useMemo(() => {
     if (!search.trim()) return campaignList;
     const q = search.toLowerCase();
@@ -436,7 +506,7 @@ export default function WorkspacePage() {
         <PageHeader
           title="Workspace"
           loading={loading}
-          subtitle={`${statusCounts.all} tasks · ${campaignList.length} campaign${campaignList.length !== 1 ? "s" : ""} · ${statusCounts.inProgress} in progress`}
+          subtitle={`${statusCounts.all} tasks · ${campaignList.length} campaign${campaignList.length !== 1 ? "s" : ""} · ${statusCounts.inProgress} in progress · ${taskInsights.completionRate}% done${taskInsights.overdue > 0 ? ` · ${taskInsights.overdue} overdue` : ""}`}
         />
       </div>
 
@@ -469,6 +539,42 @@ export default function WorkspacePage() {
           </button>
         )}
       </div>
+
+      {/* ── insights strip ── */}
+      {!loading && taskList.length > 0 && (
+        <div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+          {taskInsights.overdue > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{taskInsights.overdue} overdue</span>}
+          {taskInsights.dueSoon > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{taskInsights.dueSoon} due soon</span>}
+          {taskInsights.dueThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.dueThisWeek} due this week</span>}
+          {taskInsights.highUrgent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}>{taskInsights.highUrgent} high/urgent</span>}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>L:{taskInsights.low}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>M:{taskInsights.medium}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>H:{taskInsights.high}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>U:{taskInsights.urgent}</span>
+          {taskInsights.unassigned > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.unassigned} unassigned</span>}
+          {taskInsights.noDeadline > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.noDeadline} no deadline</span>}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.recurring} recurring ({taskInsights.weeklyRecur}w · {taskInsights.monthlyRecur}m)</span>
+          {taskInsights.overdueHighUrgent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 14%, transparent)", color: "var(--rose)" }}>{taskInsights.overdueHighUrgent} overdue high/urgent</span>}
+          {taskInsights.assignedToMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskInsights.assignedToMe} mine</span>}
+          {taskInsights.createdByMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdByMe} created by me</span>}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.oneTime} one-time</span>
+          {taskInsights.completedToday > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{taskInsights.completedToday} done today</span>}
+          {taskInsights.completedThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)" }}>{taskInsights.completedThisWeek} done this week</span>}
+          {taskInsights.completedThisMonth > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)" }}>{taskInsights.completedThisMonth} completed this month</span>}
+          {taskInsights.createdToday > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdToday} created today</span>}
+          {taskInsights.createdThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdThisWeek} new this week</span>}
+          {taskInsights.createdThisMonth > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdThisMonth} created this month</span>}
+          {campaignInsights.active > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{campaignInsights.active} active campaigns</span>}
+          {campaignInsights.completed > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.completed} done campaigns</span>}
+          {campaignInsights.completionRate > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.completionRate}% campaigns done</span>}
+          {campaignInsights.uniqueEmployees > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.uniqueEmployees} people in campaigns</span>}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {campaignInsights.avgTasksPerCampaign} tasks/campaign</span>
+          {campaignInsights.noTasks > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.noTasks} empty campaigns</span>}
+          {campaignInsights.pastEnd > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{campaignInsights.pastEnd} past end date</span>}
+          {campaignInsights.nearingEnd > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{campaignInsights.nearingEnd} nearing end</span>}
+          {campaignInsights.todayDueAll > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>checklist {campaignInsights.todayDoneAll}/{campaignInsights.todayDueAll} ({campaignInsights.todayChecklistPct}%)</span>}
+        </div>
+      )}
 
       {/* ── main + feed ── */}
       <div className="flex min-h-0 flex-1 gap-4">

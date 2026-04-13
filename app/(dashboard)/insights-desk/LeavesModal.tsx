@@ -52,6 +52,20 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function startOfLocalDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function parseLeaveDay(s: string) {
+  return startOfLocalDay(new Date(s));
+}
+
+function monthsElapsedSinceYearStart(now: Date) {
+  const y0 = new Date(now.getFullYear(), 0, 1);
+  const days = (now.getTime() - y0.getTime()) / 86400000;
+  return Math.max(days / (365.2425 / 12), 1 / 12);
+}
+
 const STATUS_COLORS: Record<string, string> = {
   approved: "var(--green)",
   pending: "var(--amber)",
@@ -189,8 +203,64 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     const pending = leaves.filter((l) => l.status === "pending").length;
     const approved = leaves.filter((l) => l.status === "approved").length;
     const rejected = leaves.filter((l) => l.status === "rejected").length;
+    const cancelled = leaves.filter((l) => l.status === "cancelled").length;
     const totalDays = leaves.filter((l) => l.status === "approved").reduce((s, l) => s + l.days, 0);
-    return { pending, approved, rejected, totalDays };
+    const nonCancelled = leaves.filter((l) => l.status !== "cancelled");
+    const approvalRate = nonCancelled.length > 0 ? Math.round((approved / nonCancelled.length) * 100) : 0;
+    const avgDuration = approved > 0 ? +(totalDays / approved).toFixed(1) : 0;
+    const today = new Date();
+    const pastApproved = leaves.filter((l) => l.status === "approved" && new Date(l.endDate) < today).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+    const daysSinceLastLeave = pastApproved.length > 0 ? Math.ceil((today.getTime() - new Date(pastApproved[0].endDate).getTime()) / 86400000) : null;
+    const typeDays = new Map<string, number>();
+    for (const l of leaves.filter((x) => x.status === "approved")) {
+      const t = l.type && l.type !== "leave" ? l.type : "General";
+      typeDays.set(t, (typeDays.get(t) ?? 0) + l.days);
+    }
+    const typeDayBreakdown = [...typeDays.entries()].sort((a, b) => b[1] - a[1]).map(([label, days]) => ({ label, days }));
+    return { pending, approved, rejected, cancelled, totalDays, approvalRate, avgDuration, daysSinceLastLeave, typeDayBreakdown };
+  }, [leaves]);
+
+  const leavePersonalExtras = useMemo(() => {
+    const today = startOfLocalDay(new Date());
+    const todayT = today.getTime();
+    const approved = leaves.filter((l) => l.status === "approved");
+    const onLeaveToday = approved.some((l) => {
+      const s = parseLeaveDay(l.startDate).getTime();
+      const e = parseLeaveDay(l.endDate).getTime();
+      return todayT >= s && todayT <= e;
+    });
+    const halfDayLeaves = leaves.filter((l) => l.isHalfDay).length;
+    let nextStart: string | null = null;
+    let nextStartT = Infinity;
+    for (const l of approved) {
+      const s = parseLeaveDay(l.startDate).getTime();
+      if (s <= todayT) continue;
+      if (s < nextStartT) {
+        nextStartT = s;
+        nextStart = l.startDate;
+      }
+    }
+    return { onLeaveToday, halfDayLeaves, nextScheduledStart: nextStart };
+  }, [leaves]);
+
+  const balanceRunoutDays = useMemo(() => {
+    if (leavesLoading || !balance || balance.used <= 0 || balance.remaining <= 0) return null;
+    const hasLeaveDates = leaves.some((l) => Boolean(l.startDate));
+    if (!hasLeaveDates) return null;
+    const months = monthsElapsedSinceYearStart(new Date());
+    const monthsLeft = balance.remaining / (balance.used / months);
+    const daysLeft = monthsLeft * (365.2425 / 12);
+    if (!Number.isFinite(daysLeft) || daysLeft <= 0) return null;
+    return Math.round(daysLeft);
+  }, [balance, leaves, leavesLoading]);
+
+  const leaveTypeCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of leaves) {
+      const key = (l.type && l.type.trim()) || "General";
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [leaves]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -240,7 +310,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-4 flex flex-col rounded-2xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-5xl max-h-[90vh]" : "w-full max-w-2xl max-h-[90vh]"}`}
+              className={`relative mx-4 flex flex-col rounded-2xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-6xl max-h-[95vh]" : "w-full max-w-3xl max-h-[93vh]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -447,12 +517,23 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                               <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{balance.remaining}</p>
                             </div>
                           </div>
+                          {balanceRunoutDays != null && (
+                            <div className="rounded-lg px-2.5 py-2 text-center" style={{ background: "var(--bg-elevated)" }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days Until Balance Runs Out</p>
+                              <p className="text-xs font-bold" style={{ color: "var(--fg-secondary)" }}>~{balanceRunoutDays} days <span className="font-normal" style={{ color: "var(--fg-tertiary)" }}>(est.)</span></p>
+                            </div>
+                          )}
                         </div>
                       ) : null}
 
                       {/* Leave summary stats */}
-                      {!leavesLoading && leaves.length > 0 && (
+                      {leavesLoading && (
                         <div className="grid grid-cols-4 gap-2">
+                          {[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-14 rounded-lg" />)}
+                        </div>
+                      )}
+                      {!leavesLoading && leaves.length > 0 && (
+                        <div className="grid grid-cols-5 gap-2">
                           <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
                             <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total</p>
                             <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{leaves.length}</p>
@@ -465,9 +546,51 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                             <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Pending</p>
                             <p className="text-sm font-bold" style={{ color: "var(--amber)" }}>{leaveSummary.pending}</p>
                           </div>
+                          {leaveSummary.rejected > 0 && (
+                            <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Rejected</p>
+                              <p className="text-sm font-bold" style={{ color: "var(--rose)" }}>{leaveSummary.rejected}</p>
+                            </div>
+                          )}
+                          {leaveSummary.cancelled > 0 && (
+                            <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Cancelled</p>
+                              <p className="text-sm font-bold" style={{ color: "var(--fg-tertiary)" }}>{leaveSummary.cancelled}</p>
+                            </div>
+                          )}
                           <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
                             <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days Taken</p>
                             <p className="text-sm font-bold" style={{ color: "var(--teal)" }}>{leaveSummary.totalDays}</p>
+                          </div>
+                        </div>
+                      )}
+                      {!leavesLoading && leaves.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                          <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{leaveSummary.approvalRate}% approval</span>
+                          {leaveSummary.avgDuration > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {leaveSummary.avgDuration}d per leave</span>}
+                          {leaveSummary.daysSinceLastLeave != null && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{leaveSummary.daysSinceLastLeave}d since last leave</span>}
+                          {leaveSummary.typeDayBreakdown.map((t) => (
+                            <span key={t.label} className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{t.days}d {t.label}</span>
+                          ))}
+                        </div>
+                      )}
+                      {balance && !leavesLoading && leaves.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>On Leave Today</p>
+                            <p className="text-sm font-bold" style={{ color: leavePersonalExtras.onLeaveToday ? "var(--green)" : "var(--fg-tertiary)" }}>
+                              {leavePersonalExtras.onLeaveToday ? "Yes" : "No"}
+                            </p>
+                          </div>
+                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Half-Day Leaves</p>
+                            <p className="text-sm font-bold" style={{ color: "var(--purple)" }}>{leavePersonalExtras.halfDayLeaves}</p>
+                          </div>
+                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Next Scheduled Leave</p>
+                            <p className="text-sm font-bold truncate px-0.5" style={{ color: "var(--primary)" }} title={leavePersonalExtras.nextScheduledStart ?? undefined}>
+                              {leavePersonalExtras.nextScheduledStart ? fmtDate(leavePersonalExtras.nextScheduledStart) : "—"}
+                            </p>
                           </div>
                         </div>
                       )}
@@ -533,6 +656,20 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
                           Leave History · {new Date().getFullYear()}
                         </p>
+                        {!leavesLoading && leaves.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {leaveTypeCounts.map(([typeLabel, count]) => (
+                              <span
+                                key={typeLabel}
+                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                                style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}
+                              >
+                                <span className="truncate max-w-[140px]" title={typeLabel}>{typeLabel}</span>
+                                <span style={{ color: "var(--fg-tertiary)" }}>{count}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {leavesLoading ? (
                           <div className="space-y-2">
                             {[1, 2, 3].map((i) => (

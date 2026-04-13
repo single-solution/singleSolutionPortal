@@ -389,6 +389,66 @@ export default function AttendancePage() {
     return days;
   }, [calendarLeaves, year, month]);
 
+  const holidayInsights = useMemo(() => {
+    const now = new Date();
+    const upcoming = calendarHolidays.filter((h) => new Date(h.date) > now).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const next = upcoming[0] ?? null;
+    const daysUntilNext = next ? Math.ceil((new Date(next.date).getTime() - now.getTime()) / 86400000) : null;
+    const thisMonth = calendarHolidays.filter((h) => { const d = new Date(h.date); return d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month; }).length;
+    const remainingThisYear = calendarHolidays.filter((h) => new Date(h.date) > now).length;
+    return { upcoming: upcoming.length, next, daysUntilNext, thisMonth, remainingThisYear };
+  }, [calendarHolidays, year, month]);
+
+  const personalInsights = useMemo(() => {
+    const present = records.filter((r) => r.isPresent);
+    const totalLateMins = present.reduce((s, r) => s + (r.lateBy ?? 0), 0);
+    const lateRecords = present.filter((r) => (r.lateBy ?? 0) > 0);
+    const avgLateMins = lateRecords.length > 0 ? Math.round(totalLateMins / lateRecords.length) : 0;
+    const perfectDays = present.filter((r) => r.isOnTime).length;
+    const totalBreakMins = present.reduce((s, r) => s + (r.breakMinutes ?? 0), 0);
+    const avgBreakMins = present.length > 0 ? Math.round(totalBreakMins / present.length) : 0;
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const byDay = new Map<number, { total: number; count: number }>();
+    for (const r of present) {
+      const dow = new Date(r.date).getDay();
+      const cur = byDay.get(dow) ?? { total: 0, count: 0 };
+      cur.total += r.totalWorkingMinutes; cur.count += 1;
+      byDay.set(dow, cur);
+    }
+    let bestDay = "", worstDay = "", bestAvg = 0, worstAvg = Infinity;
+    for (const [dow, v] of byDay) {
+      const avg = v.total / v.count;
+      if (avg > bestAvg) { bestAvg = avg; bestDay = dayNames[dow]; }
+      if (avg < worstAvg) { worstAvg = avg; worstDay = dayNames[dow]; }
+    }
+    if (!byDay.size) { worstAvg = 0; }
+    const sorted = [...records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let longestPresentStreak = 0, runPresent = 0;
+    for (const r of sorted) {
+      if (r.isPresent) { runPresent++; longestPresentStreak = Math.max(longestPresentStreak, runPresent); }
+      else { runPresent = 0; }
+    }
+    let onTimeStreak = 0, runOt = 0;
+    for (const r of sorted) {
+      if (r.isPresent && r.isOnTime) { runOt++; onTimeStreak = Math.max(onTimeStreak, runOt); }
+      else { runOt = 0; }
+    }
+    let maxHoursDay = "", maxHoursMins = 0;
+    let minHoursDay = "", minHoursMins = Infinity;
+    for (const r of present) {
+      const m = r.totalWorkingMinutes;
+      if (m > maxHoursMins) { maxHoursMins = m; maxHoursDay = r.date; }
+      if (m > 0 && m < minHoursMins) { minHoursMins = m; minHoursDay = r.date; }
+    }
+    if (minHoursMins === Infinity) { minHoursMins = 0; minHoursDay = ""; }
+    const remoteOnlyDays = present.filter((r) => (r.remoteMinutes ?? 0) > 0 && (r.officeMinutes ?? 0) === 0).length;
+    const officeOnlyDays = present.filter((r) => (r.officeMinutes ?? 0) > 0 && (r.remoteMinutes ?? 0) === 0).length;
+    return {
+      totalLateMins, avgLateMins, perfectDays, avgBreakMins, bestDay, worstDay, bestAvg, worstAvg,
+      longestPresentStreak, maxHoursDay, maxHoursMins, minHoursDay, minHoursMins, remoteOnlyDays, officeOnlyDays, onTimeStreak,
+    };
+  }, [records]);
+
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
   const today = new Date();
@@ -406,12 +466,82 @@ export default function AttendancePage() {
   const aggAvgDaily = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.averageDailyHours, 0) / filteredSummary.length : 0;
   const aggAvgOnTime = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.onTimePercentage, 0) / filteredSummary.length : 0;
   const aggAvgAttendance = filteredSummary.length > 0 ? filteredSummary.reduce((s, e) => s + e.attendancePercentage, 0) / filteredSummary.length : 0;
+  const aggLateDays = filteredSummary.reduce((s, e) => s + e.lateDays, 0);
+  const aggLateToOfficeDays = filteredSummary.reduce((s, e) => s + e.lateToOfficeDays, 0);
+
+  const aggInsights = useMemo(() => {
+    if (filteredSummary.length === 0) return null;
+    const attendances = filteredSummary.map((e) => e.attendancePercentage).sort((a, b) => a - b);
+    const onTimes = filteredSummary.map((e) => e.onTimePercentage).sort((a, b) => a - b);
+    const mid = Math.floor(attendances.length / 2);
+    const medianAttendance = attendances.length % 2 === 0 ? (attendances[mid - 1] + attendances[mid]) / 2 : attendances[mid];
+    const midOt = Math.floor(onTimes.length / 2);
+    const medianOnTime = onTimes.length % 2 === 0 ? (onTimes[midOt - 1] + onTimes[midOt]) / 2 : onTimes[midOt];
+    const best = filteredSummary.reduce((a, b) => (b.attendancePercentage > a.attendancePercentage ? b : a));
+    const worst = filteredSummary.reduce((a, b) => (b.attendancePercentage < a.attendancePercentage ? b : a));
+    const n = filteredSummary.length;
+    const meanAtt = attendances.reduce((s, x) => s + x, 0) / n;
+    const stdDevAttendance = Math.sqrt(attendances.reduce((s, x) => s + (x - meanAtt) ** 2, 0) / n);
+    const bestOnTime = filteredSummary.reduce((a, b) => (b.onTimePercentage > a.onTimePercentage ? b : a));
+    const worstOnTime = filteredSummary.reduce((a, b) => (b.onTimePercentage < a.onTimePercentage ? b : a));
+    const hoursList = filteredSummary.map((e) => e.averageDailyHours).sort((a, b) => a - b);
+    const midH = Math.floor(hoursList.length / 2);
+    const medianHours = hoursList.length % 2 === 0 ? (hoursList[midH - 1] + hoursList[midH]) / 2 : hoursList[midH];
+    const lateEmployees = filteredSummary.filter((e) => e.lateDays > 0).length;
+    return {
+      minAttendance: attendances[0],
+      maxAttendance: attendances[attendances.length - 1],
+      medianAttendance,
+      medianOnTime,
+      bestEmployee: best.name,
+      bestPct: best.attendancePercentage,
+      worstEmployee: worst.name,
+      worstPct: worst.attendancePercentage,
+      above90: filteredSummary.filter((e) => e.attendancePercentage >= 90).length,
+      below70: filteredSummary.filter((e) => e.attendancePercentage < 70).length,
+      perfect100: filteredSummary.filter((e) => Math.round(e.onTimePercentage) >= 100).length,
+      stdDevAttendance,
+      bestOnTimeName: bestOnTime.name,
+      bestOnTimePct: bestOnTime.onTimePercentage,
+      worstOnTimeName: worstOnTime.name,
+      worstOnTimePct: worstOnTime.onTimePercentage,
+      medianHours,
+      lateEmployees,
+    };
+  }, [filteredSummary]);
 
   const selectedDate = selectedDay ? new Date(year, month - 1, selectedDay) : null;
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
 
   const teamDatePresent = filteredTeamDate.filter((e) => e.isPresent).length;
   const teamDateLate = filteredTeamDate.filter((e) => e.isPresent && !e.isOnTime).length;
+  const teamDateAvgMins = teamDatePresent > 0 ? Math.round(filteredTeamDate.filter((e) => e.isPresent).reduce((s, e) => s + e.totalWorkingMinutes, 0) / teamDatePresent) : 0;
+  const teamDateEarliestIn = useMemo(() => {
+    const starts = filteredTeamDate.filter((e) => e.firstStart).map((e) => new Date(e.firstStart!).getTime());
+    return starts.length > 0 ? new Date(Math.min(...starts)).toISOString() : null;
+  }, [filteredTeamDate]);
+  const teamDateLatestOut = useMemo(() => {
+    const ends = filteredTeamDate.filter((e) => e.lastEnd).map((e) => new Date(e.lastEnd!).getTime());
+    return ends.length > 0 ? new Date(Math.max(...ends)).toISOString() : null;
+  }, [filteredTeamDate]);
+  const teamDateExtras = useMemo(() => {
+    const present = filteredTeamDate.filter((e) => e.isPresent);
+    const pctPresent = filteredTeamDate.length > 0 ? Math.round((present.length / filteredTeamDate.length) * 100) : 0;
+    const totalMins = present.reduce((s, e) => s + e.totalWorkingMinutes, 0);
+    const totalOfficeMins = present.reduce((s, e) => s + (e.officeMinutes ?? 0), 0);
+    const totalRemoteMins = present.reduce((s, e) => s + (e.remoteMinutes ?? 0), 0);
+    const lateList = present.filter((e) => (e.lateBy ?? 0) > 0);
+    const avgLateBy = lateList.length > 0 ? Math.round(lateList.reduce((s, e) => s + (e.lateBy ?? 0), 0) / lateList.length) : 0;
+    let mostHoursName = "", leastHoursName = "", mostHoursMins = 0, leastHoursMins = Infinity;
+    for (const e of present) {
+      if (e.totalWorkingMinutes > mostHoursMins) { mostHoursMins = e.totalWorkingMinutes; mostHoursName = e.name; }
+      if (e.totalWorkingMinutes < leastHoursMins) { leastHoursMins = e.totalWorkingMinutes; leastHoursName = e.name; }
+    }
+    if (!present.length) leastHoursMins = 0;
+    const lateToOffice = present.filter((e) => e.isLateToOffice).length;
+    const onTimePct = present.length > 0 ? Math.round((present.filter((e) => e.isOnTime).length / present.length) * 100) : 0;
+    return { pctPresent, totalMins, totalOfficeMins, totalRemoteMins, avgLateBy, mostHoursName, leastHoursName, mostHoursMins, leastHoursMins, lateToOffice, onTimePct };
+  }, [filteredTeamDate]);
 
   function toggleEmployee(id: string) {
     setViewingUserId((prev) => prev === id ? "" : id);
@@ -646,6 +776,19 @@ export default function AttendancePage() {
               {leaveDays.size > 0 && (
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--teal) 25%, transparent)" }} /> Leave</span>
               )}
+              {holidayInsights.thisMonth > 0 && (
+                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>{holidayInsights.thisMonth} this month</span>
+              )}
+              {holidayInsights.upcoming > 0 && (
+                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)" }}>{holidayInsights.upcoming} upcoming</span>
+              )}
+              {holidayInsights.next && (
+                <span className="ml-auto text-[10px]" style={{ color: "var(--purple)" }}>
+                  Next: {new Date(holidayInsights.next.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  {holidayInsights.daysUntilNext !== null && <> ({holidayInsights.daysUntilNext}d)</>}
+                  {holidayInsights.remainingThisYear > 0 && <> · {holidayInsights.remainingThisYear} left this year</>}
+                </span>
+              )}
             </div>
           )}
         </motion.div>
@@ -667,7 +810,23 @@ export default function AttendancePage() {
                       </p>
                       <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
                         {teamDatePresent} present · {teamDateLate} late · {filteredTeamDate.length - teamDatePresent} absent
+                        {teamDateAvgMins > 0 && <> · avg {fmtHours(teamDateAvgMins)}</>}
+                        {teamDateEarliestIn && <> · first in {fmtTime(teamDateEarliestIn)}</>}
+                        {teamDateLatestOut && <> · last out {fmtTime(teamDateLatestOut)}</>}
                       </p>
+                      {!teamDateLoading && filteredTeamDate.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{teamDateExtras.pctPresent}% present</span>
+                          {teamDatePresent > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{teamDateExtras.onTimePct}% on-time</span>}
+                          {teamDateExtras.totalMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>team {fmtHours(teamDateExtras.totalMins)} total</span>}
+                          {teamDateExtras.totalOfficeMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalOfficeMins)} office</span>}
+                          {teamDateExtras.totalRemoteMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalRemoteMins)} remote</span>}
+                          {teamDateExtras.avgLateBy > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>avg {teamDateExtras.avgLateBy}m late</span>}
+                          {teamDateExtras.lateToOffice > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{teamDateExtras.lateToOffice} late to office</span>}
+                          {teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most: {teamDateExtras.mostHoursName} ({fmtHours(teamDateExtras.mostHoursMins)})</span>}
+                          {teamDateExtras.leastHoursName && teamDateExtras.leastHoursName !== teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>Least: {teamDateExtras.leastHoursName} ({fmtHours(teamDateExtras.leastHoursMins)})</span>}
+                        </div>
+                      )}
                     </div>
                     <button type="button" onClick={() => setSelectedDay(null)} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-tertiary)" }}>
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -905,10 +1064,55 @@ export default function AttendancePage() {
                         <StatChip label="Avg Daily" value={`${aggAvgDaily.toFixed(1)}h`} color="var(--primary)" />
                         <StatChip label="Avg On-Time" value={`${Math.round(aggAvgOnTime)}%`} color={aggAvgOnTime >= 80 ? "var(--green)" : "var(--amber)"} />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <StatChip label="Attendance" value={`${Math.round(aggAvgAttendance)}%`} color={aggAvgAttendance >= 90 ? "var(--green)" : "var(--rose)"} />
                         <StatChip label="On-Time Days" value={`${aggOnTimeDays}`} color="var(--primary)" />
+                        <StatChip label="Late Days" value={`${aggLateDays}`} color={aggLateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
                       </div>
+                      {aggLateToOfficeDays > 0 && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <StatChip label="Late to Office" value={`${aggLateToOfficeDays}d`} color="var(--rose)" />
+                        </div>
+                      )}
+                      {aggInsights && (
+                        <div className="space-y-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Insights</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <StatChip label="Median Attend." value={`${Math.round(aggInsights.medianAttendance)}%`} color="var(--primary)" />
+                            <StatChip label="Min Attend." value={`${Math.round(aggInsights.minAttendance)}%`} color={aggInsights.minAttendance >= 70 ? "var(--amber)" : "var(--rose)"} />
+                            <StatChip label="Max Attend." value={`${Math.round(aggInsights.maxAttendance)}%`} color="var(--green)" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <StatChip label="Median On-Time" value={`${Math.round(aggInsights.medianOnTime)}%`} color="var(--primary)" />
+                            <StatChip label="100% On-Time" value={`${aggInsights.perfect100}`} color="var(--green)" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <StatChip label="Above 90%" value={`${aggInsights.above90}`} color="var(--green)" />
+                            <StatChip label="Below 70%" value={`${aggInsights.below70}`} color={aggInsights.below70 > 0 ? "var(--rose)" : "var(--fg-tertiary)"} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <StatChip label="Std Dev Attend." value={`${aggInsights.stdDevAttendance.toFixed(1)}%`} color="var(--primary)" />
+                            <StatChip label="Median Hours" value={`${aggInsights.medianHours.toFixed(1)}h`} color="var(--teal)" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <StatChip label="Best On-Time" value={`${Math.round(aggInsights.bestOnTimePct)}%`} subtitle={aggInsights.bestOnTimeName} color="var(--green)" />
+                            <StatChip label="Needs Att. On-Time" value={`${Math.round(aggInsights.worstOnTimePct)}%`} subtitle={aggInsights.worstOnTimeName} color={aggInsights.worstOnTimePct < 80 ? "var(--rose)" : "var(--amber)"} />
+                          </div>
+                          <div className="flex flex-wrap justify-center gap-1.5">
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: aggInsights.lateEmployees > 0 ? "color-mix(in srgb, var(--amber) 12%, transparent)" : "var(--bg-grouped)", color: aggInsights.lateEmployees > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{aggInsights.lateEmployees} late employees</span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                              <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best</span>
+                              <span className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{aggInsights.bestEmployee} · {Math.round(aggInsights.bestPct)}%</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                              <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Needs Attention</span>
+                              <span className="text-[11px] font-bold" style={{ color: "var(--rose)" }}>{aggInsights.worstEmployee} · {Math.round(aggInsights.worstPct)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : monthlyStats ? (
                     <>
@@ -918,10 +1122,37 @@ export default function AttendancePage() {
                         <StatChip label="Avg Daily" value={`${monthlyStats.averageDailyHours.toFixed(1)}h`} color="var(--primary)" />
                         <StatChip label="On-Time %" value={`${Math.round(monthlyStats.onTimePercentage)}%`} color={monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)"} />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <StatChip label="Attendance" value={`${Math.round(monthlyStats.attendancePercentage)}%`} color={monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)"} />
+                        <StatChip label="Absent" value={`${monthlyStats.absentDays}d`} color={monthlyStats.absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)"} />
                         <StatChip label="Office / Remote" value={`${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--teal)" />
                       </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StatChip label="On-Time Arrivals" value={`${monthlyStats.onTimeArrivals}`} color="var(--green)" />
+                        <StatChip label="Late Arrivals" value={`${monthlyStats.lateArrivals}`} color={monthlyStats.lateArrivals > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
+                      </div>
+                      {(monthlyStats.averageOfficeInTime || monthlyStats.averageOfficeOutTime) && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {monthlyStats.averageOfficeInTime && <StatChip label="Avg Office In" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--green)" />}
+                          {monthlyStats.averageOfficeOutTime && <StatChip label="Avg Office Out" value={fmtTime(monthlyStats.averageOfficeOutTime)} color="var(--green)" />}
+                        </div>
+                      )}
+                      {records.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                          {personalInsights.perfectDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} perfect days</span>}
+                          {personalInsights.totalLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{fmtHours(personalInsights.totalLateMins)} total late</span>}
+                          {personalInsights.avgLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgLateMins}m when late</span>}
+                          {personalInsights.avgBreakMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgBreakMins}m break</span>}
+                          {personalInsights.bestDay && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best: {personalInsights.bestDay} ({fmtHours(personalInsights.bestAvg)})</span>}
+                          {personalInsights.worstDay && personalInsights.worstDay !== personalInsights.bestDay && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Least: {personalInsights.worstDay} ({fmtHours(personalInsights.worstAvg)})</span>}
+                          {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
+                          {personalInsights.maxHoursDay && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best: {fmtHours(personalInsights.maxHoursMins)} on {new Date(personalInsights.maxHoursDay).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                          {personalInsights.minHoursDay && personalInsights.minHoursDay !== personalInsights.maxHoursDay && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Min: {fmtHours(personalInsights.minHoursMins)} on {new Date(personalInsights.minHoursDay).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                          {personalInsights.remoteOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.remoteOnlyDays} remote-only</span>}
+                          {personalInsights.officeOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.officeOnlyDays} office-only</span>}
+                          {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
+                        </div>
+                      )}
                       {leaveBalance && (
                         <div className="rounded-xl p-3 space-y-2" style={{ background: "var(--bg-grouped)" }}>
                           <div className="flex items-center justify-between">
@@ -961,7 +1192,25 @@ export default function AttendancePage() {
       {/* Session timeline — individual mode, date selected (moved from right panel) */}
       {sessionReady && !isAggregateMode && selectedDay !== null && detailData?.activitySessions && detailData.activitySessions.length > 0 && (
         <motion.div className="card-static p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Session Timeline</p>
+          {(() => {
+            const sessions = detailData.activitySessions;
+            const uniqueDevices = new Set(sessions.map((s) => s.deviceId).filter(Boolean)).size;
+            const uniqueIPs = new Set(sessions.map((s) => s.ipAddress).filter(Boolean)).size;
+            let longestSeg = 0;
+            for (const s of sessions) if (s.officeSegments) for (const seg of s.officeSegments) if (seg.durationMinutes > longestSeg) longestSeg = seg.durationMinutes;
+            const totalSessionMins = sessions.reduce((a, s) => a + s.durationMinutes, 0);
+            return (
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Session Timeline</p>
+                <div className="flex items-center gap-2">
+                  {sessions.length > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(totalSessionMins)} total</span>}
+                  {longestSeg > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>longest seg {fmtHours(longestSeg)}</span>}
+                  {uniqueDevices > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: uniqueDevices > 1 ? "color-mix(in srgb, var(--amber) 12%, transparent)" : "var(--bg-grouped)", color: uniqueDevices > 1 ? "var(--amber)" : "var(--fg-tertiary)" }}>{uniqueDevices} device{uniqueDevices !== 1 ? "s" : ""}</span>}
+                  {uniqueIPs > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{uniqueIPs} IP{uniqueIPs !== 1 ? "s" : ""}</span>}
+                </div>
+              </div>
+            );
+          })()}
           <div className="relative pl-5">
             <div className="absolute left-[7px] top-1 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
             <motion.div className="space-y-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } } }}>

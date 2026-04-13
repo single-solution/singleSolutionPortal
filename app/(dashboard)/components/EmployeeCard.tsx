@@ -74,6 +74,8 @@ export interface EmployeeCardProps {
   showTasks?: boolean;
   /** Show campaign count chips. Defaults to true. */
   showCampaigns?: boolean;
+  /** When set, clicking the card calls this instead of navigating to the detail page. */
+  onCardClick?: (id: string) => void;
 }
 
 const AVATAR_GRADIENTS = [
@@ -285,6 +287,7 @@ export const EmployeeCard = memo(function EmployeeCard({
   showLocationFlags = true,
   showTasks = true,
   showCampaigns = true,
+  onCardClick,
 }: EmployeeCardProps) {
   const avatarGradIdx = idx % AVATAR_GRADIENTS.length;
   const todayM = emp.todayMinutes ?? 0;
@@ -304,11 +307,20 @@ export const EmployeeCard = memo(function EmployeeCard({
 
   const inner = (
     <>
-      <Link
-        href={`/employee/${emp.username ?? emp._id}`}
-        className={`absolute inset-0 z-0 ${embedded ? "" : "rounded-[var(--radius)]"}`}
-        aria-label={`View ${emp.firstName} ${emp.lastName}`}
-      />
+      {onCardClick ? (
+        <button
+          type="button"
+          onClick={() => onCardClick(emp._id)}
+          className={`absolute inset-0 z-0 ${embedded ? "" : "rounded-[var(--radius)]"}`}
+          aria-label={`View ${emp.firstName} ${emp.lastName}`}
+        />
+      ) : (
+        <Link
+          href={`/employee/${emp.username ?? emp._id}`}
+          className={`absolute inset-0 z-0 ${embedded ? "" : "rounded-[var(--radius)]"}`}
+          aria-label={`View ${emp.firstName} ${emp.lastName}`}
+        />
+      )}
 
       {showAttendance && (
         <div className="pointer-events-none absolute right-0 z-50 max-w-[55%] text-right hidden sm:block" style={{ top: -13 }}>

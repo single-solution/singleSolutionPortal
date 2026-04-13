@@ -92,6 +92,70 @@ export default function TasksPage() {
 
   const pendingCount = useMemo(() => taskList.filter((t) => t.status === "pending").length, [taskList]);
 
+  const taskInsights = useMemo(() => {
+    const now = Date.now();
+    const weekEnd = new Date(); weekEnd.setHours(23, 59, 59); weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()));
+    let overdue = 0, dueSoon = 0, dueThisWeek = 0, noDeadline = 0;
+    let low = 0, medium = 0, high = 0, urgent = 0;
+    let inProgress = 0, completed = 0, unassigned = 0;
+    let assignedToMe = 0, createdByMe = 0;
+    let completedThisWeek = 0, completedThisMonth = 0;
+    const deptCounts = new Map<string, number>();
+    const cal = new Date();
+    const dow = cal.getDay();
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const weekStartCal = new Date(cal);
+    weekStartCal.setDate(weekStartCal.getDate() + mondayOffset);
+    weekStartCal.setHours(0, 0, 0, 0);
+    const weekEndCal = new Date(weekStartCal);
+    weekEndCal.setDate(weekEndCal.getDate() + 7);
+    weekEndCal.setMilliseconds(-1);
+    const monthStart = new Date(cal.getFullYear(), cal.getMonth(), 1, 0, 0, 0, 0);
+    const monthEnd = new Date(cal.getFullYear(), cal.getMonth() + 1, 0, 23, 59, 59, 999);
+    const userId = session?.user?.id;
+    for (const t of taskList) {
+      if (t.status === "inProgress") inProgress++;
+      if (t.status === "completed") completed++;
+      if (t.status === "completed") {
+        const doneAt = t.updatedAt ?? t.createdAt;
+        if (doneAt) {
+          const ts = new Date(doneAt).getTime();
+          if (ts >= weekStartCal.getTime() && ts <= weekEndCal.getTime()) completedThisWeek++;
+          if (ts >= monthStart.getTime() && ts <= monthEnd.getTime()) completedThisMonth++;
+        }
+      }
+      if (t.deadline) {
+        const dl = new Date(t.deadline).getTime();
+        if (t.status !== "completed") {
+          if (dl < now) overdue++;
+          else if (dl - now < 2 * 86400000) dueSoon++;
+          if (dl <= weekEnd.getTime() && dl >= now) dueThisWeek++;
+        }
+      } else if (t.status !== "completed") noDeadline++;
+      if (t.priority === "low") low++;
+      else if (t.priority === "medium") medium++;
+      else if (t.priority === "high") high++;
+      else if (t.priority === "urgent") urgent++;
+      if (!t.assignedTo) unassigned++;
+      if (userId && t.assignedTo?._id === userId) assignedToMe++;
+      if (userId && (t as unknown as { createdBy?: { _id?: string } }).createdBy?._id === userId) createdByMe++;
+      const dep = t.assignedTo?.department;
+      if (dep) {
+        const title = typeof dep === "string" ? dep : dep.title;
+        if (title) deptCounts.set(title, (deptCounts.get(title) ?? 0) + 1);
+      }
+    }
+    const deptBreakdown = [...deptCounts.entries()]
+      .map(([dept, count]) => ({ dept, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    const completionRate = taskList.length > 0 ? Math.round((completed / taskList.length) * 100) : 0;
+    return {
+      overdue, dueSoon, dueThisWeek, noDeadline, low, medium, high, urgent, highUrgent: high + urgent, inProgress, completed, unassigned, assignedToMe, createdByMe, completionRate,
+      deptBreakdown, completedThisWeek, completedThisMonth,
+    };
+  }, [taskList, session?.user?.id]);
+
   function openCreate() {
     setEditing(null);
     setForm({ title: "", description: "", priority: "medium", status: "pending", assignedTo: "", deadline: "" });
@@ -145,7 +209,7 @@ export default function TasksPage() {
         <PageHeader
           title="Tasks"
           loading={tasksLoading && !tasks}
-          subtitle={`${taskList.length} total · ${pendingCount} pending`}
+          subtitle={`${taskList.length} total · ${pendingCount} pending · ${taskInsights.inProgress} working · ${taskInsights.completionRate}% done${taskInsights.overdue > 0 ? ` · ${taskInsights.overdue} overdue` : ""}`}
           shimmerWidth="w-36"
         />
         <SegmentedControl
@@ -189,6 +253,27 @@ export default function TasksPage() {
           </button>
         )}
       </div>
+
+      {/* Insights strip */}
+      {!tasksLoading && taskList.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+          {taskInsights.overdue > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{taskInsights.overdue} overdue</span>}
+          {taskInsights.dueSoon > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{taskInsights.dueSoon} due soon</span>}
+          {taskInsights.dueThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.dueThisWeek} due this week</span>}
+          {taskInsights.highUrgent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}>{taskInsights.highUrgent} high/urgent</span>}
+          {taskInsights.unassigned > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.unassigned} unassigned</span>}
+          {taskInsights.noDeadline > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.noDeadline} no deadline</span>}
+          {taskInsights.deptBreakdown.map(({ dept, count }) => (
+            <span key={dept} className="max-w-[140px] truncate rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }} title={`${dept}: ${count}`}>{count} {dept}</span>
+          ))}
+          {taskInsights.completedThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{taskInsights.completedThisWeek} done this week</span>}
+          {taskInsights.completedThisMonth > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{taskInsights.completedThisMonth} done this month</span>}
+          {taskInsights.assignedToMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskInsights.assignedToMe} assigned to me</span>}
+          {taskInsights.createdByMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdByMe} created by me</span>}
+          {taskInsights.completed > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{taskInsights.completed} completed</span>}
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>L:{taskInsights.low} M:{taskInsights.medium} H:{taskInsights.high} U:{taskInsights.urgent}</span>
+        </div>
+      )}
 
       {/* Task Card Grid */}
       <motion.div data-tour="tasks-grid" className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
