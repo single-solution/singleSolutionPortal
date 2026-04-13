@@ -51,6 +51,10 @@ interface DailyRow {
   isPresent?: boolean;
   isOnTime?: boolean;
   lateBy?: number;
+  totalWorkingMinutes?: number;
+  officeMinutes?: number;
+  remoteMinutes?: number;
+  breakMinutes?: number;
 }
 interface MonthlyStats {
   presentDays?: number;
@@ -173,6 +177,11 @@ function formatMinutes(mins: number) {
   const h = Math.floor(mins / 60),
     m = mins % 60;
   return h === 0 ? `${m}m` : m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+function fmtHours(mins: number) {
+  const h = Math.floor(mins / 60);
+  const m = Math.round(mins % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 function recordDateKey(iso: string | Date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
@@ -377,6 +386,50 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     const m = new Map<string, DailyRow>();
     for (const r of dailyList) m.set(recordDateKey(r.date), r);
     return m;
+  }, [dailyList]);
+  const personalInsights = useMemo(() => {
+    const present = dailyList.filter((r) => r.isPresent);
+    if (!present.length) return null;
+    const totalLateMins = present.reduce((s, r) => s + (r.lateBy ?? 0), 0);
+    const lateRecords = present.filter((r) => (r.lateBy ?? 0) > 0);
+    const avgLateMins = lateRecords.length > 0 ? Math.round(totalLateMins / lateRecords.length) : 0;
+    const perfectDays = present.filter((r) => r.isOnTime).length;
+    const totalBreakMins = present.reduce((s, r) => s + (r.breakMinutes ?? 0), 0);
+    const avgBreakMins = present.length > 0 ? Math.round(totalBreakMins / present.length) : 0;
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const byDay = new Map<number, { total: number; count: number }>();
+    for (const r of present) {
+      const dow = new Date(r.date).getDay();
+      const cur = byDay.get(dow) ?? { total: 0, count: 0 };
+      cur.total += r.totalWorkingMinutes ?? 0; cur.count += 1;
+      byDay.set(dow, cur);
+    }
+    let bestDay = "", worstDay = "", bestAvg = 0, worstAvg = Infinity;
+    for (const [dow, v] of byDay) {
+      const avg = v.total / v.count;
+      if (avg > bestAvg) { bestAvg = avg; bestDay = dayNames[dow]; }
+      if (avg < worstAvg) { worstAvg = avg; worstDay = dayNames[dow]; }
+    }
+    if (!byDay.size) worstAvg = 0;
+    const sorted = [...dailyList].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let longestPresentStreak = 0, runPresent = 0;
+    for (const r of sorted) {
+      if (r.isPresent) { runPresent++; longestPresentStreak = Math.max(longestPresentStreak, runPresent); } else runPresent = 0;
+    }
+    let onTimeStreak = 0, runOt = 0;
+    for (const r of sorted) {
+      if (r.isPresent && r.isOnTime) { runOt++; onTimeStreak = Math.max(onTimeStreak, runOt); } else runOt = 0;
+    }
+    let maxHoursDay = "", maxHoursMins = 0, minHoursDay = "", minHoursMins = Infinity;
+    for (const r of present) {
+      const m = r.totalWorkingMinutes ?? 0;
+      if (m > maxHoursMins) { maxHoursMins = m; maxHoursDay = r.date; }
+      if (m > 0 && m < minHoursMins) { minHoursMins = m; minHoursDay = r.date; }
+    }
+    if (minHoursMins === Infinity) { minHoursMins = 0; minHoursDay = ""; }
+    const remoteOnlyDays = present.filter((r) => (r.remoteMinutes ?? 0) > 0 && (r.officeMinutes ?? 0) === 0).length;
+    const officeOnlyDays = present.filter((r) => (r.officeMinutes ?? 0) > 0 && (r.remoteMinutes ?? 0) === 0).length;
+    return { totalLateMins, avgLateMins, perfectDays, avgBreakMins, bestDay, worstDay, bestAvg, worstAvg, longestPresentStreak, maxHoursDay, maxHoursMins, minHoursDay, minHoursMins, remoteOnlyDays, officeOnlyDays, onTimeStreak };
   }, [dailyList]);
   const cells = calendarCells(calYear, calMonth);
   const monthLab = new Date(calYear, calMonth - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -723,6 +776,25 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               </>
                             )}
                           </div>
+                          {!dayL && personalInsights && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal insights</p>
+                              <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                {personalInsights.perfectDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} perfect days</span>}
+                                {personalInsights.totalLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{fmtHours(personalInsights.totalLateMins)} total late</span>}
+                                {personalInsights.avgLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgLateMins}m when late</span>}
+                                {personalInsights.avgBreakMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgBreakMins}m break</span>}
+                                {personalInsights.bestDay && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best: {personalInsights.bestDay} ({fmtHours(personalInsights.bestAvg)})</span>}
+                                {personalInsights.worstDay && personalInsights.worstDay !== personalInsights.bestDay && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Least: {personalInsights.worstDay} ({fmtHours(personalInsights.worstAvg)})</span>}
+                                {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
+                                {personalInsights.maxHoursDay && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best: {fmtHours(personalInsights.maxHoursMins)} on {new Date(personalInsights.maxHoursDay).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                                {personalInsights.minHoursDay && personalInsights.minHoursDay !== personalInsights.maxHoursDay && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Min: {fmtHours(personalInsights.minHoursMins)} on {new Date(personalInsights.minHoursDay).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                                {personalInsights.remoteOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.remoteOnlyDays} remote-only</span>}
+                                {personalInsights.officeOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.officeOnlyDays} office-only</span>}
+                                {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
