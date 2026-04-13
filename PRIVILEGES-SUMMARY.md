@@ -31,14 +31,14 @@
 | 17 | `departments_edit` | Yes | **KEEP** | Gates department editing |
 | 18 | `departments_delete` | Yes | **KEEP** | Gates department deletion |
 | | **Tasks** | | | |
-| 19 | `tasks_view` | Yes | **KEEP** | Gates team task visibility |
-| 20 | `tasks_create` | Yes | **KEEP** | Gates task creation |
-| 21 | `tasks_edit` | Yes | **KEEP** | Gates task editing (parent gate for PUT) |
+| 19 | `tasks_view` | Yes | **KEEP** | Gates team task visibility (one-time and recurring) |
+| 20 | `tasks_create` | Yes | **KEEP** | Gates task creation — includes setting recurrence, subtasks |
+| 21 | `tasks_edit` | Yes | **KEEP** | Gates task editing (parent gate for PUT) — includes updating recurrence schedule |
 | 22 | `tasks_delete` | Yes | **KEEP** | Gates task deletion |
 | 23 | `tasks_reassign` | Yes | **KEEP** | Sub-gate within `tasks_edit` — needs both to change assignee |
 | | **Campaigns** | | | |
-| 24 | `campaigns_view` | Yes | **KEEP** | Gates team campaign visibility |
-| 25 | `campaigns_create` | Yes | **KEEP** | Gates campaign creation |
+| 24 | `campaigns_view` | Yes | **KEEP** | Gates team campaign visibility + admin compliance grid for recurring tasks |
+| 25 | `campaigns_create` | Yes | **KEEP** | Gates campaign creation (campaigns are type-agnostic containers) |
 | 26 | `campaigns_edit` | Yes | **KEEP** | Gates campaign editing + status changes |
 | 27 | `campaigns_delete` | Yes | **KEEP** | Gates campaign deletion |
 | 28 | `campaigns_tagEntities` | Yes | **KEEP** | Gates tagging employees/departments to campaigns |
@@ -134,20 +134,24 @@
 ### Tasks (5 keys)
 | Key | Description |
 |-----|------------|
-| `tasks_view` | View team tasks |
-| `tasks_create` | Create new tasks |
-| `tasks_edit` | Edit task details and status |
+| `tasks_view` | View team tasks (both one-time and recurring) |
+| `tasks_create` | Create new tasks — includes setting recurrence (daily/weekly/biweekly/monthly/custom days), subtasks, and preferred time |
+| `tasks_edit` | Edit task details, status, and recurrence schedule |
 | `tasks_delete` | Delete tasks |
 | `tasks_reassign` | Change task assignee (requires `tasks_edit` too) |
+
+> **Recurring tasks**: Any task can have a `recurrence` field (frequency + optional days + optional time). Recurring tasks auto-appear as checklist items on their scheduled days. Employees can toggle their own assigned recurring tasks without any special privilege — this is treated like updating own task status.
 
 ### Campaigns (5 keys)
 | Key | Description |
 |-----|------------|
-| `campaigns_view` | View team campaigns |
+| `campaigns_view` | View team campaigns + admin compliance grid for recurring tasks |
 | `campaigns_create` | Create new campaigns |
 | `campaigns_edit` | Edit campaigns and change status |
 | `campaigns_delete` | Delete campaigns |
 | `campaigns_tagEntities` | Tag employees/departments to campaigns |
+
+> **Campaign model change**: Campaigns no longer have a rigid `type` ("job"/"project") or embedded `checklist`. A campaign is simply a container for tasks. Whether tasks are recurring (checklist-style) or one-time (project-style) is determined by each task's `recurrence` field. The `campaigns_view` privilege also gates the admin/manager compliance grid that shows team completion rates for recurring tasks.
 
 ### Updates (4 keys — reserved for future)
 | Key | Description |
@@ -304,6 +308,7 @@ AFTER:   52 keys
 | Own leave balance | View remaining/used leaves |
 | Own payroll | View own salary estimate and payslips |
 | Own tasks | View tasks assigned to self, change own task status |
+| Complete own recurring tasks | Toggle recurring task checklist items on Dashboard and Workspace (creates/deletes ChecklistLog entries) |
 | Own campaigns | View campaigns where tagged |
 | Own activity feed | Narrow feed of logs targeting self |
 | View holidays | Read-only holiday calendar |
