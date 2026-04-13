@@ -74,7 +74,7 @@ function primaryDesignationLabel(emp: Employee): string {
       if (m.designation && typeof m.designation === "object" && "name" in m.designation && m.designation.name) return m.designation.name;
     }
   }
-  return "Employee";
+  return "";
 }
 
 function shiftSummaryLine(emp: Employee) {

@@ -64,6 +64,7 @@ interface ApiTask {
   createdAt?: string;
   assignedTo?: { _id?: string; about?: { firstName: string; lastName: string }; email?: string; department?: { title?: string } | string };
   createdBy?: { _id?: string; about?: { firstName: string; lastName: string }; email?: string };
+  campaign?: { _id: string; name: string } | string;
 }
 
 interface PersonalAttendance {
@@ -790,9 +791,10 @@ function AdminDashboard({
 
       {/* 3. Main content + Activity sidebar */}
       <div className="flex min-h-0 flex-1 gap-4">
-        {/* 3a. Team Status — scrollable */}
-        <motion.section data-tour="dashboard-team-status" className="card relative flex min-w-0 flex-1 flex-col overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {/* 3a. Team Status — limited height */}
+        <motion.section data-tour="dashboard-team-status" className="card relative flex min-w-0 flex-col overflow-hidden p-3 sm:p-3.5" style={{ maxHeight: "55%" }} variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-2 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
               <h2 className="text-headline" style={{ color: "var(--fg)" }}>Team Status</h2>
@@ -885,7 +887,76 @@ function AdminDashboard({
       </div>
         </motion.section>
 
-        {/* 3b. Activity sidebar */}
+        {/* 3b. Bottom 2-column grid — Pending Tasks + Active Campaigns */}
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+          {/* Pending Tasks */}
+          <div className="card flex flex-col overflow-hidden p-3">
+            <div className="mb-2 flex shrink-0 items-center justify-between">
+              <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Pending Tasks</h3>
+              {canViewTasks && <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--amber)" }}>{pendingTasks.length}</span>}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+              {!canViewTasks ? (
+                <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No access</p>
+              ) : pendingTasks.length === 0 ? (
+                <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>All caught up!</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {pendingTasks.slice(0, 15).map((t) => {
+                    const dl = t.deadline ? new Date(t.deadline) : null;
+                    const overdue = dl && dl < new Date();
+                    return (
+                      <div key={t._id} className="flex items-start gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[11px] font-medium" style={{ color: "var(--fg)" }}>{t.title}</p>
+                          {t.campaign && typeof t.campaign === "object" && <p className="truncate text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{t.campaign.name}</p>}
+                        </div>
+                        {dl && (
+                          <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: overdue ? "color-mix(in srgb, var(--rose) 10%, transparent)" : "var(--bg-elevated)", color: overdue ? "var(--rose)" : "var(--fg-tertiary)" }}>
+                            {dl.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Active Campaigns */}
+          <div className="card flex flex-col overflow-hidden p-3">
+            <div className="mb-2 flex shrink-0 items-center justify-between">
+              <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
+              <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--teal)" }}>{campaigns.filter((c) => c.status === "active").length}</span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+              {campaigns.filter((c) => c.status === "active").length === 0 ? (
+                <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {campaigns.filter((c) => c.status === "active").map((c) => {
+                    const empCount = c.tags?.employees?.length ?? 0;
+                    const tStats = c.taskStats;
+                    return (
+                      <div key={c._id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[11px] font-medium" style={{ color: "var(--fg)" }}>{c.name}</p>
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          {empCount > 0 && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "var(--bg-elevated)", color: "var(--fg-tertiary)" }}>{empCount} users</span>}
+                          {tStats && tStats.total > 0 && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "var(--bg-elevated)", color: "var(--primary)" }}>{tStats.total} tasks</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        </div>{/* end left column wrapper */}
+
+        {/* 3c. Activity sidebar */}
         {canViewLogs && (
           <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
@@ -1208,7 +1279,7 @@ export default function DashboardHome({ user }: { user: User }) {
         firstName: p.firstName,
         lastName: p.lastName,
         email: p.email ?? "",
-        designation: p.isSuperAdmin ? "System Administrator" : "Employee",
+        designation: p.isSuperAdmin ? "System Administrator" : "",
         department: p.department,
         departmentId: p.departmentId ?? null,
         status: p.status as PresenceStatus,
@@ -1367,7 +1438,7 @@ export default function DashboardHome({ user }: { user: User }) {
           username: (p.username as string) ?? user.username,
           profileImage: (about?.profileImage as string) || undefined,
           department: dept?.title ?? undefined,
-          designation: user.isSuperAdmin ? "System Administrator" : "Employee",
+          designation: user.isSuperAdmin ? "System Administrator" : "",
           weeklySchedule: resolveWeeklySchedule(p),
           shiftType: typeof p.shiftType === "string" ? p.shiftType : undefined,
           graceMinutes: resolveGraceMinutes(p),
@@ -1424,7 +1495,7 @@ export default function DashboardHome({ user }: { user: User }) {
       firstName: e.about?.firstName ?? "",
       lastName: e.about?.lastName ?? "",
       email: e.email ?? "",
-      designation: e.isSuperAdmin ? "System Administrator" : "Employee",
+      designation: e.isSuperAdmin ? "System Administrator" : "",
       department: (e.department as { title?: string })?.title ?? "Unassigned",
       departmentId: (e.department as { _id?: string })?._id ?? null,
       status: "absent" as PresenceStatus,

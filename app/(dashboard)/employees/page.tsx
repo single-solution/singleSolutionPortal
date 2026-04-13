@@ -86,7 +86,7 @@ function primaryDesignationLabel(emp: Employee): string {
       if (des && typeof des === "object" && "name" in des && des.name) return des.name;
     }
   }
-  return "Employee";
+  return "";
 }
 
 function shiftSummaryLine(emp: Employee) {

@@ -255,7 +255,6 @@ export const EmployeeCard = memo(function EmployeeCard({
   showCampaigns = true,
   onCardClick,
 }: EmployeeCardProps) {
-  const avatarGradIdx = idx % AVATAR_GRADIENTS.length;
   const todayM = emp.todayMinutes ?? 0;
 
   const firstArrival =
@@ -285,20 +284,15 @@ export const EmployeeCard = memo(function EmployeeCard({
         />
       )}
 
-      {/* Absolute status pill (top-right) */}
-      {showAttendance && (
-        <div className="pointer-events-none absolute right-0 z-[60] max-w-[55%] text-right hidden sm:block" style={{ top: -13 }}>
-          <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
-        </div>
-      )}
-      {/* Absolute late pill (top-left) */}
-      {showAttendanceDetail && (
-        <div className="pointer-events-none absolute left-0 z-[60] max-w-[50%] text-left hidden sm:block" style={{ top: -13 }}>
-          <LatePill emp={emp} attendanceLoading={attendanceLoading} />
+      {/* Absolute pills (top-right, higher z-index) */}
+      {(showAttendance || showAttendanceDetail) && (
+        <div className="pointer-events-none absolute right-0 z-[100] flex items-center gap-1 hidden sm:flex" style={{ top: -13 }}>
+          {showAttendanceDetail && <LatePill emp={emp} attendanceLoading={attendanceLoading} />}
+          {showAttendance && <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />}
         </div>
       )}
 
-      <div className={`relative z-10 flex flex-1 flex-col gap-2 sm:gap-2.5 ${embedded ? "p-2 sm:p-3" : "p-2.5 sm:p-3.5"} pointer-events-none`}>
+      <div className={`relative z-10 flex flex-1 flex-col gap-1.5 sm:gap-2 ${embedded ? "p-1.5 sm:p-2" : "p-2 sm:p-2.5"} pointer-events-none`}>
         {selectable && (
           <input
             type="checkbox"
@@ -310,17 +304,8 @@ export const EmployeeCard = memo(function EmployeeCard({
           />
         )}
 
-        <div className="flex items-start gap-2 pr-1 pt-0.5">
-          {emp.profileImage ? (
-            <img src={emp.profileImage} alt="" className="pointer-events-none h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full object-cover shadow-sm" />
-          ) : (
-            <div
-              className={`pointer-events-none flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[8px] sm:text-[10px] font-semibold text-white ${AVATAR_GRADIENTS[avatarGradIdx]}`}
-            >
-              {initials(emp.firstName, emp.lastName)}
-            </div>
-          )}
-          <div className="min-w-0 flex-1 pr-0 sm:pr-16">
+        <div className="pr-1 pt-0.5">
+          <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1 flex-wrap">
               <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
                 {emp.firstName} {emp.lastName}
