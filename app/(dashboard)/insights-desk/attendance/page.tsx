@@ -471,41 +471,20 @@ export default function AttendancePage() {
 
   const aggInsights = useMemo(() => {
     if (filteredSummary.length === 0) return null;
-    const attendances = filteredSummary.map((e) => e.attendancePercentage).sort((a, b) => a - b);
-    const onTimes = filteredSummary.map((e) => e.onTimePercentage).sort((a, b) => a - b);
-    const mid = Math.floor(attendances.length / 2);
-    const medianAttendance = attendances.length % 2 === 0 ? (attendances[mid - 1] + attendances[mid]) / 2 : attendances[mid];
-    const midOt = Math.floor(onTimes.length / 2);
-    const medianOnTime = onTimes.length % 2 === 0 ? (onTimes[midOt - 1] + onTimes[midOt]) / 2 : onTimes[midOt];
     const best = filteredSummary.reduce((a, b) => (b.attendancePercentage > a.attendancePercentage ? b : a));
     const worst = filteredSummary.reduce((a, b) => (b.attendancePercentage < a.attendancePercentage ? b : a));
-    const n = filteredSummary.length;
-    const meanAtt = attendances.reduce((s, x) => s + x, 0) / n;
-    const stdDevAttendance = Math.sqrt(attendances.reduce((s, x) => s + (x - meanAtt) ** 2, 0) / n);
     const bestOnTime = filteredSummary.reduce((a, b) => (b.onTimePercentage > a.onTimePercentage ? b : a));
     const worstOnTime = filteredSummary.reduce((a, b) => (b.onTimePercentage < a.onTimePercentage ? b : a));
-    const hoursList = filteredSummary.map((e) => e.averageDailyHours).sort((a, b) => a - b);
-    const midH = Math.floor(hoursList.length / 2);
-    const medianHours = hoursList.length % 2 === 0 ? (hoursList[midH - 1] + hoursList[midH]) / 2 : hoursList[midH];
     const lateEmployees = filteredSummary.filter((e) => e.lateDays > 0).length;
     return {
-      minAttendance: attendances[0],
-      maxAttendance: attendances[attendances.length - 1],
-      medianAttendance,
-      medianOnTime,
       bestEmployee: best.name,
       bestPct: best.attendancePercentage,
       worstEmployee: worst.name,
       worstPct: worst.attendancePercentage,
-      above90: filteredSummary.filter((e) => e.attendancePercentage >= 90).length,
-      below70: filteredSummary.filter((e) => e.attendancePercentage < 70).length,
-      perfect100: filteredSummary.filter((e) => Math.round(e.onTimePercentage) >= 100).length,
-      stdDevAttendance,
       bestOnTimeName: bestOnTime.name,
       bestOnTimePct: bestOnTime.onTimePercentage,
       worstOnTimeName: worstOnTime.name,
       worstOnTimePct: worstOnTime.onTimePercentage,
-      medianHours,
       lateEmployees,
     };
   }, [filteredSummary]);
@@ -1077,23 +1056,6 @@ export default function AttendancePage() {
                       {aggInsights && (
                         <div className="space-y-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
                           <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Insights</p>
-                          <div className="grid grid-cols-3 gap-2">
-                            <StatChip label="Median Attend." value={`${Math.round(aggInsights.medianAttendance)}%`} color="var(--primary)" />
-                            <StatChip label="Min Attend." value={`${Math.round(aggInsights.minAttendance)}%`} color={aggInsights.minAttendance >= 70 ? "var(--amber)" : "var(--rose)"} />
-                            <StatChip label="Max Attend." value={`${Math.round(aggInsights.maxAttendance)}%`} color="var(--green)" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <StatChip label="Median On-Time" value={`${Math.round(aggInsights.medianOnTime)}%`} color="var(--primary)" />
-                            <StatChip label="100% On-Time" value={`${aggInsights.perfect100}`} color="var(--green)" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <StatChip label="Above 90%" value={`${aggInsights.above90}`} color="var(--green)" />
-                            <StatChip label="Below 70%" value={`${aggInsights.below70}`} color={aggInsights.below70 > 0 ? "var(--rose)" : "var(--fg-tertiary)"} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <StatChip label="Std Dev Attend." value={`${aggInsights.stdDevAttendance.toFixed(1)}%`} color="var(--primary)" />
-                            <StatChip label="Median Hours" value={`${aggInsights.medianHours.toFixed(1)}h`} color="var(--teal)" />
-                          </div>
                           <div className="grid grid-cols-2 gap-2">
                             <StatChip label="Best On-Time" value={`${Math.round(aggInsights.bestOnTimePct)}%`} subtitle={aggInsights.bestOnTimeName} color="var(--green)" />
                             <StatChip label="Needs Att. On-Time" value={`${Math.round(aggInsights.worstOnTimePct)}%`} subtitle={aggInsights.worstOnTimeName} color={aggInsights.worstOnTimePct < 80 ? "var(--rose)" : "var(--amber)"} />

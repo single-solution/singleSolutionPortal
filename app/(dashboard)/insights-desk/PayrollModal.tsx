@@ -743,7 +743,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                       {!sidebarSearch && (
                         <button
                           type="button"
-                          onClick={() => { setUserId(""); setDeptFilter(null); }}
+                          onClick={() => { setUserId(""); setDeptFilter(null); if (canViewTeam) setDetailTab("report"); }}
                           className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId && !deptFilter ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                         >
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
@@ -766,7 +766,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                           <div className="px-2 py-0.5">
                             <button
                               type="button"
-                              onClick={() => { setUserId(""); setDeptFilter(g.id); }}
+                              onClick={() => { setUserId(""); setDeptFilter(g.id); if (isSuperAdmin && canViewTeam) setDetailTab("report"); }}
                               className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                               style={{ color: deptFilter === g.id && !userId ? "var(--primary)" : "var(--fg-tertiary)" }}
                             >
