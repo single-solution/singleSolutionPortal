@@ -21,6 +21,8 @@ import { useGuide } from "@/lib/useGuide";
 import { usePermissions } from "@/lib/usePermissions";
 import { useLive } from "@/lib/useLive";
 import { dashboardTour } from "@/lib/tourConfigs";
+import { useQuery } from "@/lib/useQuery";
+import { timeAgo } from "@/lib/formatters";
 import {
   getTodaySchedule,
   resolveGraceMinutes,
@@ -129,7 +131,32 @@ interface ApiCampaign {
   todayChecklist?: { _id: string; title: string; done: boolean }[];
 }
 
+interface LogEntry {
+  _id: string; userEmail: string; userName: string; action: string;
+  entity: string; entityId?: string; details?: string; createdAt: string;
+}
 
+const LOG_ENTITY_COLORS: Record<string, { bg: string; fg: string }> = {
+  task:       { bg: "color-mix(in srgb, var(--primary) 14%, transparent)", fg: "var(--primary)" },
+  campaign:   { bg: "color-mix(in srgb, #8b5cf6 14%, transparent)", fg: "#8b5cf6" },
+  employee:   { bg: "color-mix(in srgb, var(--teal) 14%, transparent)", fg: "var(--teal)" },
+  department: { bg: "color-mix(in srgb, var(--amber) 14%, transparent)", fg: "var(--amber)" },
+  attendance: { bg: "color-mix(in srgb, var(--green) 14%, transparent)", fg: "var(--green)" },
+  leave:      { bg: "color-mix(in srgb, var(--rose) 14%, transparent)", fg: "var(--rose)" },
+  payroll:    { bg: "color-mix(in srgb, var(--amber) 14%, transparent)", fg: "var(--amber)" },
+  security:   { bg: "color-mix(in srgb, var(--rose) 14%, transparent)", fg: "var(--rose)" },
+};
+const LOG_DEFAULT_COLOR = { bg: "var(--bg-grouped)", fg: "var(--fg-tertiary)" };
+const LOG_ENTITY_LABELS: Record<string, string> = {
+  task: "Tasks", campaign: "Campaigns", employee: "Employees", department: "Departments",
+  attendance: "Attendance", leave: "Leave", payroll: "Payroll", security: "Security",
+  settings: "Settings", auth: "Auth",
+};
+function logAvatarLabel(log: LogEntry) {
+  const n = (log.userName || "").trim();
+  if (n) { const parts = n.split(/\s+/).filter(Boolean); return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : (parts[0]?.slice(0, 2) ?? "?").toUpperCase(); }
+  return (log.userEmail || "?").slice(0, 2).toUpperCase();
+}
 
 interface WeeklyDay {
   date: string;
@@ -165,13 +192,6 @@ interface UserProfile {
 }
 
 /* ──────────────────────── CONSTANTS ──────────────────────── */
-
-const PRIORITY_LABELS: Record<string, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  urgent: "Urgent",
-};
 
 /* ──────────────────────── HELPERS ──────────────────────── */
 
@@ -509,8 +529,6 @@ function matchPresenceFilter(status: PresenceStatus, f: PresenceFilter): boolean
   return status === f;
 }
 
-const CAMPAIGN_STATUS_COLORS: Record<string, string> = { active: "var(--teal)", paused: "var(--amber)", completed: "var(--primary)", cancelled: "var(--rose)" };
-
 function AdminDashboard({
   user,
   presenceEmps,
@@ -577,9 +595,69 @@ function AdminDashboard({
     return map;
   }, [campaigns]);
 
+  const canViewLogs = canPerm("activityLogs_view");
+  const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=30" : null, "dash-activity");
+  const { data: lastSeenPayload } = useQuery<{ lastSeenLogId: string | null }>(canViewLogs ? "/api/user/last-seen" : null, "dash-lastseen");
+  const logs: LogEntry[] = useMemo(() => logsPayload?.logs ?? [], [logsPayload]);
+
+  const lastSeenLogIdRef = useRef<string | null>(null);
+  useEffect(() => { lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null; }, [lastSeenPayload]);
+  const [activityExpanded, setActivityExpanded] = useState<string | null>(null);
+  const toggleActivityGroup = useCallback((entity: string) => {
+    setActivityExpanded((prev) => prev === entity ? null : entity);
+  }, []);
+  const [markedReadEntities, setMarkedReadEntities] = useState<Set<string>>(new Set());
+  const [allMarkedRead, setAllMarkedRead] = useState(false);
+
+  const logGroups = useMemo(() => {
+    const lastId = lastSeenLogIdRef.current;
+    const seenIdx = lastId ? logs.findIndex((l) => l._id === lastId) : -1;
+    const map = new Map<string, { logs: LogEntry[]; unread: number }>();
+    logs.forEach((log, i) => {
+      const entry = map.get(log.entity) ?? { logs: [], unread: 0 };
+      entry.logs.push(log);
+      const isNew = seenIdx === -1 || i < seenIdx;
+      if (isNew && !allMarkedRead && !markedReadEntities.has(log.entity)) entry.unread++;
+      map.set(log.entity, entry);
+    });
+    return map;
+  }, [logs, allMarkedRead, markedReadEntities]);
+
+  const totalUnread = useMemo(() => {
+    let count = 0;
+    logGroups.forEach((g) => { count += g.unread; });
+    return count;
+  }, [logGroups]);
+
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current || logGroups.size === 0) return;
+    autoOpenedRef.current = true;
+    const sorted = Array.from(logGroups.entries()).sort((a, b) => {
+      if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
+      return b[1].logs.length - a[1].logs.length;
+    });
+    setActivityExpanded(sorted[0][0]);
+  }, [logGroups]);
+
+  const markAllRead = useCallback(() => {
+    setAllMarkedRead(true);
+    if (logs.length > 0) {
+      lastSeenLogIdRef.current = logs[0]._id;
+      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: logs[0]._id }) }).catch(() => {});
+    }
+  }, [logs]);
+
+  const markEntityRead = useCallback((entity: string) => {
+    setMarkedReadEntities((prev) => new Set(prev).add(entity));
+    if (logs.length > 0) {
+      const latest = logs[0]._id;
+      lastSeenLogIdRef.current = latest;
+      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: latest }) }).catch(() => {});
+    }
+  }, [logs]);
+
   const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>("all");
-  type DashGroupMode = "flat" | "department";
-  const [dashGroupMode, setDashGroupMode] = useState<DashGroupMode>("flat");
   const filteredPresence = useMemo(() => {
     return otherEmps
       .filter((e) => matchPresenceFilter(e.status, presenceFilter))
@@ -589,39 +667,8 @@ function AdminDashboard({
       });
   }, [otherEmps, presenceFilter]);
 
-  const presenceGrouped = useMemo(() => {
-    if (dashGroupMode === "flat") return null;
-    const map = new Map<string, { label: string; employees: typeof filteredPresence }>();
-    for (const emp of filteredPresence) {
-      const key = emp.departmentId ?? "__none__";
-      const label = emp.department || "No Department";
-      if (!map.has(key)) map.set(key, { label, employees: [] });
-      map.get(key)!.employees.push(emp);
-    }
-    return [...map.values()].sort((a, b) => {
-      if (a.label === "No Department") return 1;
-      if (b.label === "No Department") return -1;
-      return a.label.localeCompare(b.label);
-    });
-  }, [filteredPresence, dashGroupMode]);
-
-  const activeCampaigns = useMemo(() => campaigns.filter((c) => c.status === "active"), [campaigns]);
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const liveCount = otherEmps.filter((e) => e.isLive).length;
-
-  const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
-  const toggleChecklist = useCallback(async (campaignId: string, taskId: string, currentDone: boolean) => {
-    setChecklistOverrides((prev) => new Map(prev).set(taskId, !currentDone));
-    try {
-      await fetch(`/api/campaigns/${campaignId}/checklist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId }),
-      });
-    } catch {
-      setChecklistOverrides((prev) => { const n = new Map(prev); n.delete(taskId); return n; });
-    }
-  }, []);
 
   const [pingSending, setPingSending] = useState<string | null>(null);
   const [pingSuccess, setPingSuccess] = useState<string | null>(null);
@@ -640,299 +687,212 @@ function AdminDashboard({
   }, [pingSending]);
 
   return (
-    <div className="flex min-h-[calc(100dvh-15rem)] flex-col gap-5">
-      {/* 1. Welcome header (includes scope strip on the right) */}
-      <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
+    <div className="flex flex-col" style={{ height: "calc(90dvh - 80px)" }}>
+      {/* 1. Welcome header */}
+      <div className="shrink-0 mb-4">
+        <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
+      </div>
 
       {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="shrink-0 mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} companyTz={companyTz} />
           <TodayTimelineCard pa={personalAttendance} dataLoading={dataLoading} />
-            </div>
+        </div>
       )}
 
-      {/* 3. Team Status + Campaigns/Checklist */}
-      <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[1fr_0.7fr]">
-      {/* 3a. Live Presence — employee cards (Team Status) */}
-      <motion.section data-tour="dashboard-team-status" className="card relative flex flex-col overflow-visible p-4 sm:p-5 lg:col-span-12 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* 3. Main content + Activity sidebar */}
+      <div className="flex min-h-0 flex-1 gap-4">
+        {/* 3a. Team Status — scrollable */}
+        <motion.section data-tour="dashboard-team-status" className="card relative flex min-w-0 flex-1 flex-col overflow-hidden p-4 sm:p-5" variants={slideUpItem} initial="hidden" animate="visible">
+          <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
-            <h2 className="text-headline" style={{ color: "var(--fg)" }}>Team Status</h2>
-            <RefreshBtn onRefresh={onRefreshLive} />
-            {hasTeamAccess && (presenceLoading ? (
-              <Bone w="w-20" h="h-3.5" />
-            ) : (
-              <>
-                <span className="text-caption font-semibold" style={{ color: "var(--green)" }}>{liveCount} live</span>
-                <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
-              </>
-              ))}
-                    </div>
-          {hasTeamAccess && (
-          <LayoutGroup id="admin-presence-filter">
-            <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
-                {PRESENCE_FILTER_ORDER.map((f) => {
-                  const active = presenceFilter === f;
-                  return (
-                  <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-3 py-1.5 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                    {active && <motion.span layoutId="admin-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
-                    <span className="relative text-caption font-semibold">{PRESENCE_FILTER_LABELS[f]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </LayoutGroup>
-          )}
-            <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-              {(["flat", "department"] as DashGroupMode[]).map((g) => (
-                <button key={g} type="button" onClick={() => setDashGroupMode(g)} className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${dashGroupMode === g ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`}>
-                  {g === "flat" ? "Flat" : "By Dept"}
-                </button>
+              <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
+              <h2 className="text-headline" style={{ color: "var(--fg)" }}>Team Status</h2>
+              <RefreshBtn onRefresh={onRefreshLive} />
+              {hasTeamAccess && (presenceLoading ? (
+                <Bone w="w-20" h="h-3.5" />
+              ) : (
+                <>
+                  <span className="text-caption font-semibold" style={{ color: "var(--green)" }}>{liveCount} live</span>
+                  <span className="text-caption" style={{ color: "var(--fg-tertiary)" }}>· {filteredPresence.length} shown</span>
+                </>
               ))}
             </div>
+            {hasTeamAccess && (
+              <LayoutGroup id="admin-presence-filter">
+                <div className="relative flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "var(--bg-grouped)" }}>
+                  {PRESENCE_FILTER_ORDER.map((f) => {
+                    const active = presenceFilter === f;
+                    return (
+                      <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-3 py-1.5 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
+                        {active && <motion.span layoutId="admin-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                        <span className="relative text-caption font-semibold">{PRESENCE_FILTER_LABELS[f]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </LayoutGroup>
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
-          {presenceLoading && filteredPresence.length === 0 ? (
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card flex flex-col overflow-hidden">
-                <div className="p-2.5">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
-                    <Bone w="w-12" h="h-3.5" />
-                  </div>
-                  <Bone w="w-24" h="h-2" />
-                  <div className="mt-1.5 flex justify-between"><Bone w="w-10" h="h-2" /><Bone w="w-14" h="h-2" /></div>
-                  <div className="mt-1"><Bone w="w-full" h="h-1.5" /></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredPresence.length > 0 ? (
-          (() => {
-            function renderPresenceCard(emp: PresenceEmployee, idx: number) {
-              const empTasks = tasksByEmployee.get(emp._id) ?? [];
-              const empCampaigns = campaignsByEmployee.get(emp._id) ?? [];
-              const pendingCount = empTasks.filter((t) => t.status === "pending").length;
-              const inProgressCount = empTasks.filter((t) => t.status === "inProgress").length;
-              const activeCampNames = empCampaigns.filter((c) => c.status === "active").map((c) => c.name);
-              return (
-                <EmployeeCard
-                  key={emp._id}
-                  idx={idx}
-                  attendanceLoading={presenceLoading}
-                  onPing={liveUpdates && canSendPing ? handlePing : undefined}
-                  showAttendance={hasTeamAccess}
-                  showAttendanceDetail={canViewAttendanceDetail}
-                  showLocationFlags={canViewAttendanceDetail}
-                  showTasks={canViewTasks}
-                  showCampaigns={canViewCampaigns}
-                  emp={{
-                    _id: emp._id,
-                    username: emp.username,
-                    firstName: emp.firstName,
-                    lastName: emp.lastName,
-                    email: emp.email,
-                    designation: emp.designation,
-                    department: emp.department,
-                    isLive: emp.isLive,
-                    status: emp.status,
-                    locationFlagged: emp.locationFlagged,
-                    flagReason: emp.flagReason,
-                    flagCoords: emp.flagCoords,
-                    firstEntry: emp.firstEntry ?? undefined,
-                    firstOfficeEntry: emp.firstOfficeEntry ?? undefined,
-                    lastOfficeExit: emp.lastOfficeExit ?? undefined,
-                    lastExit: emp.lastExit ?? undefined,
-                    todayMinutes: emp.todayMinutes,
-                    officeMinutes: emp.officeMinutes,
-                    remoteMinutes: emp.remoteMinutes,
-                    lateBy: emp.lateBy,
-                    isLateToOffice: emp.isLateToOffice,
-                    lateToOfficeBy: emp.lateToOfficeBy,
-                    breakMinutes: emp.breakMinutes,
-                    sessionCount: emp.sessionCount,
-                    shiftStart: emp.shiftStart,
-                    shiftEnd: emp.shiftEnd,
-                    shiftBreakTime: emp.shiftBreakTime,
-                    pendingTasks: canViewTasks ? pendingCount : 0,
-                    inProgressTasks: canViewTasks ? inProgressCount : 0,
-                    campaigns: canViewCampaigns ? activeCampNames : [],
-                  }}
-                />
-              );
-            }
-
-            if (presenceGrouped) {
-                return (
-                <div className="space-y-5 pt-2">
-                  {presenceGrouped.map((group) => (
-                    <motion.div key={group.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{group.label}</h3>
-                        <span className="text-caption font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
-                          {group.employees.length}
-                    </span>
-                    </div>
-                      <motion.div className="grid grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
-                        <AnimatePresence mode="popLayout">
-                          {group.employees.map((emp, idx) => renderPresenceCard(emp, idx))}
-                        </AnimatePresence>
-                      </motion.div>
-                    </motion.div>
-                  ))}
+            {presenceLoading && filteredPresence.length === 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="card flex flex-col overflow-hidden">
+                    <div className="p-2.5">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
+                        <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
+                        <Bone w="w-12" h="h-3.5" />
                       </div>
-              );
-            }
-
-            return (
-              <motion.div className="grid pt-4 grid-cols-2 gap-3 xl:grid-cols-4 md:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+                      <Bone w="w-24" h="h-2" />
+                      <div className="mt-1.5 flex justify-between"><Bone w="w-10" h="h-2" /><Bone w="w-14" h="h-2" /></div>
+                      <div className="mt-1"><Bone w="w-full" h="h-1.5" /></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredPresence.length > 0 ? (
+              <motion.div className="grid grid-cols-2 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
                 <AnimatePresence mode="popLayout">
-                  {filteredPresence.map((emp, idx) => renderPresenceCard(emp, idx))}
+                  {filteredPresence.map((emp, idx) => {
+                    const empTasks = tasksByEmployee.get(emp._id) ?? [];
+                    const empCampaigns = campaignsByEmployee.get(emp._id) ?? [];
+                    const pendingCount = empTasks.filter((t) => t.status === "pending").length;
+                    const inProgressCount = empTasks.filter((t) => t.status === "inProgress").length;
+                    const activeCampNames = empCampaigns.filter((c) => c.status === "active").map((c) => c.name);
+                    return (
+                      <EmployeeCard
+                        key={emp._id}
+                        idx={idx}
+                        attendanceLoading={presenceLoading}
+                        onPing={liveUpdates && canSendPing ? handlePing : undefined}
+                        showAttendance={hasTeamAccess}
+                        showAttendanceDetail={canViewAttendanceDetail}
+                        showLocationFlags={canViewAttendanceDetail}
+                        showTasks={canViewTasks}
+                        showCampaigns={canViewCampaigns}
+                        emp={{
+                          _id: emp._id, username: emp.username, firstName: emp.firstName, lastName: emp.lastName, email: emp.email,
+                          designation: emp.designation, department: emp.department, isLive: emp.isLive, status: emp.status,
+                          locationFlagged: emp.locationFlagged, flagReason: emp.flagReason, flagCoords: emp.flagCoords,
+                          firstEntry: emp.firstEntry ?? undefined, firstOfficeEntry: emp.firstOfficeEntry ?? undefined,
+                          lastOfficeExit: emp.lastOfficeExit ?? undefined, lastExit: emp.lastExit ?? undefined,
+                          todayMinutes: emp.todayMinutes, officeMinutes: emp.officeMinutes, remoteMinutes: emp.remoteMinutes,
+                          lateBy: emp.lateBy, isLateToOffice: emp.isLateToOffice, lateToOfficeBy: emp.lateToOfficeBy,
+                          breakMinutes: emp.breakMinutes, sessionCount: emp.sessionCount,
+                          shiftStart: emp.shiftStart, shiftEnd: emp.shiftEnd, shiftBreakTime: emp.shiftBreakTime,
+                          pendingTasks: canViewTasks ? pendingCount : 0, inProgressTasks: canViewTasks ? inProgressCount : 0,
+                          campaigns: canViewCampaigns ? activeCampNames : [],
+                        }}
+                      />
+                    );
+                  })}
                 </AnimatePresence>
               </motion.div>
-            );
-          })()
-        ) : (
-          <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
-          )}
-            </div>
+            ) : (
+              <p className="py-8 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No employees match this filter</p>
+            )}
+          </div>
         </motion.section>
 
-        {/* 3b. Active Campaigns (left) + Checklist (right) */}
-        <motion.section data-tour="dashboard-campaigns" className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-5 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="mb-3 flex shrink-0 items-center justify-between">
-            <div className="flex items-center min-w-0">
-              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
-              <RefreshBtn onRefresh={onRefreshFull} />
-            </div>
-            <Link href="/workspace"><span className="text-caption font-semibold" style={{ color: "var(--primary)" }}>View All →</span></Link>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
-            {dataLoading ? (
-              [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
-            ) : activeCampaigns.length === 0 ? (
-              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
-            ) : activeCampaigns.map((camp, ci) => {
-              const stats = camp.taskStats;
-              const checklist = camp.todayChecklist ?? [];
-              const hasRecurring = checklist.length > 0;
-              const todayDone = checklist.filter((t) => checklistOverrides.has(t._id) ? checklistOverrides.get(t._id) : t.done).length;
-
-              const oneTimePct = stats && stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-
-              return (
-                <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} className="shrink-0 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}>
-                  <Link href="/workspace" className="flex items-center gap-3 cursor-pointer">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" /></svg>
+        {/* 3b. Activity sidebar */}
+        {canViewLogs && (
+          <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
+            <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+              <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+                <div className="flex items-center min-w-0">
+                  <h3 className="text-headline" style={{ color: "var(--fg)" }}>Activity</h3>
+                  <RefreshBtn onRefresh={() => void refetchLogs()} />
+                  {totalUnread > 0 && (
+                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
+                      {totalUnread > 99 ? "99+" : totalUnread}
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
-                        <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
-                        {hasRecurring && (
-                          <span className="text-[10px] tabular-nums font-semibold" style={{ color: todayDone === checklist.length ? "var(--teal)" : "var(--amber)" }}>{todayDone}/{checklist.length} today</span>
-                        )}
-                        {stats && stats.total > 0 && (
-                          <div className="flex items-center gap-1.5 ml-auto">
-                            <div className="h-1.5 w-16 overflow-hidden rounded-full" style={{ background: "var(--bg)" }}>
-                              <div className="h-full rounded-full transition-all" style={{ background: "var(--teal)", width: `${oneTimePct}%` }} />
-                            </div>
-                            <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{stats.completed}/{stats.total}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-
-                  {/* Inline checklist toggles for today's recurring tasks */}
-                  {hasRecurring && (
-                    <div className="mt-2 space-y-1 border-t pt-2" style={{ borderColor: "var(--border)" }}>
-                      {checklist.map((item) => {
-                        const isDone = checklistOverrides.has(item._id) ? checklistOverrides.get(item._id)! : item.done;
-                        return (
-                          <button
-                            key={item._id}
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); toggleChecklist(camp._id, item._id, isDone); }}
-                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_4%,transparent)]"
-                          >
-                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all"
-                              style={{
-                                borderColor: isDone ? "var(--teal)" : "var(--border-strong)",
-                                background: isDone ? "var(--teal)" : "transparent",
-                              }}>
-                              {isDone && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
-                            </span>
-                            <span className="text-[11px] truncate" style={{
-                              color: isDone ? "var(--fg-tertiary)" : "var(--fg)",
-                              textDecoration: isDone ? "line-through" : undefined,
-                            }}>{item.title}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
                   )}
-                </motion.div>
-              );
-            })}
-        </div>
-      </motion.section>
-        <motion.section data-tour="dashboard-checklist" className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">
-          <div className="mb-3 flex shrink-0 items-center justify-between">
-            <div className="flex items-center min-w-0">
-              <h3 className="text-headline" style={{ color: "var(--fg)" }}>Checklist</h3>
-              <RefreshBtn onRefresh={onRefreshFull} />
+                </div>
+                {totalUnread > 0 && (
+                  <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={markAllRead}
+                    className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
+                    style={{ color: "var(--teal)" }} title="Mark all as read">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L7 17l-5-5" /><path d="M22 10l-9.5 9.5L10 17" /></svg>
+                  </motion.button>
+                )}
+              </div>
+              {logs.length === 0 ? (
+                <p className="text-center text-xs py-8 flex-1" style={{ color: "var(--fg-tertiary)" }}>No activity yet</p>
+              ) : (
+                <div className="flex flex-1 min-h-0 flex-col gap-1 p-2">
+                  {Array.from(logGroups.entries())
+                    .sort((a, b) => {
+                      if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
+                      return b[1].logs.length - a[1].logs.length;
+                    })
+                    .map(([entity, group]) => {
+                      const lc = LOG_ENTITY_COLORS[entity] ?? LOG_DEFAULT_COLOR;
+                      const label = LOG_ENTITY_LABELS[entity] ?? entity.charAt(0).toUpperCase() + entity.slice(1);
+                      const isOpen = activityExpanded === entity;
+                      return (
+                        <div key={entity} className={`rounded-xl border overflow-hidden flex flex-col ${isOpen ? "flex-1 min-h-0" : "shrink-0"}`} style={{ borderColor: "var(--border)" }}>
+                          <div className="flex w-full shrink-0 items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
+                            <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
+                              <span className="text-[12px] font-semibold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
+                              {group.unread > 0 && (
+                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                                  {group.unread}
+                                </span>
+                              )}
+                              <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{group.logs.length}</span>
+                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </motion.svg>
+                            </button>
+                            {group.unread > 0 && (
+                              <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markEntityRead(entity)}
+                                className="shrink-0 h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
+                                style={{ color: "var(--teal)" }} title="Mark as read">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                              </motion.button>
+                            )}
+                          </div>
+                          {isOpen && (
+                            <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-1.5" style={{ scrollbarWidth: "thin" }}>
+                              {group.logs.map((log) => {
+                                const isSelf = user.email && log.userEmail?.toLowerCase() === user.email.toLowerCase();
+                                const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
+                                const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName?.trim() || log.userEmail);
+                                return (
+                                  <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
+                                    <div className="flex items-start gap-2">
+                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[8px] font-bold"
+                                        style={{ background: lc.bg, color: lc.fg }}>
+                                        {logAvatarLabel(log)}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
+                                          <span className="font-semibold">{displayName}</span>{" "}
+                                          <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
+                                        </p>
+                                        {log.details && log.entity !== "security" && (
+                                          <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                        )}
+                                        <span className="text-[9px] tabular-nums mt-1 block" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
-            {!dataLoading && (
-            <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: "var(--rose)" }}>
-              {pendingTasks.length} Pending
-            </motion.div>
-          )}
-        </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
-            {dataLoading ? (
-              [1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-40" h="h-3.5" /><Bone w="w-24" h="h-2.5" /></div></div>)
-            ) : pendingTasks.length === 0 ? (
-              <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>All caught up!</p>
-            ) : pendingTasks.map((task, ti) => {
-              const pColors: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
-              const pc = pColors[task.priority] ?? "var(--fg-tertiary)";
-              const assigneeName = task.assignedTo?.about ? `${task.assignedTo.about.firstName} ${task.assignedTo.about.lastName}`.trim() : "";
-              const creatorName = task.createdBy?.about ? `${task.createdBy.about.firstName} ${task.createdBy.about.lastName}`.trim() : "";
-              const statusLabel = task.status === "inProgress" ? "In Progress" : task.status === "pending" ? "Pending" : task.status;
-              const statusColor = task.status === "inProgress" ? "var(--primary)" : task.status === "pending" ? "var(--amber)" : "var(--teal)";
-              return (
-                <motion.div key={task._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 + ti * 0.04 }} whileHover={{ x: 4 }} className="flex shrink-0 items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)` }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      {task.priority === "urgent" ? <><path d="M12 2v10l4 2" /><circle cx="12" cy="12" r="10" /></> : task.priority === "high" ? <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /> : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-callout font-semibold line-clamp-1" style={{ color: "var(--fg)" }}>{task.title}</p>
-                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in srgb, ${pc} 15%, transparent)`, color: pc }}>{PRIORITY_LABELS[task.priority] ?? task.priority}</span>
-                      <span className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>{statusLabel}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-caption">
-                      {assigneeName && <span style={{ color: "var(--fg-secondary)" }}>→ {assigneeName}</span>}
-                      {creatorName && <span style={{ color: "var(--fg-tertiary)" }}>by {creatorName}</span>}
-                      {task.deadline && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>Due {new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
-                      {task.createdAt && <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
-                    </div>
-                </div>
-              </motion.div>
-              );
-            })}
-          </div>
-          <Link href="/workspace" className="shrink-0"><motion.button type="button" className="mt-4 w-full text-center text-callout font-semibold" style={{ color: "var(--primary)" }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>View All Tasks →</motion.button></Link>
-      </motion.section>
+          </aside>
+        )}
       </div>
 
       {/* Ping toast */}
@@ -943,8 +903,8 @@ function AdminDashboard({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><circle cx="12" cy="12" r="1" /></svg>
               Pinged {pingSuccess}
             </p>
-              </motion.div>
-          )}
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

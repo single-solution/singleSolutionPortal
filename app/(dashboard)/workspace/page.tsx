@@ -2,14 +2,14 @@
 
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { RefreshBtn, SearchField, SegmentedControl, PageHeader, EmptyState, ModalShell } from "../components/ui";
 import toast from "react-hot-toast";
-import { timeAgo, formatShortDate } from "@/lib/formatters";
+import { formatShortDate, timeAgo } from "@/lib/formatters";
 
 /* ─── types ─── */
 
@@ -45,32 +45,28 @@ interface OverviewEmployee {
   _id: string; name: string; email: string;
   byDate: { date: string; done: number; total: number }[];
 }
+interface SelectOption { _id: string; label: string }
+
 interface LogEntry {
   _id: string; userEmail: string; userName: string; action: string;
   entity: string; entityId?: string; details?: string; createdAt: string;
 }
-interface SelectOption { _id: string; label: string }
 
 /* ─── constants ─── */
 
 const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgress: "In Progress", completed: "Completed" };
 
-const LOG_ENTITY_COLORS: Record<string, { bg: string; fg: string }> = {
-  task:       { bg: "color-mix(in srgb, var(--primary) 14%, transparent)", fg: "var(--primary)" },
-  campaign:   { bg: "color-mix(in srgb, #8b5cf6 14%, transparent)", fg: "#8b5cf6" },
-  employee:   { bg: "color-mix(in srgb, var(--teal) 14%, transparent)", fg: "var(--teal)" },
-  department: { bg: "color-mix(in srgb, var(--amber) 14%, transparent)", fg: "var(--amber)" },
-  attendance: { bg: "color-mix(in srgb, var(--green) 14%, transparent)", fg: "var(--green)" },
-  leave:      { bg: "color-mix(in srgb, var(--rose) 14%, transparent)", fg: "var(--rose)" },
-  payroll:    { bg: "color-mix(in srgb, var(--amber) 14%, transparent)", fg: "var(--amber)" },
-  security:   { bg: "color-mix(in srgb, var(--rose) 14%, transparent)", fg: "var(--rose)" },
+const WS_ENTITIES = new Set(["task", "campaign"]);
+const WS_LOG_COLORS: Record<string, { bg: string; fg: string }> = {
+  task:     { bg: "color-mix(in srgb, var(--primary) 14%, transparent)", fg: "var(--primary)" },
+  campaign: { bg: "color-mix(in srgb, #8b5cf6 14%, transparent)", fg: "#8b5cf6" },
 };
-const LOG_DEFAULT_COLOR = { bg: "var(--bg-grouped)", fg: "var(--fg-tertiary)" };
-const LOG_ENTITY_LABELS: Record<string, string> = {
-  task: "Tasks", campaign: "Campaigns", employee: "Employees", department: "Departments",
-  attendance: "Attendance", leave: "Leave", payroll: "Payroll", security: "Security",
-  settings: "Settings", auth: "Auth",
-};
+const WS_LOG_LABELS: Record<string, string> = { task: "Tasks", campaign: "Campaigns" };
+function logAvatarLabel(log: LogEntry) {
+  const n = (log.userName || "").trim();
+  if (n) { const parts = n.split(/\s+/).filter(Boolean); return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : (parts[0]?.slice(0, 2) ?? "?").toUpperCase(); }
+  return (log.userEmail || "?").slice(0, 2).toUpperCase();
+}
 
 /* ─── helpers ─── */
 
@@ -97,11 +93,6 @@ function taskStateLabel(task: Task): { label: string; color: string; bg: string 
   return { label: "Pending", color: "var(--amber)", bg: "color-mix(in srgb, var(--amber) 12%, transparent)" };
 }
 
-function logAvatarLabel(log: LogEntry) {
-  const n = (log.userName || "").trim();
-  if (n) { const parts = n.split(/\s+/).filter(Boolean); return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : (parts[0]?.slice(0, 2) ?? "?").toUpperCase(); }
-  return (log.userEmail || "?").slice(0, 2).toUpperCase();
-}
 
 /* ─── sub-components ─── */
 
@@ -161,7 +152,7 @@ export default function WorkspacePage() {
 
   const taskList = useMemo(() => tasks ?? [], [tasks]);
   const campaignList = useMemo(() => campaigns ?? [], [campaigns]);
-  const logs = useMemo(() => logsPayload?.logs ?? [], [logsPayload]);
+  const wsLogs = useMemo(() => (logsPayload?.logs ?? []).filter((l) => WS_ENTITIES.has(l.entity)), [logsPayload]);
   const allEmployees: SelectOption[] = useMemo(() => (employeesRaw ?? []).filter((e) => (e as { isSuperAdmin?: boolean }).isSuperAdmin !== true).map((e) => ({ _id: e._id as string, label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}` })), [employeesRaw]);
   const allDepartments: SelectOption[] = useMemo(() => (deptsRaw ?? []).map((d) => ({ _id: d._id as string, label: d.title as string })), [deptsRaw]);
 
@@ -169,6 +160,73 @@ export default function WorkspacePage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
+
+  /* ── workspace activity sidebar state ── */
+  useEffect(() => {
+    const handler = () => { if (document.visibilityState === "visible") void refetchLogs(); };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, [refetchLogs]);
+
+  const lastSeenLogIdRef = useRef<string | null>(null);
+  useEffect(() => { lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null; }, [lastSeenPayload]);
+  const [activityExpanded, setActivityExpanded] = useState<string | null>(null);
+  const toggleActivityGroup = useCallback((entity: string) => {
+    setActivityExpanded((prev) => prev === entity ? null : entity);
+  }, []);
+  const [markedReadEntities, setMarkedReadEntities] = useState<Set<string>>(new Set());
+  const [allMarkedRead, setAllMarkedRead] = useState(false);
+
+  const wsLogGroups = useMemo(() => {
+    const lastId = lastSeenLogIdRef.current;
+    const allLogs = logsPayload?.logs ?? [];
+    const seenIdx = lastId ? allLogs.findIndex((l) => l._id === lastId) : -1;
+    const map = new Map<string, { logs: LogEntry[]; unread: number }>();
+    wsLogs.forEach((log) => {
+      const entry = map.get(log.entity) ?? { logs: [], unread: 0 };
+      entry.logs.push(log);
+      const globalIdx = allLogs.indexOf(log);
+      const isNew = seenIdx === -1 || globalIdx < seenIdx;
+      if (isNew && !allMarkedRead && !markedReadEntities.has(log.entity)) entry.unread++;
+      map.set(log.entity, entry);
+    });
+    return map;
+  }, [wsLogs, logsPayload, allMarkedRead, markedReadEntities]);
+
+  const wsTotalUnread = useMemo(() => {
+    let count = 0;
+    wsLogGroups.forEach((g) => { count += g.unread; });
+    return count;
+  }, [wsLogGroups]);
+
+  const wsAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (wsAutoOpenedRef.current || wsLogGroups.size === 0) return;
+    wsAutoOpenedRef.current = true;
+    const sorted = Array.from(wsLogGroups.entries()).sort((a, b) => {
+      if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
+      return b[1].logs.length - a[1].logs.length;
+    });
+    setActivityExpanded(sorted[0][0]);
+  }, [wsLogGroups]);
+
+  const markAllWsRead = useCallback(() => {
+    setAllMarkedRead(true);
+    const allLogs = logsPayload?.logs ?? [];
+    if (allLogs.length > 0) {
+      lastSeenLogIdRef.current = allLogs[0]._id;
+      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: allLogs[0]._id }) }).catch(() => {});
+    }
+  }, [logsPayload]);
+
+  const markWsEntityRead = useCallback((entity: string) => {
+    setMarkedReadEntities((prev) => new Set(prev).add(entity));
+    const allLogs = logsPayload?.logs ?? [];
+    if (allLogs.length > 0) {
+      lastSeenLogIdRef.current = allLogs[0]._id;
+      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: allLogs[0]._id }) }).catch(() => {});
+    }
+  }, [logsPayload]);
 
   /* ── checklist state for recurring tasks ── */
   const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
@@ -212,68 +270,6 @@ export default function WorkspacePage() {
     } catch { /* ignore */ }
     setSubtaskLoading(null);
   }, []);
-
-  useEffect(() => {
-    const handler = () => { if (document.visibilityState === "visible") void refetchLogs(); };
-    document.addEventListener("visibilitychange", handler);
-    return () => document.removeEventListener("visibilitychange", handler);
-  }, [refetchLogs]);
-
-  /* ── activity sidebar: group by entity, unread counts ── */
-  const lastSeenLogIdRef = useRef<string | null>(null);
-  useEffect(() => { lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null; }, [lastSeenPayload]);
-  const [activityCollapsed, setActivityCollapsed] = useState<Set<string>>(new Set());
-  const toggleActivityGroup = useCallback((entity: string) => {
-    setActivityCollapsed((prev) => { const n = new Set(prev); if (n.has(entity)) n.delete(entity); else n.add(entity); return n; });
-  }, []);
-
-  const [markedReadEntities, setMarkedReadEntities] = useState<Set<string>>(new Set());
-  const [allMarkedRead, setAllMarkedRead] = useState(false);
-
-  const logGroups = useMemo(() => {
-    const lastId = lastSeenLogIdRef.current;
-    const seenIdx = lastId ? logs.findIndex((l) => l._id === lastId) : -1;
-    const map = new Map<string, { logs: LogEntry[]; unread: number }>();
-    logs.forEach((log, i) => {
-      const entry = map.get(log.entity) ?? { logs: [], unread: 0 };
-      entry.logs.push(log);
-      const isNew = seenIdx === -1 || i < seenIdx;
-      if (isNew && !allMarkedRead && !markedReadEntities.has(log.entity)) entry.unread++;
-      map.set(log.entity, entry);
-    });
-    return map;
-  }, [logs, allMarkedRead, markedReadEntities]);
-
-  const totalUnread = useMemo(() => {
-    let count = 0;
-    logGroups.forEach((g) => { count += g.unread; });
-    return count;
-  }, [logGroups]);
-
-  const markAllRead = useCallback(() => {
-    setAllMarkedRead(true);
-    if (logs.length > 0) {
-      lastSeenLogIdRef.current = logs[0]._id;
-      fetch("/api/user/last-seen", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lastSeenLogId: logs[0]._id }),
-      }).catch(() => {});
-    }
-  }, [logs]);
-
-  const markEntityRead = useCallback((entity: string) => {
-    setMarkedReadEntities((prev) => new Set(prev).add(entity));
-    if (logs.length > 0) {
-      const latest = logs[0]._id;
-      lastSeenLogIdRef.current = latest;
-      fetch("/api/user/last-seen", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lastSeenLogId: latest }),
-      }).catch(() => {});
-    }
-  }, [logs]);
 
   /* ── task modal ── */
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -767,7 +763,7 @@ export default function WorkspacePage() {
           )}
         </div>
 
-        {/* ── activity feed sidebar (grouped by entity type) ── */}
+        {/* ── workspace activity feed sidebar (tasks + campaigns only) ── */}
         {canViewLogs && (
           <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
@@ -775,98 +771,91 @@ export default function WorkspacePage() {
                 <div className="flex items-center min-w-0">
                   <h3 className="text-headline" style={{ color: "var(--fg)" }}>Activity</h3>
                   <RefreshBtn onRefresh={() => void refetchLogs()} />
-                  {totalUnread > 0 && (
+                  {wsTotalUnread > 0 && (
                     <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
-                      {totalUnread > 99 ? "99+" : totalUnread}
+                      {wsTotalUnread > 99 ? "99+" : wsTotalUnread}
                     </span>
                   )}
                 </div>
-                {totalUnread > 0 && (
-                  <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={markAllRead}
+                {wsTotalUnread > 0 && (
+                  <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={markAllWsRead}
                     className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
                     style={{ color: "var(--teal)" }} title="Mark all as read">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L7 17l-5-5" /><path d="M22 10l-9.5 9.5L10 17" /></svg>
                   </motion.button>
                 )}
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                {logs.length === 0 ? (
-                  <p className="text-center text-xs py-8" style={{ color: "var(--fg-tertiary)" }}>No activity yet</p>
-                ) : (
-                  <div className="p-2 space-y-1">
-                    {Array.from(logGroups.entries())
-                      .sort((a, b) => {
-                        if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
-                        return b[1].logs.length - a[1].logs.length;
-                      })
-                      .map(([entity, group]) => {
-                        const lc = LOG_ENTITY_COLORS[entity] ?? LOG_DEFAULT_COLOR;
-                        const label = LOG_ENTITY_LABELS[entity] ?? entity.charAt(0).toUpperCase() + entity.slice(1);
-                        const isOpen = !activityCollapsed.has(entity);
-                        return (
-                          <div key={entity} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                            <div className="flex w-full items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
-                              <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
-                                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
-                                <span className="text-[12px] font-semibold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
-                                {group.unread > 0 && (
-                                  <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
-                                    {group.unread}
-                                  </span>
-                                )}
-                                <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{group.logs.length}</span>
-                                <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                </motion.svg>
-                              </button>
+              {wsLogs.length === 0 ? (
+                <p className="text-center text-xs py-8 flex-1" style={{ color: "var(--fg-tertiary)" }}>No workspace activity yet</p>
+              ) : (
+                <div className="flex flex-1 min-h-0 flex-col gap-1 p-2">
+                  {Array.from(wsLogGroups.entries())
+                    .sort((a, b) => {
+                      if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
+                      return b[1].logs.length - a[1].logs.length;
+                    })
+                    .map(([entity, group]) => {
+                      const lc = WS_LOG_COLORS[entity];
+                      const label = WS_LOG_LABELS[entity] ?? entity;
+                      const isOpen = activityExpanded === entity;
+                      return (
+                        <div key={entity} className={`rounded-xl border overflow-hidden flex flex-col ${isOpen ? "flex-1 min-h-0" : "shrink-0"}`} style={{ borderColor: "var(--border)" }}>
+                          <div className="flex w-full shrink-0 items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
+                            <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
+                              <span className="text-[12px] font-semibold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
                               {group.unread > 0 && (
-                                <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markEntityRead(entity)}
-                                  className="shrink-0 h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
-                                  style={{ color: "var(--teal)" }}
-                                  title="Mark as read">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                                </motion.button>
+                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                                  {group.unread}
+                                </span>
                               )}
-                            </div>
-                            <AnimatePresence initial={false}>
-                              {isOpen && (
-                                <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
-                                  <div className="px-2 pb-2 space-y-1.5">
-                                    {group.logs.map((log) => {
-                                      const isSelf = session?.user?.email && log.userEmail?.toLowerCase() === session.user.email.toLowerCase();
-                                      const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
-                                      const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName?.trim() || log.userEmail);
-                                      return (
-                                        <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
-                                          <div className="flex items-start gap-2">
-                                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[8px] font-bold"
-                                              style={{ background: lc.bg, color: lc.fg }}>
-                                              {logAvatarLabel(log)}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
-                                                <span className="font-semibold">{displayName}</span>{" "}
-                                                <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
-                                              </p>
-                                              {log.details && log.entity !== "security" && (
-                                                <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
-                                              )}
-                                              <span className="text-[9px] tabular-nums mt-1 block" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                              <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{group.logs.length}</span>
+                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </motion.svg>
+                            </button>
+                            {group.unread > 0 && (
+                              <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markWsEntityRead(entity)}
+                                className="shrink-0 h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
+                                style={{ color: "var(--teal)" }} title="Mark as read">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                              </motion.button>
+                            )}
                           </div>
-                        );
+                          {isOpen && (
+                            <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-1.5" style={{ scrollbarWidth: "thin" }}>
+                              {group.logs.map((log) => {
+                                const isSelf = session?.user?.email && log.userEmail?.toLowerCase() === session.user.email.toLowerCase();
+                                const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
+                                const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName?.trim() || log.userEmail);
+                                return (
+                                  <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
+                                    <div className="flex items-start gap-2">
+                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[8px] font-bold"
+                                        style={{ background: lc.bg, color: lc.fg }}>
+                                        {logAvatarLabel(log)}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
+                                          <span className="font-semibold">{displayName}</span>{" "}
+                                          <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
+                                        </p>
+                                        {log.details && (
+                                          <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                        )}
+                                        <span className="text-[9px] tabular-nums mt-1 block" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
                     })}
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </aside>
         )}
