@@ -141,6 +141,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const now = new Date();
   const [employees, setEmployees] = useState<DropdownEmp[]>([]);
   const [userId, setUserId] = useState(selectedUserId || "");
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
   const [selYear, setSelYear] = useState(now.getFullYear());
   const [estimate, setEstimate] = useState<EstimateData | null>(null);
@@ -157,7 +158,12 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const detailRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (selectedUserId) setUserId(selectedUserId); }, [selectedUserId]);
+  useEffect(() => {
+    if (selectedUserId) {
+      setUserId(selectedUserId);
+      setDeptFilter(null);
+    }
+  }, [selectedUserId]);
 
   useEffect(() => {
     if (!open || !canViewTeam) return;
@@ -229,7 +235,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
     if (open && detailTab === "report") loadPayrollSheet();
   }, [open, detailTab, loadPayrollSheet]);
 
-  useEffect(() => { if (detailRef.current) detailRef.current.scrollTop = 0; }, [userId, selMonth]);
+  useEffect(() => { if (detailRef.current) detailRef.current.scrollTop = 0; }, [userId, selMonth, deptFilter]);
 
   useEffect(() => {
     if (!showExportMenu) return;
@@ -304,7 +310,32 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const attendancePct = estimate && estimate.workingDays > 0 ? Math.round((estimate.presentDays / estimate.workingDays) * 100) : 0;
   const deductionPct = estimate && estimate.grossPay > 0 ? Math.round((estimate.totalDeductions / estimate.grossPay) * 100) : 0;
   const showSidebar = canViewTeam && employees.length > 0;
-  const selfExempt = isSuperAdmin && !userId;
+  const selfExempt = isSuperAdmin && !userId && detailTab !== "report";
+
+  const filteredTeamSheet = useMemo(() => {
+    const emps = payrollSheet?.employees ?? [];
+    if (!deptFilter) return emps;
+    const ids = new Set(
+      employees
+        .filter((e) => (deptFilter === "__none" ? !e.department : e.department?.id === deptFilter))
+        .map((e) => e._id),
+    );
+    return emps.filter((e) => ids.has(e._id));
+  }, [payrollSheet, deptFilter, employees]);
+
+  const reportSheetTotals = useMemo(() => {
+    if (!payrollSheet) return null;
+    const rows = filteredTeamSheet;
+    const n = rows.length;
+    return {
+      totalEmployees: n,
+      totalNetPay: n ? rows.reduce((a, e) => a + e.netPay, 0) : 0,
+      totalGrossPay: n ? rows.reduce((a, e) => a + e.grossPay, 0) : 0,
+      totalDeductions: n ? rows.reduce((a, e) => a + e.totalDeductions, 0) : 0,
+      workingDays: payrollSheet.workingDays,
+      holidays: payrollSheet.holidays,
+    };
+  }, [payrollSheet, filteredTeamSheet]);
 
   const summaryRateStats = useMemo(() => {
     if (!estimate) return null;
@@ -385,12 +416,12 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   }, [yearTotals, yearData]);
 
   const teamSheetStats = useMemo(() => {
-    if (!payrollSheet?.employees.length) return null;
-    const emps = payrollSheet.employees;
+    const emps = filteredTeamSheet;
+    if (!emps.length) return null;
     const n = emps.length;
     const teamAvgAttendancePct = Math.round(emps.reduce((a, e) => a + e.attendancePct, 0) / n);
     const teamTotalOvertimeHours = emps.reduce((a, e) => a + e.overtimeHours, 0);
-    const teamAvgNetPay = payrollSheet.totalEmployees > 0 ? payrollSheet.totalNetPay / payrollSheet.totalEmployees : null;
+    const teamAvgNetPay = n > 0 ? emps.reduce((a, e) => a + e.netPay, 0) / n : null;
     const zeroDeductionEmployees = emps.filter((e) => e.absenceDeduction === 0 && e.lateDeduction === 0).length;
     const overtimeEmployees = emps.filter((e) => e.overtimeHours > 0).length;
     const avgLateDays = +(emps.reduce((a, e) => a + e.lateDays, 0) / n).toFixed(1);
@@ -429,7 +460,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
       lowestNet: lowestNetEmp.netPay,
       salaryRange,
     };
-  }, [payrollSheet]);
+  }, [filteredTeamSheet]);
 
   /* ── Export — builds lines for selected month (Summary + Daily) ── */
   function buildMonthCSV(): string[] {
@@ -472,24 +503,26 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   }
 
   function buildSheetCSV(): string[] {
-    if (!payrollSheet) return [];
+    if (!payrollSheet || !reportSheetTotals) return [];
     const s = payrollSheet;
+    const rows = filteredTeamSheet;
+    const t = reportSheetTotals;
     return [
       `Payroll Report — ${MN[s.month - 1]} ${s.year}`,
       `Generated,${new Date(s.generatedAt).toLocaleString()}`,
       `Working Days,${s.workingDays}`,
       `Holidays,${s.holidays}`,
-      `Total Employees,${s.totalEmployees}`,
-      `Total Gross Pay,${s.totalGrossPay}`,
-      `Total Deductions,${s.totalDeductions}`,
-      `Total Net Pay,${s.totalNetPay}`,
+      `Total Employees,${t.totalEmployees}`,
+      `Total Gross Pay,${t.totalGrossPay}`,
+      `Total Deductions,${t.totalDeductions}`,
+      `Total Net Pay,${t.totalNetPay}`,
       "",
       "Sr,Employee,Department,Salary,Present,Absent,Late,Leaves,OT Hours,Attendance %,Gross Pay,Absence Ded.,Late Ded.,Total Ded.,Net Pay",
-      ...s.employees.map((e, i) =>
+      ...rows.map((e, i) =>
         `${i + 1},"${e.name}","${e.department ?? ""}",${e.salary},${e.presentDays},${e.absentDays},${e.lateDays},${e.leaveDays},${e.overtimeHours},${e.attendancePct}%,${e.grossPay},${e.absenceDeduction},${e.lateDeduction},${e.totalDeductions},${e.netPay}`
       ),
       "",
-      `,TOTAL,,${s.employees.reduce((a, e) => a + e.salary, 0)},,,,,,,,,,${s.totalDeductions},${s.totalNetPay}`,
+      `,TOTAL,,${rows.reduce((a, e) => a + e.salary, 0)},,,,,,,,,,${t.totalDeductions},${t.totalNetPay}`,
     ];
   }
 
@@ -514,8 +547,16 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   }
 
   function handleExportJSON() {
-    if (detailTab === "report" && payrollSheet) {
-      downloadBlob(JSON.stringify(payrollSheet, null, 2), `payroll-report-${selYear}-${String(selMonth).padStart(2, "0")}.json`, "application/json");
+    if (detailTab === "report" && payrollSheet && reportSheetTotals) {
+      const filteredPayload = {
+        ...payrollSheet,
+        employees: filteredTeamSheet,
+        totalEmployees: reportSheetTotals.totalEmployees,
+        totalNetPay: reportSheetTotals.totalNetPay,
+        totalGrossPay: reportSheetTotals.totalGrossPay,
+        totalDeductions: reportSheetTotals.totalDeductions,
+      };
+      downloadBlob(JSON.stringify(filteredPayload, null, 2), `payroll-report-${selYear}-${String(selMonth).padStart(2, "0")}.json`, "application/json");
     } else if (detailTab === "year" && yearData.length > 0) {
       const obj = { employee: selectedEmployee ? nameOf(selectedEmployee) : "Self", year: selYear, months: yearData, totals: yearTotals };
       downloadBlob(JSON.stringify(obj, null, 2), `payroll-annual-${selYear}.json`, "application/json");
@@ -531,16 +572,17 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
     const dept = selectedEmployee?.department?.title ?? "";
     let body = "";
 
-    if (detailTab === "report" && payrollSheet) {
+    if (detailTab === "report" && payrollSheet && reportSheetTotals) {
       const s = payrollSheet;
-      const rows = s.employees.map((e, i) =>
+      const t = reportSheetTotals;
+      const rows = filteredTeamSheet.map((e, i) =>
         `<tr><td>${i + 1}</td><td>${e.name}</td><td>${e.department ?? "—"}</td><td>${fmt(e.salary)}</td><td>${e.presentDays}/${e.workingDays}</td><td>${e.absentDays}</td><td>${e.lateDays}</td><td>${e.leaveDays}</td><td>${e.attendancePct}%</td><td>${fmt(e.grossPay)}</td><td style="color:#dc2626">${e.totalDeductions > 0 ? fmt(e.totalDeductions) : "—"}</td><td style="font-weight:700">${fmt(e.netPay)}</td></tr>`
       ).join("");
       body = `<h1>Payroll Report — ${MN[s.month - 1]} ${s.year}</h1>
 <h2>Generated: ${new Date(s.generatedAt).toLocaleString()} · ${s.workingDays} working days · ${s.holidays} holidays</h2>
-<div class="hero"><div class="label">Total Net Pay</div><div class="amount">${fmt(s.totalNetPay)}</div><div style="margin-top:4px;font-size:11px;color:#888">${s.totalEmployees} employees · ${fmt(s.totalGrossPay)} gross · ${fmt(s.totalDeductions)} deductions</div></div>
+<div class="hero"><div class="label">Total Net Pay</div><div class="amount">${fmt(t.totalNetPay)}</div><div style="margin-top:4px;font-size:11px;color:#888">${t.totalEmployees} employees · ${fmt(t.totalGrossPay)} gross · ${fmt(t.totalDeductions)} deductions</div></div>
 <table><thead><tr><th>#</th><th>Employee</th><th>Dept</th><th>Salary</th><th>Present</th><th>Absent</th><th>Late</th><th>Leave</th><th>Att.%</th><th>Gross</th><th>Ded.</th><th>Net Pay</th></tr></thead>
-<tbody>${rows}<tr class="total"><td colspan="9">Total (${s.totalEmployees})</td><td>${fmt(s.totalGrossPay)}</td><td style="color:#dc2626">${fmt(s.totalDeductions)}</td><td>${fmt(s.totalNetPay)}</td></tr></tbody></table>
+<tbody>${rows}<tr class="total"><td colspan="9">Total (${t.totalEmployees})</td><td>${fmt(t.totalGrossPay)}</td><td style="color:#dc2626">${t.totalDeductions > 0 ? fmt(t.totalDeductions) : "—"}</td><td style="font-weight:700">${fmt(t.totalNetPay)}</td></tr></tbody></table>
 <div style="margin-top:24px;padding:16px;background:#f8f9fa;border-radius:8px;font-size:10px;color:#666">
 <strong>Prepared by:</strong> ___________________________&nbsp;&nbsp;&nbsp;&nbsp;<strong>Date:</strong> _______________<br/><br/>
 <strong>Finance Head:</strong> ___________________________&nbsp;&nbsp;&nbsp;&nbsp;<strong>Approved by:</strong> ___________________________
@@ -614,7 +656,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-4 flex flex-col rounded-2xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-7xl max-h-[95vh]" : "w-full max-w-4xl max-h-[93vh]"}`}
+              className={`relative mx-4 flex flex-col rounded-2xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-7xl h-[80vh]" : "w-full max-w-4xl h-[80vh]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -698,28 +740,43 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                       </div>
                     </div>
                     <div className="flex-1 overflow-y-auto py-1" style={{ scrollbarWidth: "thin" }}>
+                      {!sidebarSearch && (
+                        <button
+                          type="button"
+                          onClick={() => { setUserId(""); setDeptFilter(null); }}
+                          className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId && !deptFilter ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
+                          <span className="text-xs font-semibold" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg-secondary)" }}>All Employees</span>
+                        </button>
+                      )}
                       {!isSuperAdmin && !sidebarSearch && (
-                        <button type="button" onClick={() => setUserId("")}
+                        <button type="button" onClick={() => { setUserId(""); setDeptFilter(null); }}
                           className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
-                          style={{ background: !userId ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
+                          style={{ background: !userId && !deptFilter ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
                         >
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: "var(--green)" }}>ME</span>
-                          <div className="flex-1 min-w-0"><p className="text-xs font-semibold truncate" style={{ color: !userId ? "var(--primary)" : "var(--fg)" }}>Yourself</p></div>
-                          {!userId && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                          <div className="flex-1 min-w-0"><p className="text-xs font-semibold truncate" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg)" }}>Yourself</p></div>
+                          {!userId && !deptFilter && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
                         </button>
                       )}
                       {!sidebarSearch && employees.length > 0 && <div className="mx-3 my-1 border-b" style={{ borderColor: "var(--border)" }} />}
                       {deptGroups.map((g) => (
                         <div key={g.id}>
-                          <div className="flex items-center gap-2 px-3 py-1.5">
-                            <svg className="h-3 w-3 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                            <span className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: "var(--fg-tertiary)" }}>{g.title}</span>
-                            <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{g.employees.length}</span>
+                          <div className="px-2 py-0.5">
+                            <button
+                              type="button"
+                              onClick={() => { setUserId(""); setDeptFilter(g.id); }}
+                              className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
+                              style={{ color: deptFilter === g.id && !userId ? "var(--primary)" : "var(--fg-tertiary)" }}
+                            >
+                              {g.title} ({g.employees.length})
+                            </button>
                           </div>
                           {g.employees.map((emp) => {
                             const isSel = userId === emp._id;
                             return (
-                              <button key={emp._id} type="button" onClick={() => setUserId(emp._id)}
+                              <button key={emp._id} type="button" onClick={() => { setUserId(emp._id); setDeptFilter(null); }}
                                 className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left transition-colors"
                                 style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
                               >
@@ -1034,7 +1091,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                 <div className="grid grid-cols-4 gap-2">{[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
                                 {[1, 2, 3, 4, 5].map((i) => <div key={i} className="shimmer h-10 rounded-lg" />)}
                               </div>
-                            ) : !payrollSheet ? (
+                            ) : !payrollSheet || !reportSheetTotals ? (
                               <div className="py-8 text-center"><p className="text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>Unable to load payroll report.</p></div>
                             ) : (
                               <>
@@ -1043,21 +1100,21 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--fg-tertiary)" }}>
                                     Total Net Pay · {MN[payrollSheet.month - 1]} {payrollSheet.year}
                                   </p>
-                                  <p className="text-3xl font-bold" style={{ color: "var(--primary)" }}>{fmt(payrollSheet.totalNetPay)}</p>
+                                  <p className="text-3xl font-bold" style={{ color: "var(--primary)" }}>{fmt(reportSheetTotals.totalNetPay)}</p>
                                   <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                                    {payrollSheet.totalEmployees} employees · {fmt(payrollSheet.totalGrossPay)} gross · {fmt(payrollSheet.totalDeductions)} deductions
+                                    {reportSheetTotals.totalEmployees} employees · {fmt(reportSheetTotals.totalGrossPay)} gross · {fmt(reportSheetTotals.totalDeductions)} deductions
                                   </p>
                                 </div>
 
                                 {/* Summary stats */}
                                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                                   {[
-                                    { label: "Employees", value: payrollSheet.totalEmployees, color: "var(--fg)" },
+                                    { label: "Employees", value: reportSheetTotals.totalEmployees, color: "var(--fg)" },
                                     { label: "Work Days", value: payrollSheet.workingDays, color: "var(--fg)" },
                                     { label: "Holidays", value: payrollSheet.holidays, color: "var(--purple)" },
-                                    { label: "Total Gross", value: fmt(payrollSheet.totalGrossPay), color: "var(--green)" },
-                                    { label: "Total Ded.", value: fmt(payrollSheet.totalDeductions), color: payrollSheet.totalDeductions > 0 ? "var(--rose)" : "var(--fg)" },
-                                    { label: "Net Pay", value: fmt(payrollSheet.totalNetPay), color: "var(--primary)" },
+                                    { label: "Total Gross", value: fmt(reportSheetTotals.totalGrossPay), color: "var(--green)" },
+                                    { label: "Total Ded.", value: fmt(reportSheetTotals.totalDeductions), color: reportSheetTotals.totalDeductions > 0 ? "var(--rose)" : "var(--fg)" },
+                                    { label: "Net Pay", value: fmt(reportSheetTotals.totalNetPay), color: "var(--primary)" },
                                   ].map((s) => (
                                     <div key={s.label} className="rounded-xl p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
                                       <p className="text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
@@ -1176,7 +1233,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_4rem_4rem_4.5rem] gap-x-1 px-3 py-2 text-[7px] font-semibold uppercase tracking-wider" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
                                       <span>#</span><span>Employee</span><span className="text-right">Pres.</span><span className="text-right">Abs.</span><span className="text-right">Late</span><span className="text-right">Leave</span><span className="text-right">Att%</span><span className="text-right">Gross</span><span className="text-right">Ded.</span><span className="text-right">Net Pay</span>
                                     </div>
-                                    {payrollSheet.employees.map((e, i) => (
+                                    {filteredTeamSheet.map((e, i) => (
                                       <div key={e._id}
                                         className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_4rem_4rem_4.5rem] gap-x-1 px-3 py-2 items-center transition-colors hover:bg-[var(--hover-bg)]"
                                         style={{ borderBottom: "1px solid var(--border)" }}
@@ -1198,11 +1255,11 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     ))}
                                     {/* Total row */}
                                     <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_4rem_4rem_4.5rem] gap-x-1 px-3 py-2.5 items-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <span /><span className="text-xs font-bold" style={{ color: "var(--fg)" }}>Total ({payrollSheet.totalEmployees})</span>
+                                      <span /><span className="text-xs font-bold" style={{ color: "var(--fg)" }}>Total ({reportSheetTotals.totalEmployees})</span>
                                       <span /><span /><span /><span /><span />
-                                      <span className="text-right text-[11px] font-bold" style={{ color: "var(--fg)" }}>{fmt(payrollSheet.totalGrossPay)}</span>
-                                      <span className="text-right text-[11px] font-bold" style={{ color: "var(--rose)" }}>{payrollSheet.totalDeductions > 0 ? `−${fmt(payrollSheet.totalDeductions)}` : "—"}</span>
-                                      <span className="text-right text-xs font-bold" style={{ color: "var(--primary)" }}>{fmt(payrollSheet.totalNetPay)}</span>
+                                      <span className="text-right text-[11px] font-bold" style={{ color: "var(--fg)" }}>{fmt(reportSheetTotals.totalGrossPay)}</span>
+                                      <span className="text-right text-[11px] font-bold" style={{ color: "var(--rose)" }}>{reportSheetTotals.totalDeductions > 0 ? `−${fmt(reportSheetTotals.totalDeductions)}` : "—"}</span>
+                                      <span className="text-right text-xs font-bold" style={{ color: "var(--primary)" }}>{fmt(reportSheetTotals.totalNetPay)}</span>
                                     </div>
                                   </div>
                                 </div>

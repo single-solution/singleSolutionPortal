@@ -312,20 +312,20 @@ export default function DepartmentsPage() {
           )}
           {deptInsights.largestName && (
             <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
-              Largest: {deptInsights.largestName} ({deptInsights.largestCount})
+              Largest: {deptInsights.largestName} · {deptInsights.largestCount} emp
             </span>
           )}
           {deptInsights.smallestName && (
             <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
-              Smallest: {deptInsights.smallestName} ({deptInsights.smallestCount})
+              Smallest: {deptInsights.smallestName} · {deptInsights.smallestCount} emp
             </span>
           )}
           <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
-            Avg size: {deptInsights.avgSize}
+            Avg headcount: {deptInsights.avgSize}
           </span>
           {deptInsights.emptyCount > 0 && (
             <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>
-              {deptInsights.emptyCount} empty
+              {deptInsights.emptyCount} with no employees
             </span>
           )}
           {deptInsights.hasSubCount > 0 && (
@@ -339,7 +339,7 @@ export default function DepartmentsPage() {
             </span>
           )}
           <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>
-            {deptInsights.rootCount} root
+            {deptInsights.rootCount} top-level
           </span>
         </div>
       )}

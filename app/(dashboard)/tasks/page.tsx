@@ -271,7 +271,10 @@ export default function TasksPage() {
           {taskInsights.assignedToMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskInsights.assignedToMe} assigned to me</span>}
           {taskInsights.createdByMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdByMe} created by me</span>}
           {taskInsights.completed > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{taskInsights.completed} completed</span>}
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>L:{taskInsights.low} M:{taskInsights.medium} H:{taskInsights.high} U:{taskInsights.urgent}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Low {taskInsights.low}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Med {taskInsights.medium}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>High {taskInsights.high}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Urgent {taskInsights.urgent}</span>
         </div>
       )}
 

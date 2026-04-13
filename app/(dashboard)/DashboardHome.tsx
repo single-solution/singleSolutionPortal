@@ -302,7 +302,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasT
       <motion.div className="min-w-0" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
         <p className="text-caption mb-0.5">Single Solution Sync</p>
         <h1 className="text-title"><span style={{ color: "var(--primary)" }}>{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {profileName}!</span></h1>
-        <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 [&_.badge]:!gap-1 [&_.badge]:!px-2 [&_.badge]:!py-0.5 [&_.badge]:!text-[9px] sm:[&_.badge]:!px-2.5 sm:[&_.badge]:!py-1 sm:[&_.badge]:!text-[10px] [&_.badge::before]:!h-[5px] [&_.badge::before]:!w-[5px]">
           {hasTeamAccess ? (
             <>
               <span className="badge badge-office">{liveOfficeCount} In Office</span>
@@ -754,6 +754,40 @@ function AdminDashboard({
               </div>
       )}
 
+      {/* 2b. Quick stat pills */}
+      {((hasTeamAccess && teamTodayStats && !presenceLoading) || (canViewTasks && taskQuickStats)) && (
+        <div className="mb-3 flex shrink-0 flex-wrap gap-1.5">
+          {hasTeamAccess && teamTodayStats && !presenceLoading && (
+            <>
+              <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>{teamTodayStats.pctInOffice}% in-office</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Avg per person: {formatMinutes(teamTodayStats.avgMins)}</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.officePct}% office / {100 - teamTodayStats.officePct}% remote</span>
+              {teamTodayStats.pctLate > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.pctLate}% late</span>}
+              {teamTodayStats.flagged > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.flagged} location flagged</span>}
+              {flagStats && flagStats.total > 0 && (
+                <>
+                  <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.total} location flags</span>
+                  {flagStats.warnings > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{flagStats.warnings} warnings</span>}
+                  {flagStats.violations > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.violations} violations</span>}
+                </>
+              )}
+            </>
+          )}
+          {canViewTasks && taskQuickStats && (
+            <>
+              <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskQuickStats.total} tasks</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskQuickStats.pending} pending</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{taskQuickStats.inProg} in progress</span>
+              {taskQuickStats.dueSoon > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskQuickStats.dueSoon} due soon</span>}
+              {taskQuickStats.dueThisWeek > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskQuickStats.dueThisWeek} due this week</span>}
+              {taskQuickStats.overdueHU > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskQuickStats.overdueHU} overdue high/urgent</span>}
+              {taskQuickStats.overdue7d > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskQuickStats.overdue7d} overdue 7d+</span>}
+            </>
+          )}
+        </div>
+      )}
+
       {/* 3. Main content + Activity sidebar */}
       <div className="flex min-h-0 flex-1 gap-4">
         {/* 3a. Team Status — scrollable */}
@@ -788,34 +822,6 @@ function AdminDashboard({
             </LayoutGroup>
           )}
         </div>
-          {hasTeamAccess && teamTodayStats && !presenceLoading && (
-            <div className="mb-3 flex shrink-0 flex-wrap gap-1.5">
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>{teamTodayStats.pctInOffice}% in-office</span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>avg {formatMinutes(teamTodayStats.avgMins)}</span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.officePct}% office / {100 - teamTodayStats.officePct}% remote</span>
-              {teamTodayStats.pctLate > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.pctLate}% late</span>}
-              {teamTodayStats.flagged > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.flagged} flagged</span>}
-              {flagStats && flagStats.total > 0 && (
-                <>
-                  <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.total} flags</span>
-                  {flagStats.warnings > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{flagStats.warnings} warnings</span>}
-                  {flagStats.violations > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.violations} violations</span>}
-                </>
-              )}
-            </div>
-          )}
-          {canViewTasks && taskQuickStats && (
-            <div className="mb-3 flex shrink-0 flex-wrap gap-1.5">
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskQuickStats.total} tasks</span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskQuickStats.pending} pending</span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{taskQuickStats.inProg} in progress</span>
-              {taskQuickStats.dueSoon > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskQuickStats.dueSoon} due soon</span>}
-              {taskQuickStats.dueThisWeek > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskQuickStats.dueThisWeek} due this week</span>}
-              {taskQuickStats.overdueHU > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskQuickStats.overdueHU} overdue high/urgent</span>}
-              {taskQuickStats.overdue7d > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskQuickStats.overdue7d} overdue 7d+</span>}
-            </div>
-          )}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {presenceLoading && filteredPresence.length === 0 ? (
               <div className="grid grid-cols-2 gap-3">

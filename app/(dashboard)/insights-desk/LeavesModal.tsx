@@ -103,6 +103,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
   const [employees, setEmployees] = useState<DropdownEmp[]>([]);
   const [userId, setUserId] = useState(selectedUserId || "");
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [balance, setBalance] = useState<BalancePayload | null>(null);
   const [balLoading, setBalLoading] = useState(false);
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
@@ -120,7 +121,10 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (selectedUserId) setUserId(selectedUserId);
+    if (selectedUserId) {
+      setUserId(selectedUserId);
+      setDeptFilter(null);
+    }
   }, [selectedUserId]);
 
   useEffect(() => {
@@ -168,7 +172,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
   useEffect(() => {
     if (detailRef.current) detailRef.current.scrollTop = 0;
-  }, [userId]);
+  }, [userId, deptFilter]);
 
   const filteredEmployees = useMemo(() => {
     if (!sidebarSearch.trim()) return employees;
@@ -310,7 +314,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-4 flex flex-col rounded-2xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-6xl max-h-[95vh]" : "w-full max-w-3xl max-h-[93vh]"}`}
+              className={`relative mx-4 flex flex-col rounded-2xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-6xl h-[80vh]" : "w-full max-w-3xl h-[80vh]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -370,24 +374,34 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
                     {/* Scrollable list */}
                     <div className="flex-1 overflow-y-auto py-1.5" style={{ scrollbarWidth: "thin" }}>
+                      {!sidebarSearch && (
+                        <button
+                          type="button"
+                          onClick={() => { setUserId(""); setDeptFilter(null); }}
+                          className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId && !deptFilter ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
+                          <span className="text-xs font-semibold" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg-secondary)" }}>All Employees</span>
+                        </button>
+                      )}
                       {/* "Yourself" option */}
                       {!isSuperAdmin && !sidebarSearch && (
                         <button
                           type="button"
-                          onClick={() => setUserId("")}
+                          onClick={() => { setUserId(""); setDeptFilter(null); }}
                           className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
                           style={{
-                            background: !userId ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent",
+                            background: !userId && !deptFilter ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent",
                           }}
                         >
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: "var(--green)" }}>
                             ME
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate" style={{ color: !userId ? "var(--primary)" : "var(--fg)" }}>Yourself</p>
+                            <p className="text-xs font-semibold truncate" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg)" }}>Yourself</p>
                             <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>My leave data</p>
                           </div>
-                          {!userId && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                          {!userId && !deptFilter && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
                         </button>
                       )}
 
@@ -399,14 +413,15 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       {/* Department groups — always expanded */}
                       {deptGroups.map((g) => (
                         <div key={g.id}>
-                          <div className="flex items-center gap-2 px-3 py-1.5">
-                            <svg className="h-3 w-3 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            <span className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: "var(--fg-tertiary)" }}>
-                              {g.title}
-                            </span>
-                            <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{g.employees.length}</span>
+                          <div className="px-2 py-0.5">
+                            <button
+                              type="button"
+                              onClick={() => { setUserId(""); setDeptFilter(g.id); }}
+                              className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
+                              style={{ color: deptFilter === g.id && !userId ? "var(--primary)" : "var(--fg-tertiary)" }}
+                            >
+                              {g.title} ({g.employees.length})
+                            </button>
                           </div>
                           {g.employees.map((emp) => {
                             const isSel = userId === emp._id;
@@ -414,7 +429,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                               <button
                                 key={emp._id}
                                 type="button"
-                                onClick={() => setUserId(emp._id)}
+                                onClick={() => { setUserId(emp._id); setDeptFilter(null); }}
                                 className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left transition-colors"
                                 style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
                               >
@@ -460,6 +475,18 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>Select an employee</p>
                       <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>
                         Choose from the sidebar to view leave data
+                      </p>
+                    </div>
+                  ) : canViewTeam && deptFilter && !userId ? (
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <div className="rounded-full p-4 mb-3" style={{ background: "var(--bg-grouped)" }}>
+                        <svg className="h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-semibold text-center" style={{ color: "var(--fg-secondary)" }}>Select an employee to view their leave details</p>
+                      <p className="text-xs mt-1 text-center max-w-xs" style={{ color: "var(--fg-tertiary)" }}>
+                        Department selected. Pick someone from the list below this department, or choose All Employees to return to your own leave data.
                       </p>
                     </div>
                   ) : (

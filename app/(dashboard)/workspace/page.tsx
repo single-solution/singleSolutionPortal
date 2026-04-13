@@ -547,15 +547,15 @@ export default function WorkspacePage() {
           {taskInsights.dueSoon > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{taskInsights.dueSoon} due soon</span>}
           {taskInsights.dueThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.dueThisWeek} due this week</span>}
           {taskInsights.highUrgent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}>{taskInsights.highUrgent} high/urgent</span>}
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>L:{taskInsights.low}</span>
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>M:{taskInsights.medium}</span>
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>H:{taskInsights.high}</span>
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>U:{taskInsights.urgent}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Low {taskInsights.low}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Med {taskInsights.medium}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>High {taskInsights.high}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Urgent {taskInsights.urgent}</span>
           {taskInsights.unassigned > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.unassigned} unassigned</span>}
           {taskInsights.noDeadline > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.noDeadline} no deadline</span>}
           <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.recurring} recurring ({taskInsights.weeklyRecur}w · {taskInsights.monthlyRecur}m)</span>
           {taskInsights.overdueHighUrgent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 14%, transparent)", color: "var(--rose)" }}>{taskInsights.overdueHighUrgent} overdue high/urgent</span>}
-          {taskInsights.assignedToMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskInsights.assignedToMe} mine</span>}
+          {taskInsights.assignedToMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskInsights.assignedToMe} assigned to me</span>}
           {taskInsights.createdByMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdByMe} created by me</span>}
           <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.oneTime} one-time</span>
           {taskInsights.completedToday > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{taskInsights.completedToday} done today</span>}
@@ -853,7 +853,7 @@ export default function WorkspacePage() {
                       {empCount > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
                           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zm-4 7a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                          {empCount}
+                          {empCount} tagged
                         </span>
                       )}
                       {c.startDate && (

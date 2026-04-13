@@ -62,6 +62,32 @@ interface MonthlyStats {
   totalOfficeHours?: number;
   totalRemoteHours?: number;
 }
+interface PayEstimate {
+  workingDays?: number;
+  presentDays?: number;
+  baseSalary?: number;
+  grossPay?: number;
+  totalDeductions?: number;
+  deductions?: number;
+  netPay?: number;
+  overtimeHours?: number;
+  overtimePay?: number;
+  exempt?: boolean;
+}
+interface LeaveBalance {
+  total: number;
+  used: number;
+  remaining: number;
+}
+interface LeaveRecord {
+  _id: string;
+  startDate: string;
+  endDate: string;
+  type: string;
+  status: string;
+  reason?: string;
+  isHalfDay?: boolean;
+}
 interface TaskRow {
   _id: string;
   status: string;
@@ -76,7 +102,7 @@ interface DeptGroup {
   title: string;
   employees: DropdownEmp[];
 }
-type TabId = "overview" | "attendance" | "profile";
+type TabId = "overview" | "attendance" | "payroll" | "leaves" | "profile";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -209,6 +235,34 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const { data: tasksRaw, loading: taskL } = useQuery<TaskRow[]>(tasksUrl, undefined, { enabled: tab === "overview" });
   const { data: campRaw, loading: campL } = useQuery<CampaignRow[]>(campUrl, undefined, { enabled: tab === "overview" });
 
+  const canViewPayroll = isOwn || canPerm("payroll_viewTeam");
+  const canViewLeaves = isOwn || canPerm("leaves_viewTeam");
+
+  const now2 = new Date();
+  const payMonth = now2.getMonth() + 1;
+  const payYear = now2.getFullYear();
+  const otherUserParam =
+    session?.user?.id && effectiveId && session.user.id !== effectiveId
+      ? `userId=${encodeURIComponent(effectiveId)}`
+      : "";
+  const payUrl =
+    open && effectiveId && canViewPayroll && tab === "payroll"
+      ? `/api/payroll/estimate?detail=true&month=${payMonth}&year=${payYear}${otherUserParam ? `&${otherUserParam}` : ""}`
+      : null;
+  const balUrl =
+    open && effectiveId && canViewLeaves && tab === "leaves"
+      ? `/api/leaves/balance${otherUserParam ? `?${otherUserParam}` : ""}`
+      : null;
+  const leavesUrl =
+    open && effectiveId && canViewLeaves && tab === "leaves"
+      ? `/api/leaves${otherUserParam ? `?${otherUserParam}` : ""}`
+      : null;
+
+  const { data: payEstimate, loading: payL } = useQuery<PayEstimate>(payUrl);
+  const { data: leaveBalance, loading: balL } = useQuery<LeaveBalance>(balUrl);
+  const { data: leavesRaw, loading: leaveL } = useQuery<LeaveRecord[]>(leavesUrl);
+  const leavesList = Array.isArray(leavesRaw) ? leavesRaw : [];
+
   const memberships = Array.isArray(memRaw) ? memRaw : [];
   const id = effectiveId ?? "";
   const memActive = useMemo(() => memberships.filter((m) => m.isActive !== false), [memberships]);
@@ -320,7 +374,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-4 flex w-full flex-col overflow-hidden rounded-2xl border shadow-xl ${showSb ? "max-h-[95vh] max-w-6xl" : "max-h-[93vh] max-w-3xl"}`}
+              className={`relative mx-4 flex w-full flex-col overflow-hidden rounded-2xl border shadow-xl ${showSb ? "h-[80vh] max-w-6xl" : "h-[80vh] max-w-3xl"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -438,15 +492,17 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           [
                             ["overview", "Overview"],
                             ["attendance", "Attendance"],
+                            ...(canViewPayroll ? [["payroll", "Payroll"]] : []),
+                            ...(canViewLeaves ? [["leaves", "Leaves"]] : []),
                             ["profile", "Profile"],
-                          ] as const
+                          ] as [string, string][]
                         ).map(([tid, lab]) => {
                           const act = tab === tid;
                           return (
                             <button
                               key={tid}
                               type="button"
-                              onClick={() => setTab(tid)}
+                              onClick={() => setTab(tid as TabId)}
                               className="rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
                               style={{
                                 background: act ? "var(--primary)" : "var(--bg-grouped)",
@@ -591,6 +647,110 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   </div>
                                 </div>
                               </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {tab === "payroll" && (
+                        <div className="space-y-3">
+                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                              Current month estimate
+                            </p>
+                            {payL ? (
+                              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
+                            ) : !payEstimate || payEstimate.exempt ? (
+                              <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Payroll data not available.</p>
+                            ) : (
+                              <>
+                                <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                                  {[
+                                    ["Working Days", `${payEstimate.workingDays ?? 0}`],
+                                    ["Present", `${payEstimate.presentDays ?? 0}`],
+                                    ["Base Salary", `${(payEstimate.baseSalary ?? 0).toLocaleString()}`],
+                                    ["Gross Pay", `${(payEstimate.grossPay ?? 0).toLocaleString()}`],
+                                    [
+                                      "Deductions",
+                                      `${(payEstimate.totalDeductions ?? payEstimate.deductions ?? 0).toLocaleString()}`,
+                                    ],
+                                    ["Net Pay", `${(payEstimate.netPay ?? 0).toLocaleString()}`],
+                                  ].map(([k, v]) => (
+                                    <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
+                                      <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
+                                      <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                                {(payEstimate.overtimeHours ?? 0) > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>OT: {payEstimate.overtimeHours}h</span>
+                                    <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>OT Pay: {(payEstimate.overtimePay ?? 0).toLocaleString()}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {tab === "leaves" && (
+                        <div className="space-y-3">
+                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Balance</p>
+                            {balL ? (
+                              <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
+                            ) : !leaveBalance ? (
+                              <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Leave balance not available.</p>
+                            ) : (
+                              <div className="grid grid-cols-3 gap-2">
+                                {(
+                                  [
+                                    ["Total", `${leaveBalance.total}`, "var(--primary)"],
+                                    ["Used", `${leaveBalance.used}`, "var(--amber)"],
+                                    [
+                                      "Remaining",
+                                      `${leaveBalance.remaining}`,
+                                      leaveBalance.remaining > 0 ? "var(--green)" : "var(--rose)",
+                                    ],
+                                  ] as [string, string, string][]
+                                ).map(([k, v, c]) => (
+                                  <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: c }}>{v}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>History</p>
+                            {leaveL ? (
+                              <div className="space-y-2">{[1, 2, 3].map((i) => <Sh key={i} c="h-10 w-full rounded-lg" />)}</div>
+                            ) : leavesList.length === 0 ? (
+                              <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No leave records found.</p>
+                            ) : (
+                              <div className="max-h-[300px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                                {leavesList.slice(0, 20).map((l) => {
+                                  const sc: Record<string, string> = { approved: "var(--green)", pending: "var(--amber)", rejected: "var(--rose)", cancelled: "var(--fg-tertiary)" };
+                                  const col = sc[l.status] ?? "var(--fg-secondary)";
+                                  const start = new Date(l.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                                  const end = new Date(l.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                                  const same = l.startDate === l.endDate;
+                                  return (
+                                    <div key={l._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
+                                          <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{l.type || "Leave"}{l.isHalfDay ? " (½)" : ""}</span>
+                                        </div>
+                                        <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{same ? start : `${start} – ${end}`}{l.reason ? ` · ${l.reason}` : ""}</p>
+                                      </div>
+                                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{l.status}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             )}
                           </div>
                         </div>

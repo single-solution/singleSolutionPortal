@@ -682,7 +682,7 @@ export default function AttendancePage() {
       ) : null}
 
       {/* Calendar + Detail panel */}
-      <div data-tour="attendance-calendar" className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-5">
+      <div data-tour="attendance-calendar" className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-7">
         {/* Calendar */}
         <motion.div className="card-static p-3 sm:p-4 lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <div className="mb-3 flex items-center justify-between">
@@ -794,7 +794,7 @@ export default function AttendancePage() {
         </motion.div>
 
         {/* Right panel — context-dependent */}
-        <div className="flex flex-col lg:col-span-2">
+        <div className="flex flex-col lg:col-span-4">
           <AnimatePresence mode="wait">
             {/* ── Aggregate mode: team date cards ── */}
             {isAggregateMode && selectedDay !== null ? (
@@ -1101,15 +1101,9 @@ export default function AttendancePage() {
                           <div className="flex flex-wrap justify-center gap-1.5">
                             <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: aggInsights.lateEmployees > 0 ? "color-mix(in srgb, var(--amber) 12%, transparent)" : "var(--bg-grouped)", color: aggInsights.lateEmployees > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{aggInsights.lateEmployees} late employees</span>
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                              <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best</span>
-                              <span className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{aggInsights.bestEmployee} · {Math.round(aggInsights.bestPct)}%</span>
-                            </div>
-                            <div className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                              <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Needs Attention</span>
-                              <span className="text-[11px] font-bold" style={{ color: "var(--rose)" }}>{aggInsights.worstEmployee} · {Math.round(aggInsights.worstPct)}%</span>
-                            </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 12%, transparent)", color: "var(--green)" }}>Best: {aggInsights.bestEmployee} · {Math.round(aggInsights.bestPct)}%</span>
+                            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>Needs Att: {aggInsights.worstEmployee} · {Math.round(aggInsights.worstPct)}%</span>
                           </div>
                         </div>
                       )}
