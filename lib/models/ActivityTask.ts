@@ -2,6 +2,13 @@ import mongoose, { Schema, type Document, type Types } from "mongoose";
 
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type TaskStatus = "pending" | "inProgress" | "completed";
+export type RecurrenceFrequency = "daily" | "weekly" | "biweekly" | "monthly" | "custom";
+
+export interface IRecurrence {
+  frequency: RecurrenceFrequency;
+  days?: number[]; // 0=Sun..6=Sat — used when frequency is "custom"
+  time?: string;   // optional preferred time, e.g. "15:00"
+}
 
 export interface IActivityTask extends Document {
   _id: Types.ObjectId;
@@ -10,6 +17,9 @@ export interface IActivityTask extends Document {
   description?: string;
   assignedTo: Types.ObjectId;
   campaign?: Types.ObjectId;
+  parentTask?: Types.ObjectId;
+  order: number;
+  recurrence?: IRecurrence;
   deadline?: Date;
   priority: TaskPriority;
   status: TaskStatus;
@@ -29,6 +39,19 @@ function slugify(text: string) {
     .replace(/-+/g, "-");
 }
 
+const recurrenceSchema = new Schema(
+  {
+    frequency: {
+      type: String,
+      enum: ["daily", "weekly", "biweekly", "monthly", "custom"],
+      required: true,
+    },
+    days: { type: [Number], default: undefined },
+    time: { type: String, default: undefined },
+  },
+  { _id: false },
+);
+
 const activityTaskSchema = new Schema<IActivityTask>(
   {
     title: { type: String, required: true, trim: true },
@@ -36,6 +59,9 @@ const activityTaskSchema = new Schema<IActivityTask>(
     description: { type: String, default: "" },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", required: true },
     campaign: { type: Schema.Types.ObjectId, ref: "Campaign" },
+    parentTask: { type: Schema.Types.ObjectId, ref: "ActivityTask", default: null },
+    order: { type: Number, default: 0 },
+    recurrence: { type: recurrenceSchema, default: undefined },
     deadline: Date,
     priority: {
       type: String,
@@ -55,6 +81,8 @@ const activityTaskSchema = new Schema<IActivityTask>(
 );
 
 activityTaskSchema.index({ campaign: 1 });
+activityTaskSchema.index({ parentTask: 1 });
+activityTaskSchema.index({ "recurrence.frequency": 1 });
 
 activityTaskSchema.pre("save", async function () {
   if (!this.isModified("title")) return;

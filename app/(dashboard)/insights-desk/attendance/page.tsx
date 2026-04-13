@@ -187,6 +187,9 @@ export default function AttendancePage() {
   /* ── Leaves for calendar + list ── */
   const [calendarLeaves, setCalendarLeaves] = useState<LeaveRecord[]>([]);
 
+  /* ── Leave balance for summary card ── */
+  const [leaveBalance, setLeaveBalance] = useState<{ total: number; used: number; remaining: number } | null>(null);
+
   const userIdParam = viewingUserId || "";
   const hasSelectedEmployee = !!viewingUserId;
   const isAggregateMode = hasTeamAccess && !hasSelectedEmployee;
@@ -298,6 +301,22 @@ export default function AttendancePage() {
       .catch(() => setCalendarHolidays([]));
   }, [year]);
 
+  useEffect(() => {
+    if (!sessionReady || isSuperAdmin) { setLeaveBalance(null); return; }
+    const uid = viewingUserId || authSession?.user?.id;
+    if (!uid) return;
+    if (viewingUserId && viewingUserId !== authSession?.user?.id && !canViewTeamLeaves) {
+      setLeaveBalance(null);
+      return;
+    }
+    const q = new URLSearchParams({ year: String(new Date().getFullYear()) });
+    if (viewingUserId) q.set("userId", viewingUserId);
+    fetch(`/api/leaves/balance?${q}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setLeaveBalance(data?.exempt ? null : data))
+      .catch(() => setLeaveBalance(null));
+  }, [sessionReady, isSuperAdmin, viewingUserId, canViewTeamLeaves, authSession?.user?.id]);
+
   const mountRef = useRef(true);
   useEffect(() => {
     if (mountRef.current) { mountRef.current = false; return; }
@@ -405,7 +424,20 @@ export default function AttendancePage() {
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
-      <div data-tour="attendance-header" className="flex items-center justify-end gap-2 flex-wrap">
+      <div data-tour="attendance-header" className="flex items-center justify-between gap-2 flex-wrap">
+          {sessionReady && hasTeamAccess && filteredSummary.length > 5 ? (
+            <div className="relative w-52">
+              <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
+              <input
+                type="text"
+                value={pillSearch}
+                onChange={(e) => setPillSearch(e.target.value)}
+                placeholder="Search employees…"
+                className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
+                style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
+              />
+            </div>
+          ) : <div />}
           {sessionReady && hasTeamAccess && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
       </div>
 
@@ -434,22 +466,7 @@ export default function AttendancePage() {
           <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
         </div>
       ) : hasTeamAccess ? (
-        <div data-tour="attendance-pills" className="space-y-2">
-          {/* Search */}
-          {filteredSummary.length > 5 && (
-            <div className="relative max-w-xs">
-              <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
-              <input
-                type="text"
-                value={pillSearch}
-                onChange={(e) => setPillSearch(e.target.value)}
-                placeholder="Search employees…"
-                className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
-                style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
-              />
-            </div>
-          )}
-          {/* Horizontal scrollable pills */}
+        <div data-tour="attendance-pills">
           <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             {/* "All" pill — aggregate mode */}
             {!pillSearch && (
@@ -905,6 +922,29 @@ export default function AttendancePage() {
                         <StatChip label="Attendance" value={`${Math.round(monthlyStats.attendancePercentage)}%`} color={monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)"} />
                         <StatChip label="Office / Remote" value={`${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--teal)" />
                       </div>
+                      {leaveBalance && (
+                        <div className="rounded-xl p-3 space-y-2" style={{ background: "var(--bg-grouped)" }}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leaves</span>
+                            <span className="text-xs font-bold" style={{ color: leaveBalance.remaining > 0 ? "var(--teal)" : "var(--rose)" }}>
+                              {leaveBalance.remaining} / {leaveBalance.total} left
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                            <motion.div
+                              className="h-full rounded-full"
+                              style={{ background: leaveBalance.total > 0 && (leaveBalance.used / leaveBalance.total) > 0.8 ? "var(--rose)" : "var(--teal)" }}
+                              initial={{ width: 0 }}
+                              animate={{ width: leaveBalance.total > 0 ? `${Math.round((leaveBalance.used / leaveBalance.total) * 100)}%` : "0%" }}
+                              transition={{ duration: 0.6 }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                            <span>{leaveBalance.used} used</span>
+                            <span>{leaveBalance.remaining} remaining</span>
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-8 text-center">

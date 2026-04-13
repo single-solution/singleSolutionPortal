@@ -1,5 +1,7 @@
 import { connectDB } from "@/lib/db";
 import Campaign from "@/lib/models/Campaign";
+import ActivityTask from "@/lib/models/ActivityTask";
+import ChecklistLog from "@/lib/models/ChecklistLog";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
@@ -13,6 +15,24 @@ import {
   getHierarchyDepartmentIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isDueToday(rec: { frequency: string; days?: number[] } | undefined): boolean {
+  if (!rec) return false;
+  const dow = new Date().getDay();
+  switch (rec.frequency) {
+    case "daily": return true;
+    case "weekly": return dow === 1; // Mondays
+    case "biweekly": { const week = Math.floor((Date.now() - new Date(2024, 0, 1).getTime()) / 604800000); return dow === 1 && week % 2 === 0; }
+    case "monthly": return new Date().getDate() === 1;
+    case "custom": return Array.isArray(rec.days) && rec.days.includes(dow);
+    default: return false;
+  }
+}
 
 export async function GET() {
   const actor = await getVerifiedSession();
@@ -33,7 +53,53 @@ export async function GET() {
     .sort({ updatedAt: -1 })
     .lean();
 
-  return ok(campaigns);
+  const campaignIds = campaigns.map((c) => c._id);
+  const today = todayKey();
+
+  const [allTasks, myLogs] = await Promise.all([
+    ActivityTask.find({ campaign: { $in: campaignIds }, isActive: true, parentTask: null }).lean(),
+    ChecklistLog.find({ employee: actor.id, date: today }).lean(),
+  ]);
+
+  const doneTaskIds = new Set(myLogs.map((l) => l.task.toString()));
+
+  const byCampaign = new Map<string, typeof allTasks>();
+  for (const t of allTasks) {
+    const cid = t.campaign!.toString();
+    if (!byCampaign.has(cid)) byCampaign.set(cid, []);
+    byCampaign.get(cid)!.push(t);
+  }
+
+  const enriched = campaigns.map((c) => {
+    const cid = c._id.toString();
+    const tasks = byCampaign.get(cid) ?? [];
+
+    const recurring = tasks.filter((t) => t.recurrence);
+    const oneTime = tasks.filter((t) => !t.recurrence);
+    const oneTimeDone = oneTime.filter((t) => t.status === "completed").length;
+
+    const todayRecurring = recurring.filter((t) => isDueToday(t.recurrence as { frequency: string; days?: number[] }));
+    const todayDone = todayRecurring.filter((t) => doneTaskIds.has(t._id.toString())).length;
+
+    return {
+      ...c,
+      taskStats: {
+        total: oneTime.length,
+        completed: oneTimeDone,
+        recurring: recurring.length,
+        todayDue: todayRecurring.length,
+        todayDone,
+      },
+      todayChecklist: todayRecurring.map((t) => ({
+        _id: t._id.toString(),
+        title: t.title,
+        done: doneTaskIds.has(t._id.toString()),
+        time: (t.recurrence as { time?: string })?.time ?? null,
+      })),
+    };
+  });
+
+  return ok(enriched);
 }
 
 export async function POST(req: Request) {

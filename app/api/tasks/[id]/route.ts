@@ -90,6 +90,21 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
       task.assignedTo = body.assignedTo;
     }
+    if (body.recurrence !== undefined) {
+      if (body.recurrence === null) {
+        task.recurrence = undefined;
+      } else if (body.recurrence.frequency) {
+        const validFreqs = ["daily", "weekly", "biweekly", "monthly", "custom"];
+        if (validFreqs.includes(body.recurrence.frequency)) {
+          const rec: Record<string, unknown> = { frequency: body.recurrence.frequency };
+          if (body.recurrence.frequency === "custom" && Array.isArray(body.recurrence.days)) {
+            rec.days = body.recurrence.days.filter((d: number) => d >= 0 && d <= 6);
+          }
+          if (body.recurrence.time) rec.time = body.recurrence.time;
+          task.recurrence = rec as typeof task.recurrence;
+        }
+      }
+    }
   }
   if (body.status !== undefined) task.status = body.status;
   task.updatedBy = actor.id as unknown as typeof task.updatedBy;

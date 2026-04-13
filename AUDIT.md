@@ -1637,3 +1637,14 @@ If you also want to **split** the overloaded keys:
 | E | Leaves & Payroll modals: sidebar/detail split layout with department grouping, search, and employee cards | `LeavesModal.tsx`, `PayrollModal.tsx` |
 | F | Dropdown API: enriched with department info via Membership lookup | `app/api/employees/dropdown/route.ts` |
 | G | Payroll modal: added multiple export formats (CSV, JSON, Print/PDF, Copy to Clipboard) | `PayrollModal.tsx` |
+| H | Monthly summary card: added leave balance bar (remaining/total) for individual employee view | `attendance/page.tsx` |
+| I | Payroll modal: salary display gated by `payroll_manageSalary` permission (client-side defense-in-depth) | `PayrollModal.tsx` |
+| J | Campaign model: removed rigid `type`/`checklist` — a campaign is now just a campaign container | `lib/models/Campaign.ts` |
+| K | ChecklistLog model: tracks recurring task completions per employee per day (task-based, not item-based); added optional `note` field | `lib/models/ChecklistLog.ts` |
+| L | ActivityTask model: added `recurrence` field (frequency: daily/weekly/biweekly/monthly/custom + optional days[] + optional time) alongside `parentTask`/`order` | `lib/models/ActivityTask.ts` |
+| M | Campaign CRUD: removed type/checklist handling; GET now returns `taskStats` (total/completed/recurring/todayDue/todayDone) + `todayChecklist` (today's due recurring tasks with completion status) | `app/api/campaigns/route.ts`, `app/api/campaigns/[id]/route.ts` |
+| N | Checklist routes: refactored to toggle by taskId (not checklistItemId); overview returns recurring task completion grid | `app/api/campaigns/[id]/checklist/route.ts`, `app/api/campaigns/[id]/checklist/overview/route.ts` |
+| O | New subtasks route: GET subtasks for a parent task | `app/api/tasks/[id]/subtasks/route.ts` |
+| P | Tasks: POST/PUT support `recurrence` field with validation; GET filters subtasks; single-level nesting enforced | `app/api/tasks/route.ts`, `app/api/tasks/[id]/route.ts` |
+| Q | Dashboard Home: inline checklist toggles for today's recurring tasks (any campaign), task progress bars, no type badges | `DashboardHome.tsx` |
+| R | Workspace: removed type filter strip; accordion shows recurring tasks as interactive checklist + admin compliance grid + one-time tasks as cards with subtasks; task creation modal includes recurrence picker (frequency + custom days + time) | `workspace/page.tsx` |

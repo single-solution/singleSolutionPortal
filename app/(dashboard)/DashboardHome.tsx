@@ -124,6 +124,8 @@ interface ApiCampaign {
     employees: { _id: string; about: { firstName: string; lastName: string } }[];
     departments: { _id: string; title: string }[];
   };
+  taskStats?: { total: number; completed: number; recurring: number; todayDue: number; todayDone: number };
+  todayChecklist?: { _id: string; title: string; done: boolean; time: string | null }[];
 }
 
 
@@ -306,7 +308,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasT
           ) : dataLoading ? (
             <span className="shimmer inline-block h-3.5 w-48 rounded" />
           ) : (
-            <p className="text-subhead">You have <span className="font-bold" style={{ color: "var(--amber)" }}>{pendingTasks}</span> tasks pending · <span className="font-bold" style={{ color: "var(--teal)" }}>{activeCampaigns}</span> active campaigns</p>
+            <p className="text-subhead">You have <span className="font-bold" style={{ color: "var(--amber)" }}>{pendingTasks}</span> tasks pending · <span className="font-bold" style={{ color: "var(--teal)" }}>{activeCampaigns}</span> active campaign{activeCampaigns !== 1 ? "s" : ""}</p>
           )}
             </div>
           </motion.div>
@@ -623,6 +625,20 @@ function AdminDashboard({
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const liveCount = otherEmps.filter((e) => e.isLive).length;
 
+  const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
+  const toggleChecklist = useCallback(async (campaignId: string, taskId: string, currentDone: boolean) => {
+    setChecklistOverrides((prev) => new Map(prev).set(taskId, !currentDone));
+    try {
+      await fetch(`/api/campaigns/${campaignId}/checklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId }),
+      });
+    } catch {
+      setChecklistOverrides((prev) => { const n = new Map(prev); n.delete(taskId); return n; });
+    }
+  }, []);
+
   const [pingSending, setPingSending] = useState<string | null>(null);
   const [pingSuccess, setPingSuccess] = useState<string | null>(null);
 
@@ -816,20 +832,72 @@ function AdminDashboard({
               [1, 2, 3].map((i) => <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-8 w-8 shrink-0 rounded-lg" /><div className="flex-1 space-y-1.5"><Bone w="w-32" h="h-3.5" /><Bone w="w-20" h="h-2.5" /></div></div>)
             ) : activeCampaigns.length === 0 ? (
               <p className="text-caption py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
-            ) : activeCampaigns.map((camp, ci) => (
-              <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} whileHover={{ x: 4 }} className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-2 cursor-pointer" style={{ background: "var(--bg-grouped)" }}>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" /></svg>
+            ) : activeCampaigns.map((camp, ci) => {
+              const stats = camp.taskStats;
+              const checklist = camp.todayChecklist ?? [];
+              const hasRecurring = checklist.length > 0;
+              const todayDone = checklist.filter((t) => checklistOverrides.has(t._id) ? checklistOverrides.get(t._id) : t.done).length;
+
+              const oneTimePct = stats && stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+              return (
+                <motion.div key={camp._id} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.04 * ci }} className="shrink-0 rounded-xl px-3 py-2.5" style={{ background: "var(--bg-grouped)" }}>
+                  <Link href="/workspace" className="flex items-center gap-3 cursor-pointer">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${CAMPAIGN_STATUS_COLORS[camp.status]} 15%, transparent)` }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={CAMPAIGN_STATUS_COLORS[camp.status]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" /></svg>
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{camp.name}</p>
-                  <div className="flex gap-1.5 mt-0.5">
-                    {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
-                    <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {camp.tags.departments.slice(0, 1).map((d) => <span key={d._id} className="text-[9px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{d.title}</span>)}
+                        <span className="text-caption tabular-nums">{camp.tags.employees.length} people</span>
+                        {hasRecurring && (
+                          <span className="text-[10px] tabular-nums font-semibold" style={{ color: todayDone === checklist.length ? "var(--teal)" : "var(--amber)" }}>{todayDone}/{checklist.length} today</span>
+                        )}
+                        {stats && stats.total > 0 && (
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <div className="h-1.5 w-16 overflow-hidden rounded-full" style={{ background: "var(--bg)" }}>
+                              <div className="h-full rounded-full transition-all" style={{ background: "var(--teal)", width: `${oneTimePct}%` }} />
+                            </div>
+                            <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{stats.completed}/{stats.total}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-              </motion.div>
-            ))}
+                  </Link>
+
+                  {/* Inline checklist toggles for today's recurring tasks */}
+                  {hasRecurring && (
+                    <div className="mt-2 space-y-1 border-t pt-2" style={{ borderColor: "var(--border)" }}>
+                      {checklist.map((item) => {
+                        const isDone = checklistOverrides.has(item._id) ? checklistOverrides.get(item._id)! : item.done;
+                        return (
+                          <button
+                            key={item._id}
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); toggleChecklist(camp._id, item._id, isDone); }}
+                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_4%,transparent)]"
+                          >
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all"
+                              style={{
+                                borderColor: isDone ? "var(--teal)" : "var(--border-strong)",
+                                background: isDone ? "var(--teal)" : "transparent",
+                              }}>
+                              {isDone && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                            </span>
+                            <span className="text-[11px] truncate" style={{
+                              color: isDone ? "var(--fg-tertiary)" : "var(--fg)",
+                              textDecoration: isDone ? "line-through" : undefined,
+                            }}>{item.title}</span>
+                            {item.time && <span className="text-[9px] tabular-nums ml-auto shrink-0" style={{ color: "var(--fg-tertiary)" }}>{item.time}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
         </div>
       </motion.section>
         <motion.section data-tour="dashboard-checklist" className="card flex flex-col overflow-hidden p-4 sm:p-5 lg:col-span-7 lg:row-span-1" variants={slideUpItem} initial="hidden" animate="visible">

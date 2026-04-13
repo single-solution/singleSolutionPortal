@@ -108,6 +108,8 @@ export async function GET(req: NextRequest) {
     }).select("startDate endDate").lean(),
   ]);
 
+  const wantDetail = url.searchParams.get("detail") === "true";
+
   const presentKeys = new Set<string>();
   let lateDays = 0;
   let overtimeMinutesTotal = 0;
@@ -115,9 +117,11 @@ export async function GET(req: NextRequest) {
   const schedule = resolveWeeklySchedule(emp as unknown as Record<string, unknown>);
   const dailyRate = workingDays > 0 ? baseSalary / workingDays : 0;
 
+  const attByKey = new Map<string, typeof attendanceRows[number]>();
   for (const row of attendanceRows) {
     const d = new Date(row.date as Date);
     const key = utcDateKey(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    attByKey.set(key, row);
     if (!workingKeys.has(key)) continue;
     if (row.isPresent) {
       presentKeys.add(key);
@@ -168,7 +172,65 @@ export async function GET(req: NextRequest) {
     months: ytdSlips.length,
   };
 
-  return NextResponse.json({
+  let dailyBreakdown: unknown[] | undefined;
+  if (wantDetail) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const today = new Date();
+    dailyBreakdown = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateObj = new Date(Date.UTC(year, month - 1, d, 12));
+      const dow = dateObj.getUTCDay();
+      const key = utcDateKey(year, month - 1, d);
+      const isWeekend = dow === 0 || dow === 6;
+      const isHoliday = holidayKeys.has(key);
+      const isLeave = leaveKeys.has(key);
+      const isWorkDay = workingKeys.has(key);
+      const isFuture = dateObj > today;
+      const att = attByKey.get(key);
+
+      let status: string;
+      if (isWeekend) status = "weekend";
+      else if (isHoliday) status = "holiday";
+      else if (isLeave) status = "leave";
+      else if (isFuture) status = "future";
+      else if (att?.isPresent) status = att.isOnTime ? "present" : "late";
+      else if (isWorkDay && !isFuture) status = "absent";
+      else status = "off";
+
+      const workingMinutes = att?.isPresent ? (Number(att.totalWorkingMinutes) || 0) : 0;
+      const officeMinutes = att?.isPresent ? (Number((att as Record<string, unknown>).officeMinutes) || 0) : 0;
+      const remoteMinutes = att?.isPresent ? (Number((att as Record<string, unknown>).remoteMinutes) || 0) : 0;
+      const lateMinutes = att?.isPresent ? Math.max(Number(att.lateToOfficeBy) || 0, Number(att.lateBy) || 0) : 0;
+
+      let dayDeduction = 0;
+      if (status === "absent" && isWorkDay) {
+        dayDeduction = roundMoney(dailyRate * (absencePenaltyPct / 100));
+      } else if (status === "late" && lateMinutes > 0) {
+        const tier = latePenaltyTiers.find((t) => lateMinutes >= t.minutes);
+        if (tier && tier.penaltyPercent > 0) {
+          dayDeduction = roundMoney(dailyRate * (tier.penaltyPercent / 100));
+        }
+      }
+
+      const dayOfWeekName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dow];
+
+      dailyBreakdown.push({
+        day: d,
+        dayOfWeek: dayOfWeekName,
+        date: `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+        status,
+        workingMinutes,
+        officeMinutes,
+        remoteMinutes,
+        lateMinutes,
+        deduction: dayDeduction,
+        firstStart: att?.firstOfficeEntry ?? null,
+        lastEnd: att?.lastOfficeExit ?? null,
+      });
+    }
+  }
+
+  const result: Record<string, unknown> = {
     month,
     year,
     baseSalary,
@@ -187,5 +249,8 @@ export async function GET(req: NextRequest) {
       ...(lateDeduction > 0 ? [{ label: "Late arrival penalty", amount: lateDeduction }] : []),
     ],
     ytd,
-  });
+  };
+  if (dailyBreakdown) result.dailyBreakdown = dailyBreakdown;
+
+  return NextResponse.json(result);
 }

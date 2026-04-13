@@ -94,7 +94,6 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [leavesLoading, setLeavesLoading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
-  const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
 
   const [showForm, setShowForm] = useState(false);
   const [isHalfDay, setIsHalfDay] = useState(false);
@@ -180,16 +179,9 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     }
     const groups = [...grouped.values()].sort((a, b) => a.title.localeCompare(b.title));
     if (ungrouped.length > 0) groups.push({ id: "__none", title: "Unassigned", employees: ungrouped });
+    for (const g of groups) g.employees.sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
     return groups;
   }, [filteredEmployees]);
-
-  const toggleDept = (id: string) => {
-    setCollapsedDepts((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
 
   const selectedEmployee = useMemo(() => employees.find((e) => e._id === userId), [employees, userId]);
 
@@ -334,64 +326,43 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                         <div className="mx-3 my-1 border-b" style={{ borderColor: "var(--border)" }} />
                       )}
 
-                      {/* Department groups */}
-                      {deptGroups.map((g) => {
-                        const isCollapsed = collapsedDepts.has(g.id);
-                        return (
-                          <div key={g.id}>
-                            <button
-                              type="button"
-                              onClick={() => toggleDept(g.id)}
-                              className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--hover-bg)]"
-                            >
-                              <svg
-                                className="h-3 w-3 shrink-0 transition-transform"
-                                style={{ color: "var(--fg-tertiary)", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)" }}
-                                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                              >
-                                <path strokeLinecap="round" d="M19 9l-7 7-7-7" />
-                              </svg>
-                              <span className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: "var(--fg-tertiary)" }}>
-                                {g.title}
-                              </span>
-                              <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{g.employees.length}</span>
-                            </button>
-                            <AnimatePresence initial={false}>
-                              {!isCollapsed && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.15 }}
-                                  className="overflow-hidden"
-                                >
-                                  {g.employees.map((emp) => {
-                                    const isSel = userId === emp._id;
-                                    return (
-                                      <button
-                                        key={emp._id}
-                                        type="button"
-                                        onClick={() => setUserId(emp._id)}
-                                        className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left transition-colors"
-                                        style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
-                                      >
-                                        <span
-                                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                                          style={{ background: avatarColor(emp._id) }}
-                                        >
-                                          {initials(emp)}
-                                        </span>
-                                        <span className="flex-1 min-w-0 text-xs font-medium truncate" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>
-                                          {nameOf(emp)}
-                                        </span>
-                                        {isSel && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
-                                      </button>
-                                    );
-                                  })}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                      {/* Department groups — always expanded */}
+                      {deptGroups.map((g) => (
+                        <div key={g.id}>
+                          <div className="flex items-center gap-2 px-3 py-1.5">
+                            <svg className="h-3 w-3 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: "var(--fg-tertiary)" }}>
+                              {g.title}
+                            </span>
+                            <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{g.employees.length}</span>
                           </div>
-                        );
-                      })}
+                          {g.employees.map((emp) => {
+                            const isSel = userId === emp._id;
+                            return (
+                              <button
+                                key={emp._id}
+                                type="button"
+                                onClick={() => setUserId(emp._id)}
+                                className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left transition-colors"
+                                style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
+                              >
+                                <span
+                                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                                  style={{ background: avatarColor(emp._id) }}
+                                >
+                                  {initials(emp)}
+                                </span>
+                                <span className="flex-1 min-w-0 text-xs font-medium truncate" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>
+                                  {nameOf(emp)}
+                                </span>
+                                {isSel && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))}
 
                       {filteredEmployees.length === 0 && sidebarSearch && (
                         <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>
