@@ -37,8 +37,23 @@ interface EmployeeDoc {
 interface SessionApi {
   activeSession?: { status?: string; location?: { inOffice?: boolean } } | null;
   todayMinutes?: number;
+  officeMinutes?: number;
+  remoteMinutes?: number;
+  breakMinutes?: number;
   locationFlagged?: boolean;
   flagReason?: string | null;
+  flagCoords?: { lat: number; lng: number } | null;
+  firstEntry?: string;
+  firstOfficeEntry?: string;
+  lastOfficeExit?: string;
+  lastExit?: string;
+  lateBy?: number;
+  isLateToOffice?: boolean;
+  lateToOfficeBy?: number;
+  sessionCount?: number;
+  shiftStart?: string;
+  shiftEnd?: string;
+  shiftBreakTime?: number;
 }
 interface MembershipRow {
   _id: string;
@@ -318,7 +333,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const flags = flagsPayload?.flags ?? [];
 
   const balUrl =
-    open && effectiveId && canViewLeaves && (tab === "leaves" || tab === "overview")
+    open && effectiveId && canViewLeaves && (tab === "leaves" || tab === "overview" || tab === "attendance")
       ? `/api/leaves/balance${otherUserParam ? `?${otherUserParam}` : ""}`
       : null;
   const leavesUrl =
@@ -585,52 +600,142 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                 ) : (
                   <>
 
-                      {tab === "overview" && (
+                      {tab === "overview" && (() => {
+                        const sFirstArrival = sessL ? "—" : sess?.firstEntry ? (sess.firstEntry.includes("T") ? new Date(sess.firstEntry).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }) : sess.firstEntry) : "—";
+                        const sClockOut = sessL ? "—" : hasAct ? "—" : sess?.lastExit ? new Date(sess.lastExit).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }) : "—";
+                        const sOfficeIn = sess?.firstOfficeEntry ? new Date(sess.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }) : "—";
+                        const sOfficeOut = (!hasAct || !inOff) && sess?.lastOfficeExit ? new Date(sess.lastOfficeExit).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }) : "—";
+                        const sOfficeMins = sess?.officeMinutes ?? 0;
+                        const sRemoteMins = sess?.remoteMinutes ?? 0;
+                        const sBreakMins = sess?.breakMinutes ?? 0;
+                        const sSessions = sess?.sessionCount ?? 0;
+                        const sShiftStart = sess?.shiftStart ?? employee?.weeklySchedule?.[todayWeekdayKey()]?.start ?? "10:00";
+                        const sShiftEnd = sess?.shiftEnd ?? employee?.weeklySchedule?.[todayWeekdayKey()]?.end ?? "19:00";
+                        const sShiftBreak = sess?.shiftBreakTime ?? employee?.weeklySchedule?.[todayWeekdayKey()]?.breakMinutes ?? 60;
+                        const [sh2, sm2] = sShiftStart.split(":").map(Number);
+                        const [eh2, em2] = sShiftEnd.split(":").map(Number);
+                        const shiftMins = Math.max(eh2 * 60 + em2 - (sh2 * 60 + sm2) - sShiftBreak, 1);
+                        const pctRaw = Math.round((tm / shiftMins) * 100);
+                        const cappedFill = Math.min((tm / shiftMins) * 100, 120);
+                        const sTotal = sOfficeMins + sRemoteMins + sBreakMins || 1;
+                        const ofPct = (sOfficeMins / sTotal) * cappedFill;
+                        const rmPct = (sRemoteMins / sTotal) * cappedFill;
+                        const bkPct = (sBreakMins / sTotal) * cappedFill;
+                        let sIdleMins = 0;
+                        if (!hasAct && sess?.firstEntry && sess?.lastExit) {
+                          const span2 = (new Date(sess.lastExit).getTime() - new Date(sess.firstEntry).getTime()) / 60000;
+                          sIdleMins = Math.max(0, Math.round(span2 - tm));
+                        }
+                        const pendingT = empTasks.filter((t) => t.status === "pending").length;
+                        const inProgT = empTasks.filter((t) => t.status === "inProgress").length;
+                        return (
                         <div className="space-y-3">
+                          {/* Today's attendance — EmployeeCard style */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Today&apos;s attendance</p>
                             {sessL ? (
-                              <div className="flex flex-wrap gap-2"><Sh c="h-8 flex-1 min-w-[90px]" /><Sh c="h-8 flex-1 min-w-[90px]" /><Sh c="h-8 flex-1 min-w-[90px]" /></div>
+                              <div className="space-y-2"><Sh c="h-12 rounded-lg" /><Sh c="h-12 rounded-lg" /><Sh c="h-8 rounded-lg" /></div>
                             ) : (
-                              <div className="flex flex-wrap gap-2">
-                                <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium" style={{ borderColor: "var(--border)", color: "var(--fg)" }}><span style={{ color: "var(--fg-tertiary)" }}>Time</span>{formatMinutes(tm)}</span>
-                                <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium" style={{ borderColor: "var(--border)", color: "var(--fg)" }}><span style={{ color: "var(--fg-tertiary)" }}>Session</span>{hasAct ? (inOff ? "Active · Office" : "Active · Remote") : "None"}</span>
-                                <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium" style={{ borderColor: "var(--border)", color: "var(--fg)" }}><span style={{ color: "var(--fg-tertiary)" }}>Location</span>{sess?.locationFlagged ? "Flagged" : "OK"}</span>
-                              </div>
-                            )}
-                            {sess?.flagReason && !sessL && <p className="mt-1.5 text-[10px]" style={{ color: "var(--rose)" }}>{sess.flagReason}</p>}
-                            {!sessL && (monL || overviewAttendancePct != null || monthlyRaw?.averageDailyHours != null) && (
-                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                {monL ? (
-                                  <>
-                                    <Sh c="h-6 w-24 rounded-full" />
-                                    <Sh c="h-6 w-28 rounded-full" />
-                                  </>
-                                ) : (
-                                  <>
-                                    {overviewAttendancePct != null && (
-                                      <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>
-                                        <span style={{ color: "var(--fg-tertiary)" }}>Attendance</span>
-                                        {overviewAttendancePct}%
-                                      </span>
+                              <>
+                                {/* Clock In / Hours / Clock Out */}
+                                <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ borderColor: "var(--border)" }}>
+                                  <div>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
+                                    <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sFirstArrival}</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+                                    <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(tm)}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
+                                    <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sClockOut}</p>
+                                  </div>
+                                </div>
+                                {/* Arrived / Office / Left */}
+                                <div className="mt-2 grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
+                                  <div>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
+                                    <p className="font-semibold tabular-nums">{sOfficeIn}</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
+                                    <p className="font-semibold tabular-nums">{formatMinutes(sOfficeMins)}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
+                                    <p className="font-semibold tabular-nums">{sOfficeOut}</p>
+                                  </div>
+                                </div>
+                                {/* Activity strip — progress bar */}
+                                <div className="mt-3 space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                                      <motion.div className="flex h-full min-w-0" initial={{ width: 0 }} animate={{ width: `${cappedFill}%` }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
+                                        {ofPct > 0 && <div className="h-full shrink-0" style={{ width: `${(ofPct / cappedFill) * 100}%`, background: "var(--green)" }} />}
+                                        {rmPct > 0 && <div className="h-full shrink-0" style={{ width: `${(rmPct / cappedFill) * 100}%`, background: "#007aff" }} />}
+                                        {bkPct > 0 && <div className="h-full shrink-0" style={{ width: `${(bkPct / cappedFill) * 100}%`, background: "var(--purple)" }} />}
+                                      </motion.div>
+                                    </div>
+                                    <span className="shrink-0 text-[10px] font-bold tabular-nums" style={{ color: pctRaw >= 100 ? "var(--green)" : "var(--fg-secondary)" }}>{pctRaw}%</span>
+                                  </div>
+                                  {/* Detail chips */}
+                                  <div className="flex flex-wrap items-center gap-1 text-[9px]">
+                                    <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
+                                      {sSessions} {sSessions === 1 ? "session" : "sessions"}
+                                    </span>
+                                    {sRemoteMins > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(sRemoteMins)} remote</span>}
+                                    {sBreakMins > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>{formatMinutes(sBreakMins)} break</span>}
+                                    {(sess?.lateBy ?? 0) > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--amber) 7%, transparent)", color: "var(--amber)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
+                                    {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--rose) 7%, transparent)", color: "var(--rose)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
+                                    {sIdleMins > 5 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{formatMinutes(sIdleMins)} idle</span>}
+                                  </div>
+                                </div>
+                                {/* Location flag alert */}
+                                {sess?.locationFlagged && (
+                                  <div className="mt-2 rounded-lg border p-2 text-[9px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
+                                    <div className="flex items-center gap-1">
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                      <span className="font-bold" style={{ color: "var(--rose)" }}>Location Flagged</span>
+                                    </div>
+                                    {sess.flagReason && <p className="leading-snug" style={{ color: "var(--rose)" }}>{sess.flagReason}</p>}
+                                    {sess.flagCoords && (
+                                      <a
+                                        href={`https://www.google.com/maps?q=${sess.flagCoords.lat},${sess.flagCoords.lng}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors"
+                                        style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}
+                                      >
+                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                        {sess.flagCoords.lat.toFixed(5)}, {sess.flagCoords.lng.toFixed(5)}
+                                      </a>
                                     )}
-                                    {monthlyRaw?.averageDailyHours != null && (
-                                      <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>
-                                        <span style={{ color: "var(--fg-tertiary)" }}>Avg / day</span>
-                                        {monthlyRaw.averageDailyHours}h
-                                      </span>
-                                    )}
-                                  </>
+                                  </div>
                                 )}
-                              </div>
+                                {/* Monthly summary pills */}
+                                {(monL || overviewAttendancePct != null || monthlyRaw?.averageDailyHours != null) && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {monL ? <><Sh c="h-6 w-24 rounded-full" /><Sh c="h-6 w-28 rounded-full" /></> : (
+                                      <>
+                                        {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--green)" : "var(--rose)" }}>Attendance {overviewAttendancePct}%</span>}
+                                        {monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>Avg {monthlyRaw.averageDailyHours}h / day</span>}
+                                        {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
+                          {/* Tasks & Campaigns — EmployeeCard style */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Workload</p>
                             {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (
-                              <div className="flex flex-wrap gap-2">
-                                <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Active tasks <span style={{ color: "var(--primary)" }}>{activeTasks}</span></span>
-                                <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Campaigns <span style={{ color: "var(--teal)" }}>{campCount}</span></span>
+                              <div className="flex flex-wrap gap-1.5 text-[9px]">
+                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} pending</span>
+                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "rgba(0,122,255,0.2)" : "var(--border)" }}>{inProgT} active</span>
+                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: campCount > 0 ? "rgba(48,209,88,0.1)" : "var(--bg-grouped)", color: campCount > 0 ? "var(--teal)" : "var(--fg-tertiary)", borderColor: campCount > 0 ? "rgba(48,209,88,0.2)" : "var(--border)" }}>{campCount} campaign{campCount !== 1 ? "s" : ""}</span>
                               </div>
                             )}
                             {canViewLeaves && (
@@ -647,6 +752,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               </div>
                             )}
                           </div>
+                          {/* Memberships */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
                             {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
@@ -662,7 +768,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             )}
                           </div>
                         </div>
-                      )}
+                        );
+                      })()}
 
                       {tab === "attendance" && (
                         <div className="space-y-3">
@@ -724,58 +831,87 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               </>
                             )}
                           </div>
+                          {/* Monthly stats — full StatChip grid matching insights-desk */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly stats</p>
-                            {monL ? <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">{[1, 2, 3, 4].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
+                            {monL ? <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
                             : !ms ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No stats for this month.</p>
                             : (
                               <>
+                                {/* Row 1: Working Days · Total Hours · Avg Daily · On-Time % */}
                                 <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                                  {[
-                                    ["Present / days", `${ms.presentDays ?? 0} / ${ms.totalWorkingDays ?? 0}`],
-                                    ["On-time", `${ms.onTimePercentage ?? 0}%`],
-                                    ["Total hours", `${ms.totalWorkingHours ?? 0}h`],
-                                    ["Avg / day", `${ms.averageDailyHours ?? 0}h`],
-                                  ].map(([k, v]) => (
-                                    <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                      <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
+                                  {(
+                                    [
+                                      ["Working Days", `${ms.presentDays ?? 0} / ${ms.totalWorkingDays ?? 0}`, "var(--green)"],
+                                      ["Total Hours", `${Math.round(ms.totalWorkingHours ?? 0)}h`, "var(--teal)"],
+                                      ["Avg Daily", `${(ms.averageDailyHours ?? 0).toFixed(1)}h`, "var(--primary)"],
+                                      ["On-Time %", `${Math.round(ms.onTimePercentage ?? 0)}%`, (ms.onTimePercentage ?? 0) >= 80 ? "var(--green)" : "var(--amber)"],
+                                    ] as const
+                                  ).map(([k, v, c]) => (
+                                    <div key={k} className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                      <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
                                       <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                     </div>
                                   ))}
                                 </div>
+                                {/* Row 2: Attendance · Absent · Office / Remote */}
+                                <div className="mt-2 grid grid-cols-3 gap-2">
+                                  <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.attendancePercentage ?? 0) >= 90 ? "var(--green)" : "var(--rose)" }}>Attendance</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{Math.round(ms.attendancePercentage ?? 0)}%</p>
+                                  </div>
+                                  <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.absentDays ?? 0) > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>Absent</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.absentDays ?? 0}d</p>
+                                  </div>
+                                  <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--teal)" }}>Office / Remote</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{Math.round(ms.totalOfficeHours ?? 0)}h / {Math.round(ms.totalRemoteHours ?? 0)}h</p>
+                                  </div>
+                                </div>
+                                {/* Row 3: On-Time Arrivals · Late Arrivals */}
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                  <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>On-Time Arrivals</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.onTimeArrivals ?? 0}</p>
+                                  </div>
+                                  <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.lateArrivals ?? 0) > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>Late Arrivals</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.lateArrivals ?? 0}</p>
+                                  </div>
+                                </div>
+                                {/* Row 4: Avg Office In · Avg Office Out */}
+                                {(ms.averageOfficeInTime || ms.averageOfficeOutTime) && (
+                                  <div className="mt-2 grid grid-cols-2 gap-2">
+                                    {ms.averageOfficeInTime && (
+                                      <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg Office In</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeInTime}</p>
+                                      </div>
+                                    )}
+                                    {ms.averageOfficeOutTime && (
+                                      <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg Office Out</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeOutTime}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {/* Office / Remote bar */}
                                 <div className="mt-3 space-y-1">
                                   <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-secondary)" }}>
-                                    <span>Office / remote</span>
-                                    <span className="tabular-nums">{ms.totalOfficeHours ?? 0}h · {ms.totalRemoteHours ?? 0}h</span>
+                                    <span>Office / remote split</span>
+                                    <span className="tabular-nums">{Math.round(ms.totalOfficeHours ?? 0)}h · {Math.round(ms.totalRemoteHours ?? 0)}h</span>
                                   </div>
                                   <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
                                     <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${offPct}%` }} transition={{ duration: 0.5, ease }} />
                                     <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${100 - offPct}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />
                                   </div>
                                 </div>
-                                <div className="mt-3 flex flex-wrap gap-1.5">
-                                  {overviewAttendancePct != null && (
-                                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Attendance {overviewAttendancePct}%</span>
-                                  )}
-                                  {ms.averageOfficeInTime && (
-                                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Avg in {ms.averageOfficeInTime}</span>
-                                  )}
-                                  {ms.averageOfficeOutTime && (
-                                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Avg out {ms.averageOfficeOutTime}</span>
-                                  )}
-                                  {typeof ms.lateArrivals === "number" && (
-                                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>Late {ms.lateArrivals}</span>
-                                  )}
-                                  {typeof ms.absentDays === "number" && (
-                                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>Absent {ms.absentDays}</span>
-                                  )}
-                                  {typeof ms.onTimeArrivals === "number" && (
-                                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>On-time arr. {ms.onTimeArrivals}</span>
-                                  )}
-                                </div>
                               </>
                             )}
                           </div>
+                          {/* Personal insights */}
                           {!dayL && personalInsights && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal insights</p>
@@ -793,6 +929,30 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {personalInsights.officeOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.officeOnlyDays} office-only</span>}
                                 {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
                               </div>
+                            </div>
+                          )}
+                          {/* Leave balance — matching insights-desk */}
+                          {canViewLeaves && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leave balance</p>
+                              {balL ? <Sh c="h-10 rounded-lg" />
+                              : !leaveBalance ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Leave balance unavailable.</p>
+                              : (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold" style={{ color: leaveBalance.remaining > 0 ? "var(--teal)" : "var(--rose)" }}>
+                                      {leaveBalance.remaining} / {leaveBalance.total} left
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                                    <motion.div className="h-full rounded-full" style={{ background: leaveBalance.total > 0 && (leaveBalance.used / leaveBalance.total) > 0.8 ? "var(--rose)" : "var(--teal)" }} initial={{ width: 0 }} animate={{ width: leaveBalance.total > 0 ? `${Math.round((leaveBalance.used / leaveBalance.total) * 100)}%` : "0%" }} transition={{ duration: 0.6 }} />
+                                  </div>
+                                  <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                                    <span>{leaveBalance.used} used</span>
+                                    <span>{leaveBalance.remaining} remaining</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
