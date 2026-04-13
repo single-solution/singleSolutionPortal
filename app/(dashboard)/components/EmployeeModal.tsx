@@ -17,12 +17,6 @@ import {
 } from "@/lib/schedule";
 
 /* ─── types ─── */
-interface DropdownEmp {
-  _id: string;
-  about?: { firstName?: string; lastName?: string };
-  email?: string;
-  department?: { id: string; title: string } | null;
-}
 interface EmployeeDoc {
   _id: string;
   email: string;
@@ -97,11 +91,6 @@ interface CampaignRow {
   _id: string;
   tags?: { employees?: ({ _id?: string } | string)[] };
 }
-interface DeptGroup {
-  id: string;
-  title: string;
-  employees: DropdownEmp[];
-}
 type TabId = "overview" | "attendance" | "payroll" | "leaves" | "profile";
 interface Props {
   open: boolean;
@@ -122,12 +111,6 @@ function todayStrKarachi() {
 }
 function initials(first: string, last: string) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
-}
-function nameOf(e: DropdownEmp) {
-  return [e.about?.firstName, e.about?.lastName].filter(Boolean).join(" ") || e.email || "Employee";
-}
-function initialsDropdown(e: DropdownEmp) {
-  return ((e.about?.firstName?.[0] ?? "") + (e.about?.lastName?.[0] ?? "")).toUpperCase() || "?";
 }
 function formatMinutes(mins: number) {
   const h = Math.floor(mins / 60),
@@ -178,10 +161,7 @@ function ProfRow({ k, v }: { k: string; v: ReactNode }) {
 export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const { data: session } = useSession();
   const { can: canPerm, isSuperAdmin: viewerIsSuperAdmin } = usePermissions();
-  const canViewTeam = canPerm("employees_view");
-  const [employees, setEmployees] = useState<DropdownEmp[]>([]);
   const [userId, setUserId] = useState("");
-  const [sidebarSearch, setSidebarSearch] = useState("");
   const [tab, setTab] = useState<TabId>("overview");
   const n = new Date();
   const [calYear, setCalYear] = useState(n.getFullYear());
@@ -195,14 +175,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     if (!open) return;
     if (initialEmployeeId) setUserId(initialEmployeeId);
     else if (!viewerIsSuperAdmin) setUserId("");
+    setTab("overview");
   }, [open, initialEmployeeId, viewerIsSuperAdmin]);
-  useEffect(() => {
-    if (!open || !canViewTeam) return;
-    fetch("/api/employees/dropdown")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setEmployees(Array.isArray(d) ? d : []))
-      .catch(() => {});
-  }, [open, canViewTeam]);
 
   const effectiveId = useMemo(() => {
     if (viewerIsSuperAdmin && !userId) return null;
@@ -286,40 +260,15 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     ).length;
   }, [campRaw, effectiveId]);
 
-  const filtered = useMemo(() => {
-    if (!sidebarSearch.trim()) return employees;
-    const q = sidebarSearch.toLowerCase();
-    return employees.filter(
-      (e) => nameOf(e).toLowerCase().includes(q) || (e.department?.title ?? "").toLowerCase().includes(q),
-    );
-  }, [employees, sidebarSearch]);
-  const deptGroups = useMemo(() => {
-    const g = new Map<string, DeptGroup>(),
-      u: DropdownEmp[] = [];
-    for (const e of filtered) {
-      if (e.department) {
-        const x = g.get(e.department.id);
-        if (x) x.employees.push(e);
-        else g.set(e.department.id, { id: e.department.id, title: e.department.title, employees: [e] });
-      } else u.push(e);
-    }
-    const out = [...g.values()].sort((a, b) => a.title.localeCompare(b.title));
-    if (u.length) out.push({ id: "__none", title: "Unassigned", employees: u });
-    for (const d of out) d.employees.sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
-    return out;
-  }, [filtered]);
-  const selDrop = useMemo(() => (userId ? employees.find((e) => e._id === userId) : undefined), [employees, userId]);
   const targetSA = employee?.isSuperAdmin === true;
   const canEdit = isOwn || (canPerm("employees_edit") && (!targetSA || viewerIsSuperAdmin));
   const displayName = employee
     ? [employee.about?.firstName, employee.about?.lastName].filter(Boolean).join(" ") || employee.email || "Employee"
-    : selDrop
-      ? nameOf(selDrop)
-      : "Employee";
+    : "Employee";
   const parts = displayName.trim().split(/\s+/);
   const fn = employee?.about?.firstName ?? parts[0] ?? "Employee";
   const ln = employee?.about?.lastName ?? parts.slice(1).join(" ");
-  const deptTitle = employee?.department?.title ?? selDrop?.department?.title ?? "";
+  const deptTitle = employee?.department?.title ?? "";
   const tm = sess?.todayMinutes ?? 0;
   const hasAct = !!sess?.activeSession && sess.activeSession.status === "active";
   const inOff = sess?.activeSession?.location?.inOffice ?? false;
@@ -350,17 +299,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     ms && (ms.totalOfficeHours ?? 0) + (ms.totalRemoteHours ?? 0) > 0
       ? ((ms.totalOfficeHours ?? 0) / ((ms.totalOfficeHours ?? 0) + (ms.totalRemoteHours ?? 0))) * 100
       : 0;
-  const selfExempt = viewerIsSuperAdmin && !userId;
-  const showSb = canViewTeam && employees.length > 0;
-
   useEffect(() => {
     detailRef.current && (detailRef.current.scrollTop = 0);
   }, [userId, effectiveId]);
   const editSlug = employee?.username || id.slice(-6);
   const onEdit = useCallback(() => onClose(), [onClose]);
-
-  const inp = "w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none focus:border-[var(--primary)]";
-  const ib = { background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg)" } as const;
 
   return (
     <Portal>
@@ -374,7 +317,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-4 flex w-full flex-col overflow-hidden rounded-2xl border shadow-xl ${showSb ? "h-[80vh] max-w-6xl" : "h-[80vh] max-w-3xl"}`}
+              className="relative mx-4 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-xl h-[80vh]"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -382,139 +325,93 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
-                <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>
-                  Employee
-                </h2>
-                <button type="button" onClick={onClose} className="rounded-lg p-1.5 hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }}>
+              {/* Header: avatar + name + close */}
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-3" style={{ borderColor: "var(--border)" }}>
+                {!effectiveId ? (
+                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Employee</h2>
+                ) : (
+                  <div className="flex min-w-0 items-center gap-3">
+                    {employee?.about?.profileImage ? (
+                      <img src={employee.about.profileImage} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover shadow" />
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow" style={{ background: id ? avatarColor(id) : "var(--primary)" }}>
+                        {empL ? <span className="opacity-60">…</span> : initials(fn, ln)}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-sm font-bold" style={{ color: "var(--fg)" }}>{displayName}</h3>
+                        {canEdit && editSlug && (
+                          <Link href={`/employee/${editSlug}/edit`} onClick={onEdit} className="shrink-0 text-[11px] font-semibold hover:underline" style={{ color: "var(--primary)" }}>Edit</Link>
+                        )}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="badge inline-flex items-center gap-1 text-[9px]" style={{ background: `color-mix(in srgb, ${stCol} 9%, transparent)`, color: stCol, border: `1px solid color-mix(in srgb, ${stCol} 35%, transparent)` }}>
+                          {hasAct && (
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: stCol }} />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: stCol }} />
+                            </span>
+                          )}
+                          {stLabel}
+                        </span>
+                        {deptTitle ? <span className="badge text-[9px]" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{deptTitle}</span> : null}
+                        <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{memL ? "…" : designation}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <button type="button" onClick={onClose} className="shrink-0 rounded-lg p-1.5 hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
                   </svg>
                 </button>
               </div>
-              <div className="flex flex-1 overflow-hidden">
-                {showSb && (
-                  <div className="flex min-w-[260px] max-w-[260px] flex-col border-r" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-                    <div className="border-b p-3" style={{ borderColor: "var(--border)" }}>
-                      <div className="relative">
-                        <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <circle cx="11" cy="11" r="8" />
-                          <path strokeLinecap="round" d="m21 21-4.35-4.35" />
-                        </svg>
-                        <input type="text" value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search employees…" className={inp} style={ib} />
-                      </div>
-                    </div>
-                    <div className="flex-1 overflow-y-auto py-1.5" style={{ scrollbarWidth: "thin" }}>
-                      {!viewerIsSuperAdmin && !sidebarSearch && (
+
+              {/* Body: sidebar nav + content */}
+              <div className="flex min-h-0 flex-1 overflow-hidden">
+                {/* Sidebar navigation */}
+                {effectiveId && (
+                  <nav className="flex w-[180px] shrink-0 flex-col gap-0.5 border-r py-3 px-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }} aria-label="Employee sections">
+                    {(
+                      [
+                        ["overview", "Overview", "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"],
+                        ["attendance", "Attendance", "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"],
+                        ...(canViewPayroll ? [["payroll", "Payroll", "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"]] : []),
+                        ...(canViewLeaves ? [["leaves", "Leaves", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"]] : []),
+                        ["profile", "Profile", "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"],
+                      ] as [string, string, string][]
+                    ).map(([tid, lab, icon]) => {
+                      const act = tab === tid;
+                      return (
                         <button
+                          key={tid}
                           type="button"
-                          onClick={() => setUserId("")}
-                          className="flex w-full items-center gap-2.5 px-3 py-2 text-left"
-                          style={{ background: !userId ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
+                          onClick={() => setTab(tid as TabId)}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors"
+                          style={{
+                            background: act ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent",
+                            color: act ? "var(--primary)" : "var(--fg-secondary)",
+                          }}
                         >
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: "var(--green)" }}>ME</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-semibold" style={{ color: !userId ? "var(--primary)" : "var(--fg)" }}>Yourself</p>
-                            <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Your profile</p>
-                          </div>
-                          {!userId && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+                          </svg>
+                          {lab}
                         </button>
-                      )}
-                      {!sidebarSearch && employees.length > 1 && <div className="mx-3 my-1 border-b" style={{ borderColor: "var(--border)" }} />}
-                      {deptGroups.map((g) => (
-                        <div key={g.id}>
-                          <div className="flex items-center gap-2 px-3 py-1.5">
-                            <svg className="h-3 w-3 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            <span className="truncate text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{g.title}</span>
-                            <span className="ml-auto text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{g.employees.length}</span>
-                          </div>
-                          {g.employees.map((emp) => {
-                            const sel = userId === emp._id;
-                            return (
-                              <button key={emp._id} type="button" onClick={() => setUserId(emp._id)} className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left" style={{ background: sel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}>
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initialsDropdown(emp)}</span>
-                                <span className="min-w-0 flex-1 truncate text-xs font-medium" style={{ color: sel ? "var(--primary)" : "var(--fg)" }}>{nameOf(emp)}</span>
-                                {sel && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ))}
-                      {!filtered.length && sidebarSearch && <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>}
-                    </div>
-                    <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{employees.length} employee{employees.length !== 1 ? "s" : ""}</p>
-                    </div>
-                  </div>
+                      );
+                    })}
+                  </nav>
                 )}
+
+                {/* Content */}
                 <div ref={detailRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
-                  {selfExempt ? (
-                    <div className="flex flex-col items-center py-16">
-                      <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>Select an employee</p>
-                      <p className="mt-1 text-xs" style={{ color: "var(--fg-tertiary)" }}>Choose from the sidebar</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)", background: "var(--bg-grouped)" }}>
-                        <div className="flex min-w-0 items-center gap-3">
-                          {employee?.about?.profileImage ? (
-                            <img src={employee.about.profileImage} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover shadow-md" />
-                          ) : (
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-white shadow-md" style={{ background: id ? avatarColor(id) : "var(--primary)" }}>
-                              {empL ? <span className="opacity-60">…</span> : initials(fn, ln)}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <h3 className="truncate text-base font-bold" style={{ color: "var(--fg)" }}>{displayName}</h3>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <span className="badge inline-flex items-center gap-1 text-[10px]" style={{ background: `color-mix(in srgb, ${stCol} 9%, transparent)`, color: stCol, border: `1px solid color-mix(in srgb, ${stCol} 35%, transparent)` }}>
-                                {hasAct && (
-                                  <span className="relative flex h-1.5 w-1.5">
-                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: stCol }} />
-                                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: stCol }} />
-                                  </span>
-                                )}
-                                {stLabel}
-                              </span>
-                              {deptTitle ? <span className="badge text-[10px]" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{deptTitle}</span> : null}
-                              <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{memL ? "…" : designation}</span>
-                            </div>
-                          </div>
-                        </div>
-                        {canEdit && editSlug && (
-                          <Link href={`/employee/${editSlug}/edit`} onClick={onEdit} className="shrink-0 text-xs font-semibold hover:underline" style={{ color: "var(--primary)" }}>Edit</Link>
-                        )}
-                      </div>
-                      <nav className="flex flex-wrap gap-2" aria-label="Employee sections">
-                        {(
-                          [
-                            ["overview", "Overview"],
-                            ["attendance", "Attendance"],
-                            ...(canViewPayroll ? [["payroll", "Payroll"]] : []),
-                            ...(canViewLeaves ? [["leaves", "Leaves"]] : []),
-                            ["profile", "Profile"],
-                          ] as [string, string][]
-                        ).map(([tid, lab]) => {
-                          const act = tab === tid;
-                          return (
-                            <button
-                              key={tid}
-                              type="button"
-                              onClick={() => setTab(tid as TabId)}
-                              className="rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
-                              style={{
-                                background: act ? "var(--primary)" : "var(--bg-grouped)",
-                                color: act ? "#fff" : "var(--fg-secondary)",
-                                boxShadow: act ? "var(--shadow-sm)" : "none",
-                              }}
-                            >
-                              {lab}
-                            </button>
-                          );
-                        })}
-                      </nav>
+                {!effectiveId ? (
+                  <div className="flex flex-col items-center py-16">
+                    <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>No employee selected</p>
+                  </div>
+                ) : (
+                  <>
 
                       {tab === "overview" && (
                         <div className="space-y-3">
