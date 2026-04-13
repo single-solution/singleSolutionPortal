@@ -76,12 +76,14 @@ export function WelcomeGuide({ userName, onComplete }: WelcomeGuideProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        onClick={onComplete}
       >
         <motion.div
           className="relative w-full max-w-md overflow-hidden rounded-2xl border"
           style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", boxShadow: "var(--shadow-xl, 0 25px 50px -12px rgba(0,0,0,.25))" }}
           initial={{ scale: 0.92, y: 20, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
+          onClick={(e) => e.stopPropagation()}
           exit={{ scale: 0.92, y: 20, opacity: 0 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
         >

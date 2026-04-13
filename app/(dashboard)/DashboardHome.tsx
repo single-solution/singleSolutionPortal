@@ -599,6 +599,10 @@ function AdminDashboard({
   const canViewLogs = canPerm("activityLogs_view");
   const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=30" : null, "dash-activity");
   const { data: lastSeenPayload } = useQuery<{ lastSeenLogId: string | null }>(canViewLogs ? "/api/user/last-seen" : null, "dash-lastseen");
+  const { data: flagsPayload } = useQuery<{ flags: { _id: string; severity: string; acknowledged: boolean; createdAt: string }[]; total: number }>(
+    hasTeamAccess ? "/api/location-flags?limit=200" : null,
+    "dash-flags",
+  );
   const logs: LogEntry[] = useMemo(() => logsPayload?.logs ?? [], [logsPayload]);
 
   const lastSeenLogIdRef = useRef<string | null>(null);
@@ -670,6 +674,52 @@ function AdminDashboard({
       });
   }, [otherEmps, presenceFilter]);
 
+  const teamTodayStats = useMemo(() => {
+    const total = otherEmps.length;
+    if (!total) return null;
+    const present = otherEmps.filter((e) => e.status !== "absent").length;
+    const inOffice = otherEmps.filter((e) => e.status === "office" || e.status === "overtime").length;
+    const late = otherEmps.filter((e) => e.status === "late").length;
+    const flagged = otherEmps.filter((e) => e.locationFlagged).length;
+    const avgMins = total > 0 ? Math.round(otherEmps.reduce((s, e) => s + e.todayMinutes, 0) / total) : 0;
+    const officeMins = otherEmps.reduce((s, e) => s + e.officeMinutes, 0);
+    const remoteMins = otherEmps.reduce((s, e) => s + e.remoteMinutes, 0);
+    const totalWorkMins = officeMins + remoteMins;
+    const officePct = totalWorkMins > 0 ? Math.round((officeMins / totalWorkMins) * 100) : 0;
+    const pctPresent = total > 0 ? Math.round((present / total) * 100) : 0;
+    const pctInOffice = present > 0 ? Math.round((inOffice / present) * 100) : 0;
+    const pctLate = total > 0 ? Math.round((late / total) * 100) : 0;
+    return { total, present, inOffice, late, flagged, avgMins, officePct, pctPresent, pctInOffice, pctLate };
+  }, [otherEmps]);
+
+  const taskQuickStats = useMemo(() => {
+    if (!tasks.length) return null;
+    const total = tasks.length;
+    const pending = tasks.filter((t) => t.status === "pending").length;
+    const inProg = tasks.filter((t) => t.status === "inProgress").length;
+    const now = Date.now();
+    const dueSoon = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() - now < 48 * 3600_000 && new Date(t.deadline).getTime() > now).length;
+    const dueThisWeek = tasks.filter((t) => {
+      if (!t.deadline || t.status === "completed") return false;
+      const dl = new Date(t.deadline).getTime();
+      const end = now + 7 * 86400_000;
+      return dl > now && dl <= end;
+    }).length;
+    const overdue = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() < now).length;
+    const overdueHU = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() < now && (t.priority === "high" || t.priority === "urgent")).length;
+    const overdue7d = tasks.filter((t) => t.deadline && t.status !== "completed" && (now - new Date(t.deadline).getTime()) > 7 * 86400_000).length;
+    return { total, pending, inProg, dueSoon, dueThisWeek, overdue, overdueHU, overdue7d };
+  }, [tasks]);
+
+  const flagStats = useMemo(() => {
+    const flags = flagsPayload?.flags ?? [];
+    if (!flags.length) return null;
+    const total = flags.length;
+    const warnings = flags.filter((f) => f.severity === "warning").length;
+    const violations = flags.filter((f) => f.severity === "violation").length;
+    return { total, warnings, violations };
+  }, [flagsPayload]);
+
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const liveCount = otherEmps.filter((e) => e.isLive).length;
 
@@ -738,6 +788,34 @@ function AdminDashboard({
             </LayoutGroup>
           )}
         </div>
+          {hasTeamAccess && teamTodayStats && !presenceLoading && (
+            <div className="mb-3 flex shrink-0 flex-wrap gap-1.5">
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>{teamTodayStats.pctInOffice}% in-office</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>avg {formatMinutes(teamTodayStats.avgMins)}</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.officePct}% office / {100 - teamTodayStats.officePct}% remote</span>
+              {teamTodayStats.pctLate > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.pctLate}% late</span>}
+              {teamTodayStats.flagged > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.flagged} flagged</span>}
+              {flagStats && flagStats.total > 0 && (
+                <>
+                  <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.total} flags</span>
+                  {flagStats.warnings > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{flagStats.warnings} warnings</span>}
+                  {flagStats.violations > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.violations} violations</span>}
+                </>
+              )}
+            </div>
+          )}
+          {canViewTasks && taskQuickStats && (
+            <div className="mb-3 flex shrink-0 flex-wrap gap-1.5">
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskQuickStats.total} tasks</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskQuickStats.pending} pending</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{taskQuickStats.inProg} in progress</span>
+              {taskQuickStats.dueSoon > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskQuickStats.dueSoon} due soon</span>}
+              {taskQuickStats.dueThisWeek > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskQuickStats.dueThisWeek} due this week</span>}
+              {taskQuickStats.overdueHU > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskQuickStats.overdueHU} overdue high/urgent</span>}
+              {taskQuickStats.overdue7d > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskQuickStats.overdue7d} overdue 7d+</span>}
+            </div>
+          )}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {presenceLoading && filteredPresence.length === 0 ? (
               <div className="grid grid-cols-2 gap-3">
@@ -922,6 +1000,53 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
   const profileName = userProfile?.firstName ?? user.firstName;
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
 
+  const weeklyInsights = useMemo(() => {
+    if (!weeklyRecords.length) return null;
+    const present = weeklyRecords.filter((d) => d.isPresent);
+    if (!present.length) return null;
+    const best = present.reduce((a, b) => (b.totalMinutes > a.totalMinutes ? b : a));
+    const worst = present.reduce((a, b) => (b.totalMinutes < a.totalMinutes ? b : a));
+    const bestDay = new Date(best.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+    const worstDay = new Date(worst.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+    const onTimeStreak = (() => {
+      let streak = 0;
+      for (let i = weeklyRecords.length - 1; i >= 0; i--) {
+        if (weeklyRecords[i].isPresent && weeklyRecords[i].isOnTime) streak++;
+        else break;
+      }
+      return streak;
+    })();
+    const presentStreak = (() => {
+      let streak = 0;
+      for (let i = weeklyRecords.length - 1; i >= 0; i--) {
+        if (weeklyRecords[i].isPresent) streak++;
+        else break;
+      }
+      return streak;
+    })();
+    return { bestDay, bestMins: best.totalMinutes, worstDay, worstMins: worst.totalMinutes, onTimeStreak, presentStreak };
+  }, [weeklyRecords]);
+
+  const isDayOff = useMemo(() => {
+    if (!userProfile?.weeklySchedule) return false;
+    const rec = userProfile as unknown as Record<string, unknown>;
+    const schedule = resolveWeeklySchedule(rec);
+    const todayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][new Date().getDay()];
+    return !schedule[todayKey as keyof typeof schedule]?.isWorking;
+  }, [userProfile]);
+
+  const taskStats = useMemo(() => {
+    if (!tasks.length) return null;
+    const total = tasks.length;
+    const pending = tasks.filter((t) => t.status === "pending").length;
+    const inProg = tasks.filter((t) => t.status === "inProgress").length;
+    const now = Date.now();
+    const dueSoon = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() - now < 48 * 3600_000 && new Date(t.deadline).getTime() > now).length;
+    const overdue7d = tasks.filter((t) => t.deadline && t.status !== "completed" && (now - new Date(t.deadline).getTime()) > 7 * 86400_000).length;
+    const overdueHU = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() < now && (t.priority === "high" || t.priority === "urgent")).length;
+    return { total, pending, inProg, dueSoon, overdue7d, overdueHU };
+  }, [tasks]);
+
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 1_000); return () => window.clearInterval(id); }, []);
 
@@ -945,6 +1070,17 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               </motion.div>
         </header>
 
+        {taskStats && (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskStats.total} tasks</span>
+            <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.pending} pending</span>
+            <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{taskStats.inProg} in progress</span>
+            {taskStats.dueSoon > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.dueSoon} due soon</span>}
+            {taskStats.overdueHU > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskStats.overdueHU} overdue high/urgent</span>}
+            {taskStats.overdue7d > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskStats.overdue7d} overdue 7d+</span>}
+          </div>
+        )}
+
         {/* Self overview + Activity timeline */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} companyTz={companyTz} />
@@ -954,6 +1090,15 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         {/* Weekly overview — horizontal scroll strip */}
         <section className="space-y-3">
           <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-section-header">Weekly overview</motion.h3>
+          {weeklyInsights && (
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>Best: {weeklyInsights.bestDay} ({formatMinutes(weeklyInsights.bestMins)})</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-tertiary)" }}>Least: {weeklyInsights.worstDay} ({formatMinutes(weeklyInsights.worstMins)})</span>
+              {weeklyInsights.onTimeStreak > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>{weeklyInsights.onTimeStreak}d on-time streak</span>}
+              {weeklyInsights.presentStreak > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{weeklyInsights.presentStreak}d present streak</span>}
+              {isDayOff && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>Day off today</span>}
+            </div>
+          )}
           <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
             {weeklyRecords.length === 0 ? (
               [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)

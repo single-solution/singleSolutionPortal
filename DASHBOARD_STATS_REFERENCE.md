@@ -97,11 +97,11 @@ Each stat is marked with its implementation status and location(s).
 | 60 | Total late minutes this week | [~] | Dashboard-only |
 | 61 | Weekly hours total | [~] | Dashboard-only |
 | 62 | Weekly average daily hours | [~] | Dashboard-only |
-| 63 | Best day this week (most hours) | [~] | Dashboard-only |
-| 64 | Worst day this week (least hours) | [~] | Dashboard-only |
+| 63 | Best day this week (most hours) | [x] | `DashboardHome.tsx` (OtherRoleOverview pill "Best: Day (Xh)") |
+| 64 | Worst day this week (least hours) | [x] | `DashboardHome.tsx` (OtherRoleOverview pill "Least: Day (Xh)") |
 | 65 | Week-over-week change in total hours | [~] | Dashboard-only |
-| 66 | Streak: consecutive on-time days | [~] | Dashboard-only |
-| 67 | Streak: consecutive present days | [~] | Dashboard-only |
+| 66 | Streak: consecutive on-time days | [x] | `DashboardHome.tsx` (OtherRoleOverview pill "Nd on-time streak") |
+| 67 | Streak: consecutive present days | [x] | `DashboardHome.tsx` (OtherRoleOverview pill "Nd present streak") |
 
 ## 4. Attendance — Team/Org Today (Admin)
 
@@ -114,12 +114,12 @@ Each stat is marked with its implementation status and location(s).
 | 72 | Overtime count today | [~] | Dashboard-only |
 | 73 | Absent count today | [x] | `DashboardHome.tsx` (WelcomeHeader badge) |
 | 74 | Live (active session) count | [x] | `DashboardHome.tsx` ("N live") |
-| 75 | Location-flagged count today | [~] | Dashboard-only |
-| 76 | Avg team working minutes today | [~] | Dashboard-only |
-| 77 | Team office vs remote split today | [~] | Dashboard-only |
-| 78 | % of team present today | [x] | `insights-desk/attendance/page.tsx` (team-date pill "N% present") |
-| 79 | % of team in-office today | [~] | Dashboard-only |
-| 80 | % of team late today | [~] | Dashboard-only |
+| 75 | Location-flagged count today | [x] | `DashboardHome.tsx` (AdminDashboard pill "N flagged") |
+| 76 | Avg team working minutes today | [x] | `DashboardHome.tsx` (AdminDashboard pill "avg Xh Ym") |
+| 77 | Team office vs remote split today | [x] | `DashboardHome.tsx` (AdminDashboard pill "N% office / N% remote") |
+| 78 | % of team present today | [x] | `insights-desk/attendance/page.tsx` (team-date pill), `DashboardHome.tsx` (AdminDashboard pill "N% present") |
+| 79 | % of team in-office today | [x] | `DashboardHome.tsx` (AdminDashboard pill "N% in-office") |
+| 80 | % of team late today | [x] | `DashboardHome.tsx` (AdminDashboard pill "N% late") |
 | 81 | First employee to arrive today | [~] | Dashboard-only |
 | 82 | Last employee to arrive today | [~] | Dashboard-only |
 | 83 | Employee with most hours today | [x] | `insights-desk/attendance/page.tsx` (team-date pill "Most: Name (Xh)") |
@@ -198,13 +198,13 @@ Each stat is marked with its implementation status and location(s).
 
 | # | Stat | Status | Location(s) |
 |---|------|--------|-------------|
-| 133 | Total tasks | [x] | `workspace/page.tsx`, `tasks/page.tsx` |
+| 133 | Total tasks | [x] | `workspace/page.tsx`, `tasks/page.tsx`, `DashboardHome.tsx` (pill "N tasks") |
 | 134 | Pending tasks | [x] | `workspace/page.tsx`, `tasks/page.tsx`, `DashboardHome.tsx` |
-| 135 | In-progress tasks | [x] | `workspace/page.tsx`, `tasks/page.tsx` |
+| 135 | In-progress tasks | [x] | `workspace/page.tsx`, `tasks/page.tsx`, `DashboardHome.tsx` (pill "N in progress") |
 | 136 | Completed tasks | [x] | `workspace/page.tsx`, `tasks/page.tsx` (count + strip pill) |
 | 137 | Overdue tasks | [x] | `workspace/page.tsx` (insights strip), `tasks/page.tsx` (strip) |
-| 138 | Due soon tasks (within 48h) | [x] | `workspace/page.tsx` (strip), `tasks/page.tsx` (strip) |
-| 139 | Due this week | [x] | `workspace/page.tsx` (strip), `tasks/page.tsx` (strip) |
+| 138 | Due soon tasks (within 48h) | [x] | `workspace/page.tsx` (strip), `tasks/page.tsx` (strip), `DashboardHome.tsx` (pill "N due soon") |
+| 139 | Due this week | [x] | `workspace/page.tsx` (strip), `tasks/page.tsx` (strip), `DashboardHome.tsx` (pill "N due this week") |
 | 140 | No deadline set | [x] | `workspace/page.tsx` (strip), `tasks/page.tsx` (strip) |
 | 141 | Completion rate % | [x] | `workspace/page.tsx` (header + strip), `tasks/page.tsx` (header) |
 | 142 | Average time to complete a task | [~] | Needs completed-date field |
@@ -225,7 +225,7 @@ Each stat is marked with its implementation status and location(s).
 | 152 | Urgent priority count | [x] | `workspace/page.tsx` (strip pill "U:N"), `tasks/page.tsx` |
 | 153 | High + urgent combined count | [x] | `workspace/page.tsx` (strip "N high/urgent"), `tasks/page.tsx` |
 | 154 | % of tasks that are high/urgent | [x] | Derivable from #153 / #133 (both shown) |
-| 155 | Overdue high/urgent tasks | [x] | `workspace/page.tsx` (strip pill "N overdue high/urgent") |
+| 155 | Overdue high/urgent tasks | [x] | `workspace/page.tsx` (strip pill), `DashboardHome.tsx` (pill "N overdue high/urgent") |
 
 ## 10. Tasks — Assignment & Ownership
 
@@ -515,9 +515,9 @@ Each stat is marked with its implementation status and location(s).
 
 | # | Stat | Status | Location(s) |
 |---|------|--------|-------------|
-| 347 | Total location flags | [~] | Needs location flags page |
-| 348 | Warning count | [~] | Needs location flags page |
-| 349 | Violation count | [~] | Needs location flags page |
+| 347 | Total location flags | [x] | `DashboardHome.tsx` (AdminDashboard pill "N flags") |
+| 348 | Warning count | [x] | `DashboardHome.tsx` (AdminDashboard pill "N warnings") |
+| 349 | Violation count | [x] | `DashboardHome.tsx` (AdminDashboard pill "N violations") |
 | 350 | Acknowledged vs unacknowledged | [~] | Needs location flags page |
 | 351 | Flags per employee | [~] | Needs location flags page |
 | 352 | Flag reasons breakdown | [~] | Needs location flags page |
@@ -564,7 +564,7 @@ Each stat is marked with its implementation status and location(s).
 | 378 | Total shift hours today | [x] | `DashboardHome.tsx` |
 | 379 | Net working hours (minus break) | [~] | Dashboard-only |
 | 380 | Grace minutes | [~] | Dashboard-only |
-| 381 | Is today a day off? | [~] | Dashboard-only |
+| 381 | Is today a day off? | [x] | `DashboardHome.tsx` (OtherRoleOverview pill "Day off today") |
 | 382 | Shift type label | [x] | `employees/page.tsx` (shiftSummaryLine) |
 | 383 | Days until next day off | [~] | Dashboard-only |
 | 384 | Working days this week | [x] | `employees/page.tsx` (shiftSummaryLine) |
@@ -763,7 +763,7 @@ Each stat is marked with its implementation status and location(s).
 | 481 | Employees below 70% attendance | [x] | `insights-desk/attendance/page.tsx` (Insights "Below 70%") |
 | 482 | Employees with 3+ late days this week | [~] | Dashboard-only |
 | 483 | Employees with 3+ flags this month | [~] | Needs location flags page |
-| 484 | Tasks overdue by 7+ days | [~] | Dashboard-only |
+| 484 | Tasks overdue by 7+ days | [x] | `DashboardHome.tsx` (pill "N overdue 7d+") |
 | 485 | Campaigns with <50% completion nearing deadline | [~] | Dashboard-only |
 | 486 | Employees with leave balance <2 days | [~] | Dashboard-only |
 | 487 | Employees with salary unchanged 12+ months | [~] | Needs salary history |
@@ -779,8 +779,8 @@ Each stat is marked with its implementation status and location(s).
 |----------|-------|----------------|---------------------|-----------------|
 | 1. Attendance — Personal Today | 25 | 20 | 5 | 0 |
 | 2. Attendance — Monthly Personal | 35 | 30 | 5 | 0 |
-| 3. Weekly Personal | 13 | 2 | 11 | 0 |
-| 4. Attendance — Team Today | 23 | 14 | 9 | 0 |
+| 3. Weekly Personal | 13 | 6 | 7 | 0 |
+| 4. Attendance — Team Today | 23 | 19 | 4 | 0 |
 | 5. Attendance — Team Monthly | 26 | 22 | 4 | 0 |
 | 6. Attendance — Team Date | 11 | 11 | 0 | 0 |
 | 7. Attendance — Session Detail | 11 | 11 | 0 | 0 |
@@ -799,17 +799,17 @@ Each stat is marked with its implementation status and location(s).
 | 20. Payroll — Team | 33 | 32 | 1 | 0 |
 | 21. Organization / Departments | 27 | 22 | 5 | 0 |
 | 22. Activity Logs | 19 | 3 | 16 | 0 |
-| 23. Location Flags | 15 | 0 | 15 | 0 |
+| 23. Location Flags | 15 | 3 | 12 | 0 |
 | 24. Pings | 6 | 1 | 5 | 0 |
 | 25. Holidays / Calendar | 9 | 7 | 2 | 0 |
-| 26. Schedule / Shift | 9 | 4 | 5 | 0 |
+| 26. Schedule / Shift | 9 | 5 | 4 | 0 |
 | 27. Payroll Config | 5 | 0 | 5 | 0 |
-| 28–44. Cross-Refs & Advanced | 100 | 2 | 98 | 0 |
-| **TOTAL** | **530** | **298** | **232** | **0** |
+| 28–44. Cross-Refs & Advanced | 100 | 3 | 97 | 0 |
+| **TOTAL** | **530** | **312** | **218** | **0** |
 
-### Progress: 147 → 234 → 255 → 298 rendered in UI
+### Progress: 147 → 234 → 255 → 298 → 312 rendered in UI
 
-**This round added 43 new stats** — 3 upgraded from `[~]` to `[x]` (#145, #146, #148 now rendered as pills) + 40 entirely new derivations implemented as pills/tiles:
+**Previous round added 43 new stats** — 3 upgraded from `[~]` to `[x]` (#145, #146, #148 now rendered as pills) + 40 entirely new derivations implemented as pills/tiles:
 
 - **Attendance personal:** 6 new (present streak, max/min hours day, remote-only days, office-only days, on-time streak)
 - **Attendance team aggregate:** 5 new (std dev, best/worst on-time, median hours, late employee count)
@@ -828,7 +828,16 @@ Each stat is marked with its implementation status and location(s).
 - PayrollModal: increased to `max-w-7xl`/`max-w-4xl`, shows static shell (tabs + employee header) immediately while data loads, per-tab shimmer skeletons
 - LeavesModal: increased to `max-w-6xl`/`max-w-3xl`, added loading shimmer for summary tiles
 
-**Remaining `[~]` stats** (232) fall into four groups:
+**Dashboard round added 14 new stats** — all upgraded from `[~]` to `[x]`:
+- **Weekly Personal:** #63 (best day), #64 (worst day), #66 (on-time streak), #67 (present streak) — pills in OtherRoleOverview
+- **Team Today:** #75 (flagged), #76 (avg minutes), #77 (office/remote split), #79 (% in-office), #80 (% late) — pills in AdminDashboard
+- **Location Flags:** #347 (total flags), #348 (warnings), #349 (violations) — pills in AdminDashboard via `/api/location-flags`
+- **Schedule:** #381 (day off indicator) — pill in OtherRoleOverview
+- **Threshold:** #484 (overdue 7d+ tasks) — pill in AdminDashboard & OtherRoleOverview
+- Also added dashboard as additional location for already-rendered: #78, #133, #135, #138, #139, #155
+- **WelcomeGuide modal:** Added click-outside-to-close (backdrop onClick)
+
+**Remaining `[~]` stats** (218) fall into four groups:
 1. **Dashboard-only / cross-domain** (~100) — cross-reference stats needing data from multiple domains (categories 28–44)
 2. **Needs new page** — activity logs audit page, location flags compliance page, team leaves dashboard
 3. **Needs new API** — team leave aggregation, salary history, shift config per user, attendance trend integration
