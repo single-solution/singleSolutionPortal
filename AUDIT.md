@@ -74,6 +74,10 @@ Renders **AdminDashboard** when `canPerm("attendance_viewTeam") || hasSubordinat
 | Refresh button | Icon button | — | Always |
 | "View All →" link | Link → `/workspace` | — | Always |
 | Campaign rows (icon + name + dept pill + people count) | List | — | Has campaigns |
+| Today's recurring task completion fraction (e.g. "3/5 today") | Text (amber/teal) | — | Campaign has recurring tasks due today |
+| One-time task progress bar + "done/total" | Bar + text | — | Campaign has one-time tasks |
+| Inline checklist toggles (per recurring task due today) | Interactive buttons | — | Campaign has today's recurring tasks |
+| Preferred time badge per checklist item | Text (gray) | — | Task has `recurrence.time` set |
 | "No active campaigns" | Empty state | — | No campaigns |
 | Skeleton rows (×3) | Skeleton | — | Loading |
 
@@ -173,6 +177,11 @@ Wraps ALL dashboard pages.
 | "+ Task" button | Primary button | `tasks_create` | Ready |
 | "+ Campaign" button | Outlined button | `campaigns_create` | Ready |
 
+#### Header Stat Pills
+| Element | Type | Permission | Condition |
+|---------|------|-----------|-----------|
+| "N recurring" stat pill (amber) | `HeaderStatPill` | — | Any campaign has recurring tasks |
+
 #### Toolbar
 | Element | Type | Permission | Condition |
 |---------|------|-----------|-----------|
@@ -186,12 +195,32 @@ Wraps ALL dashboard pages.
 | Group card (collapse/expand header) | Card + button | — | Per group |
 | Group label (campaign name / "Unlinked Tasks" / assignee) | Text | — | Per group |
 | Campaign status badge (Active/Paused/Completed/Cancelled) | Badge | — | Has campaign |
-| Campaign progress bar + "done/total" | Bar + text | — | `taskCount > 0` |
+| Today's recurring completion fraction (e.g. "3/5 today") | Text (amber/teal) | — | Campaign has recurring tasks due today |
+| Campaign progress bar + "done/total" | Bar + text | — | Has one-time tasks |
 | Campaign date range | Text | — | Campaign has dates |
+| Expand/collapse accordion button | Icon button (chevron) | — | Has campaign |
 | Edit campaign button | Icon button (pencil) | `campaigns_edit` | Has campaign |
 | Delete campaign button | Icon button (trash) | `campaigns_delete` | Has campaign |
 | Add task to campaign button | Icon button (plus) | `tasks_create` | `groupMode === "campaign"` |
-| "No tasks" / "No tasks in this campaign" | Empty state | — | No tasks in group |
+| "No tasks in this campaign" | Empty state | — | No tasks + no recurring |
+
+#### Accordion Detail (expanded campaign)
+| Element | Type | Permission | Condition |
+|---------|------|-----------|-----------|
+| "Today's Recurring Tasks" heading | Text | — | Campaign has recurring tasks due today |
+| Recurring task checklist toggles (checkbox + title + time badge) | Interactive buttons | — | Per today's recurring task |
+| "Team Compliance (Last 7 Days)" heading | Text | `campaigns_view` | Campaign has recurring tasks |
+| Compliance grid (employees × dates, done/total per cell) | Table | `campaigns_view` | Overview data loaded |
+| One-time tasks grouped by status (Pending/In Progress/Completed) | Sections | — | Campaign has one-time tasks |
+| Per one-time task: expand button, status dot, title, assignee, deadline | Row | — | Per task |
+| Subtask list (nested under expanded task) | List | — | Task expanded |
+| Inline subtask creation input + "Add" button | Input + button | `tasks_create` | Task expanded |
+
+#### Collapsed View (non-accordion)
+| Element | Type | Permission | Condition |
+|---------|------|-----------|-----------|
+| Inline recurring task checklist toggles (compact) | Interactive buttons | — | Today's recurring tasks |
+| One-time task cards (grid) | `TaskCard` grid | — | Has one-time tasks |
 
 #### Task Card (per task)
 | Element | Type | Permission | Condition |
@@ -224,6 +253,9 @@ Wraps ALL dashboard pages.
 | "Campaign" dropdown | Select | — | Campaigns exist |
 | Priority dropdown (Low–Urgent) | Select | — | Always |
 | Deadline date input | Date input | — | Always |
+| Recurrence frequency dropdown (One-time/Daily/Weekly/Bi-weekly/Monthly/Custom) | Select | — | Always |
+| Preferred time input | Time input | — | Recurrence frequency selected |
+| Custom day picker (Sun–Sat toggle buttons) | Toggle buttons (×7) | — | Frequency = "custom" |
 | Status dropdown | Select | — | Edit mode only |
 | Save / Cancel buttons | Buttons | — | Always |
 
@@ -231,11 +263,16 @@ Wraps ALL dashboard pages.
 | Element | Type | Permission | Condition |
 |---------|------|-----------|-----------|
 | "New Campaign" / "Edit Campaign" title | Text | — | Modal open |
-| Name, Description, Status, Budget, Start/End dates | Inputs | — | Always |
+| Name input | Text input | — | Always |
+| Description textarea | Textarea | — | Always |
+| Status dropdown + Budget input | Select + text input | — | Always |
+| Start/End date inputs | Date inputs | — | Always |
 | "Tag Departments" chips | Toggle buttons | `campaigns_tagEntities` | Has departments |
 | "Tag Employees" chips | Toggle buttons | `campaigns_tagEntities` | Has employees |
 | Notes textarea | Textarea | — | Always |
 | Save / Cancel buttons | Buttons | — | Always |
+
+> **Note**: Campaigns no longer have a rigid "type" field. Recurring vs. one-time behavior is determined at the **task level** via the `recurrence` field on each task.
 
 #### Delete Confirmation
 | Element | Type | Permission | Condition |
@@ -1580,10 +1617,13 @@ If you also want to **split** the overloaded keys:
 ### Task & Campaign APIs
 | Route | Methods | Auth Check | Self Access | Subordinate Access | Notes |
 |-------|---------|-----------|------------|-------------------|-------|
-| `/api/tasks` | GET/POST | GET: `tasks_view` → assigned self+subs; else own. POST: `canManageTasks` + assignee must be subordinate | **POST can't assign to self** | Assign subordinates | — |
-| `/api/tasks/[id]` | PUT/DELETE | PUT: owner or `tasks_edit` + subordinate. DELETE: `tasks_delete` + subordinate | Owner can PUT limited fields. **DELETE blocked for self-assigned** | With hierarchy | — |
-| `/api/campaigns` | GET/POST | GET: `campaigns_view` → scope; else tagged. POST: `canManageCampaigns` | Tagged scope | Via campaign scope | — |
-| `/api/campaigns/[id]` | GET/PUT/DELETE | Scope filter + respective perms | Same | Same | — |
+| `/api/tasks` | GET/POST | GET: `tasks_view` → assigned self+subs; else own. POST: `canManageTasks` + assignee must be subordinate | **POST can't assign to self** | Assign subordinates | POST accepts optional `recurrence` field |
+| `/api/tasks/[id]` | PUT/DELETE | PUT: owner or `tasks_edit` + subordinate. DELETE: `tasks_delete` + subordinate | Owner can PUT limited fields. **DELETE blocked for self-assigned** | With hierarchy | PUT accepts `recurrence` (set/update/clear) |
+| `/api/tasks/[id]/subtasks` | GET | Same hierarchy as parent task | Own assigned | Subordinates | Returns tasks where `parentTask = id` |
+| `/api/campaigns` | GET/POST | GET: `campaigns_view` → scope; else tagged. POST: `canManageCampaigns` | Tagged scope | Via campaign scope | GET returns `taskStats` + `todayChecklist` per campaign |
+| `/api/campaigns/[id]` | GET/PUT/DELETE | Scope filter + respective perms | Same | Same | No type/checklist fields |
+| `/api/campaigns/[id]/checklist` | POST | `getVerifiedSession`; must be assigned to task or SuperAdmin | Toggle own recurring task | — | Toggles ChecklistLog for a recurring task on today's date |
+| `/api/campaigns/[id]/checklist/overview` | GET | `campaigns_view` + campaign scope | — | Via scope | Returns compliance grid: employees × dates × done/total for recurring tasks |
 
 ### Other APIs
 | Route | Methods | Auth Check | Self Access | Subordinate Access | Notes |
