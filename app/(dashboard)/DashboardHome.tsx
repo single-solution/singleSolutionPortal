@@ -445,8 +445,8 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
             </div>
           {/* Office / Remote split */}
           <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
-            <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--green) 7%, transparent)", color: "var(--green)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
-            <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
+            <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--green) 7%, transparent)", color: "var(--green)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
+            <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
               </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -824,12 +824,12 @@ function AdminDashboard({
         </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
             {presenceLoading && filteredPresence.length === 0 ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[1, 2, 3, 4].map((i) => (
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div key={i} className="card flex flex-col overflow-hidden">
                     <div className="p-2.5">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
+                        <div className="shimmer h-5 w-5 shrink-0 rounded-full" />
                         <div className="min-w-0 flex-1"><Bone w="w-20" h="h-3" /></div>
                         <Bone w="w-12" h="h-3.5" />
             </div>
@@ -841,7 +841,7 @@ function AdminDashboard({
                 ))}
             </div>
             ) : filteredPresence.length > 0 ? (
-              <motion.div className="grid grid-cols-2 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+              <motion.div className="grid grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
                 <AnimatePresence mode="popLayout">
                   {filteredPresence.map((emp, idx) => {
                     const empTasks = tasksByEmployee.get(emp._id) ?? [];
@@ -888,7 +888,7 @@ function AdminDashboard({
         {/* 3b. Activity sidebar */}
         {canViewLogs && (
           <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
-            <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+            <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
               <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
                 <div className="flex items-center min-w-0">
                   <h3 className="text-headline" style={{ color: "var(--fg)" }}>Activity</h3>
@@ -901,7 +901,7 @@ function AdminDashboard({
               </div>
                 {totalUnread > 0 && (
                   <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={markAllRead}
-                    className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
+                    className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
                     style={{ color: "var(--teal)" }} title="Mark all as read">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L7 17l-5-5" /><path d="M22 10l-9.5 9.5L10 17" /></svg>
                   </motion.button>
@@ -938,7 +938,7 @@ function AdminDashboard({
                             </button>
                             {group.unread > 0 && (
                               <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markEntityRead(entity)}
-                                className="shrink-0 h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
+                                className="shrink-0 h-5 w-5 flex items-center justify-center rounded-lg transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
                                 style={{ color: "var(--teal)" }} title="Mark as read">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
                               </motion.button>
@@ -953,7 +953,7 @@ function AdminDashboard({
                 return (
                                   <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
                                     <div className="flex items-start gap-2">
-                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[8px] font-bold"
+                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[8px] font-bold"
                                         style={{ background: lc.bg, color: lc.fg }}>
                                         {logAvatarLabel(log)}
                     </div>
@@ -1107,14 +1107,14 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           )}
           <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
             {weeklyRecords.length === 0 ? (
-              [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)
+              [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-xl p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)
             ) : weeklyRecords.map((day, i) => {
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
                 const isToday = day.date === new Intl.DateTimeFormat("en-CA", { timeZone: companyTz }).format(now);
                 const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "var(--amber)" : "var(--green)";
               return (
-                  <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-2xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
+                  <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
                   <div className="flex items-center justify-between gap-2">
                       <span className="text-caption font-semibold" style={{ color: "var(--fg-secondary)" }}>{dayName}</span>
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} />

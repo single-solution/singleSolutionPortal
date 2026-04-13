@@ -637,14 +637,14 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                   <button
                                     type="button"
                                     onClick={() => setIsHalfDay(false)}
-                                    className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${!isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${!isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                                   >
                                     Full day
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => { setIsHalfDay(true); setMultiDay(false); }}
-                                    className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                                   >
                                     Half day
                                   </button>

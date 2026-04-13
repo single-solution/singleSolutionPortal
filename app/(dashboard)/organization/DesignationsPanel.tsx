@@ -415,8 +415,8 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                         >
                           <div className="mt-3 space-y-4">
                             <div className="flex gap-2">
-                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setFormPerms(p); }} className="text-[10px] font-semibold rounded-md px-2 py-1 transition-colors" style={{ color: "var(--green)", background: "color-mix(in srgb, var(--green) 10%, transparent)" }}>All On</button>
-                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setFormPerms(p); }} className="text-[10px] font-semibold rounded-md px-2 py-1 transition-colors" style={{ color: "var(--rose)", background: "color-mix(in srgb, var(--rose) 10%, transparent)" }}>All Off</button>
+                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors" style={{ color: "var(--green)", background: "color-mix(in srgb, var(--green) 10%, transparent)" }}>All On</button>
+                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors" style={{ color: "var(--rose)", background: "color-mix(in srgb, var(--rose) 10%, transparent)" }}>All Off</button>
                             </div>
                             {PERMISSION_CATEGORIES.map((cat) => (
                               <div key={cat.label}>

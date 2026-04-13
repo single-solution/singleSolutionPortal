@@ -674,13 +674,13 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                   {/* Month navigator */}
                   {!selfExempt && (
                     <div className="flex items-center gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                      <button type="button" onClick={prevMonth} className="rounded-md p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                      <button type="button" onClick={prevMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
                         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
                       </button>
                       <span className="px-2 text-xs font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
                         {MN[selMonth - 1]} {selYear}
                       </span>
-                      <button type="button" onClick={nextMonth} disabled={!canGoNext} className="rounded-md p-1 transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>
+                      <button type="button" onClick={nextMonth} disabled={!canGoNext} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>
                         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M9 5l7 7-7 7" /></svg>
                       </button>
                     </div>
@@ -847,7 +847,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                       <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
                         {(canViewTeam ? ["summary", "daily", "year", "report"] as DetailTab[] : ["summary", "daily", "year"] as DetailTab[]).map((t) => (
                           <button key={t} type="button" onClick={() => setDetailTab(t)}
-                            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${detailTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${detailTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                           >
                             {t === "summary" ? "Summary" : t === "daily" ? "Daily" : t === "year" ? `Year ${selYear}` : "Payroll Report"}
                           </button>

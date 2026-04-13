@@ -36,7 +36,7 @@ export function ScopeStrip({ value, onChange, className }: ScopeStripProps) {
           onClick={() => onChange(opt.id)}
           whileTap={{ scale: 0.97 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
-          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
             value === opt.id
               ? "bg-[var(--primary)] text-white shadow-sm"
               : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"

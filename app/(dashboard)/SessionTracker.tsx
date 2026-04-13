@@ -678,7 +678,7 @@ export default function SessionTracker() {
             onClick={() => { clearNudges(); setIdle(false); }}
           >
             <div
-              className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl"
+              className="flex items-center gap-3 rounded-xl px-5 py-3 shadow-2xl"
               style={{
                 background:
                   "linear-gradient(135deg, color-mix(in srgb, var(--amber) 90%, white), color-mix(in srgb, var(--amber) 85%, transparent))",
@@ -827,7 +827,7 @@ export default function SessionTracker() {
             className="fixed left-1/2 top-4 z-[9999] -translate-x-1/2"
           >
             <div
-              className="flex items-center gap-3 rounded-2xl px-5 py-3 shadow-2xl"
+              className="flex items-center gap-3 rounded-xl px-5 py-3 shadow-2xl"
               style={{
                 background:
                   "linear-gradient(135deg, color-mix(in srgb, var(--amber) 92%, transparent), color-mix(in srgb, var(--amber) 88%, transparent))",

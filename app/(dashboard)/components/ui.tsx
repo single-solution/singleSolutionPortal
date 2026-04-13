@@ -63,7 +63,7 @@ export function SegmentedControl<T extends string>({ value, onChange, options }:
           onClick={() => onChange(opt.value)}
           whileTap={{ scale: 0.97 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
-          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
             value === opt.value
               ? "bg-[var(--primary)] text-white shadow-sm"
               : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"

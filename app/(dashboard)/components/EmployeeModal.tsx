@@ -204,7 +204,7 @@ function recordDateKey(iso: string | Date) {
 function primaryDesignation(memberships: MembershipRow[] | null, isSuperAdmin?: boolean) {
   if (isSuperAdmin) return "System Administrator";
   const w = memberships?.find((m) => m.designation?.name);
-  return w?.designation?.name ?? "Employee";
+  return w?.designation?.name ?? "";
 }
 function calendarCells(year: number, month: number) {
   const first = new Date(year, month - 1, 1),
@@ -512,7 +512,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
               {/* Header: avatar + name + close */}
               <div className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-3" style={{ borderColor: "var(--border)" }}>
                 {!effectiveId ? (
-                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Employee</h2>
+                  <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>User Details</h2>
                 ) : (
                   <div className="flex min-w-0 items-center gap-3">
                     {employee?.about?.profileImage ? (
@@ -595,7 +595,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                 <div ref={detailRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
                 {!effectiveId ? (
                   <div className="flex flex-col items-center py-16">
-                    <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>No employee selected</p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>No user selected</p>
                   </div>
                 ) : (
                   <>
@@ -681,14 +681,14 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   </div>
                                   {/* Detail chips */}
                                   <div className="flex flex-wrap items-center gap-1 text-[9px]">
-                                    <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
+                                    <span className="inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
                                       {sSessions} {sSessions === 1 ? "session" : "sessions"}
                                     </span>
-                                    {sRemoteMins > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(sRemoteMins)} remote</span>}
-                                    {sBreakMins > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>{formatMinutes(sBreakMins)} break</span>}
-                                    {(sess?.lateBy ?? 0) > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--amber) 7%, transparent)", color: "var(--amber)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
-                                    {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--rose) 7%, transparent)", color: "var(--rose)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
-                                    {sIdleMins > 5 && <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{formatMinutes(sIdleMins)} idle</span>}
+                                    {sRemoteMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(sRemoteMins)} remote</span>}
+                                    {sBreakMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>{formatMinutes(sBreakMins)} break</span>}
+                                    {(sess?.lateBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--amber) 7%, transparent)", color: "var(--amber)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
+                                    {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--rose) 7%, transparent)", color: "var(--rose)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
+                                    {sIdleMins > 5 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{formatMinutes(sIdleMins)} idle</span>}
                                   </div>
                                 </div>
                                 {/* Location flag alert */}

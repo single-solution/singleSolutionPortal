@@ -58,7 +58,7 @@ function idStr(x: unknown): string {
 
 function DeptNode({ data }: NodeProps) {
   return (
-    <div className="rounded-2xl border-2 px-5 py-3 shadow-lg min-w-[180px]" style={{ background: "var(--bg-elevated)", borderColor: "var(--purple)" }}>
+    <div className="rounded-xl border-2 px-5 py-3 shadow-lg min-w-[180px]" style={{ background: "var(--bg-elevated)", borderColor: "var(--purple)" }}>
       <Handle type="source" position={Position.Top} id="top" className="!bg-[var(--purple)] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--purple)", color: "white" }}>

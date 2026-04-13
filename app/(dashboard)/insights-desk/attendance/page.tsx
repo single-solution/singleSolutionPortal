@@ -1001,7 +1001,7 @@ export default function AttendancePage() {
                   })()
                 ) : (
                   <div className="flex flex-1 flex-col items-center justify-center p-5 text-center">
-                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "var(--bg-grouped)" }}>
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "var(--bg-grouped)" }}>
                       <svg className="h-6 w-6" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </div>
                     <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>

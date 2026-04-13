@@ -573,7 +573,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                           >
                             <div className="flex items-start gap-2.5">
-                              <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${isSecurity ? "" : ""}`} style={isSecurity ? { background: secMeta?.severity === "violation" ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)" } : undefined}>
+                              <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg ${isSecurity ? "" : ""}`} style={isSecurity ? { background: secMeta?.severity === "violation" ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)" } : undefined}>
                                 <svg className={`w-4 h-4 shrink-0 ${ENTITY_COLORS[log.entity] || "text-[var(--fg-tertiary)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d={ENTITY_ICONS[log.entity] || ENTITY_ICONS.employee} />
                                 </svg>
@@ -622,7 +622,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                             href={mapsUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+                                            className="mt-1 inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-medium transition-colors"
                                             style={{ background: "var(--primary-light)", color: "var(--primary)" }}
                                             onClick={(e) => e.stopPropagation()}
                                           >
@@ -968,7 +968,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
           <LayoutGroup>
             <nav
               data-tour="dock-nav"
-              className="dock-glass flex items-stretch justify-around rounded-2xl sm:justify-center sm:gap-1 sm:rounded-full"
+              className="dock-glass flex items-stretch justify-around rounded-xl sm:justify-center sm:gap-1 sm:rounded-full"
               style={{ padding: "8px 12px" }}
             >
               {visibleLinks.map((link) => {

@@ -122,7 +122,7 @@ export function SettingsPayroll() {
             <button
               type="button"
               onClick={() => setDraft((d) => d ? { ...d, latePenaltyTiers: [...(d.latePenaltyTiers ?? []), { minutes: 0, penaltyPercent: 0 }] } : d)}
-              className="rounded-md px-2 py-0.5 text-xs font-semibold"
+              className="rounded-lg px-2 py-0.5 text-xs font-semibold"
               style={{ background: "var(--primary-light)", color: "var(--primary)" }}
             >
               + Add tier
@@ -169,7 +169,7 @@ export function SettingsPayroll() {
                 </label>
                 <button
                   type="button"
-                  className="mt-3.5 rounded-md px-2 py-1 text-xs font-semibold"
+                  className="mt-3.5 rounded-lg px-2 py-1 text-xs font-semibold"
                   style={{ background: "rgba(225, 29, 72, 0.12)", color: "var(--rose, #e11d48)" }}
                   onClick={() => setDraft((d) => {
                     if (!d) return d;

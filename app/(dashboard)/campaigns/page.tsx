@@ -400,8 +400,8 @@ export default function CampaignsPage() {
                       </div>
                     </div>
                     <div className="mt-1 flex gap-1">
-                      <div className="shimmer h-5 w-12 rounded-md" />
-                      <div className="shimmer h-5 w-14 rounded-md" />
+                      <div className="shimmer h-5 w-12 rounded-lg" />
+                      <div className="shimmer h-5 w-14 rounded-lg" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
@@ -494,20 +494,20 @@ export default function CampaignsPage() {
 
                       {canManageCampaigns && c.status === "active" && (
                         <div className="mt-1.5 flex gap-1">
-                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "paused")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.paused.bg, color: STATUS_CONFIG.paused.color }}>
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "paused")} className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.paused.bg, color: STATUS_CONFIG.paused.color }}>
                             Pause
                           </motion.button>
-                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "completed")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.completed.bg, color: STATUS_CONFIG.completed.color }}>
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "completed")} className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.completed.bg, color: STATUS_CONFIG.completed.color }}>
                             Complete
                           </motion.button>
                         </div>
                       )}
                       {canManageCampaigns && c.status === "paused" && (
                         <div className="mt-1.5 flex gap-1">
-                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "active")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.active.bg, color: STATUS_CONFIG.active.color }}>
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "active")} className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.active.bg, color: STATUS_CONFIG.active.color }}>
                             Resume
                           </motion.button>
-                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "cancelled")} className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.cancelled.bg, color: STATUS_CONFIG.cancelled.color }}>
+                          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => quickStatus(c, "cancelled")} className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold transition-colors" style={{ background: STATUS_CONFIG.cancelled.bg, color: STATUS_CONFIG.cancelled.color }}>
                             Cancel
                           </motion.button>
                         </div>

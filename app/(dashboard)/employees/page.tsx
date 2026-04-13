@@ -630,7 +630,7 @@ export default function EmployeesPage() {
         }
 
         return (
-          <motion.div data-tour="employees-grid" className="grid gap-3 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4" variants={staggerContainerFast} initial="hidden" animate="visible">
+          <motion.div data-tour="employees-grid" className="grid gap-3 pt-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-3" variants={staggerContainerFast} initial="hidden" animate="visible">
             <AnimatePresence mode="popLayout">
               {filtered.map((emp, i) => renderCard(emp, i))}
         </AnimatePresence>

@@ -136,7 +136,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
               sorted.map((d, i) => (
                 <motion.div key={d._id} variants={cardVariants} custom={i} layout layoutId={`dept-panel-${d._id}`} exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }} className="group">
                   <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${!d.isActive ? "opacity-40 grayscale" : ""}`} style={{ background: "var(--bg-grouped)" }}>
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: "var(--purple)", color: "white" }}>
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--purple)", color: "white" }}>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                     </span>
                     <div className="min-w-0 flex-1">

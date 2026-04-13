@@ -106,12 +106,6 @@ function formatTimeStr(iso: string) {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
-function getShiftMinutes(start: string, end: string, breakTime: number) {
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  return Math.max(eh * 60 + em - (sh * 60 + sm) - breakTime, 1);
-}
-
 type PulseVariant = "office" | "remote" | "lastSeen" | "absent";
 
 function pulseVariant(emp: EmployeeCardEmp): PulseVariant {
@@ -187,82 +181,54 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
   );
 }
 
-function ActivityStrip({ emp, todayMinutes, shiftStart, shiftEnd, shiftBreakTime }: { emp: EmployeeCardEmp; todayMinutes: number; shiftStart: string; shiftEnd: string; shiftBreakTime: number }) {
-  const shiftMins = getShiftMinutes(shiftStart, shiftEnd, shiftBreakTime);
-  const pctRaw = Math.round((todayMinutes / shiftMins) * 100);
-
-  const officeMins = emp.officeMinutes ?? 0;
+function ActivityChips({ emp }: { emp: EmployeeCardEmp }) {
   const remoteMins = emp.remoteMinutes ?? 0;
   const breakMins = emp.breakMinutes ?? 0;
-  const total = officeMins + remoteMins + breakMins || 1;
-  const cappedFillPct = Math.min((todayMinutes / shiftMins) * 100, 120);
-
-  const officePct = (officeMins / total) * cappedFillPct;
-  const remotePct = (remoteMins / total) * cappedFillPct;
-  const breakPct = (breakMins / total) * cappedFillPct;
-
-  const sessions = emp.sessionCount ?? 0;
 
   let idleMins = 0;
   if (!emp.isLive && emp.firstEntry && emp.lastExit) {
     const span = (new Date(emp.lastExit).getTime() - new Date(emp.firstEntry).getTime()) / 60000;
-    idleMins = Math.max(0, Math.round(span - todayMinutes));
+    idleMins = Math.max(0, Math.round(span - (emp.todayMinutes ?? 0)));
   }
 
   return (
-    <div className="space-y-1.5">
-      {/* Segmented time bar */}
-      <div className="flex items-center gap-2">
-        <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-          <motion.div
-            className="flex h-full min-w-0"
-            initial={{ width: 0 }}
-            animate={{ width: `${cappedFillPct}%` }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {officePct > 0 && <div className="h-full shrink-0" style={{ width: `${(officePct / cappedFillPct) * 100}%`, background: "var(--green)" }} />}
-            {remotePct > 0 && <div className="h-full shrink-0" style={{ width: `${(remotePct / cappedFillPct) * 100}%`, background: "#007aff" }} />}
-            {breakPct > 0 && <div className="h-full shrink-0" style={{ width: `${(breakPct / cappedFillPct) * 100}%`, background: "var(--purple)" }} />}
-          </motion.div>
-        </div>
-        <span className="text-[10px] shrink-0 tabular-nums font-bold" style={{ color: pctRaw >= 100 ? "var(--green)" : "var(--fg-secondary)" }}>
-          {pctRaw}%
+    <div className="flex flex-wrap items-center gap-1 text-[9px]">
+      {remoteMins > 0 && (
+        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>
+          {formatMinutesShort(remoteMins)} remote
         </span>
-      </div>
-
-      {/* Compact detail chips */}
-      <div className="flex flex-wrap items-center gap-1 text-[9px]">
-        <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>
-          {sessions} {sessions === 1 ? "session" : "sessions"}
+      )}
+      {breakMins > 0 && (
+        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>
+          {formatMinutesShort(breakMins)} break
         </span>
-        {remoteMins > 0 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>
-            {formatMinutesShort(remoteMins)} remote
-          </span>
-        )}
-        {breakMins > 0 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>
-            {formatMinutesShort(breakMins)} break
-          </span>
-        )}
-        {(emp.lateBy ?? 0) > 0 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--amber) 7%, transparent)", color: "var(--amber)" }}>
-            +{formatMinutesShort(emp.lateBy ?? 0)} late
-          </span>
-        )}
-        {emp.isLateToOffice && (emp.lateToOfficeBy ?? 0) > 0 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--rose) 7%, transparent)", color: "var(--rose)" }}>
-            +{formatMinutesShort(emp.lateToOfficeBy ?? 0)} late to office
-          </span>
-        )}
-        {idleMins > 5 && (
-          <span className="rounded-md px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
-            {formatMinutesShort(idleMins)} idle
-          </span>
-        )}
-      </div>
+      )}
+      {idleMins > 5 && (
+        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+          {formatMinutesShort(idleMins)} idle
+        </span>
+      )}
     </div>
+  );
+}
+
+function LatePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; attendanceLoading?: boolean }) {
+  if (attendanceLoading) return null;
+  const lateBy = emp.lateBy ?? 0;
+  const lateToOffice = emp.isLateToOffice && (emp.lateToOfficeBy ?? 0) > 0;
+  if (lateBy <= 0 && !lateToOffice) return null;
+  const label = lateToOffice
+    ? `+${formatMinutesShort(emp.lateToOfficeBy!)} late`
+    : `+${formatMinutesShort(lateBy)} late`;
+  const color = lateToOffice ? "var(--rose)" : "var(--amber)";
+  const border = lateToOffice ? "rgba(244,63,94,0.35)" : "rgba(245,158,11,0.35)";
+  return (
+    <span
+      className="inline-flex max-w-[min(100%,10rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums backdrop-blur-sm"
+      style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color, borderColor: border, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
+    >
+      <span className="truncate">{label}</span>
+    </span>
   );
 }
 
@@ -291,9 +257,6 @@ export const EmployeeCard = memo(function EmployeeCard({
 }: EmployeeCardProps) {
   const avatarGradIdx = idx % AVATAR_GRADIENTS.length;
   const todayM = emp.todayMinutes ?? 0;
-  const shiftStart = emp.shiftStart ?? "10:00";
-  const shiftEnd = emp.shiftEnd ?? "19:00";
-  const shiftBreak = emp.shiftBreakTime ?? 60;
 
   const firstArrival =
     attendanceLoading ? "—" : emp.firstEntry ? (emp.firstEntry.includes("T") ? formatTimeStr(emp.firstEntry) : emp.firstEntry) : "—";
@@ -322,9 +285,16 @@ export const EmployeeCard = memo(function EmployeeCard({
         />
       )}
 
+      {/* Absolute status pill (top-right) */}
       {showAttendance && (
-        <div className="pointer-events-none absolute right-0 z-50 max-w-[55%] text-right hidden sm:block" style={{ top: -13 }}>
+        <div className="pointer-events-none absolute right-0 z-[60] max-w-[55%] text-right hidden sm:block" style={{ top: -13 }}>
           <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />
+        </div>
+      )}
+      {/* Absolute late pill (top-left) */}
+      {showAttendanceDetail && (
+        <div className="pointer-events-none absolute left-0 z-[60] max-w-[50%] text-left hidden sm:block" style={{ top: -13 }}>
+          <LatePill emp={emp} attendanceLoading={attendanceLoading} />
         </div>
       )}
 
@@ -340,12 +310,12 @@ export const EmployeeCard = memo(function EmployeeCard({
           />
         )}
 
-        <div className="flex items-start gap-2 sm:gap-3 pr-1 pt-0.5">
+        <div className="flex items-start gap-2 pr-1 pt-0.5">
           {emp.profileImage ? (
-            <img src={emp.profileImage} alt="" className="pointer-events-none h-7 w-7 sm:h-11 sm:w-11 shrink-0 rounded-full object-cover shadow-sm" />
+            <img src={emp.profileImage} alt="" className="pointer-events-none h-5 w-5 sm:h-6 sm:w-6 shrink-0 rounded-full object-cover shadow-sm" />
           ) : (
             <div
-              className={`pointer-events-none flex h-7 w-7 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[10px] sm:text-sm font-semibold text-white ${AVATAR_GRADIENTS[avatarGradIdx]}`}
+              className={`pointer-events-none flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[8px] sm:text-[10px] font-semibold text-white ${AVATAR_GRADIENTS[avatarGradIdx]}`}
             >
               {initials(emp.firstName, emp.lastName)}
             </div>
@@ -361,7 +331,7 @@ export const EmployeeCard = memo(function EmployeeCard({
                   type="button"
                   whileHover={{ scale: 1.12 }}
                   whileTap={{ scale: 0.92 }}
-                  className="pointer-events-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors"
+                  className="pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors"
                   style={{ color: "var(--primary)" }}
                   title={`Ping ${emp.firstName}`}
                   onClick={(e) => {
@@ -370,7 +340,7 @@ export const EmployeeCard = memo(function EmployeeCard({
                     onPing(emp._id, `${emp.firstName} ${emp.lastName}`);
                   }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5.636 18.364a9 9 0 010-12.728" /><path d="M18.364 5.636a9 9 0 010 12.728" /><circle cx="12" cy="12" r="1" />
                   </svg>
                 </motion.button>
@@ -469,10 +439,10 @@ export const EmployeeCard = memo(function EmployeeCard({
           </div>
         )}
 
-        {/* Activity strip — segmented bar + detail chips */}
+        {/* Activity chips (no progress bar, no session count) */}
         {showAttendanceDetail && !attendanceLoading && (
           <>
-            <ActivityStrip emp={emp} todayMinutes={todayM} shiftStart={shiftStart} shiftEnd={shiftEnd} shiftBreakTime={shiftBreak} />
+            <ActivityChips emp={emp} />
 
             {showLocationFlags && emp.locationFlagged && (
               <div className="rounded-lg border p-2 text-[9px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
