@@ -6,10 +6,9 @@ import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
-import { Portal } from "../components/Portal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { RefreshBtn, SearchField, SegmentedControl, PageHeader, EmptyState, ModalShell } from "../components/ui";
 import toast from "react-hot-toast";
-import { HeaderStatPill } from "../components/StatChips";
 import { timeAgo, formatShortDate } from "@/lib/formatters";
 
 /* ─── types ─── */
@@ -21,13 +20,13 @@ type StatusFilter = "all" | "pending" | "inProgress" | "completed";
 
 interface TaggedEmployee { _id: string; about: { firstName: string; lastName: string }; email: string }
 interface TaggedDept { _id: string; title: string }
-interface Recurrence { frequency: string; days?: number[]; time?: string }
+interface Recurrence { frequency: "weekly" | "monthly"; days: number[] }
 interface Campaign {
   _id: string; name: string; slug: string; description?: string; status: CampaignStatus;
   startDate?: string; endDate?: string; budget?: string;
   tags: { employees: TaggedEmployee[]; departments: TaggedDept[] };
   taskStats?: { total: number; completed: number; recurring: number; todayDue: number; todayDone: number };
-  todayChecklist?: { _id: string; title: string; done: boolean; time: string | null }[];
+  todayChecklist?: { _id: string; title: string; done: boolean }[];
   notes?: string; isActive: boolean;
   createdBy?: { about: { firstName: string; lastName: string } };
   createdAt: string; updatedAt?: string;
@@ -54,13 +53,6 @@ interface SelectOption { _id: string; label: string }
 
 /* ─── constants ─── */
 
-const STATUS_CONFIG: Record<CampaignStatus, { label: string; color: string; bg: string }> = {
-  active:    { label: "Active",    color: "var(--teal)",    bg: "color-mix(in srgb, var(--teal) 12%, transparent)" },
-  paused:    { label: "Paused",    color: "var(--amber)",   bg: "color-mix(in srgb, var(--amber) 12%, transparent)" },
-  completed: { label: "Completed", color: "var(--primary)", bg: "color-mix(in srgb, var(--primary) 12%, transparent)" },
-  cancelled: { label: "Cancelled", color: "var(--rose)",    bg: "color-mix(in srgb, var(--rose) 12%, transparent)" },
-};
-const PRIORITY_COLORS: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
 const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgress: "In Progress", completed: "Completed" };
 
 const LOG_ENTITY_COLORS: Record<string, { bg: string; fg: string }> = {
@@ -119,15 +111,25 @@ function StatusDot({ status }: { status: string }) {
   return <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--fg-tertiary)" }} />;
 }
 
-function CampaignProgress({ done, total }: { done: number; total: number }) {
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+function TaskStatusToggle({ task, canChange, onCycle }: { task: Task; canChange: boolean; onCycle: () => void }) {
+  const states: TaskStatus[] = ["pending", "inProgress", "completed"];
+  const idx = states.indexOf(task.status);
+  const labels: Record<string, { short: string; color: string }> = {
+    pending: { short: "Pending", color: "var(--amber)" },
+    inProgress: { short: "Working", color: "var(--primary)" },
+    completed: { short: "Done", color: "var(--teal)" },
+  };
+  const s = labels[task.status] ?? labels.pending;
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <div className="h-1.5 flex-1 min-w-[60px] max-w-[120px] overflow-hidden rounded-full" style={{ background: "var(--bg-grouped)" }}>
-        <motion.div className="h-full rounded-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ type: "spring", stiffness: 200, damping: 28 }} />
-      </div>
-      <span className="text-[10px] tabular-nums whitespace-nowrap" style={{ color: "var(--fg-tertiary)" }}>{done}/{total}</span>
-    </div>
+    <button type="button" disabled={!canChange} onClick={canChange ? onCycle : undefined}
+      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all disabled:cursor-default"
+      style={{ borderColor: `color-mix(in srgb, ${s.color} 30%, transparent)`, background: `color-mix(in srgb, ${s.color} 10%, transparent)`, color: s.color }}
+      title={canChange ? `Click to change (${states[(idx + 1) % 3]})` : task.status}>
+      <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: s.color }}>
+        {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: s.color }} />}
+      </span>
+      {s.short}
+    </button>
   );
 }
 
@@ -211,29 +213,6 @@ export default function WorkspacePage() {
     setSubtaskLoading(null);
   }, []);
 
-  /* ── inline subtask creation ── */
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [addingSubtask, setAddingSubtask] = useState(false);
-  const createSubtask = useCallback(async (parentId: string, campaignId: string, assigneeId: string) => {
-    if (!newSubtaskTitle.trim()) return;
-    setAddingSubtask(true);
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newSubtaskTitle.trim(), assignedTo: assigneeId, campaign: campaignId, parentTask: parentId, priority: "medium" }),
-      });
-      if (res.ok) {
-        setNewSubtaskTitle("");
-        await loadSubtasks(parentId);
-      } else {
-        const err = await res.json().catch(() => null);
-        toast.error(err?.error ?? "Failed to create subtask");
-      }
-    } catch { toast.error("Network error"); }
-    setAddingSubtask(false);
-  }, [newSubtaskTitle, loadSubtasks]);
-
   useEffect(() => {
     const handler = () => { if (document.visibilityState === "visible") void refetchLogs(); };
     document.addEventListener("visibilitychange", handler);
@@ -248,6 +227,9 @@ export default function WorkspacePage() {
     setActivityCollapsed((prev) => { const n = new Set(prev); if (n.has(entity)) n.delete(entity); else n.add(entity); return n; });
   }, []);
 
+  const [markedReadEntities, setMarkedReadEntities] = useState<Set<string>>(new Set());
+  const [allMarkedRead, setAllMarkedRead] = useState(false);
+
   const logGroups = useMemo(() => {
     const lastId = lastSeenLogIdRef.current;
     const seenIdx = lastId ? logs.findIndex((l) => l._id === lastId) : -1;
@@ -255,17 +237,43 @@ export default function WorkspacePage() {
     logs.forEach((log, i) => {
       const entry = map.get(log.entity) ?? { logs: [], unread: 0 };
       entry.logs.push(log);
-      if (seenIdx === -1 || i < seenIdx) entry.unread++;
+      const isNew = seenIdx === -1 || i < seenIdx;
+      if (isNew && !allMarkedRead && !markedReadEntities.has(log.entity)) entry.unread++;
       map.set(log.entity, entry);
     });
     return map;
-  }, [logs]);
+  }, [logs, allMarkedRead, markedReadEntities]);
 
   const totalUnread = useMemo(() => {
     let count = 0;
     logGroups.forEach((g) => { count += g.unread; });
     return count;
   }, [logGroups]);
+
+  const markAllRead = useCallback(() => {
+    setAllMarkedRead(true);
+    if (logs.length > 0) {
+      lastSeenLogIdRef.current = logs[0]._id;
+      fetch("/api/user/last-seen", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lastSeenLogId: logs[0]._id }),
+      }).catch(() => {});
+    }
+  }, [logs]);
+
+  const markEntityRead = useCallback((entity: string) => {
+    setMarkedReadEntities((prev) => new Set(prev).add(entity));
+    if (logs.length > 0) {
+      const latest = logs[0]._id;
+      lastSeenLogIdRef.current = latest;
+      fetch("/api/user/last-seen", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lastSeenLogId: latest }),
+      }).catch(() => {});
+    }
+  }, [logs]);
 
   /* ── task modal ── */
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -279,15 +287,15 @@ export default function WorkspacePage() {
   const [fStatus, setFStatus] = useState("pending");
   const [fRecurFreq, setFRecurFreq] = useState<string>("");
   const [fRecurDays, setFRecurDays] = useState<number[]>([]);
-  const [fRecurTime, setFRecurTime] = useState("");
   const [taskSaving, setTaskSaving] = useState(false);
+  const [fParentTask, setFParentTask] = useState("");
 
-  function openCreateTask(campaignId: string) {
-    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignee(""); setFCampaign(campaignId); setFPriority("medium"); setFDeadline(""); setFStatus("pending"); setFRecurFreq(""); setFRecurDays([]); setFRecurTime(""); setTaskModalOpen(true);
+  function openCreateTask(campaignId: string, parentTaskId?: string) {
+    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignee(""); setFCampaign(campaignId); setFPriority("medium"); setFDeadline(""); setFStatus("pending"); setFRecurFreq(""); setFRecurDays([]); setFParentTask(parentTaskId ?? ""); setTaskModalOpen(true);
   }
   function openEditTask(t: Task) {
     setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignee(t.assignedTo?._id ?? ""); setFCampaign(t.campaign?._id ?? ""); setFPriority(t.priority); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : ""); setFStatus(t.status);
-    setFRecurFreq(t.recurrence?.frequency ?? ""); setFRecurDays(t.recurrence?.days ?? []); setFRecurTime(t.recurrence?.time ?? "");
+    setFRecurFreq(t.recurrence?.frequency ?? ""); setFRecurDays(t.recurrence?.days ?? []); setFParentTask(t.parentTask ?? "");
     setTaskModalOpen(true);
   }
   async function handleSaveTask() {
@@ -295,11 +303,9 @@ export default function WorkspacePage() {
     setTaskSaving(true);
     try {
       const payload: Record<string, unknown> = { title: fTitle.trim(), description: fDesc, priority: fPriority, status: fStatus, assignedTo: fAssignee || undefined, campaign: fCampaign || null, deadline: fDeadline || undefined };
-      if (fRecurFreq) {
-        const rec: Record<string, unknown> = { frequency: fRecurFreq };
-        if (fRecurFreq === "custom" && fRecurDays.length > 0) rec.days = fRecurDays;
-        if (fRecurTime) rec.time = fRecurTime;
-        payload.recurrence = rec;
+      if (fParentTask) payload.parentTask = fParentTask;
+      if (fRecurFreq && fRecurDays.length > 0) {
+        payload.recurrence = { frequency: fRecurFreq, days: fRecurDays };
       } else {
         payload.recurrence = null;
       }
@@ -307,7 +313,11 @@ export default function WorkspacePage() {
         ? await fetch(`/api/tasks/${editingTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save task"); return; }
-      setTaskModalOpen(false); await Promise.all([refetchTasks(), refetchCampaigns()]);
+      setTaskModalOpen(false);
+      if (fParentTask && !editingTask) {
+        await loadSubtasks(fParentTask);
+      }
+      await Promise.all([refetchTasks(), refetchCampaigns()]);
     } catch { toast.error("Network error"); }
     setTaskSaving(false);
   }
@@ -373,32 +383,6 @@ export default function WorkspacePage() {
     await refetchTasks();
   }
 
-  /* ── inline task creation inside campaign cards ── */
-  const [inlineTaskTitle, setInlineTaskTitle] = useState("");
-  const [inlineTaskCampaign, setInlineTaskCampaign] = useState<string | null>(null);
-  const [inlineTaskSaving, setInlineTaskSaving] = useState(false);
-  const inlineInputRef = useRef<HTMLInputElement>(null);
-  async function handleInlineTaskCreate(campaignId: string) {
-    if (!inlineTaskTitle.trim()) return;
-    setInlineTaskSaving(true);
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: inlineTaskTitle.trim(), campaign: campaignId, priority: "medium" }),
-      });
-      if (res.ok) {
-        setInlineTaskTitle("");
-        setInlineTaskCampaign(null);
-        await Promise.all([refetchTasks(), refetchCampaigns()]);
-      } else {
-        const err = await res.json().catch(() => null);
-        toast.error(err?.error ?? "Failed to create task");
-      }
-    } catch { toast.error("Network error"); }
-    setInlineTaskSaving(false);
-  }
-
   /* ── build campaign → tasks map ── */
   const campaignTaskMap = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -410,7 +394,7 @@ export default function WorkspacePage() {
     return map;
   }, [taskList, campaignList]);
 
-  /* ── filtering (applies search + status filter across campaign tasks) ── */
+  /* ── filtering ── */
   const filteredCampaignTasks = useMemo(() => {
     const result = new Map<string, Task[]>();
     for (const [cid, tasks] of campaignTaskMap) {
@@ -435,7 +419,6 @@ export default function WorkspacePage() {
     return m;
   }, [taskList]);
 
-  /* ── also filter campaigns by search ── */
   const visibleCampaigns = useMemo(() => {
     if (!search.trim()) return campaignList;
     const q = search.toLowerCase();
@@ -453,49 +436,42 @@ export default function WorkspacePage() {
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(90dvh - 80px)" }}>
       {/* ── header ── */}
-      <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-wrap min-w-0">
-          <div>
-            <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Workspace</h1>
-            <p className="text-xs mt-0.5" style={{ color: "var(--fg-secondary)" }}>Campaigns, tasks, and activity in one place.</p>
-          </div>
-          {!loading && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <HeaderStatPill label="tasks" value={statusCounts.all} dotColor="var(--fg-tertiary)" />
-              {statusCounts.inProgress > 0 && <HeaderStatPill label="in progress" value={statusCounts.inProgress} dotColor="var(--amber)" />}
-              {statusCounts.completed > 0 && <HeaderStatPill label="done" value={statusCounts.completed} dotColor="var(--teal)" />}
-              {campaignList.length > 0 && <HeaderStatPill label={campaignList.length === 1 ? "campaign" : "campaigns"} value={campaignList.length} dotColor="var(--primary)" />}
-              {campaignList.some((c) => (c.taskStats?.recurring ?? 0) > 0) && <HeaderStatPill label="recurring" value={campaignList.reduce((s, c) => s + (c.taskStats?.recurring ?? 0), 0)} dotColor="var(--amber)" />}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {ready && canCreateCampaigns && (
-            <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-              className="btn btn-primary btn-sm inline-flex items-center gap-1.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              Campaign
-            </motion.button>
-          )}
-        </div>
+      <div className="mb-4 shrink-0">
+        <PageHeader
+          title="Workspace"
+          loading={loading}
+          subtitle={`${statusCounts.all} tasks · ${campaignList.length} campaign${campaignList.length !== 1 ? "s" : ""} · ${statusCounts.inProgress} in progress`}
+        />
       </div>
 
-      {/* ── toolbar ── */}
-      <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative min-w-0 w-52 shrink-0">
-          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" className="input w-full text-xs" style={{ paddingLeft: "36px" }} />
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {(["all", "pending", "inProgress", "completed"] as StatusFilter[]).map((s) => (
-            <button key={s} type="button" onClick={() => setStatusFilter(s)}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap"
-              style={{ borderColor: statusFilter === s ? "var(--primary)" : "var(--border)", background: statusFilter === s ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent", color: statusFilter === s ? "var(--primary)" : "var(--fg-tertiary)" }}>
-              {s === "all" ? "All" : TASK_STATUS_LABELS[s]}
-              <span className="tabular-nums text-[10px]" style={{ opacity: 0.7 }}>{statusCounts[s] ?? 0}</span>
-            </button>
-          ))}
-        </div>
+      {/* ── search + create ── */}
+      <div data-tour="workspace-toolbar" className="card-static mb-4 flex shrink-0 items-center gap-3 p-4">
+        <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks..." />
+        {ready && canCreateCampaigns && (
+          <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            New Campaign
+          </motion.button>
+        )}
+      </div>
+
+      {/* ── status filter ── */}
+      <div className="mb-4 flex shrink-0 items-center gap-2 flex-wrap">
+        <SegmentedControl
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "all" as StatusFilter, label: `All (${statusCounts.all})` },
+            { value: "pending" as StatusFilter, label: `Pending (${statusCounts.pending ?? 0})` },
+            { value: "inProgress" as StatusFilter, label: `In Progress (${statusCounts.inProgress ?? 0})` },
+            { value: "completed" as StatusFilter, label: `Completed (${statusCounts.completed ?? 0})` },
+          ]}
+        />
+        {(search || statusFilter !== "all") && (
+          <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
+            Clear
+          </button>
+        )}
       </div>
 
       {/* ── main + feed ── */}
@@ -509,9 +485,7 @@ export default function WorkspacePage() {
                   <div className="p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="shimmer h-4 w-32 rounded" />
-                      <div className="shimmer h-4 w-14 rounded-full" />
                     </div>
-                    <div className="shimmer h-1.5 w-full rounded-full" />
                     <div className="space-y-2">
                       {[1, 2, 3].map((t) => (
                         <div key={t} className="flex items-center gap-2">
@@ -521,48 +495,50 @@ export default function WorkspacePage() {
                         </div>
                       ))}
                     </div>
+                    <div className="flex gap-1.5">
+                      <div className="shimmer h-4 w-16 rounded-full" />
+                      <div className="shimmer h-4 w-12 rounded-full" />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : visibleCampaigns.length === 0 ? (
-            <div className="card-xl p-16 text-center">
-              <p className="text-sm" style={{ color: "var(--fg-secondary)" }}>{campaignList.length === 0 ? "No campaigns yet." : "No matching campaigns."}</p>
-              {canCreateCampaigns && campaignList.length === 0 && (
-                <button type="button" onClick={openCreateCampaign} className="btn btn-primary btn-sm mt-4">Create your first campaign</button>
-              )}
-            </div>
+            <EmptyState
+              message={campaignList.length === 0 ? "No campaigns yet." : "No matching campaigns."}
+              action={canCreateCampaigns && campaignList.length === 0 ? <button type="button" onClick={openCreateCampaign} className="btn btn-primary btn-sm">Create your first campaign</button> : undefined}
+            />
           ) : (
             <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" variants={staggerContainerFast} initial="hidden" animate="visible">
               {visibleCampaigns.map((c) => {
                 const allTasks = campaignTaskMap.get(c._id) ?? [];
                 const visibleTasks = filteredCampaignTasks.get(c._id) ?? [];
-                const recurringTasks = visibleTasks.filter((t) => t.recurrence);
                 const oneTimeTasks = visibleTasks.filter((t) => !t.recurrence);
-                const doneCount = allTasks.filter((t) => t.status === "completed").length;
                 const todayChecklist = c.todayChecklist ?? [];
                 const todayDone = todayChecklist.filter((t) => checklistOverrides.has(t._id) ? checklistOverrides.get(t._id) : t.done).length;
-                const hasRecurring = recurringTasks.length > 0 || todayChecklist.length > 0;
+                const hasRecurring = (c.taskStats?.recurring ?? 0) > 0 || todayChecklist.length > 0;
                 const isExpanded = expandedCampaign === c._id;
+                const isInactive = c.status !== "active";
+
+                const totalTasks = allTasks.length;
+                const pendingTasks = allTasks.filter((t) => t.status === "pending").length;
+                const inProgressTasks = allTasks.filter((t) => t.status === "inProgress").length;
+                const completedTasks = allTasks.filter((t) => t.status === "completed").length;
+                const empCount = c.tags.employees.length;
+                const recurCount = c.taskStats?.recurring ?? 0;
 
                 return (
-                  <motion.div key={c._id} variants={cardVariants} custom={0} className="card-xl overflow-hidden flex flex-col">
+                  <motion.div key={c._id} variants={cardVariants} custom={0}
+                    className="card-xl overflow-hidden flex flex-col transition-opacity"
+                    style={{ opacity: isInactive ? 0.5 : 1 }}>
                     {/* ── card header ── */}
                     <div className="flex items-center gap-2 p-3 pb-2">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[13px] font-semibold truncate" style={{ color: "var(--fg)" }}>{c.name}</span>
-                          <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: STATUS_CONFIG[c.status].bg, color: STATUS_CONFIG[c.status].color }}>{STATUS_CONFIG[c.status].label}</span>
-                        </div>
-                        {(allTasks.length > 0 || todayChecklist.length > 0) && (
-                          <div className="flex items-center gap-3 mt-1">
-                            {oneTimeTasks.length > 0 && <CampaignProgress done={doneCount} total={allTasks.filter((t) => !t.recurrence).length} />}
-                            {todayChecklist.length > 0 && (
-                              <span className="text-[10px] tabular-nums font-semibold" style={{ color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
-                                {todayDone}/{todayChecklist.length} today
-                              </span>
-                            )}
-                          </div>
+                        <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--fg)" }}>{c.name}</span>
+                        {todayChecklist.length > 0 && (
+                          <span className="text-[10px] tabular-nums font-semibold mt-0.5 block" style={{ color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
+                            {todayDone}/{todayChecklist.length} today
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-0.5 shrink-0">
@@ -575,10 +551,17 @@ export default function WorkspacePage() {
                             }}
                             className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]"
                             style={{ color: isExpanded ? "var(--primary)" : "var(--fg-tertiary)" }}
-                            title={isExpanded ? "Collapse details" : "Compliance overview"}>
+                            title={isExpanded ? "Collapse" : "Compliance overview"}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
                             </svg>
+                          </motion.button>
+                        )}
+                        {canCreateTasks && (
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openCreateTask(c._id)}
+                            className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
+                            style={{ color: "var(--primary)" }} title="Add task">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                           </motion.button>
                         )}
                         {canEditCampaigns && (
@@ -595,7 +578,7 @@ export default function WorkspacePage() {
                     </div>
 
                     {/* ── card body ── */}
-                    <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-2" style={{ scrollbarWidth: "thin", maxHeight: 360 }}>
+                    <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-2" style={{ scrollbarWidth: "thin", maxHeight: 340 }}>
                       {/* Recurring tasks as checklist */}
                       {todayChecklist.length > 0 && (
                         <div className="space-y-0.5">
@@ -610,21 +593,20 @@ export default function WorkspacePage() {
                                   {isDone && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
                                 </span>
                                 <span className="text-[11px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
-                                {item.time && <span className="text-[9px] tabular-nums ml-auto shrink-0 rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{item.time}</span>}
                               </button>
                             );
                           })}
                         </div>
                       )}
 
-                      {/* One-time tasks as compact rows */}
+                      {/* One-time tasks as compact rows with status toggle */}
                       {oneTimeTasks.length > 0 && (
                         <div className="space-y-0.5">
                           {todayChecklist.length > 0 && <p className="text-[10px] font-bold uppercase tracking-wider mb-1 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>}
                           {oneTimeTasks.map((task) => {
-                            const state = taskStateLabel(task);
                             const isTaskExpanded = expandedTask === task._id;
                             const subs = subtasksByParent.get(task._id) ?? [];
+                            const canChange = canEditTasks || task.assignedTo?._id === session?.user?.id;
                             return (
                               <div key={task._id}>
                                 <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
@@ -637,11 +619,8 @@ export default function WorkspacePage() {
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                     </motion.svg>
                                   </button>
-                                  <button type="button" onClick={(canEditTasks || task.assignedTo?._id === session?.user?.id) ? () => cycleTaskStatus(task) : undefined} className="shrink-0" title="Change status">
-                                    <StatusDot status={task.status} />
-                                  </button>
                                   <span className="text-[11px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
-                                  <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: state.bg, color: state.color }}>{state.label}</span>
+                                  <TaskStatusToggle task={task} canChange={!!canChange} onCycle={() => cycleTaskStatus(task)} />
                                   {task.deadline && <span className="text-[9px] tabular-nums shrink-0" style={{ color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
                                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                     {canEditTasks && (
@@ -672,16 +651,12 @@ export default function WorkspacePage() {
                                           </div>
                                         ))}
                                         {canCreateTasks && (
-                                          <div className="flex items-center gap-2 mt-0.5">
-                                            <input type="text" value={expandedTask === task._id ? newSubtaskTitle : ""} onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                                              onKeyDown={(e) => { if (e.key === "Enter") void createSubtask(task._id, c._id, task.assignedTo?._id ?? ""); }}
-                                              placeholder="Add subtask…" className="input flex-1 text-[10px] py-0.5" />
-                                            <button type="button" disabled={addingSubtask || !newSubtaskTitle.trim()}
-                                              onClick={() => void createSubtask(task._id, c._id, task.assignedTo?._id ?? "")}
-                                              className="text-[10px] font-semibold px-2 py-0.5 rounded transition-colors disabled:opacity-40" style={{ color: "var(--primary)" }}>
-                                              {addingSubtask ? "…" : "Add"}
-                                            </button>
-                                          </div>
+                                          <button type="button" onClick={() => openCreateTask(c._id, task._id)}
+                                            className="flex items-center gap-1.5 text-[10px] font-medium transition-colors hover:opacity-80 mt-0.5 px-2 py-1 rounded"
+                                            style={{ color: "var(--primary)" }}>
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                            Add subtask
+                                          </button>
                                         )}
                                       </div>
                                     </motion.div>
@@ -746,38 +721,45 @@ export default function WorkspacePage() {
                       )}
                     </AnimatePresence>
 
-                    {/* ── card footer: inline add task ── */}
-                    {canCreateTasks && (
-                      <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                        {inlineTaskCampaign === c._id ? (
-                          <div className="flex items-center gap-2">
-                            <input ref={inlineInputRef} type="text" value={inlineTaskTitle} onChange={(e) => setInlineTaskTitle(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") void handleInlineTaskCreate(c._id); if (e.key === "Escape") { setInlineTaskCampaign(null); setInlineTaskTitle(""); } }}
-                              placeholder="Task title…" className="input flex-1 text-[11px] py-1" autoFocus />
-                            <button type="button" disabled={inlineTaskSaving || !inlineTaskTitle.trim()} onClick={() => void handleInlineTaskCreate(c._id)}
-                              className="text-[10px] font-semibold px-2 py-1 rounded transition-colors disabled:opacity-40" style={{ color: "var(--primary)" }}>
-                              {inlineTaskSaving ? "…" : "Add"}
-                            </button>
-                            <button type="button" onClick={() => { setInlineTaskCampaign(null); setInlineTaskTitle(""); }}
-                              className="text-[10px] font-medium px-1.5 py-1 rounded transition-colors" style={{ color: "var(--fg-tertiary)" }}>
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <button type="button" onClick={() => { setInlineTaskCampaign(c._id); setInlineTaskTitle(""); }}
-                              className="flex items-center gap-1.5 text-[11px] font-medium transition-colors hover:opacity-80" style={{ color: "var(--fg-tertiary)" }}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                              Add task
-                            </button>
-                            <button type="button" onClick={() => openCreateTask(c._id)}
-                              className="ml-auto text-[10px] font-medium transition-colors hover:opacity-80" style={{ color: "var(--primary)" }}>
-                              Detailed
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* ── card footer: stat pills ── */}
+                    <div className="border-t px-3 py-2 flex items-center gap-1.5 flex-wrap" style={{ borderColor: "var(--border)" }}>
+                      {totalTasks > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
+                          {totalTasks} {totalTasks === 1 ? "task" : "tasks"}
+                        </span>
+                      )}
+                      {pendingTasks > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>
+                          {pendingTasks} pending
+                        </span>
+                      )}
+                      {inProgressTasks > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+                          {inProgressTasks} working
+                        </span>
+                      )}
+                      {completedTasks > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+                          {completedTasks} done
+                        </span>
+                      )}
+                      {recurCount > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>
+                          {recurCount} recurring
+                        </span>
+                      )}
+                      {empCount > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zm-4 7a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                          {empCount}
+                        </span>
+                      )}
+                      {c.startDate && (
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                          {formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : ""}
+                        </span>
+                      )}
+                    </div>
                   </motion.div>
                 );
               })}
@@ -790,15 +772,22 @@ export default function WorkspacePage() {
           <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
               <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Activity</h3>
+                <div className="flex items-center min-w-0">
+                  <h3 className="text-headline" style={{ color: "var(--fg)" }}>Activity</h3>
+                  <RefreshBtn onRefresh={() => void refetchLogs()} />
                   {totalUnread > 0 && (
-                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
                       {totalUnread > 99 ? "99+" : totalUnread}
                     </span>
                   )}
                 </div>
-                <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={() => void refetchLogs()} className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>Refresh</motion.button>
+                {totalUnread > 0 && (
+                  <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={markAllRead}
+                    className="h-6 w-6 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
+                    style={{ color: "var(--teal)" }} title="Mark all as read">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L7 17l-5-5" /><path d="M22 10l-9.5 9.5L10 17" /></svg>
+                  </motion.button>
+                )}
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                 {logs.length === 0 ? (
@@ -816,20 +805,29 @@ export default function WorkspacePage() {
                         const isOpen = !activityCollapsed.has(entity);
                         return (
                           <div key={entity} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                            <button type="button" onClick={() => toggleActivityGroup(entity)}
-                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
-                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
-                              <span className="text-[12px] font-semibold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
+                            <div className="flex w-full items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
+                              <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+                                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
+                                <span className="text-[12px] font-semibold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
+                                {group.unread > 0 && (
+                                  <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                                    {group.unread}
+                                  </span>
+                                )}
+                                <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{group.logs.length}</span>
+                                <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </motion.svg>
+                              </button>
                               {group.unread > 0 && (
-                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
-                                  {group.unread}
-                                </span>
+                                <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markEntityRead(entity)}
+                                  className="shrink-0 h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
+                                  style={{ color: "var(--teal)" }}
+                                  title="Mark as read">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                                </motion.button>
                               )}
-                              <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{group.logs.length}</span>
-                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                              </motion.svg>
-                            </button>
+                            </div>
                             <AnimatePresence initial={false}>
                               {isOpen && (
                                 <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
@@ -875,123 +873,97 @@ export default function WorkspacePage() {
       </div>
 
       {/* ── task modal ── */}
-      <Portal>
-        <AnimatePresence>
-          {taskModalOpen && (
-            <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setTaskModalOpen(false)} />
-              <motion.div
-                className="relative w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
-                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h2 className="text-headline text-lg mb-4">{editingTask ? "Edit Task" : "New Task"}</h2>
-                <div className="space-y-3">
-                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Title</label><input type="text" value={fTitle} onChange={(e) => setFTitle(e.target.value)} className="input w-full" autoFocus required /></div>
-                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Description</label><textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)} rows={2} className="input w-full" /></div>
-                  {canReassignTasks && allEmployees.length > 0 && (
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Assign To</label><select value={fAssignee} onChange={(e) => setFAssignee(e.target.value)} className="input w-full" required><option value="">Select…</option>{allEmployees.map((o) => <option key={o._id} value={o._id}>{o.label}</option>)}</select></div>
-                  )}
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Campaign</label>
-                    <select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} className="input w-full" disabled={!!fCampaign && !editingTask}>
-                      <option value="">None</option>
-                      {campaignList.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Priority</label><select value={fPriority} onChange={(e) => setFPriority(e.target.value)} className="input w-full"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Deadline</label><input type="date" value={fDeadline} onChange={(e) => setFDeadline(e.target.value)} className="input w-full" /></div>
-                  </div>
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Recurrence</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <select value={fRecurFreq} onChange={(e) => setFRecurFreq(e.target.value)} className="input w-full">
-                        <option value="">One-time (no recurrence)</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly (Mon)</option>
-                        <option value="biweekly">Bi-weekly</option>
-                        <option value="monthly">Monthly (1st)</option>
-                        <option value="custom">Custom days</option>
-                      </select>
-                      {fRecurFreq && (
-                        <input type="time" value={fRecurTime} onChange={(e) => setFRecurTime(e.target.value)} className="input w-full" placeholder="Preferred time" />
-                      )}
-                    </div>
-                    {fRecurFreq === "custom" && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, idx) => (
-                          <button key={idx} type="button"
-                            onClick={() => setFRecurDays((prev) => prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx])}
-                            className="rounded-md px-2 py-1 text-[11px] font-semibold border transition-all"
-                            style={{
-                              background: fRecurDays.includes(idx) ? "var(--primary)" : "var(--bg-grouped)",
-                              color: fRecurDays.includes(idx) ? "white" : "var(--fg-secondary)",
-                              borderColor: fRecurDays.includes(idx) ? "var(--primary)" : "var(--border)",
-                            }}>{label}</button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {editingTask && (
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Status</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="input w-full"><option value="pending">Pending</option><option value="inProgress">In Progress</option><option value="completed">Completed</option></select></div>
-                  )}
-                </div>
-                <div className="flex gap-2 mt-5">
-                  <motion.button type="button" onClick={handleSaveTask} disabled={taskSaving || !fTitle.trim()} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{taskSaving ? "Saving…" : editingTask ? "Update" : "Create"}</motion.button>
-                  <button type="button" onClick={() => setTaskModalOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Portal>
+      <ModalShell
+        open={taskModalOpen}
+        onClose={() => setTaskModalOpen(false)}
+        title={editingTask ? "Edit Task" : fParentTask ? "New Subtask" : "New Task"}
+        subtitle={editingTask ? "Update task details." : "Create and assign a task."}
+        maxWidth="max-w-md"
+        footer={<>
+          <motion.button type="button" onClick={handleSaveTask} disabled={taskSaving || !fTitle.trim()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">{taskSaving ? "Saving…" : editingTask ? "Update" : "Create"}</motion.button>
+          <button type="button" onClick={() => setTaskModalOpen(false)} className="btn btn-secondary flex-1">Cancel</button>
+        </>}
+      >
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label><input type="text" value={fTitle} onChange={(e) => setFTitle(e.target.value)} className="input" autoFocus required /></div>
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label><textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)} rows={2} className="input" /></div>
+        {canReassignTasks && allEmployees.length > 0 && (
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To</label><select value={fAssignee} onChange={(e) => setFAssignee(e.target.value)} className="input" required><option value="">Select…</option>{allEmployees.map((o) => <option key={o._id} value={o._id}>{o.label}</option>)}</select></div>
+        )}
+        <div>
+          <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Campaign</label>
+          <select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} className="input" disabled={!!fCampaign && !editingTask}>
+            <option value="">None</option>
+            {campaignList.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Priority</label><select value={fPriority} onChange={(e) => setFPriority(e.target.value)} className="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Deadline</label><input type="date" value={fDeadline} onChange={(e) => setFDeadline(e.target.value)} className="input" /></div>
+        </div>
+        {!fParentTask && (
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Recurrence</label>
+            <select value={fRecurFreq} onChange={(e) => { setFRecurFreq(e.target.value); setFRecurDays([]); }} className="input">
+              <option value="">One-time (no recurrence)</option>
+              <option value="weekly">Weekly — pick days of the week</option>
+              <option value="monthly">Monthly — pick dates of the month</option>
+            </select>
+            {fRecurFreq === "weekly" && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, idx) => (
+                  <button key={idx} type="button"
+                    onClick={() => setFRecurDays((prev) => prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx])}
+                    className="rounded-md px-2 py-1 text-[11px] font-semibold border transition-all"
+                    style={{ background: fRecurDays.includes(idx) ? "var(--primary)" : "var(--bg-grouped)", color: fRecurDays.includes(idx) ? "white" : "var(--fg-secondary)", borderColor: fRecurDays.includes(idx) ? "var(--primary)" : "var(--border)" }}>{label}</button>
+                ))}
+              </div>
+            )}
+            {fRecurFreq === "monthly" && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <button key={d} type="button"
+                    onClick={() => setFRecurDays((prev) => prev.includes(d) ? prev.filter((v) => v !== d) : [...prev, d])}
+                    className="h-7 w-7 rounded-md text-[10px] font-semibold border transition-all flex items-center justify-center"
+                    style={{ background: fRecurDays.includes(d) ? "var(--primary)" : "var(--bg-grouped)", color: fRecurDays.includes(d) ? "white" : "var(--fg-secondary)", borderColor: fRecurDays.includes(d) ? "var(--primary)" : "var(--border)" }}>{d}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {editingTask && (
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="input"><option value="pending">Pending</option><option value="inProgress">In Progress</option><option value="completed">Completed</option></select></div>
+        )}
+      </ModalShell>
 
       {/* ── campaign modal ── */}
-      <Portal>
-        <AnimatePresence>
-          {campaignModalOpen && (
-            <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setCampaignModalOpen(false)} />
-              <motion.div
-                className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
-                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h2 className="text-headline text-lg mb-4">{editingCampaign ? "Edit Campaign" : "New Campaign"}</h2>
-                <div className="space-y-3">
-                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Name</label><input type="text" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="e.g. Q2 Marketing Push" className="input w-full" autoFocus /></div>
-                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Description</label><textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} rows={2} className="input w-full" /></div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Status</label><select value={cStatus} onChange={(e) => setCStatus(e.target.value as CampaignStatus)} className="input w-full"><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Budget</label><input type="text" value={cBudget} onChange={(e) => setCBudget(e.target.value)} className="input w-full" /></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Start</label><input type="date" value={cStart} onChange={(e) => setCStart(e.target.value)} className="input w-full" /></div>
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>End</label><input type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="input w-full" /></div>
-                  </div>
-                  {canTagEntities && allDepartments.length > 0 && (
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Tag Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => setCTagDepts(toggleArr(cTagDepts, d._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>
-                  )}
-                  {canTagEntities && allEmployees.length > 0 && (
-                    <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Tag Employees</label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{allEmployees.map((e) => (<button key={e._id} type="button" onClick={() => setCTagEmployees(toggleArr(cTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>
-                  )}
-                  <div><label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Notes</label><textarea value={cNotes} onChange={(e) => setCNotes(e.target.value)} rows={2} className="input w-full" /></div>
-                </div>
-                <div className="flex gap-2 mt-5">
-                  <motion.button type="button" onClick={handleSaveCampaign} disabled={campaignSaving || !cName.trim()} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{campaignSaving ? "Saving…" : editingCampaign ? "Update" : "Create"}</motion.button>
-                  <button type="button" onClick={() => setCampaignModalOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Portal>
+      <ModalShell
+        open={campaignModalOpen}
+        onClose={() => setCampaignModalOpen(false)}
+        title={editingCampaign ? "Edit Campaign" : "New Campaign"}
+        subtitle={editingCampaign ? "Update campaign details." : "Create a new campaign."}
+        footer={<>
+          <motion.button type="button" onClick={handleSaveCampaign} disabled={campaignSaving || !cName.trim()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">{campaignSaving ? "Saving…" : editingCampaign ? "Update" : "Create"}</motion.button>
+          <button type="button" onClick={() => setCampaignModalOpen(false)} className="btn btn-secondary flex-1">Cancel</button>
+        </>}
+      >
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Name</label><input type="text" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="e.g. Q2 Marketing Push" className="input" autoFocus /></div>
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label><textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} rows={2} className="input" /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label><select value={cStatus} onChange={(e) => setCStatus(e.target.value as CampaignStatus)} className="input"><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Budget</label><input type="text" value={cBudget} onChange={(e) => setCBudget(e.target.value)} className="input" /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start</label><input type="date" value={cStart} onChange={(e) => setCStart(e.target.value)} className="input" /></div>
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End</label><input type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="input" /></div>
+        </div>
+        {canTagEntities && allDepartments.length > 0 && (
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => setCTagDepts(toggleArr(cTagDepts, d._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>
+        )}
+        {canTagEntities && allEmployees.length > 0 && (
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Employees</label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{allEmployees.map((e) => (<button key={e._id} type="button" onClick={() => setCTagEmployees(toggleArr(cTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>
+        )}
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Notes</label><textarea value={cNotes} onChange={(e) => setCNotes(e.target.value)} rows={2} className="input" /></div>
+      </ModalShell>
 
       {/* ── delete confirm ── */}
       <ConfirmDialog

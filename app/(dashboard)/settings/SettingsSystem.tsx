@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { SegmentedControl } from "../components/ui";
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -172,23 +173,11 @@ export function TestEmailCard({
       <h2 className="text-sm font-black uppercase tracking-wider mb-1" style={{ color: "var(--primary)" }}>Test Email</h2>
       <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>Send a test email to verify SMTP configuration.</p>
       <div className="space-y-3">
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {EMAIL_TYPES.map(([t, label]) => (
-            <motion.button
-              key={t}
-              type="button"
-              onClick={() => onTestTypeChange(t)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                testType === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-              }`}
-            >
-              {label}
-            </motion.button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={testType}
+          onChange={onTestTypeChange}
+          options={EMAIL_TYPES.map(([t, label]) => ({ value: t, label }))}
+        />
         <div className="relative">
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)]"><svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
           <input type="email" value={testEmail} onChange={(e) => onTestEmailChange(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "40px" }} />

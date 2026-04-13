@@ -7,6 +7,7 @@ import { useQuery } from "@/lib/useQuery";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmployeeCard } from "../components/EmployeeCard";
+import { SearchField, SegmentedControl, PageHeader, EmptyState } from "../components/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
@@ -277,73 +278,36 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-0">
       {/* Header: title left, sort right — no route-level loading.tsx + no entrance fade: avoids double skeleton / flicker on client nav */}
       <div data-tour="employees-header" className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-title">Employees</h1>
-          <p className="text-subhead">
-            {employeesLoading && !employees ? (
-              <span className="inline-block h-3 w-36 max-w-[50vw] rounded align-middle shimmer" aria-hidden />
-            ) : (
-              <>
-                {empList.length} employee{empList.length !== 1 ? "s" : ""}
-              </>
-            )}
-          </p>
-        </div>
+        <PageHeader
+          title="Employees"
+          loading={employeesLoading && !employees}
+          subtitle={`${empList.length} employee${empList.length !== 1 ? "s" : ""}`}
+          shimmerWidth="w-36"
+        />
         <div className="flex items-center gap-2 flex-wrap">
           <ScopeStrip value={scopeDept} onChange={setScopeDept} />
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-            {(["flat", "department"] as GroupMode[]).map((g) => (
-              <motion.button
-                key={g}
-                type="button"
-                onClick={() => setGroupMode(g)}
-                whileTap={{ scale: 0.97 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                className={`px-2 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                  groupMode === g
-                    ? "bg-[var(--primary)] text-white shadow-sm"
-                    : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-                }`}
-              >
-                {g === "flat" ? "Flat" : "By Dept"}
-              </motion.button>
-            ))}
-        </div>
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {(["recent", "name"] as SortMode[]).map((s) => (
-            <motion.button
-              key={s}
-              type="button"
-              onClick={() => setSortMode(s)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                sortMode === s
-                  ? "bg-[var(--primary)] text-white shadow-sm"
-                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-              }`}
-            >
-              {s === "recent" ? "Latest" : "A – Z"}
-            </motion.button>
-          ))}
-        </div>
+          <SegmentedControl
+            value={groupMode}
+            onChange={setGroupMode}
+            options={[
+              { value: "flat" as GroupMode, label: "Flat" },
+              { value: "department" as GroupMode, label: "By Dept" },
+            ]}
+          />
+          <SegmentedControl
+            value={sortMode}
+            onChange={setSortMode}
+            options={[
+              { value: "recent" as SortMode, label: "Latest" },
+              { value: "name" as SortMode, label: "A – Z" },
+            ]}
+          />
         </div>
       </div>
 
       {/* Search + Add row */}
       <div data-tour="employees-search" className="card-static mb-4 flex items-center gap-3 p-4">
-        <div className="relative flex-1">
-          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search employees..."
-            className="input flex-1"
-            style={{ paddingLeft: "40px" }}
-          />
-        </div>
+        <SearchField value={search} onChange={setSearch} placeholder="Search employees..." />
         {sessionStatus !== "loading" && canCreateEmployees && (
         <motion.button
           type="button"
@@ -519,11 +483,7 @@ export default function EmployeesPage() {
         }
 
         if (filtered.length === 0) {
-          return (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center mt-4">
-              <p style={{ color: "var(--fg-secondary)" }}>No employees found.</p>
-            </motion.div>
-          );
+          return <div className="mt-4"><EmptyState message="No employees found." /></div>;
         }
 
         if (grouped) {

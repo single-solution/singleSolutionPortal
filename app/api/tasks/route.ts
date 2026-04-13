@@ -81,15 +81,18 @@ export async function POST(req: Request) {
 
   let recurrence: Record<string, unknown> | undefined;
   if (body.recurrence && body.recurrence.frequency) {
-    const validFreqs = ["daily", "weekly", "biweekly", "monthly", "custom"];
+    const validFreqs = ["weekly", "monthly"];
     if (!validFreqs.includes(body.recurrence.frequency)) {
-      return badRequest("Invalid recurrence frequency");
+      return badRequest("Invalid recurrence frequency. Must be 'weekly' or 'monthly'");
     }
-    recurrence = { frequency: body.recurrence.frequency };
-    if (body.recurrence.frequency === "custom" && Array.isArray(body.recurrence.days)) {
-      recurrence.days = body.recurrence.days.filter((d: number) => d >= 0 && d <= 6);
+    if (!Array.isArray(body.recurrence.days) || body.recurrence.days.length === 0) {
+      return badRequest("Recurrence days are required");
     }
-    if (body.recurrence.time) recurrence.time = body.recurrence.time;
+    const maxVal = body.recurrence.frequency === "weekly" ? 6 : 31;
+    const minVal = body.recurrence.frequency === "weekly" ? 0 : 1;
+    const days = body.recurrence.days.filter((d: number) => typeof d === "number" && d >= minVal && d <= maxVal);
+    if (days.length === 0) return badRequest("At least one valid day is required");
+    recurrence = { frequency: body.recurrence.frequency, days };
   }
 
   const task = await ActivityTask.create({

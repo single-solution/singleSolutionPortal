@@ -7,7 +7,7 @@ import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Portal } from "../components/Portal";
+import { SearchField, SegmentedControl, PageHeader, EmptyState, ModalShell } from "../components/ui";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
@@ -247,52 +247,24 @@ export default function CampaignsPage() {
     <div className="flex flex-col gap-0">
       {/* Header */}
       <div data-tour="campaigns-header" className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-title">Campaigns</h1>
-          <p className="text-subhead">
-            {campaignsLoading && !campaigns ? (
-              <span className="inline-block h-3 w-44 max-w-[55vw] rounded align-middle shimmer" aria-hidden />
-            ) : (
-              <>
-                {campaignList.length} campaign{campaignList.length !== 1 ? "s" : ""} · {statusCounts.active} active
-                <span className="text-[var(--fg-tertiary)]"> — tag departments and people; several depts can share one campaign.</span>
-              </>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {(["recent", "name"] as SortMode[]).map((s) => (
-            <motion.button
-              key={s}
-              type="button"
-              onClick={() => setSortMode(s)}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                sortMode === s ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-              }`}
-            >
-              {s === "recent" ? "Recent" : "A – Z"}
-            </motion.button>
-          ))}
-        </div>
+        <PageHeader
+          title="Campaigns"
+          loading={campaignsLoading && !campaigns}
+          subtitle={`${campaignList.length} campaign${campaignList.length !== 1 ? "s" : ""} · ${statusCounts.active} active`}
+        />
+        <SegmentedControl
+          value={sortMode}
+          onChange={setSortMode}
+          options={[
+            { value: "recent" as SortMode, label: "Recent" },
+            { value: "name" as SortMode, label: "A – Z" },
+          ]}
+        />
       </div>
 
       {/* Search + Add */}
       <div className="card-static mb-4 flex items-center gap-3 p-4">
-        <div className="relative flex-1">
-          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search campaigns..."
-            className="input flex-1"
-            style={{ paddingLeft: "40px" }}
-          />
-        </div>
+        <SearchField value={search} onChange={setSearch} placeholder="Search campaigns..." />
         {canManageCampaigns && sessionStatus !== "loading" && (
         <motion.button
           type="button"
@@ -311,22 +283,17 @@ export default function CampaignsPage() {
 
       {/* Status filter pills */}
       <div data-tour="campaigns-filters" className="mb-4 flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {(["all", "active", "paused", "completed", "cancelled"] as StatusFilter[]).map((s) => (
-            <motion.button
-              key={s}
-              type="button"
-              onClick={() => setStatusFilter(s)}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                statusFilter === s ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-              }`}
-            >
-              {s === "all" ? `All (${statusCounts.all})` : `${STATUS_CONFIG[s].label} (${statusCounts[s] ?? 0})`}
-            </motion.button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "all" as StatusFilter, label: `All (${statusCounts.all})` },
+            { value: "active" as StatusFilter, label: `${STATUS_CONFIG.active.label} (${statusCounts.active ?? 0})` },
+            { value: "paused" as StatusFilter, label: `${STATUS_CONFIG.paused.label} (${statusCounts.paused ?? 0})` },
+            { value: "completed" as StatusFilter, label: `${STATUS_CONFIG.completed.label} (${statusCounts.completed ?? 0})` },
+            { value: "cancelled" as StatusFilter, label: `${STATUS_CONFIG.cancelled.label} (${statusCounts.cancelled ?? 0})` },
+          ]}
+        />
         {(search || statusFilter !== "all") && (
           <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
             Clear
@@ -376,9 +343,9 @@ export default function CampaignsPage() {
               </motion.div>
             ))
           ) : filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="col-span-full card p-12 text-center">
-              <p style={{ color: "var(--fg-secondary)" }}>No campaigns found. Create one above.</p>
-            </motion.div>
+            <div className="col-span-full">
+              <EmptyState message="No campaigns found. Create one above." />
+            </div>
           ) : (
             filtered.map((c, i) => {
               const sc = STATUS_CONFIG[c.status];
@@ -506,105 +473,86 @@ export default function CampaignsPage() {
       </motion.div>
 
       {/* Create/Edit Modal */}
-      <Portal>
-      <AnimatePresence>
-        {modalOpen && (
-          <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-            <motion.div
-              className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
-              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            >
-              <h2 className="text-headline text-lg mb-4">{editingCampaign ? "Edit Campaign" : "New Campaign"}</h2>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Campaign Name</label>
-                  <input type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Q2 Marketing Push" className="input w-full" autoFocus />
-                </div>
-                <div>
-                  <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Description</label>
-                  <textarea value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="What is this campaign about?" rows={2} className="input w-full" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Status</label>
-                    <select value={formStatus} onChange={(e) => setFormStatus(e.target.value as CampaignStatus)} className="input w-full">
-                      <option value="active">Active</option>
-                      <option value="paused">Paused</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Budget</label>
-                    <input type="text" value={formBudget} onChange={(e) => setFormBudget(e.target.value)} placeholder="$10,000" className="input w-full" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Start Date</label>
-                    <input type="date" value={formStart} onChange={(e) => setFormStart(e.target.value)} className="input w-full" />
-                  </div>
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>End Date</label>
-                    <input type="date" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="input w-full" />
-                  </div>
-                </div>
-
-                {/* Tag: Departments */}
-                {canTagEntities && allDepartments.length > 0 && (
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Tag Departments</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {allDepartments.map((d) => {
-                        const active = formTagDepts.includes(d._id);
-                        return (
-                          <motion.button key={d._id} type="button" onClick={() => setFormTagDepts(toggleArrayItem(formTagDepts, d._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>
-                            {d.label}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tag: Employees */}
-                {canTagEntities && allEmployees.length > 0 && (
-                  <div>
-                    <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Tag Employees</label>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                      {allEmployees.map((e) => {
-                        const active = formTagEmployees.includes(e._id);
-                        return (
-                          <motion.button key={e._id} type="button" onClick={() => setFormTagEmployees(toggleArrayItem(formTagEmployees, e._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>
-                            {e.label}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="text-footnote font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Notes</label>
-                  <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Internal notes..." rows={2} className="input w-full" />
-                </div>
-              </div>
-              <div className="flex gap-2 mt-5">
-                <motion.button type="button" onClick={handleSave} disabled={saving || !formName.trim()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">
-                  {saving ? "Saving..." : editingCampaign ? "Update" : "Create"}
-                </motion.button>
-                <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
-              </div>
-            </motion.div>
-          </motion.div>
+      <ModalShell
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editingCampaign ? "Edit Campaign" : "New Campaign"}
+        subtitle={editingCampaign ? "Update campaign details." : "Create and configure a campaign."}
+        footer={<>
+          <motion.button type="button" onClick={handleSave} disabled={saving || !formName.trim()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">
+            {saving ? "Saving..." : editingCampaign ? "Update" : "Create"}
+          </motion.button>
+          <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary flex-1">Cancel</button>
+        </>}
+      >
+        <div>
+          <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Campaign Name</label>
+          <input type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Q2 Marketing Push" className="input" autoFocus />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label>
+          <textarea value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="What is this campaign about?" rows={2} className="input" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label>
+            <select value={formStatus} onChange={(e) => setFormStatus(e.target.value as CampaignStatus)} className="input">
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Budget</label>
+            <input type="text" value={formBudget} onChange={(e) => setFormBudget(e.target.value)} placeholder="$10,000" className="input" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start Date</label>
+            <input type="date" value={formStart} onChange={(e) => setFormStart(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End Date</label>
+            <input type="date" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="input" />
+          </div>
+        </div>
+        {canTagEntities && allDepartments.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Departments</label>
+            <div className="flex flex-wrap gap-1.5">
+              {allDepartments.map((d) => {
+                const active = formTagDepts.includes(d._id);
+                return (
+                  <motion.button key={d._id} type="button" onClick={() => setFormTagDepts(toggleArrayItem(formTagDepts, d._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>
+                    {d.label}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
         )}
-      </AnimatePresence>
-      </Portal>
+        {canTagEntities && allEmployees.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Employees</label>
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+              {allEmployees.map((e) => {
+                const active = formTagEmployees.includes(e._id);
+                return (
+                  <motion.button key={e._id} type="button" onClick={() => setFormTagEmployees(toggleArrayItem(formTagEmployees, e._id))} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"}`} style={active ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>
+                    {e.label}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        <div>
+          <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Notes</label>
+          <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Internal notes..." rows={2} className="input" />
+        </div>
+      </ModalShell>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

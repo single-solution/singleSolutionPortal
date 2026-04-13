@@ -2,12 +2,11 @@ import mongoose, { Schema, type Document, type Types } from "mongoose";
 
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type TaskStatus = "pending" | "inProgress" | "completed";
-export type RecurrenceFrequency = "daily" | "weekly" | "biweekly" | "monthly" | "custom";
+export type RecurrenceFrequency = "weekly" | "monthly";
 
 export interface IRecurrence {
   frequency: RecurrenceFrequency;
-  days?: number[]; // 0=Sun..6=Sat — used when frequency is "custom"
-  time?: string;   // optional preferred time, e.g. "15:00"
+  days: number[]; // weekly: 0=Sun..6=Sat  |  monthly: 1..31
 }
 
 export interface IActivityTask extends Document {
@@ -43,11 +42,10 @@ const recurrenceSchema = new Schema(
   {
     frequency: {
       type: String,
-      enum: ["daily", "weekly", "biweekly", "monthly", "custom"],
+      enum: ["weekly", "monthly"],
       required: true,
     },
-    days: { type: [Number], default: undefined },
-    time: { type: String, default: undefined },
+    days: { type: [Number], required: true },
   },
   { _id: false },
 );

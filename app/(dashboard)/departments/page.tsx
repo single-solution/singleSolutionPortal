@@ -6,6 +6,7 @@ import { staggerContainerFast, cardVariants, cardHover } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { SearchField, SegmentedControl, PageHeader, EmptyState } from "../components/ui";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
@@ -161,51 +162,24 @@ export default function DepartmentsPage() {
     <div className="flex flex-col gap-0">
       {/* Header — static shell avoids route loading.tsx + contentReveal double flicker */}
       <div data-tour="departments-header" className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-title">Departments</h1>
-          <p className="text-subhead">
-            {deptsLoading && !departments ? (
-              <span className="inline-block h-3 w-44 max-w-[55vw] rounded align-middle shimmer" aria-hidden />
-            ) : (
-              <>
-                {deptList.length} department{deptList.length !== 1 ? "s" : ""} · {totalEmployees} team member{totalEmployees !== 1 ? "s" : ""}
-              </>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ background: "var(--bg)", borderColor: "var(--border-strong)" }}>
-          {(["most", "name"] as SortMode[]).map((s) => (
-            <motion.button
-              key={s}
-              type="button"
-              onClick={() => setSortMode(s)}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                sortMode === s
-                  ? "bg-[var(--primary)] text-white shadow-sm"
-                  : "text-[var(--fg-secondary)] hover:text-[var(--fg)]"
-              }`}
-            >
-              {s === "most" ? "Most Employees" : "Name"}
-            </motion.button>
-          ))}
-        </div>
+        <PageHeader
+          title="Departments"
+          loading={deptsLoading && !departments}
+          subtitle={`${deptList.length} department${deptList.length !== 1 ? "s" : ""} · ${totalEmployees} team member${totalEmployees !== 1 ? "s" : ""}`}
+        />
+        <SegmentedControl
+          value={sortMode}
+          onChange={setSortMode}
+          options={[
+            { value: "most" as SortMode, label: "Most Employees" },
+            { value: "name" as SortMode, label: "Name" },
+          ]}
+        />
       </div>
 
       {/* Search + Add row */}
       <div data-tour="departments-search" className="card-static mb-4 flex items-center gap-3 p-4">
-        <div className="relative flex-1">
-          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search departments..."
-            className="input flex-1"
-            style={{ paddingLeft: "40px" }}
-          />
-        </div>
+        <SearchField value={search} onChange={setSearch} placeholder="Search departments..." />
         {sessionStatus !== "loading" && canManageDepts && (
           <motion.button
             type="button"
@@ -302,15 +276,9 @@ export default function DepartmentsPage() {
               </motion.div>
             ))
           ) : sorted.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="col-span-full card p-12 text-center"
-            >
-              <p style={{ color: "var(--fg-secondary)" }}>No departments yet. Add one above.</p>
-            </motion.div>
+            <div className="col-span-full">
+              <EmptyState message="No departments yet. Add one above." />
+            </div>
           ) : sorted.map((dept, i) => {
             const pct = totalEmployees > 0 ? Math.round((dept.employeeCount / totalEmployees) * 100) : 0;
             const isEditing = editingId === dept._id;

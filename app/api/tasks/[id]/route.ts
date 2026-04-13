@@ -94,14 +94,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       if (body.recurrence === null) {
         task.recurrence = undefined;
       } else if (body.recurrence.frequency) {
-        const validFreqs = ["daily", "weekly", "biweekly", "monthly", "custom"];
-        if (validFreqs.includes(body.recurrence.frequency)) {
-          const rec: Record<string, unknown> = { frequency: body.recurrence.frequency };
-          if (body.recurrence.frequency === "custom" && Array.isArray(body.recurrence.days)) {
-            rec.days = body.recurrence.days.filter((d: number) => d >= 0 && d <= 6);
+        const validFreqs = ["weekly", "monthly"];
+        if (validFreqs.includes(body.recurrence.frequency) && Array.isArray(body.recurrence.days) && body.recurrence.days.length > 0) {
+          const maxVal = body.recurrence.frequency === "weekly" ? 6 : 31;
+          const minVal = body.recurrence.frequency === "weekly" ? 0 : 1;
+          const days = body.recurrence.days.filter((d: number) => typeof d === "number" && d >= minVal && d <= maxVal);
+          if (days.length > 0) {
+            task.recurrence = { frequency: body.recurrence.frequency, days } as typeof task.recurrence;
           }
-          if (body.recurrence.time) rec.time = body.recurrence.time;
-          task.recurrence = rec as typeof task.recurrence;
         }
       }
     }

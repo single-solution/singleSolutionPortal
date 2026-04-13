@@ -22,16 +22,10 @@ function todayKey() {
 }
 
 function isDueToday(rec: { frequency: string; days?: number[] } | undefined): boolean {
-  if (!rec) return false;
-  const dow = new Date().getDay();
-  switch (rec.frequency) {
-    case "daily": return true;
-    case "weekly": return dow === 1; // Mondays
-    case "biweekly": { const week = Math.floor((Date.now() - new Date(2024, 0, 1).getTime()) / 604800000); return dow === 1 && week % 2 === 0; }
-    case "monthly": return new Date().getDate() === 1;
-    case "custom": return Array.isArray(rec.days) && rec.days.includes(dow);
-    default: return false;
-  }
+  if (!rec || !Array.isArray(rec.days)) return false;
+  if (rec.frequency === "weekly") return rec.days.includes(new Date().getDay());
+  if (rec.frequency === "monthly") return rec.days.includes(new Date().getDate());
+  return false;
 }
 
 export async function GET() {
@@ -94,7 +88,6 @@ export async function GET() {
         _id: t._id.toString(),
         title: t.title,
         done: doneTaskIds.has(t._id.toString()),
-        time: (t.recurrence as { time?: string })?.time ?? null,
       })),
     };
   });

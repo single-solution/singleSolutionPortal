@@ -12,6 +12,7 @@ import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { SearchField } from "../components/ui";
 import toast from "react-hot-toast";
 import { HeaderStatPill } from "../components/StatChips";
 import { ToggleSwitch } from "../components/ToggleSwitch";
@@ -352,12 +353,7 @@ export default function OrganizationPage() {
 
       {/* ── Search + Add Employee ── */}
       <div className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
-        <div className="relative w-full flex-1">
-          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, departments…" className="input w-full" style={{ paddingLeft: "40px" }} />
-        </div>
+        <SearchField value={search} onChange={setSearch} placeholder="Search people, departments…" />
         {sessionStatus !== "loading" && canCreateEmployees && (
           <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
