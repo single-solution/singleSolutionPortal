@@ -214,11 +214,11 @@ export default function AttendancePage() {
     if (!userIdParam && hasTeamAccess) return;
     setLoading(true);
     try {
-      const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
+    const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
       const r = await fetch(`/api/attendance?${qs}`);
       if (!r.ok) throw new Error();
       const res = await r.json();
-      setRecords(Array.isArray(res) ? res : []);
+    setRecords(Array.isArray(res) ? res : []);
     } catch { setRecords([]); }
     setLoading(false);
   }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
@@ -559,9 +559,9 @@ export default function AttendancePage() {
                   className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
                   style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
                 />
-              </div>
+        </div>
             ) : <div />}
-          </div>
+            </div>
           {sessionReady && hasTeamAccess && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
       </div>
 
@@ -592,86 +592,86 @@ export default function AttendancePage() {
       ) : hasTeamAccess ? (
         <div data-tour="attendance-pills">
           <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-            {/* "All" pill — aggregate mode */}
+                  {/* "All" pill — aggregate mode */}
             {!pillSearch && (
-              <motion.button
-                type="button"
-                onClick={() => setViewingUserId("")}
+                    <motion.button
+                      type="button"
+                      onClick={() => setViewingUserId("")}
                 className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
-                style={{
-                  borderColor: !viewingUserId ? "var(--primary)" : "var(--border)",
-                  background: !viewingUserId ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
-                }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
-                <div className="min-w-0">
+                      style={{
+                        borderColor: !viewingUserId ? "var(--primary)" : "var(--border)",
+                        background: !viewingUserId ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
+                      <div className="min-w-0">
                   <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: !viewingUserId ? "var(--primary)" : "var(--fg)" }}>All Employees</p>
                   <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
-                    {aggPresentDays}d · {fmtHours(aggTotalMins)} · <span style={{ color: aggAvgAttendance >= 90 ? "var(--green)" : aggAvgAttendance >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(aggAvgAttendance)}%</span>
-                  </p>
-                </div>
-              </motion.button>
-            )}
-            {/* "My Attendance" pill — non-superadmin admins */}
-            {!isSuperAdmin && !pillSearch && (
-              <motion.button
-                type="button"
-                onClick={() => toggleEmployee(authSession?.user?.id ?? "")}
-                className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
-                style={{
-                  borderColor: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--border)",
-                  background: viewingUserId === authSession?.user?.id ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
-                }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: selfMonthlyStats ? "var(--green)" : "var(--fg-tertiary)" }} />
-                <div className="min-w-0">
-                  <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--fg)" }}>My Attendance</p>
-                  {selfMonthlyStats ? (
-                    <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
-                      {selfMonthlyStats.presentDays}d · {fmtHours(selfMonthlyStats.totalWorkingHours * 60)} · <span style={{ color: selfMonthlyStats.attendancePercentage >= 90 ? "var(--green)" : selfMonthlyStats.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(selfMonthlyStats.attendancePercentage)}%</span>
-                    </p>
-                  ) : (
-                    <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>—</p>
+                          {aggPresentDays}d · {fmtHours(aggTotalMins)} · <span style={{ color: aggAvgAttendance >= 90 ? "var(--green)" : aggAvgAttendance >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(aggAvgAttendance)}%</span>
+                        </p>
+                      </div>
+                    </motion.button>
                   )}
-                </div>
-              </motion.button>
-            )}
+                  {/* "My Attendance" pill — non-superadmin admins */}
+            {!isSuperAdmin && !pillSearch && (
+                    <motion.button
+                      type="button"
+                      onClick={() => toggleEmployee(authSession?.user?.id ?? "")}
+                className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
+                      style={{
+                        borderColor: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--border)",
+                        background: viewingUserId === authSession?.user?.id ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: selfMonthlyStats ? "var(--green)" : "var(--fg-tertiary)" }} />
+                      <div className="min-w-0">
+                  <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--fg)" }}>My Attendance</p>
+                        {selfMonthlyStats ? (
+                    <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
+                            {selfMonthlyStats.presentDays}d · {fmtHours(selfMonthlyStats.totalWorkingHours * 60)} · <span style={{ color: selfMonthlyStats.attendancePercentage >= 90 ? "var(--green)" : selfMonthlyStats.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(selfMonthlyStats.attendancePercentage)}%</span>
+                          </p>
+                        ) : (
+                    <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>—</p>
+                        )}
+                      </div>
+                    </motion.button>
+                  )}
             {/* Employee pills */}
             {searchedSummary.map((emp) => {
-              const isSelected = viewingUserId === emp._id;
-              const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
-              const statusDot = emp.presentDays > 0
-                ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
-                : "var(--fg-tertiary)";
-              return (
-                <motion.button
-                  key={emp._id}
-                  type="button"
-                  onClick={() => toggleEmployee(emp._id)}
+                    const isSelected = viewingUserId === emp._id;
+                    const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
+                    const statusDot = emp.presentDays > 0
+                      ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
+                      : "var(--fg-tertiary)";
+                    return (
+                      <motion.button
+                        key={emp._id}
+                        type="button"
+                        onClick={() => toggleEmployee(emp._id)}
                   className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition-all"
-                  style={{
-                    borderColor: isSelected ? "var(--primary)" : "var(--border)",
-                    background: isSelected ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
-                  }}
-                  whileHover={!isSelected ? { y: -1 } : undefined}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusDot }} />
-                  <div className="min-w-0">
+                        style={{
+                          borderColor: isSelected ? "var(--primary)" : "var(--border)",
+                          background: isSelected ? "color-mix(in srgb, var(--primary) 10%, var(--bg))" : "var(--bg)",
+                        }}
+                        whileHover={!isSelected ? { y: -1 } : undefined}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusDot }} />
+                        <div className="min-w-0">
                     <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: isSelected ? "var(--primary)" : "var(--fg)" }}>{emp.name}</p>
                     <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
-                      {emp.presentDays}d · {fmtHours(emp.totalMinutes)} · <span style={{ color: attendColor }}>{Math.round(emp.attendancePercentage)}%</span>
-                    </p>
-                  </div>
-                </motion.button>
-              );
-            })}
+                            {emp.presentDays}d · {fmtHours(emp.totalMinutes)} · <span style={{ color: attendColor }}>{Math.round(emp.attendancePercentage)}%</span>
+                          </p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
             {pillSearch && searchedSummary.length === 0 && (
               <p className="flex items-center px-2 text-xs" style={{ color: "var(--fg-tertiary)" }}>No matches for &ldquo;{pillSearch}&rdquo;</p>
             )}
-          </div>
+                </div>
         </div>
       ) : null}
 
@@ -758,9 +758,9 @@ export default function AttendancePage() {
             <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
               {!isAggregateMode && (
                 <>
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
-                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
                 </>
               )}
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }} /> Weekend</span>
@@ -1166,81 +1166,81 @@ export default function AttendancePage() {
               </div>
             );
           })()}
-          <div className="relative pl-5">
-            <div className="absolute left-[7px] top-1 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
-            <motion.div className="space-y-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } } }}>
-              {detailData.activitySessions
-                .sort((a, b) => new Date(a.sessionTime.start).getTime() - new Date(b.sessionTime.start).getTime())
-                .map((sess) => {
-                  const device = detectDevice(sess.platform);
-                  const statusConf = sess.status === "active" ? { color: "var(--green)", label: "Active" } : sess.status === "timeout" ? { color: "var(--amber)", label: "Timed Out" } : { color: "var(--fg-tertiary)", label: "Ended" };
-                  return (
-                    <motion.div key={sess._id} className="relative" variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
-                      <div className="absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${sess.location.inOffice ? "var(--green)" : "var(--teal)"}` }}>
-                        {sess.status === "active" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--green)" }} />}
-                      </div>
-                      <div className="rounded-xl p-3 transition-colors" style={{ background: "var(--bg-grouped)" }}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
-                            {fmtTime(sess.sessionTime.start)}
-                            <span style={{ color: "var(--fg-tertiary)" }}> → </span>
-                            {sess.sessionTime.end ? fmtTime(sess.sessionTime.end) : "now"}
-                          </span>
-                          <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
-                            {fmtHours(sess.durationMinutes)}
-                          </span>
+                        <div className="relative pl-5">
+                          <div className="absolute left-[7px] top-1 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
+                          <motion.div className="space-y-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } } }}>
+                            {detailData.activitySessions
+                              .sort((a, b) => new Date(a.sessionTime.start).getTime() - new Date(b.sessionTime.start).getTime())
+                              .map((sess) => {
+                                const device = detectDevice(sess.platform);
+                                const statusConf = sess.status === "active" ? { color: "var(--green)", label: "Active" } : sess.status === "timeout" ? { color: "var(--amber)", label: "Timed Out" } : { color: "var(--fg-tertiary)", label: "Ended" };
+                                return (
+                                  <motion.div key={sess._id} className="relative" variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
+                                    <div className="absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${sess.location.inOffice ? "var(--green)" : "var(--teal)"}` }}>
+                                      {sess.status === "active" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--green)" }} />}
+                                    </div>
+                                    <div className="rounded-xl p-3 transition-colors" style={{ background: "var(--bg-grouped)" }}>
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
+                                          {fmtTime(sess.sessionTime.start)}
+                                          <span style={{ color: "var(--fg-tertiary)" }}> → </span>
+                                          {sess.sessionTime.end ? fmtTime(sess.sessionTime.end) : "now"}
+                                        </span>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+                                          {fmtHours(sess.durationMinutes)}
+                                        </span>
+                                      </div>
+                                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <Pill color={sess.location.inOffice ? "var(--green)" : "var(--teal)"} label={sess.location.inOffice ? "Office" : "Remote"} size="sm" />
+                                        <Pill color={statusConf.color} label={statusConf.label} size="sm" variant="outline" />
+                                        <Pill color="var(--fg-tertiary)" label={device.label} size="sm" variant="outline" icon={device.icon} />
+                                        {sess.isFirstOfficeEntry && <Pill color="var(--primary)" label="First In" size="sm" />}
+                                        {sess.isLastOfficeExit && <Pill color="var(--amber)" label="Last Out" size="sm" />}
+                                      </div>
+                                      {sess.status === "active" && sess.lastActivity && (
+                                        <p className="mt-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Last heartbeat {timeAgo(sess.lastActivity)}</p>
+                                      )}
+                                      {sess.ipAddress && (
+                                        <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>IP {sess.ipAddress}</p>
+                                      )}
+                                      {sess.location.latitude != null && sess.location.longitude != null && (
+                                        <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                                          <a
+                                            href={`https://www.google.com/maps?q=${sess.location.latitude},${sess.location.longitude}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 hover:underline"
+                                            style={{ color: "var(--primary)" }}
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            {sess.location.latitude.toFixed(5)}, {sess.location.longitude.toFixed(5)}
+                                          </a>
+                                        </p>
+                                      )}
+                                      {sess.officeSegments && sess.officeSegments.length > 0 && (
+                                        <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "color-mix(in srgb, var(--border) 60%, transparent)" }}>
+                                          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Office Segments</p>
+                                          <motion.div className="space-y-1" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}>
+                                            {sess.officeSegments.map((seg, si) => (
+                                              <motion.div key={si} className="flex items-center justify-between text-[10px]" variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="h-1 w-1 rounded-full" style={{ background: "var(--green)" }} />
+                                                  <span style={{ color: "var(--fg-secondary)" }}>{fmtTime(seg.entryTime)} → {seg.exitTime ? fmtTime(seg.exitTime) : "now"}</span>
+                                                </div>
+                                                <span className="font-semibold" style={{ color: "var(--green)" }}>{fmtHours(seg.durationMinutes)}</span>
+                                              </motion.div>
+                                            ))}
+                                          </motion.div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </motion.div>
+                                );
+                              })}
+                          </motion.div>
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <Pill color={sess.location.inOffice ? "var(--green)" : "var(--teal)"} label={sess.location.inOffice ? "Office" : "Remote"} size="sm" />
-                          <Pill color={statusConf.color} label={statusConf.label} size="sm" variant="outline" />
-                          <Pill color="var(--fg-tertiary)" label={device.label} size="sm" variant="outline" icon={device.icon} />
-                          {sess.isFirstOfficeEntry && <Pill color="var(--primary)" label="First In" size="sm" />}
-                          {sess.isLastOfficeExit && <Pill color="var(--amber)" label="Last Out" size="sm" />}
-                        </div>
-                        {sess.status === "active" && sess.lastActivity && (
-                          <p className="mt-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Last heartbeat {timeAgo(sess.lastActivity)}</p>
-                        )}
-                        {sess.ipAddress && (
-                          <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>IP {sess.ipAddress}</p>
-                        )}
-                        {sess.location.latitude != null && sess.location.longitude != null && (
-                          <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                            <a
-                              href={`https://www.google.com/maps?q=${sess.location.latitude},${sess.location.longitude}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 hover:underline"
-                              style={{ color: "var(--primary)" }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                              {sess.location.latitude.toFixed(5)}, {sess.location.longitude.toFixed(5)}
-                            </a>
-                          </p>
-                        )}
-                        {sess.officeSegments && sess.officeSegments.length > 0 && (
-                          <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "color-mix(in srgb, var(--border) 60%, transparent)" }}>
-                            <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Office Segments</p>
-                            <motion.div className="space-y-1" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}>
-                              {sess.officeSegments.map((seg, si) => (
-                                <motion.div key={si} className="flex items-center justify-between text-[10px]" variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="h-1 w-1 rounded-full" style={{ background: "var(--green)" }} />
-                                    <span style={{ color: "var(--fg-secondary)" }}>{fmtTime(seg.entryTime)} → {seg.exitTime ? fmtTime(seg.exitTime) : "now"}</span>
-                                  </div>
-                                  <span className="font-semibold" style={{ color: "var(--green)" }}>{fmtHours(seg.durationMinutes)}</span>
-                                </motion.div>
-                              ))}
-                            </motion.div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-            </motion.div>
-          </div>
-        </motion.div>
+              </motion.div>
       )}
 
       {/* Employee monthly stats cards — aggregate mode */}
@@ -1320,9 +1320,9 @@ export default function AttendancePage() {
                   <div className="flex flex-col gap-1.5 p-2 sm:p-2.5">
                     {/* Name + department */}
                     <div className="pr-1 pt-0.5">
-                      <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                        <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
                       <p className="text-caption truncate" style={{ color: "var(--fg-secondary)" }}>{emp.department}{emp.role ? ` · ${emp.role}` : ""}</p>
-                    </div>
+                      </div>
 
                     {/* Days · Hours · Avg/Day */}
                     <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
@@ -1385,8 +1385,8 @@ export default function AttendancePage() {
             >
               + Apply Leave
             </button>
-          </div>
-          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+            </div>
+            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
             {calendarLeaves.map((l) => {
               const statusColor = l.status === "approved" ? "var(--green)" : l.status === "pending" ? "var(--amber)" : "var(--rose)";
               return (
@@ -1429,9 +1429,9 @@ export default function AttendancePage() {
                 <div key={i} className="card overflow-hidden p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
+                    <span className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
                       <span className="shimmer h-3.5 w-20 rounded" />
-                    </div>
+                  </div>
                     <span className="shimmer h-5 w-14 rounded-full" />
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -1439,10 +1439,10 @@ export default function AttendancePage() {
                       <div key={j} className="rounded-lg p-1.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
                         <span className="shimmer block mx-auto h-2 w-8 rounded" />
                         <span className="shimmer block mx-auto h-3.5 w-10 rounded" />
-                      </div>
-                    ))}
-                  </div>
                 </div>
+              ))}
+            </div>
+            </div>
               ))}
             </div>
           </div>
@@ -1503,7 +1503,7 @@ export default function AttendancePage() {
                   </motion.button>
                 );
               })}
-            </motion.div>
+          </motion.div>
           </div>
         ) : null
       )}

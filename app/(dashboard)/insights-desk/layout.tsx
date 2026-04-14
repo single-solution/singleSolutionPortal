@@ -187,7 +187,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
     <InsightsCtx.Provider value={ctxValue}>
       <div>
         <div data-tour="insights-header" className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2 overflow-x-auto shrink" style={{ scrollbarWidth: "none" }}>
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <h1 className="shrink-0 text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Insights Desk</h1>
             {teamCount > 0 && (
               <HeaderStatPill label={teamCount === 1 ? "employee" : "employees"} value={teamCount} dotColor="var(--primary)" />
@@ -203,7 +203,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
             ))}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex shrink-0 items-center gap-2">
             {/* Leaves — modal handles SuperAdmin exempt state internally */}
             <motion.button
                 type="button"
