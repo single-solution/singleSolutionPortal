@@ -9,6 +9,7 @@ import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { RefreshBtn, SearchField, SegmentedControl, EmptyState, ModalShell } from "../components/ui";
 import { HeaderStatPill } from "../components/StatChips";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import toast from "react-hot-toast";
 import { formatShortDate, timeAgo } from "@/lib/formatters";
 
@@ -340,23 +341,22 @@ export default function WorkspacePage() {
   const [cStatus, setCStatus] = useState<CampaignStatus>("active");
   const [cStart, setCStart] = useState("");
   const [cEnd, setCEnd] = useState("");
-  const [cBudget, setCBudget] = useState("");
-  const [cNotes, setCNotes] = useState("");
+  const [cOngoing, setCOngoing] = useState(false);
   const [cTagEmployees, setCTagEmployees] = useState<string[]>([]);
   const [cTagDepts, setCTagDepts] = useState<string[]>([]);
   const [campaignSaving, setCampaignSaving] = useState(false);
 
   function openCreateCampaign() {
-    setEditingCampaign(null); setCName(""); setCDesc(""); setCStatus("active"); setCStart(""); setCEnd(""); setCBudget(""); setCNotes(""); setCTagEmployees([]); setCTagDepts([]); setCampaignModalOpen(true);
+    setEditingCampaign(null); setCName(""); setCDesc(""); setCStatus("active"); setCStart(""); setCEnd(""); setCOngoing(false); setCTagEmployees([]); setCTagDepts([]); setCampaignModalOpen(true);
   }
   function openEditCampaign(c: Campaign) {
-    setEditingCampaign(c); setCName(c.name); setCDesc(c.description ?? ""); setCStatus(c.status); setCStart(c.startDate ? c.startDate.slice(0, 10) : ""); setCEnd(c.endDate ? c.endDate.slice(0, 10) : ""); setCBudget(c.budget ?? ""); setCNotes(c.notes ?? ""); setCTagEmployees(c.tags.employees.map((e) => e._id)); setCTagDepts(c.tags.departments.map((d) => d._id)); setCampaignModalOpen(true);
+    setEditingCampaign(c); setCName(c.name); setCDesc(c.description ?? ""); setCStatus(c.status); setCStart(c.startDate ? c.startDate.slice(0, 10) : ""); setCEnd(c.endDate ? c.endDate.slice(0, 10) : ""); setCOngoing(!c.endDate); setCTagEmployees(c.tags.employees.map((e) => e._id)); setCTagDepts(c.tags.departments.map((d) => d._id)); setCampaignModalOpen(true);
   }
   async function handleSaveCampaign() {
     if (!cName.trim()) return;
     setCampaignSaving(true);
     try {
-      const payload: Record<string, unknown> = { name: cName.trim(), description: cDesc, status: cStatus, startDate: cStart || null, endDate: cEnd || null, budget: cBudget, notes: cNotes, tagEmployees: cTagEmployees, tagDepartments: cTagDepts };
+      const payload: Record<string, unknown> = { name: cName.trim(), description: cDesc, status: cStatus, startDate: cStart || null, endDate: cOngoing ? null : (cEnd || null), tagEmployees: cTagEmployees, tagDepartments: cTagDepts };
       const res = editingCampaign
         ? await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -536,18 +536,23 @@ export default function WorkspacePage() {
       </div>
 
       {/* ── search + create ── */}
-      <div data-tour="workspace-toolbar" className="card-static mb-4 flex shrink-0 items-center gap-3 p-4">
+      <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
         <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks…" />
         {ready && canCreateCampaigns && (
           <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             New Campaign
           </motion.button>
         )}
       </div>
 
       {/* ── status filter ── */}
-      <div className="mb-4 flex shrink-0 items-center gap-2 flex-wrap">
+      <div className="mb-4 flex shrink-0 items-center justify-end gap-2 flex-wrap">
+        {(search || statusFilter !== "all") && (
+          <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
+            Clear
+          </button>
+        )}
         <SegmentedControl
           value={statusFilter}
           onChange={setStatusFilter}
@@ -558,11 +563,6 @@ export default function WorkspacePage() {
             { value: "completed" as StatusFilter, label: `Completed (${statusCounts.completed ?? 0})` },
           ]}
         />
-        {(search || statusFilter !== "all") && (
-          <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
-            Clear
-          </button>
-        )}
       </div>
 
       {/* ── insights strip ── */}
@@ -1072,13 +1072,14 @@ export default function WorkspacePage() {
       >
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Name</label><input type="text" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="e.g. Q2 Marketing Push" className="input" autoFocus /></div>
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label><textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} rows={2} className="input" /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label><select value={cStatus} onChange={(e) => setCStatus(e.target.value as CampaignStatus)} className="input"><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Budget</label><input type="text" value={cBudget} onChange={(e) => setCBudget(e.target.value)} className="input" /></div>
-        </div>
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label><select value={cStatus} onChange={(e) => setCStatus(e.target.value as CampaignStatus)} className="input"><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start</label><input type="date" value={cStart} onChange={(e) => setCStart(e.target.value)} className="input" /></div>
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End</label><input type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="input" /></div>
+          {!cOngoing && <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End</label><input type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="input" /></div>}
+        </div>
+        <div className="flex items-center gap-2">
+          <ToggleSwitch size="sm" checked={cOngoing} onChange={() => { setCOngoing((v) => !v); if (!cOngoing) setCEnd(""); }} />
+          <label className="text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Ongoing (no end date)</label>
         </div>
         {canTagEntities && allDepartments.length > 0 && (
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => setCTagDepts(toggleArr(cTagDepts, d._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>
@@ -1086,7 +1087,6 @@ export default function WorkspacePage() {
         {canTagEntities && allEmployees.length > 0 && (
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Employees</label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{allEmployees.map((e) => (<button key={e._id} type="button" onClick={() => setCTagEmployees(toggleArr(cTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>
         )}
-        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Notes</label><textarea value={cNotes} onChange={(e) => setCNotes(e.target.value)} rows={2} className="input" /></div>
       </ModalShell>
 
       {/* ── delete confirm ── */}
