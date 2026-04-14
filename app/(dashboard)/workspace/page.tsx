@@ -47,7 +47,7 @@ interface OverviewEmployee {
   _id: string; name: string; email: string;
   byDate: { date: string; done: number; total: number }[];
 }
-interface SelectOption { _id: string; label: string }
+interface SelectOption { _id: string; label: string; departmentId?: string }
 
 interface LogEntry {
   _id: string; userEmail: string; userName: string; action: string;
@@ -155,7 +155,7 @@ export default function WorkspacePage() {
   const taskList = useMemo(() => tasks ?? [], [tasks]);
   const campaignList = useMemo(() => campaigns ?? [], [campaigns]);
   const wsLogs = useMemo(() => (logsPayload?.logs ?? []).filter((l) => WS_ENTITIES.has(l.entity)), [logsPayload]);
-  const allEmployees: SelectOption[] = useMemo(() => (employeesRaw ?? []).filter((e) => (e as { isSuperAdmin?: boolean }).isSuperAdmin !== true).map((e) => ({ _id: e._id as string, label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}` })), [employeesRaw]);
+  const allEmployees: SelectOption[] = useMemo(() => (employeesRaw ?? []).filter((e) => (e as { isSuperAdmin?: boolean }).isSuperAdmin !== true).map((e) => ({ _id: e._id as string, label: `${(e.about as { firstName: string; lastName: string }).firstName} ${(e.about as { firstName: string; lastName: string }).lastName}`, departmentId: (e as { department?: { id: string } }).department?.id })), [employeesRaw]);
   const allDepartments: SelectOption[] = useMemo(() => (deptsRaw ?? []).map((d) => ({ _id: d._id as string, label: d.title as string })), [deptsRaw]);
 
   /* ── state ── */
@@ -659,130 +659,126 @@ export default function WorkspacePage() {
                     className="card-xl overflow-hidden flex flex-col transition-opacity"
                     style={{ opacity: isInactive ? 0.5 : 1 }}>
                     {/* ── card header ── */}
-                    <div className="flex items-center gap-2 p-3 pb-2">
+                    <div className="flex items-center gap-1.5 px-2.5 py-2">
                       <div className="min-w-0 flex-1">
-                        <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--fg)" }}>{c.name}</span>
-                        {todayChecklist.length > 0 && (
-                          <span className="text-[10px] tabular-nums font-semibold mt-0.5 block" style={{ color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
-                            {todayDone}/{todayChecklist.length} today
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[12px] font-bold truncate" style={{ color: "var(--fg)" }}>{c.name}</span>
+                          {todayChecklist.length > 0 && (
+                            <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums" style={{ background: todayDone === todayChecklist.length ? "color-mix(in srgb, var(--teal) 14%, transparent)" : "color-mix(in srgb, var(--amber) 14%, transparent)", color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
+                              {todayDone}/{todayChecklist.length}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-0.5 shrink-0">
+                      <div className="flex items-center shrink-0">
                         {hasRecurring && canViewCampaigns && (
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                            onClick={() => {
-                              const next = isExpanded ? null : c._id;
-                              setExpandedCampaign(next);
-                              if (next) void loadOverview(c._id);
-                            }}
-                            className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-[var(--bg-grouped)]"
-                            style={{ color: isExpanded ? "var(--primary)" : "var(--fg-tertiary)" }}
-                            title={isExpanded ? "Collapse" : "Compliance overview"}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
-                            </svg>
+                            onClick={() => { const next = isExpanded ? null : c._id; setExpandedCampaign(next); if (next) void loadOverview(c._id); }}
+                            className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]"
+                            style={{ color: isExpanded ? "var(--primary)" : "var(--fg-tertiary)" }} title={isExpanded ? "Collapse" : "Compliance"}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" /></svg>
                           </motion.button>
                         )}
                         {canCreateTasks && (
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openCreateTask(c._id)}
-                            className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
+                            className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
                             style={{ color: "var(--primary)" }} title="Add task">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                           </motion.button>
                         )}
                         {canEditCampaigns && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditCampaign(c)} className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit campaign">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditCampaign(c)} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                           </motion.button>
                         )}
                         {canDeleteCampaigns && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget({ type: "campaign", id: c._id, name: c.name })} className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete campaign">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget({ type: "campaign", id: c._id, name: c.name })} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                           </motion.button>
                         )}
                       </div>
                     </div>
 
                     {/* ── card body ── */}
-                    <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-2" style={{ scrollbarWidth: "thin", maxHeight: 340 }}>
-                      {/* Recurring tasks as checklist */}
+                    <div className="flex-1 overflow-y-auto px-2 pb-1.5" style={{ scrollbarWidth: "thin", maxHeight: 320 }}>
                       {todayChecklist.length > 0 && (
-                        <div className="space-y-0.5">
-                          <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--fg-tertiary)" }}>Recurring</p>
+                        <div className="mb-1">
+                          <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring</p>
                           {todayChecklist.map((item) => {
                             const isDone = checklistOverrides.has(item._id) ? checklistOverrides.get(item._id)! : item.done;
                             return (
                               <button key={item._id} type="button" onClick={() => toggleChecklist(c._id, item._id, isDone)}
-                                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
-                                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all"
+                                className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
+                                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-all"
                                   style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent" }}>
-                                  {isDone && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                                  {isDone && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
                                 </span>
-                                <span className="text-[11px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
+                                <span className="text-[10px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
                               </button>
                             );
                           })}
                         </div>
                       )}
 
-                      {/* One-time tasks as compact rows with status toggle */}
                       {oneTimeTasks.length > 0 && (
-                        <div className="space-y-0.5">
-                          {todayChecklist.length > 0 && <p className="text-[10px] font-bold uppercase tracking-wider mb-1 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>}
+                        <div>
+                          {todayChecklist.length > 0 && <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>}
                           {oneTimeTasks.map((task) => {
                             const isTaskExpanded = expandedTask === task._id;
                             const subs = subtasksByParent.get(task._id) ?? [];
                             const canChange = canEditTasks || task.assignedTo?._id === session?.user?.id;
+                            const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
                             return (
-                              <div key={task._id}>
-                                <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
+                              <div key={task._id} className="mb-px">
+                                <div className="group flex items-center gap-1.5 rounded px-1.5 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]" style={{ borderLeft: `2px solid ${statusColor}` }}>
                                   <button type="button" onClick={() => {
                                     const next = isTaskExpanded ? null : task._id;
                                     setExpandedTask(next);
                                     if (next && !subtasksByParent.has(task._id)) void loadSubtasks(task._id);
-                                  }} className="shrink-0">
-                                    <motion.svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isTaskExpanded ? 90 : 0 }}>
+                                  }} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
+                                    <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: isTaskExpanded ? 90 : 0 }}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                     </motion.svg>
                                   </button>
-                                  <span className="text-[11px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
+                                  <span className="text-[10px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
                                   <TaskStatusToggle task={task} canChange={!!canChange} onCycle={() => cycleTaskStatus(task)} />
-                                  {task.deadline && <span className="text-[9px] tabular-nums shrink-0" style={{ color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
-                                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                  {task.deadline && <span className="text-[8px] tabular-nums shrink-0" style={{ color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
+                                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                     {canEditTasks && (
-                                      <button type="button" onClick={() => openEditTask(task)} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                      <button type="button" onClick={() => openEditTask(task)} className="h-4 w-4 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                       </button>
                                     )}
                                     {canDeleteTasks && (
-                                      <button type="button" onClick={() => setDeleteTarget({ type: "task", id: task._id, name: task.title })} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                      <button type="button" onClick={() => setDeleteTarget({ type: "task", id: task._id, name: task.title })} className="h-4 w-4 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
+                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                       </button>
                                     )}
                                   </div>
                                 </div>
-                                {/* subtasks accordion */}
                                 <AnimatePresence initial={false}>
                                   {isTaskExpanded && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                      <div className="pl-8 pr-2 py-1 space-y-1">
+                                      <div className="ml-4 border-l pl-2 pr-1 py-0.5 space-y-px" style={{ borderColor: "color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }}>
                                         {subtaskLoading === task._id ? (
-                                          <div className="space-y-1">{[1, 2].map((i) => <div key={i} className="shimmer h-5 w-full rounded" />)}</div>
+                                          <div className="space-y-1">{[1, 2].map((i) => <div key={i} className="shimmer h-4 w-full rounded" />)}</div>
                                         ) : subs.length === 0 ? (
-                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
-                                        ) : subs.map((sub) => (
-                                          <div key={sub._id} className="flex items-center gap-2 rounded px-2 py-1" style={{ background: "var(--bg-grouped)" }}>
-                                            <StatusDot status={sub.status} />
-                                            <span className="text-[10px] flex-1" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
-                                          </div>
-                                        ))}
+                                          <p className="text-[9px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
+                                        ) : subs.map((sub) => {
+                                          const subColor = sub.status === "completed" ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
+                                          return (
+                                            <div key={sub._id} className="flex items-center gap-1.5 rounded px-1.5 py-0.5" style={{ borderLeft: `2px solid ${subColor}` }}>
+                                              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
+                                              <span className="text-[9px] flex-1 truncate" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
+                                            </div>
+                                          );
+                                        })}
                                         {canCreateTasks && (
                                           <button type="button" onClick={() => openCreateTask(c._id, task._id)}
-                                            className="flex items-center gap-1.5 text-[10px] font-medium transition-colors hover:opacity-80 mt-0.5 px-2 py-1 rounded"
+                                            className="flex items-center gap-1 text-[9px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
                                             style={{ color: "var(--primary)" }}>
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                                            Add subtask
+                                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                            Subtask
                                           </button>
                                         )}
                                       </div>
@@ -796,7 +792,7 @@ export default function WorkspacePage() {
                       )}
 
                       {visibleTasks.length === 0 && todayChecklist.length === 0 && (
-                        <p className="text-[11px] py-3 text-center" style={{ color: "var(--fg-tertiary)" }}>No tasks yet</p>
+                        <p className="text-[10px] py-2 text-center" style={{ color: "var(--fg-tertiary)" }}>No tasks yet</p>
                       )}
                     </div>
 
@@ -804,20 +800,20 @@ export default function WorkspacePage() {
                     <AnimatePresence initial={false}>
                       {isExpanded && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t" style={{ borderColor: "var(--border)" }}>
-                          <div className="p-3">
-                            <h4 className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Team Compliance (7d)</h4>
+                          <div className="p-2">
+                            <h4 className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--fg-tertiary)" }}>Compliance (7d)</h4>
                             {overviewLoading ? (
-                              <div className="space-y-1.5">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-7 w-full rounded-lg" />)}</div>
+                              <div className="space-y-1">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-6 w-full rounded" />)}</div>
                             ) : !overviewData ? (
-                              <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No data</p>
+                              <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>No data</p>
                             ) : (
-                              <div className="overflow-x-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
-                                <table className="w-full text-[10px]">
+                              <div className="overflow-x-auto rounded border" style={{ borderColor: "var(--border)" }}>
+                                <table className="w-full text-[9px]">
                                   <thead>
                                     <tr style={{ background: "var(--bg-grouped)" }}>
-                                      <th className="text-left px-2 py-1.5 font-semibold sticky left-0" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Employee</th>
+                                      <th className="text-left px-1.5 py-1 font-semibold sticky left-0" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Employee</th>
                                       {overviewData.dates.map((d) => (
-                                        <th key={d} className="px-1.5 py-1.5 text-center font-medium whitespace-nowrap" style={{ color: "var(--fg-tertiary)" }}>
+                                        <th key={d} className="px-1 py-1 text-center font-medium whitespace-nowrap" style={{ color: "var(--fg-tertiary)" }}>
                                           {new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}
                                         </th>
                                       ))}
@@ -826,13 +822,13 @@ export default function WorkspacePage() {
                                   <tbody>
                                     {overviewData.employees.map((emp) => (
                                       <tr key={emp._id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                                        <td className="px-2 py-1.5 font-medium sticky left-0" style={{ background: "var(--bg-elevated)", color: "var(--fg)" }}>{emp.name}</td>
+                                        <td className="px-1.5 py-1 font-medium sticky left-0" style={{ background: "var(--bg-elevated)", color: "var(--fg)" }}>{emp.name}</td>
                                         {emp.byDate.map((day) => {
                                           const pct = day.total > 0 ? Math.round((day.done / day.total) * 100) : 0;
                                           const bg = pct === 100 ? "color-mix(in srgb, var(--teal) 15%, transparent)" : pct > 0 ? "color-mix(in srgb, var(--amber) 15%, transparent)" : "transparent";
                                           const fg = pct === 100 ? "var(--teal)" : pct > 0 ? "var(--amber)" : "var(--fg-tertiary)";
                                           return (
-                                            <td key={day.date} className="px-1.5 py-1.5 text-center" style={{ background: bg }}>
+                                            <td key={day.date} className="px-1 py-1 text-center" style={{ background: bg }}>
                                               <span className="font-semibold tabular-nums" style={{ color: fg }}>{day.done}/{day.total}</span>
                                             </td>
                                           );
@@ -849,43 +845,14 @@ export default function WorkspacePage() {
                     </AnimatePresence>
 
                     {/* ── card footer: stat pills ── */}
-                    <div className="border-t px-3 py-2 flex items-center gap-1.5 flex-wrap" style={{ borderColor: "var(--border)" }}>
-                      {totalTasks > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
-                          {totalTasks} {totalTasks === 1 ? "task" : "tasks"}
-                        </span>
-                      )}
-                      {pendingTasks > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>
-                          {pendingTasks} pending
-                        </span>
-                      )}
-                      {inProgressTasks > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
-                          {inProgressTasks} working
-                        </span>
-                      )}
-                      {completedTasks > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
-                          {completedTasks} done
-                        </span>
-                      )}
-                      {recurCount > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>
-                          {recurCount} recurring
-                        </span>
-                      )}
-                      {empCount > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zm-4 7a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                          {empCount} tagged
-                        </span>
-                      )}
-                      {c.startDate && (
-                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                          {formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : ""}
-                        </span>
-                      )}
+                    <div className="border-t px-2 py-1.5 flex items-center gap-1 flex-wrap" style={{ borderColor: "var(--border)" }}>
+                      {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
+                      {pendingTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{pendingTasks} pending</span>}
+                      {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} active</span>}
+                      {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} done</span>}
+                      {recurCount > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{recurCount} recurring</span>}
+                      {empCount > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{empCount} people</span>}
+                      {c.startDate && <span className="text-[8px] tabular-nums ml-auto" style={{ color: "var(--fg-tertiary)" }}>{formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : " · ongoing"}</span>}
                     </div>
                   </motion.div>
                 );
@@ -1010,9 +977,14 @@ export default function WorkspacePage() {
       >
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label><input type="text" value={fTitle} onChange={(e) => setFTitle(e.target.value)} className="input" autoFocus required /></div>
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label><textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)} rows={2} className="input" /></div>
-        {canReassignTasks && allEmployees.length > 0 && (
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To</label><select value={fAssignee} onChange={(e) => setFAssignee(e.target.value)} className="input" required><option value="">Select…</option>{allEmployees.map((o) => <option key={o._id} value={o._id}>{o.label}</option>)}</select></div>
-        )}
+        {canReassignTasks && allEmployees.length > 0 && (() => {
+          const camp = fCampaign ? campaignList.find((c) => c._id === fCampaign) : null;
+          const taggedIds = camp ? new Set(camp.tags.employees.map((e) => e._id)) : null;
+          const assignable = taggedIds ? allEmployees.filter((e) => taggedIds.has(e._id)) : allEmployees;
+          return (
+            <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To{taggedIds ? <span className="font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>({assignable.length} in campaign)</span> : ""}</label><select value={fAssignee} onChange={(e) => setFAssignee(e.target.value)} className="input" required><option value="">Select…</option>{assignable.map((o) => <option key={o._id} value={o._id}>{o.label}</option>)}</select></div>
+          );
+        })()}
         <div>
           <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Campaign</label>
           <select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} className="input" disabled={!!fCampaign && !editingTask}>
@@ -1082,11 +1054,14 @@ export default function WorkspacePage() {
           <label className="text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Ongoing (no end date)</label>
         </div>
         {canTagEntities && allDepartments.length > 0 && (
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => setCTagDepts(toggleArr(cTagDepts, d._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => { const next = toggleArr(cTagDepts, d._id); setCTagDepts(next); if (next.length > 0) setCTagEmployees((prev) => prev.filter((eid) => { const emp = allEmployees.find((x) => x._id === eid); return emp?.departmentId && next.includes(emp.departmentId); })); }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>
         )}
-        {canTagEntities && allEmployees.length > 0 && (
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Employees</label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{allEmployees.map((e) => (<button key={e._id} type="button" onClick={() => setCTagEmployees(toggleArr(cTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>
-        )}
+        {canTagEntities && allEmployees.length > 0 && (() => {
+          const filtered = cTagDepts.length > 0 ? allEmployees.filter((e) => e.departmentId && cTagDepts.includes(e.departmentId)) : allEmployees;
+          return filtered.length > 0 ? (
+            <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Employees{cTagDepts.length > 0 ? <span className="font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>({filtered.length} in selected dept{cTagDepts.length > 1 ? "s" : ""})</span> : ""}</label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{filtered.map((e) => (<button key={e._id} type="button" onClick={() => setCTagEmployees(toggleArr(cTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>
+          ) : <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No employees in selected department{cTagDepts.length > 1 ? "s" : ""}.</p>;
+        })()}
       </ModalShell>
 
       {/* ── delete confirm ── */}
