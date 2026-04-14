@@ -670,9 +670,11 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                 <div className="flex items-center gap-4">
                   <div>
                     <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Payroll</h2>
-                    {!selfExempt && selectedEmployee && (
+                    {selectedEmployee ? (
                       <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{nameOf(selectedEmployee)}</p>
-                    )}
+                    ) : detailTab === "report" && !userId ? (
+                      <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>All Employees · {MN[selMonth - 1]} {selYear}</p>
+                    ) : null}
                   </div>
                   {/* Month navigator */}
                   {!selfExempt && (
@@ -782,7 +784,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                           {g.employees.map((emp) => {
                             const isSel = userId === emp._id;
                             return (
-                              <button key={emp._id} type="button" onClick={() => { setUserId(emp._id); setDeptFilter(null); }}
+                              <button key={emp._id} type="button" onClick={() => { setUserId(emp._id); setDeptFilter(null); if (detailTab === "report") setDetailTab("summary"); }}
                                 className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left transition-colors"
                                 style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
                               >
@@ -829,36 +831,44 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                         </div>
                       )}
 
-                      {/* Net pay hero */}
-                      {loading ? (
-                        <div className="shimmer h-24 rounded-xl" />
-                      ) : estimate ? (
-                        <div className="rounded-xl p-5 text-center" style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, var(--bg-grouped)), color-mix(in srgb, var(--green) 6%, var(--bg-grouped)))" }}>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--fg-tertiary)" }}>
-                            {isCurrentMonth ? "Estimated " : ""}Net Pay · {MN[selMonth - 1]} {selYear}
-                          </p>
-                          <p className="text-3xl font-bold" style={{ color: "var(--primary)" }}>{fmt(estimate.netPay)}</p>
-                          {estimate.totalDeductions > 0 && (
-                            <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                              {fmt(estimate.grossPay)} gross − {fmt(estimate.totalDeductions)} deductions ({deductionPct}%)
+                      {/* Net pay hero — only for individual employee */}
+                      {userId ? (
+                        loading ? (
+                          <div className="shimmer h-24 rounded-xl" />
+                        ) : estimate ? (
+                          <div className="rounded-xl p-5 text-center" style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, var(--bg-grouped)), color-mix(in srgb, var(--green) 6%, var(--bg-grouped)))" }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--fg-tertiary)" }}>
+                              {isCurrentMonth ? "Estimated " : ""}Net Pay · {MN[selMonth - 1]} {selYear}
                             </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="py-8 text-center">
-                          <p className="text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>No payroll data for {MN[selMonth - 1]} {selYear}.</p>
-                        </div>
-                      )}
+                            <p className="text-3xl font-bold" style={{ color: "var(--primary)" }}>{fmt(estimate.netPay)}</p>
+                            {estimate.totalDeductions > 0 && (
+                              <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                                {fmt(estimate.grossPay)} gross − {fmt(estimate.totalDeductions)} deductions ({deductionPct}%)
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="py-8 text-center">
+                            <p className="text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>No payroll data for {MN[selMonth - 1]} {selYear}.</p>
+                          </div>
+                        )
+                      ) : null}
 
                       {/* ── Tabs — always visible ── */}
                       <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                        {(canViewTeam ? ["summary", "daily", "year", "report"] as DetailTab[] : ["summary", "daily", "year"] as DetailTab[]).map((t) => (
-                          <button key={t} type="button" onClick={() => setDetailTab(t)}
-                            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${detailTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
-                          >
-                            {t === "summary" ? "Summary" : t === "daily" ? "Daily" : t === "year" ? `Year ${selYear}` : "Payroll Report"}
-                          </button>
-                        ))}
+                        {(canViewTeam ? ["summary", "daily", "year", "report"] as DetailTab[] : ["summary", "daily", "year"] as DetailTab[]).map((t) => {
+                          const needsEmployee = t !== "report";
+                          const disabled = needsEmployee && isSuperAdmin && !userId;
+                          return (
+                            <button key={t} type="button"
+                              onClick={() => { if (!disabled) setDetailTab(t); }}
+                              disabled={disabled}
+                              className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${detailTab === t ? "bg-[var(--primary)] text-white shadow-sm" : disabled ? "opacity-40 cursor-not-allowed text-[var(--fg-tertiary)]" : "text-[var(--fg-secondary)]"}`}
+                            >
+                              {t === "summary" ? "Summary" : t === "daily" ? "Daily" : t === "year" ? `Year ${selYear}` : "Payroll Report"}
+                            </button>
+                          );
+                        })}
                       </div>
 
                       <AnimatePresence mode="wait">
