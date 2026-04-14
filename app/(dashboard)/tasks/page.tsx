@@ -31,7 +31,7 @@ interface Employee {
 
 type PriorityFilter = "all" | "low" | "medium" | "high" | "urgent";
 type SortMode = "recent" | "deadline" | "priority";
-const PRIORITY_COLORS: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "#ef4444" };
+const PRIORITY_COLORS: Record<string, string> = { low: "var(--primary)", medium: "var(--amber)", high: "var(--rose)", urgent: "var(--rose)" };
 const PRIORITY_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
 const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgress: "In Progress", completed: "Completed" };
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -225,11 +225,11 @@ export default function TasksPage() {
 
       {/* Search + Create row */}
       <div className="card-static mb-4 flex items-center gap-3 p-4">
-        <SearchField value={search} onChange={setSearch} placeholder="Search tasks..." />
+        <SearchField value={search} onChange={setSearch} placeholder="Search tasks…" />
         {sessionStatus !== "loading" && canCreateTasks && (
           <motion.button type="button" onClick={openCreate} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Create Task
+            New Task
           </motion.button>
         )}
       </div>
@@ -279,7 +279,7 @@ export default function TasksPage() {
       )}
 
       {/* Task Card Grid */}
-      <motion.div data-tour="tasks-grid" className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
+      <motion.div data-tour="tasks-grid" className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" variants={staggerContainerFast} initial="hidden" animate="visible">
         <AnimatePresence mode="popLayout">
           {tasksLoading && !tasks ? (
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
@@ -340,7 +340,7 @@ export default function TasksPage() {
                           <select
                             className="rounded-full px-2 py-0.5 text-[9px] font-semibold cursor-pointer border-0 bg-transparent transition-colors duration-200"
                             style={{
-                              background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
+                              background: task.status === "completed" ? "color-mix(in srgb, var(--green) 12%, transparent)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
                               color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
                             }}
                             value={task.status}
@@ -359,7 +359,7 @@ export default function TasksPage() {
                           </select>
                         ) : (
                           <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold transition-colors duration-200" style={{
-                            background: task.status === "completed" ? "rgba(48,209,88,0.12)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
+                            background: task.status === "completed" ? "color-mix(in srgb, var(--green) 12%, transparent)" : task.status === "inProgress" ? "var(--primary-light)" : "var(--bg-grouped)",
                             color: task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--fg-secondary)",
                           }}>
                             {TASK_STATUS_LABELS[task.status] ?? task.status}
@@ -427,11 +427,11 @@ export default function TasksPage() {
       <ModalShell
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? "Edit Task" : "Create Task"}
+        title={editing ? "Edit Task" : "New Task"}
         subtitle={editing ? "Update task details." : "Assign a new task to a team member."}
         footer={<>
           <motion.button type="submit" form="task-form" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">
-            {saving ? "Saving..." : editing ? "Update Task" : "Create Task"}
+            {saving ? "Saving…" : editing ? "Update" : "Create"}
           </motion.button>
           <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary flex-1">Cancel</button>
         </>}
@@ -439,11 +439,11 @@ export default function TasksPage() {
         <form id="task-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label>
-            <input className="input" placeholder="Task title..." required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <input className="input" placeholder="Task title…" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
             <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label>
-            <textarea className="input" rows={3} placeholder="Describe the task..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <textarea className="input" rows={3} placeholder="Describe the task…" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           {canAssignTasks && (
             <div>

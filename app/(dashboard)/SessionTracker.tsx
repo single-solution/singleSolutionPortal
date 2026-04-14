@@ -678,7 +678,7 @@ export default function SessionTracker() {
             onClick={() => { clearNudges(); setIdle(false); }}
           >
             <div
-              className="flex items-center gap-3 rounded-xl px-5 py-3 shadow-2xl"
+              className="flex items-center gap-3 rounded-xl px-5 py-3 shadow-xl"
               style={{
                 background:
                   "linear-gradient(135deg, color-mix(in srgb, var(--amber) 90%, white), color-mix(in srgb, var(--amber) 85%, transparent))",
@@ -715,7 +715,7 @@ export default function SessionTracker() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.85, opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-3xl p-8 text-center"
+              className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-2xl p-8 text-center"
               style={{
                 background: "var(--bg-elevated, rgba(30,30,40,0.85))",
                 border: "1px solid var(--border, rgba(255,255,255,0.1))",
@@ -740,7 +740,7 @@ export default function SessionTracker() {
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 className="mt-1 rounded-full px-6 py-2.5 text-sm font-bold text-white"
-                style={{ background: "linear-gradient(135deg, var(--primary, #007aff), var(--cyan, #00c6a7))" }}
+                style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}
               >
                 {formatElapsed(pausedAtRef.current || elapsed)} paused
               </motion.div>
@@ -766,7 +766,7 @@ export default function SessionTracker() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.85, opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-3xl p-8 text-center"
+              className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-2xl p-8 text-center"
               style={{
                 background: "var(--bg-elevated, rgba(30,30,40,0.92))",
                 border: "1px solid color-mix(in srgb, var(--rose) 40%, transparent)",
@@ -806,9 +806,9 @@ export default function SessionTracker() {
                 onClick={doRecheck}
                 disabled={recheckLoading}
                 className="mt-2 rounded-full px-6 py-2.5 text-sm font-bold text-white transition-opacity disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, var(--primary, #007aff), var(--cyan, #00c6a7))" }}
+                style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}
               >
-                {recheckLoading ? "Checking..." : "Re-check Location"}
+                {recheckLoading ? "Checking…" : "Re-check Location"}
               </button>
             </motion.div>
           </motion.div>
@@ -827,7 +827,7 @@ export default function SessionTracker() {
             className="fixed left-1/2 top-4 z-[9999] -translate-x-1/2"
           >
             <div
-              className="flex items-center gap-3 rounded-xl px-5 py-3 shadow-2xl"
+              className="flex items-center gap-3 rounded-xl px-5 py-3 shadow-xl"
               style={{
                 background:
                   "linear-gradient(135deg, color-mix(in srgb, var(--amber) 92%, transparent), color-mix(in srgb, var(--amber) 88%, transparent))",

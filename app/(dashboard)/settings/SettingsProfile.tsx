@@ -169,7 +169,7 @@ export function SettingsProfile({
           {profileMsg && <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-sm font-medium" style={{ color: "var(--green)" }}>{profileMsg}</motion.p>}
         </AnimatePresence>
         <motion.button type="submit" disabled={profileSaving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full btn btn-primary disabled:opacity-50">
-          {profileSaving ? "Saving..." : "Save profile"}
+          {profileSaving ? "Saving…" : "Save profile"}
         </motion.button>
       </form>
     </FadeUp>

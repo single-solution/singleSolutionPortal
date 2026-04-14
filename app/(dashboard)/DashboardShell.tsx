@@ -298,7 +298,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
             <motion.button
               type="button"
               className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-lg"
-              style={{ background: "linear-gradient(135deg, #2d9cff, #0055cc)" }}
+              style={{ background: "linear-gradient(135deg, var(--primary), var(--primary-dark))" }}
               whileTap={{ scale: 0.9 }}
               onClick={async () => {
                 await installPrompt.prompt();

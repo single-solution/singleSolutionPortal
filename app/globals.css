@@ -203,11 +203,12 @@ body {
   .card:active { transform: translateY(-1px) scale(0.99); }
 }
 
+/* card-xl aliased to card-static for simplification */
 .card-xl {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-static {

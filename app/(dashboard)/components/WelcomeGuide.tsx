@@ -19,19 +19,19 @@ const SLIDES = [
     icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
     title: "Your Dashboard",
     description: "The dashboard gives you a real-time overview of your team. See who's in the office, who's remote, track attendance stats, active campaigns, and pending tasks — all at a glance.",
-    color: "#0D9488",
+    color: "var(--teal)",
   },
   {
     icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
     title: "Manage Your Team",
     description: "Add employees, organize departments, assign team leads, and track campaigns across your organization. Use the bottom navigation dock to jump between sections.",
-    color: "#4F46E5",
+    color: "var(--indigo)",
   },
   {
     icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
     title: "Automatic Attendance",
     description: "Attendance tracking is fully automatic — employees just open the app and their work hours are logged. View detailed breakdowns, office vs remote time, and monthly reports on the Attendance page.",
-    color: "#7C3AED",
+    color: "var(--purple)",
   },
 ];
 
@@ -80,7 +80,7 @@ export function WelcomeGuide({ userName, onComplete }: WelcomeGuideProps) {
       >
         <motion.div
           className="relative w-full max-w-md overflow-hidden rounded-2xl border"
-          style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", boxShadow: "var(--shadow-xl, 0 25px 50px -12px rgba(0,0,0,.25))" }}
+          style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", boxShadow: "0 25px 50px -12px rgba(0,0,0,.25)" }}
           initial={{ scale: 0.92, y: 20, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           onClick={(e) => e.stopPropagation()}

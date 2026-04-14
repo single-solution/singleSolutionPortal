@@ -102,6 +102,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const canViewTeam = canPerm("leaves_viewTeam");
 
   const [employees, setEmployees] = useState<DropdownEmp[]>([]);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
   const [userId, setUserId] = useState(selectedUserId || "");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [balance, setBalance] = useState<BalancePayload | null>(null);
@@ -109,10 +110,12 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [leavesLoading, setLeavesLoading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const [selYear, setSelYear] = useState(new Date().getFullYear());
 
   const [showForm, setShowForm] = useState(false);
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [multiDay, setMultiDay] = useState(false);
+  const [leaveType, setLeaveType] = useState("leave");
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
@@ -129,10 +132,12 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
   useEffect(() => {
     if (!open || !canViewTeam) return;
+    setSidebarLoading(true);
     fetch("/api/employees/dropdown")
       .then((r) => r.ok ? r.json() : [])
       .then((d) => setEmployees(Array.isArray(d) ? d : []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setSidebarLoading(false));
   }, [open, canViewTeam]);
 
   const loadBalance = useCallback(async () => {
@@ -141,13 +146,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     if (!uid) return;
     setBalLoading(true);
     try {
-      const q = new URLSearchParams({ year: String(new Date().getFullYear()) });
+      const q = new URLSearchParams({ year: String(selYear) });
       if (userId) q.set("userId", userId);
       const res = await fetch(`/api/leaves/balance?${q}`);
       if (res.ok) setBalance(await res.json());
     } catch { /* ignore */ }
     setBalLoading(false);
-  }, [userId, session?.user?.id, isSuperAdmin]);
+  }, [userId, session?.user?.id, isSuperAdmin, selYear]);
 
   const loadLeaves = useCallback(async () => {
     if (isSuperAdmin && !userId) { setLeaves([]); return; }
@@ -155,7 +160,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     if (!uid) return;
     setLeavesLoading(true);
     try {
-      const q = new URLSearchParams({ year: String(new Date().getFullYear()) });
+      const q = new URLSearchParams({ year: String(selYear) });
       if (userId) q.set("userId", userId);
       const res = await fetch(`/api/leaves?${q}`);
       if (res.ok) {
@@ -164,7 +169,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
       }
     } catch { setLeaves([]); }
     setLeavesLoading(false);
-  }, [userId, session?.user?.id, isSuperAdmin]);
+  }, [userId, session?.user?.id, isSuperAdmin, selYear]);
 
   useEffect(() => {
     if (open) { loadBalance(); loadLeaves(); }
@@ -269,10 +274,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!date) return;
+    if (!date) { toast.error("Please select a date"); return; }
+    if (multiDay && !isHalfDay && !endDate) { toast.error("Please select an end date"); return; }
+    if (multiDay && !isHalfDay && endDate && endDate < date) { toast.error("End date must be on or after start date"); return; }
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = { date, isHalfDay, reason };
+      if (leaveType && leaveType !== "leave") body.type = leaveType;
       if (multiDay && endDate) body.endDate = endDate;
       if (canViewTeam && userId) body.userId = userId;
       const res = await fetch("/api/leaves", {
@@ -285,7 +293,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
         toast.error(data.error || "Failed to submit");
       } else {
         toast.success("Leave request submitted");
-        setDate(""); setEndDate(""); setReason(""); setIsHalfDay(false); setMultiDay(false);
+        setDate(""); setEndDate(""); setReason(""); setIsHalfDay(false); setMultiDay(false); setLeaveType("leave");
         setShowForm(false);
         await Promise.all([loadBalance(), loadLeaves()]);
       }
@@ -298,7 +306,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const selfExempt = isSuperAdmin && !userId;
   const balPct = balance && balance.total > 0 ? Math.round((balance.used / balance.total) * 100) : 0;
   const barColor = balPct > 80 ? "var(--rose)" : balPct > 50 ? "var(--amber)" : "var(--teal)";
-  const showSidebar = canViewTeam && employees.length > 0;
+  const showSidebar = canViewTeam;
 
   const detailLabel = userId
     ? (selectedEmployee ? nameOf(selectedEmployee) : "Employee")
@@ -327,11 +335,16 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                   {!selfExempt && balance && !balLoading && (
                     <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
                       {detailLabel && <>{detailLabel} · </>}
-                      {balance.remaining} of {balance.total} remaining · {new Date().getFullYear()}
+                      {balance.remaining} of {balance.total} remaining · {selYear}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  <div className="flex items-center rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                    <button type="button" onClick={() => setSelYear(y => y - 1)} className="px-2 py-1 text-xs font-bold" style={{ color: "var(--fg-secondary)" }}>‹</button>
+                    <span className="px-1.5 text-xs font-bold tabular-nums" style={{ color: "var(--fg)" }}>{selYear}</span>
+                    <button type="button" onClick={() => setSelYear(y => y + 1)} disabled={selYear >= new Date().getFullYear()} className="px-2 py-1 text-xs font-bold disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>›</button>
+                  </div>
                   {!selfExempt && (
                     <motion.button
                       type="button"
@@ -374,43 +387,28 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
                     {/* Scrollable list */}
                     <div className="flex-1 overflow-y-auto py-1.5" style={{ scrollbarWidth: "thin" }}>
+                      {sidebarLoading ? (
+                        <div className="space-y-2 p-3">{[1,2,3,4,5].map(i => <div key={i} className="flex items-center gap-2"><div className="shimmer h-6 w-6 rounded-full" /><div className="shimmer h-3 flex-1 rounded" /></div>)}</div>
+                      ) : <>
                       {!sidebarSearch && (
                         <button
                           type="button"
                           onClick={() => { setUserId(""); setDeptFilter(null); }}
                           className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId && !deptFilter ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                         >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
-                          <span className="text-xs font-semibold" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg-secondary)" }}>All Employees</span>
-                        </button>
-                      )}
-                      {/* "Yourself" option */}
-                      {!isSuperAdmin && !sidebarSearch && (
-                        <button
-                          type="button"
-                          onClick={() => { setUserId(""); setDeptFilter(null); }}
-                          className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
-                          style={{
-                            background: !userId && !deptFilter ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent",
-                          }}
-                        >
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: "var(--green)" }}>
-                            ME
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>
+                            {isSuperAdmin ? "All" : "ME"}
                           </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg)" }}>Yourself</p>
-                            <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>My leave data</p>
-                          </div>
-                          {!userId && !deptFilter && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                          <span className="text-xs font-semibold" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg-secondary)" }}>
+                            {isSuperAdmin ? "All Employees" : "Yourself"}
+                          </span>
                         </button>
                       )}
 
-                      {/* "All Team" option */}
-                      {!sidebarSearch && employees.length > 1 && (
+                      {!sidebarSearch && employees.length > 0 && (
                         <div className="mx-3 my-1 border-b" style={{ borderColor: "var(--border)" }} />
                       )}
 
-                      {/* Department groups — always expanded */}
                       {deptGroups.map((g) => (
                         <div key={g.id}>
                           <div className="px-2 py-0.5">
@@ -452,12 +450,12 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       {filteredEmployees.length === 0 && sidebarSearch && (
                         <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>
                       )}
+                      </>}
                     </div>
 
-                    {/* Sidebar footer: employee count */}
                     <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
                       <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                        {employees.length} employee{employees.length !== 1 ? "s" : ""}
+                        {sidebarLoading ? "Loading…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}
                       </p>
                     </div>
                   </div>
@@ -560,35 +558,20 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                         </div>
                       )}
                       {!leavesLoading && leaves.length > 0 && (
-                        <div className="grid grid-cols-5 gap-2">
-                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total</p>
-                            <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{leaves.length}</p>
-                          </div>
-                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Approved</p>
-                            <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{leaveSummary.approved}</p>
-                          </div>
-                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Pending</p>
-                            <p className="text-sm font-bold" style={{ color: "var(--amber)" }}>{leaveSummary.pending}</p>
-                          </div>
-                          {leaveSummary.rejected > 0 && (
-                            <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Rejected</p>
-                              <p className="text-sm font-bold" style={{ color: "var(--rose)" }}>{leaveSummary.rejected}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { label: "Total", value: leaves.length, color: "var(--fg)" },
+                            { label: "Approved", value: leaveSummary.approved, color: "var(--green)" },
+                            { label: "Pending", value: leaveSummary.pending, color: "var(--amber)" },
+                            ...(leaveSummary.rejected > 0 ? [{ label: "Rejected", value: leaveSummary.rejected, color: "var(--rose)" }] : []),
+                            ...(leaveSummary.cancelled > 0 ? [{ label: "Cancelled", value: leaveSummary.cancelled, color: "var(--fg-tertiary)" }] : []),
+                            { label: "Days Taken", value: leaveSummary.totalDays, color: "var(--teal)" },
+                          ].map((s) => (
+                            <div key={s.label} className="flex-1 min-w-[72px] rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                              <p className="text-sm font-bold" style={{ color: s.color }}>{s.value}</p>
                             </div>
-                          )}
-                          {leaveSummary.cancelled > 0 && (
-                            <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Cancelled</p>
-                              <p className="text-sm font-bold" style={{ color: "var(--fg-tertiary)" }}>{leaveSummary.cancelled}</p>
-                            </div>
-                          )}
-                          <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days Taken</p>
-                            <p className="text-sm font-bold" style={{ color: "var(--teal)" }}>{leaveSummary.totalDays}</p>
-                          </div>
+                          ))}
                         </div>
                       )}
                       {!leavesLoading && leaves.length > 0 && (
@@ -665,10 +648,22 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                   </label>
                                 )}
                               </div>
-                              <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                                Reason <span className="font-normal">(optional)</span>
-                                <input type="text" className="input text-sm" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Personal, health, etc." />
-                              </label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                  Type
+                                  <select className="input text-sm" value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
+                                    <option value="leave">General</option>
+                                    <option value="sick">Sick</option>
+                                    <option value="casual">Casual</option>
+                                    <option value="annual">Annual</option>
+                                    <option value="unpaid">Unpaid</option>
+                                  </select>
+                                </label>
+                                <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                  Reason <span className="font-normal">(optional)</span>
+                                  <input type="text" className="input text-sm" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Personal, health, etc." />
+                                </label>
+                              </div>
                               <div className="flex gap-2">
                                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Cancel</button>
                                 <button type="submit" disabled={submitting || !date} className="btn btn-primary flex-1">{submitting ? "Submitting…" : "Submit"}</button>
@@ -681,7 +676,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       {/* Leave history */}
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
-                          Leave History · {new Date().getFullYear()}
+                          Leave History · {selYear}
                         </p>
                         {!leavesLoading && leaves.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-2">
@@ -731,6 +726,9 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: sc }} />
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
+                                      {canViewTeam && l.user?.about && (
+                                        <span style={{ color: "var(--fg-secondary)" }}>{`${l.user.about.firstName ?? ""} ${l.user.about.lastName ?? ""}`.trim() || l.user.email || ""} · </span>
+                                      )}
                                       {fmtDate(l.startDate)}
                                       {l.startDate !== l.endDate && <> – {fmtDate(l.endDate)}</>}
                                     </p>

@@ -129,7 +129,7 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 
 function fmtTime(dateStr?: string | null) {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(dateStr).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 function fmtHours(mins: number) {
@@ -493,7 +493,7 @@ export default function AttendancePage() {
     if (!isAggregateMode || !aggInsights) { setPagePills([]); return; }
     const pills: { key: string; label: string; value: string | number; dotColor: string }[] = [
       { key: "best", label: `Best: ${aggInsights.bestEmployee}`, value: `${Math.round(aggInsights.bestPct)}%`, dotColor: "var(--green)" },
-      { key: "worst", label: `Needs Att: ${aggInsights.worstEmployee}`, value: `${Math.round(aggInsights.worstPct)}%`, dotColor: aggInsights.worstPct < 70 ? "var(--rose)" : "var(--amber)" },
+      { key: "worst", label: `Needs Attention: ${aggInsights.worstEmployee}`, value: `${Math.round(aggInsights.worstPct)}%`, dotColor: aggInsights.worstPct < 70 ? "var(--rose)" : "var(--amber)" },
     ];
     if (aggInsights.lateEmployees > 0) {
       pills.push({ key: "late", label: aggInsights.lateEmployees === 1 ? "late employee" : "late employees", value: aggInsights.lateEmployees, dotColor: "var(--amber)" });
@@ -886,11 +886,11 @@ export default function AttendancePage() {
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                               <div className="flex justify-between">
-                                <span className="font-semibold">Arrived</span>
+                                <span className="font-semibold">Clock In</span>
                                 <span style={{ color: emp.firstStart ? "var(--fg-secondary)" : "var(--fg-tertiary)" }}>{fmtTime(emp.firstStart)}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="font-semibold">Left</span>
+                                <span className="font-semibold">Clock Out</span>
                                 <span style={{ color: emp.lastEnd ? "var(--fg-secondary)" : "var(--fg-tertiary)" }}>{fmtTime(emp.lastEnd)}</span>
                               </div>
                               <div className="flex justify-between">
@@ -983,8 +983,8 @@ export default function AttendancePage() {
                     </p>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <StatChip label="Arrived" value={fmtTime(clockIn)} color="var(--primary)" />
-                      <StatChip label="Left" value={fmtTime(clockOut)} color="var(--primary)" />
+                      <StatChip label="Clock In" value={fmtTime(clockIn)} color="var(--primary)" />
+                      <StatChip label="Clock Out" value={fmtTime(clockOut)} color="var(--primary)" />
                       <StatChip label="Office In" value={fmtTime(detailData.firstOfficeEntry)} color="var(--green)" />
                       <StatChip label="Office Out" value={fmtTime(detailData.lastOfficeExit)} color="var(--green)" />
                     </div>
@@ -1437,8 +1437,8 @@ export default function AttendancePage() {
             <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
               {personalInsights.perfectDays > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} on-time days (perfect attendance)</span>}
               {personalInsights.totalLateMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{fmtHours(personalInsights.totalLateMins)} total late across the month</span>}
-              {personalInsights.avgLateMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>avg {personalInsights.avgLateMins} min late per late day</span>}
-              {personalInsights.avgBreakMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>avg {personalInsights.avgBreakMins} min break per day</span>}
+              {personalInsights.avgLateMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>avg {personalInsights.avgLateMins}m late per late day</span>}
+              {personalInsights.avgBreakMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>avg {personalInsights.avgBreakMins}m break per day</span>}
               {personalInsights.bestDay && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most productive on {personalInsights.bestDay}s (avg {fmtHours(personalInsights.bestAvg)})</span>}
               {personalInsights.worstDay && personalInsights.worstDay !== personalInsights.bestDay && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Least productive on {personalInsights.worstDay}s (avg {fmtHours(personalInsights.worstAvg)})</span>}
               {personalInsights.longestPresentStreak > 1 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Longest present streak: {personalInsights.longestPresentStreak} consecutive days</span>}

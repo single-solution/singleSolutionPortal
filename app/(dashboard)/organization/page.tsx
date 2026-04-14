@@ -307,7 +307,7 @@ export default function OrganizationPage() {
       <div data-tour="org-header" className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="shrink-0">
-            <h1 className="text-title-2 font-bold tracking-tight" style={{ color: "var(--fg)" }}>Organization</h1>
+            <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Organization</h1>
             <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments and people.</p>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">

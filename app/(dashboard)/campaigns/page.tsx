@@ -313,7 +313,7 @@ export default function CampaignsPage() {
           value={sortMode}
           onChange={setSortMode}
           options={[
-            { value: "recent" as SortMode, label: "Recent" },
+            { value: "recent" as SortMode, label: "Latest" },
             { value: "name" as SortMode, label: "A – Z" },
           ]}
         />
@@ -321,7 +321,7 @@ export default function CampaignsPage() {
 
       {/* Search + Add */}
       <div className="card-static mb-4 flex items-center gap-3 p-4">
-        <SearchField value={search} onChange={setSearch} placeholder="Search campaigns..." />
+        <SearchField value={search} onChange={setSearch} placeholder="Search campaigns…" />
         {canManageCampaigns && sessionStatus !== "loading" && (
         <motion.button
           type="button"
@@ -555,7 +555,7 @@ export default function CampaignsPage() {
         subtitle={editingCampaign ? "Update campaign details." : "Create and configure a campaign."}
         footer={<>
           <motion.button type="button" onClick={handleSave} disabled={saving || !formName.trim()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">
-            {saving ? "Saving..." : editingCampaign ? "Update" : "Create"}
+            {saving ? "Saving…" : editingCampaign ? "Update" : "Create"}
           </motion.button>
           <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary flex-1">Cancel</button>
         </>}
@@ -625,7 +625,7 @@ export default function CampaignsPage() {
         )}
         <div>
           <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Notes</label>
-          <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Internal notes..." rows={2} className="input" />
+          <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Internal notes…" rows={2} className="input" />
         </div>
       </ModalShell>
 

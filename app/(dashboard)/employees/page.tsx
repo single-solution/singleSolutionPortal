@@ -379,7 +379,7 @@ export default function EmployeesPage() {
 
       {/* Search + Add row */}
       <div data-tour="employees-search" className="card-static mb-4 flex items-center gap-3 p-4">
-        <SearchField value={search} onChange={setSearch} placeholder="Search employees..." />
+        <SearchField value={search} onChange={setSearch} placeholder="Search employees…" />
         {sessionStatus !== "loading" && canCreateEmployees && (
         <motion.button
           type="button"

@@ -99,7 +99,7 @@ export function SystemCard({ sys }: { sys: SystemSettingsController }) {
         <AnimatePresence>
           {sysMsg && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm font-medium" style={{ color: "var(--green)" }}>{sysMsg}</motion.p>}
         </AnimatePresence>
-        <motion.button type="button" className="w-full btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
+        <motion.button type="button" className="w-full btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving…" : "Save"}</motion.button>
       </div>
     </div>
   );
@@ -153,7 +153,7 @@ export function OfficeConfigCard({ sys, defaultSysSettings }: { sys: SystemSetti
         </AnimatePresence>
         <div className="flex gap-2">
           <motion.button type="button" className="btn btn-secondary flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setSettings(defaultSysSettings)}>Reset</motion.button>
-          <motion.button type="button" className="btn btn-primary flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving..." : "Save"}</motion.button>
+          <motion.button type="button" className="btn btn-primary flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={sysSaving} onClick={handleSave}>{sysSaving ? "Saving…" : "Save"}</motion.button>
         </div>
       </div>
     </div>
@@ -183,7 +183,7 @@ export function TestEmailCard({
           <input type="email" value={testEmail} onChange={(e) => onTestEmailChange(e.target.value)} placeholder="Recipient (leave empty for all admins)" className="input w-full" style={{ paddingLeft: "40px" }} />
         </div>
         <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onTestEmailSend} disabled={sendingTestEmail} className="w-full btn btn-primary disabled:opacity-50">
-          {sendingTestEmail ? "Sending..." : "Send Test Email"}
+          {sendingTestEmail ? "Sending…" : "Send Test Email"}
         </motion.button>
       </div>
     </div>

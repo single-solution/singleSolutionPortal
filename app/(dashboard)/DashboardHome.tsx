@@ -266,10 +266,10 @@ function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string
 }
 
 const blobGradients = [
-  "linear-gradient(135deg, rgba(0,122,255,0.35) 0%, rgba(100,210,255,0.25) 100%)",
-  "linear-gradient(135deg, rgba(48,209,88,0.35) 0%, rgba(16,185,129,0.2) 100%)",
-  "linear-gradient(135deg, rgba(255,159,10,0.35) 0%, rgba(245,158,11,0.2) 100%)",
-  "linear-gradient(135deg, rgba(255,55,95,0.3) 0%, rgba(244,63,94,0.2) 100%)",
+  "linear-gradient(135deg, color-mix(in srgb, var(--teal) 35%, transparent), color-mix(in srgb, var(--cyan) 25%, transparent))",
+  "linear-gradient(135deg, color-mix(in srgb, var(--green) 35%, transparent), color-mix(in srgb, var(--teal) 20%, transparent))",
+  "linear-gradient(135deg, color-mix(in srgb, var(--amber) 35%, transparent), color-mix(in srgb, var(--amber) 20%, transparent))",
+  "linear-gradient(135deg, color-mix(in srgb, var(--rose) 30%, transparent), color-mix(in srgb, var(--rose) 20%, transparent))",
 ];
 
 
@@ -370,7 +370,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
           <div className="min-w-0 flex-1 space-y-4">
             <div><Bone w="w-40" h="h-5" /><Bone w="w-28" h="h-3" /></div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {[1, 2, 3].map((i) => <div key={i} className="card-static rounded-xl p-3"><Bone w="w-16" h="h-3" /><Bone w="w-12" h="h-4" /></div>)}
+              {[1, 2, 3].map((i) => <div key={i} className="card-static p-3"><Bone w="w-16" h="h-3" /><Bone w="w-12" h="h-4" /></div>)}
               </div>
             <div className="space-y-2">
               <Bone w="w-full" h="h-2.5" />
@@ -384,7 +384,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
   const todayHours = pa.todayMinutes / 60;
   const shiftPct = Math.min(100, Math.round((pa.todayMinutes / shiftTarget) * 100));
   const isPresent = pa.todaySessions > 0 || pa.todayMinutes > 0;
-  const statusColor = isPresent ? (pa.isOnTime ? "var(--green)" : "var(--amber)") : "#f43f5e";
+  const statusColor = isPresent ? (pa.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)";
   const statusBadgeBg = isPresent
     ? pa.isOnTime
       ? "color-mix(in srgb, var(--green) 7%, transparent)"
@@ -420,43 +420,43 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
             </div>
           {/* Clock In / Hours / Clock Out */}
           <div className="grid grid-cols-3 gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-            <div className="card-static rounded-xl p-2.5">
+            <div className="card-static p-2.5">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
           </div>
-            <div className="card-static rounded-xl p-2.5 text-center">
+            <div className="card-static p-2.5 text-center">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
             </div>
-            <div className="card-static rounded-xl p-2.5 text-right">
+            <div className="card-static p-2.5 text-right">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
               <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
             </div>
             </div>
-          {/* Arrived / Office / Left */}
+          {/* Office In / Office / Office Out */}
           <div className="grid grid-cols-3 gap-2" style={{ color: "var(--fg-secondary)" }}>
-            <div className="card-static rounded-xl p-2.5">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Arrived</p>
+            <div className="card-static p-2.5">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
               <p className="text-callout font-semibold tabular-nums">{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
           </div>
-            <div className="card-static rounded-xl p-2.5 text-center">
+            <div className="card-static p-2.5 text-center">
               <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
               <p className="text-callout font-semibold tabular-nums">{formatMinutes(pa.officeMinutes)}</p>
         </div>
-            <div className="card-static rounded-xl p-2.5 text-right">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Left</p>
+            <div className="card-static p-2.5 text-right">
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
               <p className="text-callout font-semibold tabular-nums">{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
               </div>
             </div>
           {/* Office / Remote split */}
           <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
             <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--green) 7%, transparent)", color: "var(--green)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
-            <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
+            <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
               </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Shift progress</span>
-              <span className="text-caption tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes} / {shiftTarget} min ({shiftPct}%)</span>
+              <span className="text-caption tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes} / {shiftTarget}m ({shiftPct}%)</span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
               <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
@@ -872,7 +872,7 @@ function AdminDashboard({
                   const active = presenceFilter === f;
                   return (
                       <button key={f} type="button" onClick={() => setPresenceFilter(f)} className="btn btn-sm relative z-10 min-h-0 border-0 bg-transparent px-3 py-1.5 shadow-none" style={{ color: active ? "var(--fg)" : "var(--fg-secondary)" }}>
-                        {active && <motion.span layoutId="admin-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "0.5px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
+                        {active && <motion.span layoutId="admin-presence-active" className="absolute inset-0 rounded-lg" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }} transition={{ type: "spring", bounce: 0.2, duration: 0.45 }} />}
                         <span className="relative text-caption font-semibold">{PRESENCE_FILTER_LABELS[f]}</span>
                     </button>
                   );
@@ -1218,9 +1218,9 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           <TodayTimelineCard pa={pa} dataLoading={dataLoading} />
       </div>
 
-        {/* Weekly overview — horizontal scroll strip */}
+        {/* Weekly Overview — horizontal scroll strip */}
         <section className="space-y-3">
-          <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-section-header">Weekly overview</motion.h3>
+          <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-section-header">Weekly Overview</motion.h3>
           {weeklyInsights && (
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>Best: {weeklyInsights.bestDay} ({formatMinutes(weeklyInsights.bestMins)})</span>
@@ -1232,14 +1232,14 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           )}
           <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
             {weeklyRecords.length === 0 ? (
-              [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-xl p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)
+              [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)
             ) : weeklyRecords.map((day, i) => {
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
                 const isToday = day.date === new Intl.DateTimeFormat("en-CA", { timeZone: companyTz }).format(now);
-                const dot = !day.isPresent ? "#f43f5e" : !day.isOnTime ? "var(--amber)" : "var(--green)";
+                const dot = !day.isPresent ? "var(--rose)" : !day.isOnTime ? "var(--amber)" : "var(--green)";
               return (
-                  <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 rounded-xl p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px rgba(0,122,255,0.18)" } : undefined}>
+                  <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px color-mix(in srgb, var(--primary) 18%, transparent)" } : undefined}>
                   <div className="flex items-center justify-between gap-2">
                       <span className="text-caption font-semibold" style={{ color: "var(--fg-secondary)" }}>{dayName}</span>
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
@@ -1252,25 +1252,25 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           </div>
         </section>
 
-        {/* Monthly summary */}
+        {/* Monthly Summary */}
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="card-static p-5 sm:p-6">
-          <h3 className="text-section-header mb-4">Monthly summary</h3>
+          <h3 className="text-section-header mb-4">Monthly Summary</h3>
           {ms ? (
             <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="card-static rounded-xl p-4">
+            <div className="card-static p-4">
               <p className="text-caption">Present / Total</p>
               <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.presentDays} /><span style={{ color: "var(--fg-tertiary)" }}> / </span><AnimatedNumber value={ms.totalWorkingDays} /><span className="text-subhead"> days</span></p>
             </div>
-            <div className="card-static rounded-xl p-4">
+            <div className="card-static p-4">
               <p className="text-caption">On-time</p>
                   <p className="text-title mt-1 text-[var(--primary)]"><AnimatedNumber value={ms.onTimePercentage} suffix="%" /></p>
             </div>
-            <div className="card-static rounded-xl p-4">
+            <div className="card-static p-4">
               <p className="text-caption">Avg. daily hours</p>
                   <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.averageDailyHours} suffix="h" /></p>
             </div>
-            <div className="card-static rounded-xl p-4">
+            <div className="card-static p-4">
               <p className="text-caption">Total hours</p>
                   <p className="text-title mt-1" style={{ color: "var(--fg)" }}><AnimatedNumber value={ms.totalWorkingHours} suffix="h" /></p>
             </div>
@@ -1292,7 +1292,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             </>
           ) : (
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => <div key={i} className="card-static rounded-xl p-4 space-y-2"><Bone w="w-20" h="h-3" /><Bone w="w-14" h="h-6" /></div>)}
+              {[1, 2, 3, 4].map((i) => <div key={i} className="card-static p-4 space-y-2"><Bone w="w-20" h="h-3" /><Bone w="w-14" h="h-6" /></div>)}
             </div>
         )}
       </motion.section>
@@ -1378,7 +1378,7 @@ export default function DashboardHome({ user }: { user: User }) {
             remoteMinutes: dailyRes.remoteMinutes ?? 0,
             isOnTime: dailyRes.isOnTime ?? true,
             lateBy: dailyRes.lateBy ?? 0,
-            firstEntry: dailyRes.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+            firstEntry: dailyRes.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }) : null,
             clockIn: ct.clockIn,
             clockOut: ct.clockOut,
             firstOfficeEntry: dailyRes.firstOfficeEntry ? new Date(dailyRes.firstOfficeEntry).toISOString() : null,
@@ -1428,7 +1428,7 @@ export default function DashboardHome({ user }: { user: User }) {
           remoteMinutes: dailyDetailRes.remoteMinutes ?? 0,
           isOnTime: dailyDetailRes.isOnTime ?? true,
           lateBy: dailyDetailRes.lateBy ?? 0,
-          firstEntry: dailyDetailRes.firstOfficeEntry ? new Date(dailyDetailRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null,
+          firstEntry: dailyDetailRes.firstOfficeEntry ? new Date(dailyDetailRes.firstOfficeEntry).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }) : null,
           clockIn: ct.clockIn,
           clockOut: ct.clockOut,
           firstOfficeEntry: dailyDetailRes.firstOfficeEntry ? new Date(dailyDetailRes.firstOfficeEntry).toISOString() : null,

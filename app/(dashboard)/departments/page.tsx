@@ -231,7 +231,7 @@ export default function DepartmentsPage() {
 
       {/* Search + Add row */}
       <div data-tour="departments-search" className="card-static mb-4 flex items-center gap-3 p-4">
-        <SearchField value={search} onChange={setSearch} placeholder="Search departments..." />
+        <SearchField value={search} onChange={setSearch} placeholder="Search departments…" />
         {sessionStatus !== "loading" && canManageDepts && (
           <motion.button
             type="button"
@@ -261,7 +261,7 @@ export default function DepartmentsPage() {
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
-                placeholder="Department name..."
+                placeholder="Department name…"
                 className="input flex-1 min-w-[140px]"
                 autoFocus
               />
@@ -281,7 +281,7 @@ export default function DepartmentsPage() {
                 whileTap={{ scale: 0.98 }}
                 className="btn btn-primary btn-sm shrink-0"
               >
-                {addingSaving ? "Adding..." : "Create"}
+                {addingSaving ? "Adding…" : "Create"}
               </motion.button>
               <motion.button
                 type="button"
@@ -347,7 +347,7 @@ export default function DepartmentsPage() {
       {/* Department Card Grid */}
       <motion.div
         data-tour="departments-grid"
-        className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         variants={staggerContainerFast}
         initial="hidden"
         animate="visible"
@@ -468,7 +468,7 @@ export default function DepartmentsPage() {
                               whileTap={{ scale: 0.98 }}
                               className="btn btn-primary btn-sm flex-1"
                             >
-                              {saving ? "Saving..." : "Save"}
+                              {saving ? "Saving…" : "Save"}
                             </motion.button>
                             <button
                               type="button"

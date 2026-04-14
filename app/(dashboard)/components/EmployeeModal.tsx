@@ -510,7 +510,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header: avatar + name + close */}
-              <div className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-3" style={{ borderColor: "var(--border)" }}>
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b px-6 py-4" style={{ borderColor: "var(--border)" }}>
                 {!effectiveId ? (
                   <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>User Details</h2>
                 ) : (
@@ -652,7 +652,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sClockOut}</p>
                                   </div>
                                 </div>
-                                {/* Arrived / Office / Left */}
+                                {/* Office In / Office / Office Out */}
                                 <div className="mt-2 grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
                                   <div>
                                     <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
@@ -673,7 +673,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
                                       <motion.div className="flex h-full min-w-0" initial={{ width: 0 }} animate={{ width: `${cappedFill}%` }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
                                         {ofPct > 0 && <div className="h-full shrink-0" style={{ width: `${(ofPct / cappedFill) * 100}%`, background: "var(--green)" }} />}
-                                        {rmPct > 0 && <div className="h-full shrink-0" style={{ width: `${(rmPct / cappedFill) * 100}%`, background: "#007aff" }} />}
+                                        {rmPct > 0 && <div className="h-full shrink-0" style={{ width: `${(rmPct / cappedFill) * 100}%`, background: "var(--teal)" }} />}
                                         {bkPct > 0 && <div className="h-full shrink-0" style={{ width: `${(bkPct / cappedFill) * 100}%`, background: "var(--purple)" }} />}
                                       </motion.div>
                                     </div>
@@ -684,7 +684,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <span className="inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
                                       {sSessions} {sSessions === 1 ? "session" : "sessions"}
                                     </span>
-                                    {sRemoteMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>{formatMinutes(sRemoteMins)} remote</span>}
+                                    {sRemoteMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>{formatMinutes(sRemoteMins)} remote</span>}
                                     {sBreakMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>{formatMinutes(sBreakMins)} break</span>}
                                     {(sess?.lateBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--amber) 7%, transparent)", color: "var(--amber)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
                                     {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--rose) 7%, transparent)", color: "var(--rose)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
@@ -734,8 +734,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (
                               <div className="flex flex-wrap gap-1.5 text-[9px]">
                                 <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} pending</span>
-                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "rgba(0,122,255,0.2)" : "var(--border)" }}>{inProgT} active</span>
-                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: campCount > 0 ? "rgba(48,209,88,0.1)" : "var(--bg-grouped)", color: campCount > 0 ? "var(--teal)" : "var(--fg-tertiary)", borderColor: campCount > 0 ? "rgba(48,209,88,0.2)" : "var(--border)" }}>{campCount} campaign{campCount !== 1 ? "s" : ""}</span>
+                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)" }}>{inProgT} active</span>
+                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: campCount > 0 ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "var(--bg-grouped)", color: campCount > 0 ? "var(--teal)" : "var(--fg-tertiary)", borderColor: campCount > 0 ? "color-mix(in srgb, var(--teal) 20%, transparent)" : "var(--border)" }}>{campCount} campaign{campCount !== 1 ? "s" : ""}</span>
                               </div>
                             )}
                             {canViewLeaves && (
@@ -745,7 +745,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 ) : (
                                   <>
                                     <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Leave balance</span>
-                                    <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>Left {leaveBalance.remaining}</span>
+                                    <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>{leaveBalance.remaining} remaining</span>
                                     <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>of {leaveBalance.total} · used {leaveBalance.used}</span>
                                   </>
                                 )}
@@ -817,7 +817,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     ) : (() => {
                                       const key = `${calYear}-${String(calMonth).padStart(2, "0")}-${String(c.day).padStart(2, "0")}`,
                                         rec = dailyMap.get(key),
-                                        dot = !rec || !rec.isPresent ? "#f43f5e" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "var(--amber)" : "var(--green)",
+                                        dot = !rec || !rec.isPresent ? "var(--rose)" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "var(--amber)" : "var(--green)",
                                         today = key === todayStrKarachi();
                                       return (
                                         <div key={key} className="flex aspect-square flex-col items-center justify-center rounded-lg border text-[10px] font-medium tabular-nums" style={{ borderColor: today ? "var(--primary)" : "var(--border)", background: "var(--bg-grouped)", color: "var(--fg)" }}>
@@ -1036,7 +1036,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                       <tr key={d.day} style={{ color: "var(--fg)" }}>
                                         <td className="py-1 tabular-nums">{d.dayOfWeek} {d.day}</td>
                                         <td className="py-1">{d.status}</td>
-                                        <td className="py-1 text-right tabular-nums">{((d.workingMinutes ?? 0) / 60).toFixed(1)}</td>
+                                        <td className="py-1 text-right tabular-nums">{((d.workingMinutes ?? 0) / 60).toFixed(1)}h</td>
                                         <td className="py-1 text-right tabular-nums">{d.lateMinutes ?? 0}m</td>
                                         <td className="py-1 text-right tabular-nums">{(d.deduction ?? 0).toLocaleString()}</td>
                                       </tr>
@@ -1325,7 +1325,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               </div>
                               <ProfRow k="Department" v={employee.department?.title ?? "—"} />
                               <ProfRow k="Designation" v={designation} />
-                              <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString() : "—"} />
+                              <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
                               <ProfRow k="Active" v={employee.isActive === false ? "Inactive" : "Active"} />
                             </dl>
                           )}

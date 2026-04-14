@@ -104,7 +104,7 @@ function fmtMins(m: number): string {
 }
 function fmtTime(d: string | null): string {
   if (!d) return "—";
-  return new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(d).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 const MN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -140,6 +140,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
 
   const now = new Date();
   const [employees, setEmployees] = useState<DropdownEmp[]>([]);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
   const [userId, setUserId] = useState(selectedUserId || "");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
@@ -167,10 +168,12 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
 
   useEffect(() => {
     if (!open || !canViewTeam) return;
+    setSidebarLoading(true);
     fetch("/api/employees/dropdown")
       .then((r) => r.ok ? r.json() : [])
       .then((d) => setEmployees(Array.isArray(d) ? d : []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setSidebarLoading(false));
   }, [open, canViewTeam]);
 
   /* ── Fetch single month ── */
@@ -309,7 +312,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   /* ── Derived ── */
   const attendancePct = estimate && estimate.workingDays > 0 ? Math.round((estimate.presentDays / estimate.workingDays) * 100) : 0;
   const deductionPct = estimate && estimate.grossPay > 0 ? Math.round((estimate.totalDeductions / estimate.grossPay) * 100) : 0;
-  const showSidebar = canViewTeam && employees.length > 0;
+  const showSidebar = canViewTeam;
   const selfExempt = isSuperAdmin && !userId && detailTab !== "report";
 
   const filteredTeamSheet = useMemo(() => {
@@ -582,7 +585,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
 <h2>Generated: ${new Date(s.generatedAt).toLocaleString()} · ${s.workingDays} working days · ${s.holidays} holidays</h2>
 <div class="hero"><div class="label">Total Net Pay</div><div class="amount">${fmt(t.totalNetPay)}</div><div style="margin-top:4px;font-size:11px;color:#888">${t.totalEmployees} employees · ${fmt(t.totalGrossPay)} gross · ${fmt(t.totalDeductions)} deductions</div></div>
 <table><thead><tr><th>#</th><th>Employee</th><th>Dept</th><th>Salary</th><th>Present</th><th>Absent</th><th>Late</th><th>Leave</th><th>Att.%</th><th>Gross</th><th>Ded.</th><th>Net Pay</th></tr></thead>
-<tbody>${rows}<tr class="total"><td colspan="9">Total (${t.totalEmployees})</td><td>${fmt(t.totalGrossPay)}</td><td style="color:#dc2626">${t.totalDeductions > 0 ? fmt(t.totalDeductions) : "—"}</td><td style="font-weight:700">${fmt(t.totalNetPay)}</td></tr></tbody></table>
+<tbody>${rows}<tr class="total"><td colspan="10">Total (${t.totalEmployees})</td><td>${fmt(t.totalGrossPay)}</td><td style="color:#dc2626">${t.totalDeductions > 0 ? fmt(t.totalDeductions) : "—"}</td><td style="font-weight:700">${fmt(t.totalNetPay)}</td></tr></tbody></table>
 <div style="margin-top:24px;padding:16px;background:#f8f9fa;border-radius:8px;font-size:10px;color:#666">
 <strong>Prepared by:</strong> ___________________________&nbsp;&nbsp;&nbsp;&nbsp;<strong>Date:</strong> _______________<br/><br/>
 <strong>Finance Head:</strong> ___________________________&nbsp;&nbsp;&nbsp;&nbsp;<strong>Approved by:</strong> ___________________________
@@ -640,7 +643,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
     else if (detailTab === "year" && yearData.length > 0) lines = buildYearCSV();
     else lines = buildMonthCSV();
     if (!lines.length) return;
-    navigator.clipboard.writeText(lines.map((l) => l.replace(/,/g, ": ")).join("\n")).catch(() => {});
+    navigator.clipboard.writeText(lines.join("\n")).catch(() => {});
     setShowExportMenu(false);
   }
 
@@ -740,6 +743,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                       </div>
                     </div>
                     <div className="flex-1 overflow-y-auto py-1" style={{ scrollbarWidth: "thin" }}>
+                      {sidebarLoading ? (
+                        <div className="space-y-2 p-3">{[1,2,3,4,5].map(i => <div key={i} className="flex items-center gap-2"><div className="shimmer h-6 w-6 rounded-full" /><div className="shimmer h-3 flex-1 rounded" /></div>)}</div>
+                      ) : <>
                       {!sidebarSearch && (
                         <button
                           type="button"
@@ -766,7 +772,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                           <div className="px-2 py-0.5">
                             <button
                               type="button"
-                              onClick={() => { setUserId(""); setDeptFilter(g.id); if (isSuperAdmin && canViewTeam) setDetailTab("report"); }}
+                              onClick={() => { setUserId(""); setDeptFilter(g.id); if (canViewTeam) setDetailTab("report"); }}
                               className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                               style={{ color: deptFilter === g.id && !userId ? "var(--primary)" : "var(--fg-tertiary)" }}
                             >
@@ -789,9 +795,10 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                         </div>
                       ))}
                       {filteredEmployees.length === 0 && sidebarSearch && <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>}
+                      </>}
                     </div>
                     <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{employees.length} employee{employees.length !== 1 ? "s" : ""}</p>
+                      <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{sidebarLoading ? "Loading…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}</p>
                     </div>
                   </div>
                 )}
@@ -873,7 +880,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {[
                                   { label: "Present", value: `${estimate.presentDays}`, sub: `of ${estimate.workingDays} days`, color: "var(--green)" },
-                                  { label: "Absent", value: `${estimate.absentDays}`, sub: `${attendancePct}% rate`, color: estimate.absentDays > 0 ? "var(--rose)" : "var(--fg)" },
+                                  { label: "Absent", value: `${estimate.absentDays}`, sub: `${100 - attendancePct}% absence`, color: estimate.absentDays > 0 ? "var(--rose)" : "var(--fg)" },
                                   { label: "Late", value: `${estimate.lateDays}`, sub: "days", color: estimate.lateDays > 0 ? "var(--amber)" : "var(--fg)" },
                                   { label: "Leaves", value: `${estimate.leaveDays}`, sub: `+ ${estimate.holidays} holidays`, color: "var(--teal)" },
                                 ].map((s) => (
@@ -1133,7 +1140,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                       </div>
                                       <div className="rounded-xl p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Team Total OT Hours</p>
-                                        <p className="text-xs font-bold" style={{ color: teamSheetStats.teamTotalOvertimeHours > 0 ? "var(--teal)" : "var(--fg)" }}>{teamSheetStats.teamTotalOvertimeHours.toFixed(1)}</p>
+                                        <p className="text-xs font-bold" style={{ color: teamSheetStats.teamTotalOvertimeHours > 0 ? "var(--teal)" : "var(--fg)" }}>{teamSheetStats.teamTotalOvertimeHours.toFixed(1)}h</p>
                                       </div>
                                       {teamSheetStats.teamAvgNetPay != null && (
                                         <div className="rounded-xl p-2 text-center" style={{ background: "var(--bg-grouped)" }}>

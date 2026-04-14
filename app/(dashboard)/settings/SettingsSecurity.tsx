@@ -162,7 +162,7 @@ export function SettingsSecurity({
         </div>
 
         <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full btn btn-primary disabled:opacity-50 mt-5">
-          {saving ? "Saving..." : "Save changes"}
+          {saving ? "Saving…" : "Save changes"}
         </motion.button>
       </form>
     </FadeUp>

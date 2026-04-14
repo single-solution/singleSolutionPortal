@@ -64,7 +64,7 @@ export interface EmployeeCardProps {
   /** When true, omit outer card chrome (parent supplies `.card`). */
   embedded?: boolean;
   className?: string;
-  /** Show attendance data (clock in/out, hours, arrived/left). Defaults to true. */
+  /** Show attendance data (clock in/out, hours, office in/out). Defaults to true. */
   showAttendance?: boolean;
   /** Show detailed activity strip (sessions, breaks, late, idle, progress bar). Defaults to true. */
   showAttendanceDetail?: boolean;
@@ -130,15 +130,15 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
 
   const styles: Record<PulseVariant, { bg: string; color: string; border: string; label: string; sub?: string }> = {
     office: {
-      bg: "rgba(16,185,129,0.18)",
-      color: "#10b981",
-      border: "rgba(16,185,129,0.35)",
+      bg: "color-mix(in srgb, var(--green) 18%, transparent)",
+      color: "var(--green)",
+      border: "color-mix(in srgb, var(--green) 35%, transparent)",
       label: "In Office",
     },
     remote: {
-      bg: "rgba(0,122,255,0.16)",
-      color: "#007aff",
-      border: "rgba(0,122,255,0.30)",
+      bg: "color-mix(in srgb, var(--teal) 16%, transparent)",
+      color: "var(--teal)",
+      border: "color-mix(in srgb, var(--teal) 30%, transparent)",
       label: "Remote",
     },
     lastSeen: {
@@ -194,7 +194,7 @@ function ActivityChips({ emp }: { emp: EmployeeCardEmp }) {
   return (
     <div className="flex flex-wrap items-center gap-1 text-[9px]">
       {remoteMins > 0 && (
-        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "#007aff12", color: "#007aff" }}>
+        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>
           {formatMinutesShort(remoteMins)} remote
         </span>
       )}
@@ -404,11 +404,11 @@ export const EmployeeCard = memo(function EmployeeCard({
           </div>
         )}
 
-        {/* Arrived · Office · Left */}
+        {/* Office In · Office · Office Out */}
         {showAttendance && !attendanceLoading && (
           <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
             <div>
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Arrived</p>
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
               <p className="font-semibold tabular-nums">{emp.firstOfficeEntry ? formatTimeStr(emp.firstOfficeEntry) : "—"}</p>
             </div>
             <div className="text-center">
@@ -416,7 +416,7 @@ export const EmployeeCard = memo(function EmployeeCard({
               <p className="font-semibold tabular-nums">{formatMinutesShort(emp.officeMinutes ?? 0)}</p>
             </div>
             <div className="text-right">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Left</p>
+              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
               <p className="font-semibold tabular-nums">
                 {emp.isLive && emp.status === "office" ? "—" : emp.lastOfficeExit ? formatTimeStr(emp.lastOfficeExit) : "—"}
               </p>
@@ -482,7 +482,7 @@ export const EmployeeCard = memo(function EmployeeCard({
                   style={{
                     background: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary-light)" : "var(--bg-grouped)",
                     color: (emp.inProgressTasks ?? 0) > 0 ? "var(--primary)" : "var(--fg-tertiary)",
-                    borderColor: (emp.inProgressTasks ?? 0) > 0 ? "rgba(0,122,255,0.2)" : "var(--border)",
+                    borderColor: (emp.inProgressTasks ?? 0) > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)",
                   }}
                 >
                   {emp.inProgressTasks ?? 0} active
@@ -493,9 +493,9 @@ export const EmployeeCard = memo(function EmployeeCard({
               <span
                 className="rounded-full border px-1.5 py-0.5 font-semibold"
                 style={{
-                  background: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.1)" : "var(--bg-grouped)",
+                  background: (emp.campaigns?.length ?? 0) > 0 ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "var(--bg-grouped)",
                   color: (emp.campaigns?.length ?? 0) > 0 ? "var(--teal)" : "var(--fg-tertiary)",
-                  borderColor: (emp.campaigns?.length ?? 0) > 0 ? "rgba(48,209,88,0.2)" : "var(--border)",
+                  borderColor: (emp.campaigns?.length ?? 0) > 0 ? "color-mix(in srgb, var(--teal) 20%, transparent)" : "var(--border)",
                 }}
               >
                 {emp.campaigns?.length ?? 0} campaign{(emp.campaigns?.length ?? 0) !== 1 ? "s" : ""}
@@ -576,7 +576,7 @@ export const EmployeeCard = memo(function EmployeeCard({
 
   const shellClass = embedded
     ? `group relative flex min-h-0 flex-1 flex-col overflow-visible ${className ?? ""}`
-    : `card-static group relative flex h-full flex-col overflow-visible rounded-[var(--radius)] ${className ?? ""}`;
+    : `card-static group relative flex h-full flex-col overflow-visible ${className ?? ""}`;
 
   const shell = <div className={shellClass}>{inner}</div>;
 

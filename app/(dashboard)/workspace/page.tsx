@@ -528,7 +528,7 @@ export default function WorkspacePage() {
 
       {/* ── search + create ── */}
       <div data-tour="workspace-toolbar" className="card-static mb-4 flex shrink-0 items-center gap-3 p-4">
-        <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks..." />
+        <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks…" />
         {ready && canCreateCampaigns && (
           <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -597,7 +597,7 @@ export default function WorkspacePage() {
         {/* ── campaign card grid ── */}
         <div className="min-w-0 min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {[1, 2, 3, 4, 5, 6].map((g) => (
                 <div key={g} className="card-xl overflow-hidden">
                   <div className="p-4 space-y-3">
@@ -627,8 +627,8 @@ export default function WorkspacePage() {
               action={canCreateCampaigns && campaignList.length === 0 ? <button type="button" onClick={openCreateCampaign} className="btn btn-primary btn-sm">Create your first campaign</button> : undefined}
             />
           ) : (
-            <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" variants={staggerContainerFast} initial="hidden" animate="visible">
-              {visibleCampaigns.map((c) => {
+            <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+              {visibleCampaigns.map((c, ci) => {
                 const allTasks = campaignTaskMap.get(c._id) ?? [];
                 const visibleTasks = filteredCampaignTasks.get(c._id) ?? [];
                 const oneTimeTasks = visibleTasks.filter((t) => !t.recurrence);
@@ -646,7 +646,7 @@ export default function WorkspacePage() {
                 const recurCount = c.taskStats?.recurring ?? 0;
 
                 return (
-                  <motion.div key={c._id} variants={cardVariants} custom={0}
+                  <motion.div key={c._id} variants={cardVariants} custom={ci}
                     className="card-xl overflow-hidden flex flex-col transition-opacity"
                     style={{ opacity: isInactive ? 0.5 : 1 }}>
                     {/* ── card header ── */}

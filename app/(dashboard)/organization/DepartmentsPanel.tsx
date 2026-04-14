@@ -178,7 +178,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete department"
+        title="Delete Department"
         description={`Remove "${deleteTarget?.title}"? Employees in this department will be unaffected but the department record will be permanently deleted.`}
         confirmLabel="Delete" variant="danger" loading={deleting}
         onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)}
@@ -192,7 +192,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
               style={{ WebkitBackdropFilter: "saturate(200%) blur(24px)" }} onClick={closeModal}>
               <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                className="card-xl flex w-full max-w-md flex-col overflow-hidden shadow-2xl"
+                className="card-static flex w-full max-w-md flex-col overflow-hidden shadow-xl"
                 style={{ borderColor: "var(--border-strong)" }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
                   <h2 className="text-base font-semibold" style={{ color: "var(--fg)" }}>{modalMode === "create" ? "New Department" : "Edit Department"}</h2>

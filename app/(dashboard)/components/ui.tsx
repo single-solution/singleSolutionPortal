@@ -14,7 +14,7 @@ export function RefreshBtn({ onRefresh }: { onRefresh: () => void }) {
       onClick={() => { setSpinning(true); onRefresh(); setTimeout(() => setSpinning(false), 800); }}
       animate={{ rotate: spinning ? 360 : 0 }}
       transition={{ duration: 0.6 }}
-      className="ml-2 p-1 rounded-full hover:bg-[var(--bg-secondary)] transition-colors"
+      className="ml-2 p-1 rounded-full hover:bg-[var(--hover-bg)] transition-colors"
       style={{ color: "var(--fg-tertiary)" }}
       title="Refresh"
     >
@@ -25,7 +25,7 @@ export function RefreshBtn({ onRefresh }: { onRefresh: () => void }) {
 
 /* ─── SearchField ─── */
 
-export function SearchField({ value, onChange, placeholder = "Search..." }: {
+export function SearchField({ value, onChange, placeholder = "Search…" }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -143,7 +143,7 @@ export function ModalShell({ open, onClose, title, subtitle, maxWidth = "max-w-l
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className={`w-full ${maxWidth} shadow-2xl bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl overflow-hidden`}
+              className={`w-full ${maxWidth} shadow-xl bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl overflow-hidden`}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--border)" }}>

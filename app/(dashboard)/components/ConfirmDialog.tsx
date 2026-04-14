@@ -41,7 +41,7 @@ export function ConfirmDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="p-6 w-full max-w-sm shadow-2xl bg-[var(--bg-elevated)] border border-[var(--border)] rounded-3xl"
+            className="p-6 w-full max-w-sm shadow-xl bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-[var(--fg)] mb-1">{title}</h3>
@@ -64,7 +64,7 @@ export function ConfirmDialog({
                       : "btn-primary"
                 }`}
               >
-                {loading ? "Working..." : confirmLabel}
+                {loading ? "Working…" : confirmLabel}
               </motion.button>
             </div>
           </motion.div>

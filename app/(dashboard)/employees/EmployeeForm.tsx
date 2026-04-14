@@ -267,7 +267,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
         <div className="flex items-center gap-2 shrink-0">
           <button type="button" onClick={() => router.push("/organization")} className="btn btn-secondary hidden sm:inline-flex">Cancel</button>
           <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary">
-            {saving ? "Saving..." : isEdit ? "Update" : "Invite"}
+            {saving ? "Saving…" : isEdit ? "Update" : "Invite"}
           </motion.button>
         </div>
       </motion.div>
@@ -624,7 +624,7 @@ export default function EmployeeForm({ employeeId }: EmployeeFormProps) {
       {/* Mobile-only action row */}
       <div className="flex gap-3 sm:hidden">
         <motion.button type="submit" disabled={saving} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">
-          {saving ? "Saving..." : isEdit ? "Update Employee" : "Invite Employee"}
+          {saving ? "Saving…" : isEdit ? "Update" : "Invite"}
         </motion.button>
         <button type="button" onClick={() => router.push("/organization")} className="btn btn-secondary flex-1">Cancel</button>
       </div>
