@@ -7,7 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { RefreshBtn, SearchField, SegmentedControl, PageHeader, EmptyState, ModalShell } from "../components/ui";
+import { RefreshBtn, SearchField, SegmentedControl, EmptyState, ModalShell } from "../components/ui";
+import { HeaderStatPill } from "../components/StatChips";
 import toast from "react-hot-toast";
 import { formatShortDate, timeAgo } from "@/lib/formatters";
 
@@ -507,11 +508,22 @@ export default function WorkspacePage() {
     <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(90dvh - 80px)" }}>
       {/* ── header ── */}
       <div className="mb-4 shrink-0">
-        <PageHeader
-          title="Workspace"
-          loading={loading}
-          subtitle={`${statusCounts.all} tasks · ${campaignList.length} campaign${campaignList.length !== 1 ? "s" : ""} · ${statusCounts.inProgress} in progress · ${taskInsights.completionRate}% done${taskInsights.overdue > 0 ? ` · ${taskInsights.overdue} overdue` : ""}`}
-        />
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Workspace</h1>
+          {loading ? (
+            <span className="shimmer inline-block h-4 w-44 rounded" />
+          ) : (
+            <>
+              <HeaderStatPill label={statusCounts.all === 1 ? "task" : "tasks"} value={statusCounts.all} dotColor="var(--primary)" />
+              <HeaderStatPill label={campaignList.length === 1 ? "campaign" : "campaigns"} value={campaignList.length} dotColor="var(--teal)" />
+              <HeaderStatPill label="in progress" value={statusCounts.inProgress} dotColor="var(--amber)" />
+              <HeaderStatPill label="done" value={`${taskInsights.completionRate}%`} dotColor="var(--green)" />
+              {taskInsights.overdue > 0 && <HeaderStatPill label="overdue" value={taskInsights.overdue} dotColor="var(--rose)" />}
+              {taskInsights.dueSoon > 0 && <HeaderStatPill label="due soon" value={taskInsights.dueSoon} dotColor="var(--amber)" />}
+              {campaignInsights.active > 0 && <HeaderStatPill label={campaignInsights.active === 1 ? "active campaign" : "active campaigns"} value={campaignInsights.active} dotColor="var(--green)" />}
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── search + create ── */}

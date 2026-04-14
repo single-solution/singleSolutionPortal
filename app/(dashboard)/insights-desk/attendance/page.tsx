@@ -7,7 +7,7 @@ import { usePermissions } from "@/lib/usePermissions";
 import { ScopeStrip } from "../../components/ScopeStrip";
 import { useGuide } from "@/lib/useGuide";
 import { attendanceTour } from "@/lib/tourConfigs";
-import { Pill as SharedPill, StatChip as SharedStatChip, HeaderStatPill } from "../../components/StatChips";
+import { Pill as SharedPill, StatChip as SharedStatChip } from "../../components/StatChips";
 import { timeAgo } from "@/lib/formatters";
 import { useInsightsContext } from "../layout";
 
@@ -157,7 +157,7 @@ export default function AttendancePage() {
   const hasTeamAccess = canPerm("attendance_viewTeam");
   
   const canViewTeamLeaves = canPerm("leaves_viewTeam");
-  const { setTeamCount, openLeavesModal } = useInsightsContext();
+  const { setTeamCount, openLeavesModal, setPagePills } = useInsightsContext();
 
   /* ── Team overview state ── */
   const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
@@ -489,6 +489,19 @@ export default function AttendancePage() {
     };
   }, [filteredSummary]);
 
+  useEffect(() => {
+    if (!isAggregateMode || !aggInsights) { setPagePills([]); return; }
+    const pills: { key: string; label: string; value: string | number; dotColor: string }[] = [
+      { key: "best", label: `Best: ${aggInsights.bestEmployee}`, value: `${Math.round(aggInsights.bestPct)}%`, dotColor: "var(--green)" },
+      { key: "worst", label: `Needs Att: ${aggInsights.worstEmployee}`, value: `${Math.round(aggInsights.worstPct)}%`, dotColor: aggInsights.worstPct < 70 ? "var(--rose)" : "var(--amber)" },
+    ];
+    if (aggInsights.lateEmployees > 0) {
+      pills.push({ key: "late", label: aggInsights.lateEmployees === 1 ? "late employee" : "late employees", value: aggInsights.lateEmployees, dotColor: "var(--amber)" });
+    }
+    setPagePills(pills);
+    return () => setPagePills([]);
+  }, [isAggregateMode, aggInsights, setPagePills]);
+
   const selectedDate = selectedDay ? new Date(year, month - 1, selectedDay) : null;
   const isSelectedToday = selectedDay !== null && isCurrentMonth && selectedDay === today.getDate();
 
@@ -548,15 +561,6 @@ export default function AttendancePage() {
                 />
               </div>
             ) : <div />}
-            {isAggregateMode && aggInsights && (
-              <>
-                <HeaderStatPill label={`Best: ${aggInsights.bestEmployee}`} value={`${Math.round(aggInsights.bestPct)}%`} dotColor="var(--green)" />
-                <HeaderStatPill label={`Needs Att: ${aggInsights.worstEmployee}`} value={`${Math.round(aggInsights.worstPct)}%`} dotColor={aggInsights.worstPct < 70 ? "var(--rose)" : "var(--amber)"} />
-                {aggInsights.lateEmployees > 0 && (
-                  <HeaderStatPill label={aggInsights.lateEmployees === 1 ? "late employee" : "late employees"} value={aggInsights.lateEmployees} dotColor="var(--amber)" />
-                )}
-              </>
-            )}
           </div>
           {sessionReady && hasTeamAccess && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
       </div>

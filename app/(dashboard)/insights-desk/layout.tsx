@@ -23,6 +23,14 @@ interface Holiday {
 
 const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/* ── Pill type for child pages to register header pills ── */
+export interface InsightsPill {
+  key: string;
+  label: string;
+  value: string | number;
+  dotColor: string;
+}
+
 /* ── Context so child pages can open Leaves / Payroll modals with a pre-selected user ── */
 interface InsightsContext {
   openLeavesModal: (userId?: string) => void;
@@ -35,6 +43,7 @@ interface InsightsContext {
   closePayrollModal: () => void;
   teamCount: number;
   setTeamCount: (n: number) => void;
+  setPagePills: (pills: InsightsPill[]) => void;
 }
 
 const InsightsCtx = createContext<InsightsContext>({
@@ -48,6 +57,7 @@ const InsightsCtx = createContext<InsightsContext>({
   closePayrollModal: () => {},
   teamCount: 0,
   setTeamCount: () => {},
+  setPagePills: () => {},
 });
 
 export function useInsightsContext() {
@@ -63,6 +73,9 @@ export default function InsightsDeskLayout({ children }: { children: React.React
 
   /* ── Team count (set by attendance page) ── */
   const [teamCount, setTeamCount] = useState(0);
+
+  /* ── Page-level pills (set by child pages) ── */
+  const [pagePills, setPagePills] = useState<InsightsPill[]>([]);
 
   /* ── Leaves / Payroll modal state ── */
   const [leavesOpen, setLeavesOpen] = useState(false);
@@ -87,6 +100,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
     leavesUserId, payrollUserId,
     closeLeavesModal, closePayrollModal,
     teamCount, setTeamCount,
+    setPagePills,
   }), [openLeavesModal, openPayrollModal, leavesOpen, payrollOpen, leavesUserId, payrollUserId, closeLeavesModal, closePayrollModal, teamCount]);
 
   /* ── Holidays modal state ── */
@@ -179,11 +193,14 @@ export default function InsightsDeskLayout({ children }: { children: React.React
               <HeaderStatPill label={teamCount === 1 ? "employee" : "employees"} value={teamCount} dotColor="var(--primary)" />
             )}
             {holidays.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <>
                 {upcoming.length > 0 && <HeaderStatPill label={upcoming.length === 1 ? "upcoming holiday" : "upcoming holidays"} value={upcoming.length} dotColor="var(--purple)" />}
                 <HeaderStatPill label={holidays.length === 1 ? "holiday this year" : "holidays this year"} value={holidays.length} dotColor="var(--fg-tertiary)" />
-              </div>
+              </>
             )}
+            {pagePills.map((p) => (
+              <HeaderStatPill key={p.key} label={p.label} value={p.value} dotColor={p.dotColor} />
+            ))}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
