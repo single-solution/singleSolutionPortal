@@ -347,7 +347,7 @@ export default function WorkspacePage() {
   const [campaignSaving, setCampaignSaving] = useState(false);
 
   function openCreateCampaign() {
-    setEditingCampaign(null); setCName(""); setCDesc(""); setCStatus("active"); setCStart(""); setCEnd(""); setCOngoing(false); setCTagEmployees([]); setCTagDepts([]); setCampaignModalOpen(true);
+    setEditingCampaign(null); setCName(""); setCDesc(""); setCStatus("active"); setCStart(""); setCEnd(""); setCOngoing(true); setCTagEmployees([]); setCTagDepts([]); setCampaignModalOpen(true);
   }
   function openEditCampaign(c: Campaign) {
     setEditingCampaign(c); setCName(c.name); setCDesc(c.description ?? ""); setCStatus(c.status); setCStart(c.startDate ? c.startDate.slice(0, 10) : ""); setCEnd(c.endDate ? c.endDate.slice(0, 10) : ""); setCOngoing(!c.endDate); setCTagEmployees(c.tags.employees.map((e) => e._id)); setCTagDepts(c.tags.departments.map((d) => d._id)); setCampaignModalOpen(true);
@@ -657,7 +657,7 @@ export default function WorkspacePage() {
                 return (
                   <motion.div key={c._id} variants={cardVariants} custom={ci}
                     className="card-xl overflow-hidden flex flex-col transition-opacity"
-                    style={{ opacity: isInactive ? 0.5 : 1 }}>
+                    style={{ opacity: isInactive ? 0.5 : 1, minHeight: 200, maxHeight: "calc(50vh - 24px)" }}>
                     {/* ── card header ── */}
                     <div className="flex items-center gap-1.5 px-2.5 py-2">
                       <div className="min-w-0 flex-1">
@@ -700,7 +700,7 @@ export default function WorkspacePage() {
                     </div>
 
                     {/* ── card body ── */}
-                    <div className="flex-1 overflow-y-auto px-2 pb-1.5" style={{ scrollbarWidth: "thin", maxHeight: 320 }}>
+                    <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-1.5" style={{ scrollbarWidth: "thin" }}>
                       {todayChecklist.length > 0 && (
                         <div className="mb-1">
                           <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring</p>
@@ -708,7 +708,8 @@ export default function WorkspacePage() {
                             const isDone = checklistOverrides.has(item._id) ? checklistOverrides.get(item._id)! : item.done;
                             return (
                               <button key={item._id} type="button" onClick={() => toggleChecklist(c._id, item._id, isDone)}
-                                className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
+                                className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]"
+                                style={{ background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
                                 <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-all"
                                   style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent" }}>
                                   {isDone && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
@@ -730,7 +731,7 @@ export default function WorkspacePage() {
                             const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
                             return (
                               <div key={task._id} className="mb-px">
-                                <div className="group flex items-center gap-1.5 rounded px-1.5 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]" style={{ borderLeft: `2px solid ${statusColor}` }}>
+                                <div className="group flex items-center gap-1.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]" style={{ borderLeft: `2px solid ${statusColor}`, background: "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))" }}>
                                   <button type="button" onClick={() => {
                                     const next = isTaskExpanded ? null : task._id;
                                     setExpandedTask(next);
@@ -767,7 +768,7 @@ export default function WorkspacePage() {
                                         ) : subs.map((sub) => {
                                           const subColor = sub.status === "completed" ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
                                           return (
-                                            <div key={sub._id} className="flex items-center gap-1.5 rounded px-1.5 py-0.5" style={{ borderLeft: `2px solid ${subColor}` }}>
+                                            <div key={sub._id} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1" style={{ borderLeft: `2px solid ${subColor}`, background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
                                               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
                                               <span className="text-[9px] flex-1 truncate" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
                                             </div>
@@ -1047,19 +1048,28 @@ export default function WorkspacePage() {
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label><select value={cStatus} onChange={(e) => setCStatus(e.target.value as CampaignStatus)} className="input"><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start</label><input type="date" value={cStart} onChange={(e) => setCStart(e.target.value)} className="input" /></div>
-          {!cOngoing && <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End</label><input type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="input" /></div>}
+          {!cOngoing ? (
+            <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End</label><input type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="input" /></div>
+          ) : (
+            <div className="flex items-center gap-2 self-end pb-2">
+              <ToggleSwitch size="sm" checked={cOngoing} onChange={() => { setCOngoing((v) => !v); if (!cOngoing) setCEnd(""); }} />
+              <label className="text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Ongoing</label>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <ToggleSwitch size="sm" checked={cOngoing} onChange={() => { setCOngoing((v) => !v); if (!cOngoing) setCEnd(""); }} />
-          <label className="text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Ongoing (no end date)</label>
-        </div>
+        {!cOngoing && (
+          <div className="flex items-center gap-2">
+            <ToggleSwitch size="sm" checked={cOngoing} onChange={() => { setCOngoing((v) => !v); if (!cOngoing) setCEnd(""); }} />
+            <label className="text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Ongoing (no end date)</label>
+          </div>
+        )}
         {canTagEntities && allDepartments.length > 0 && (
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => { const next = toggleArr(cTagDepts, d._id); setCTagDepts(next); if (next.length > 0) setCTagEmployees((prev) => prev.filter((eid) => { const emp = allEmployees.find((x) => x._id === eid); return emp?.departmentId && next.includes(emp.departmentId); })); }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>
         )}
-        {canTagEntities && allEmployees.length > 0 && (() => {
-          const filtered = cTagDepts.length > 0 ? allEmployees.filter((e) => e.departmentId && cTagDepts.includes(e.departmentId)) : allEmployees;
+        {canTagEntities && allEmployees.length > 0 && cTagDepts.length > 0 && (() => {
+          const filtered = allEmployees.filter((e) => e.departmentId && cTagDepts.includes(e.departmentId));
           return filtered.length > 0 ? (
-            <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Employees{cTagDepts.length > 0 ? <span className="font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>({filtered.length} in selected dept{cTagDepts.length > 1 ? "s" : ""})</span> : ""}</label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{filtered.map((e) => (<button key={e._id} type="button" onClick={() => setCTagEmployees(toggleArr(cTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>
+            <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Employees<span className="font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>({filtered.length} in selected dept{cTagDepts.length > 1 ? "s" : ""})</span></label><div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">{filtered.map((e) => (<button key={e._id} type="button" onClick={() => setCTagEmployees(toggleArr(cTagEmployees, e._id))} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagEmployees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagEmployees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>))}</div></div>
           ) : <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No employees in selected department{cTagDepts.length > 1 ? "s" : ""}.</p>;
         })()}
       </ModalShell>
