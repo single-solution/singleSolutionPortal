@@ -361,20 +361,18 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
 
   if (!pa) {
                 return (
-      <div className="card p-5 sm:p-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
-          <div className="flex flex-col items-center gap-3 sm:items-start">
-            <div className="shimmer h-20 w-20 rounded-full sm:h-24 sm:w-24" />
-            <Bone w="w-16" h="h-5" />
+      <div className="card p-3">
+        <div className="flex gap-3 items-start">
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <div className="shimmer h-12 w-12 rounded-full" />
+            <Bone w="w-12" h="h-3" />
                   </div>
-          <div className="min-w-0 flex-1 space-y-4">
-            <div><Bone w="w-40" h="h-5" /><Bone w="w-28" h="h-3" /></div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {[1, 2, 3].map((i) => <div key={i} className="card-static p-3"><Bone w="w-16" h="h-3" /><Bone w="w-12" h="h-4" /></div>)}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div><Bone w="w-32" h="h-4" /><Bone w="w-24" h="h-2.5" /></div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[1, 2, 3].map((i) => <div key={i} className="card-static p-1.5"><Bone w="w-12" h="h-2" /><Bone w="w-10" h="h-3" /></div>)}
               </div>
-            <div className="space-y-2">
-              <Bone w="w-full" h="h-2.5" />
-            </div>
+            <Bone w="w-full" h="h-2" />
           </div>
                     </div>
     </div>
@@ -402,63 +400,59 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi" }:
   const remotePct = 100 - officePct;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} className="card p-5 sm:p-6">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
-        <div className="flex flex-col items-center gap-3 sm:items-start">
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} className="card p-3">
+      <div className="flex gap-3 items-start">
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
           {userProfile?.profileImage ? (
-            <img src={userProfile.profileImage} alt="" className="h-20 w-20 rounded-full object-cover shadow-lg sm:h-24 sm:w-24" />
+            <img src={userProfile.profileImage} alt="" className="h-12 w-12 rounded-full object-cover shadow" />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full text-xl font-semibold text-white shadow-lg sm:h-24 sm:w-24 sm:text-2xl" style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}>{initials(profileName, profileLast)}</div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold text-white shadow" style={{ background: "linear-gradient(135deg, var(--primary), var(--cyan))" }}>{initials(profileName, profileLast)}</div>
           )}
-          <span className="badge" style={{ background: statusBadgeBg, color: statusColor, border: statusBadgeBorder }}>{statusLabel}</span>
+          <span className="rounded-full px-1.5 py-px text-[8px] font-semibold" style={{ background: statusBadgeBg, color: statusColor, border: statusBadgeBorder }}>{statusLabel}</span>
         </div>
-        <div className="min-w-0 flex-1 space-y-4">
+        <div className="min-w-0 flex-1 space-y-2">
           <div>
-            <h2 className="text-headline" style={{ color: "var(--fg)" }}>{profileName} {profileLast}</h2>
-            <p className="text-subhead">{userProfile?.department ?? (user.isSuperAdmin ? "System Administrator" : "Employee")}</p>
-            <p className="text-caption mt-0.5">{user.email}</p>
+            <h2 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{profileName} {profileLast}</h2>
+            <p className="text-[10px]" style={{ color: "var(--fg-secondary)" }}>{userProfile?.department ?? (user.isSuperAdmin ? "System Administrator" : "Employee")}</p>
             </div>
-          {/* Clock In / Hours / Clock Out */}
-          <div className="grid grid-cols-3 gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-            <div className="card-static p-2.5">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
-              <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
+          <div className="grid grid-cols-3 gap-1.5 border-t pt-2" style={{ borderColor: "var(--border)" }}>
+            <div className="card-static p-1.5">
+              <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
+              <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
           </div>
-            <div className="card-static p-2.5 text-center">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
-              <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
+            <div className="card-static p-1.5 text-center">
+              <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+              <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
             </div>
-            <div className="card-static p-2.5 text-right">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
-              <p className="text-callout font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
+            <div className="card-static p-1.5 text-right">
+              <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
+              <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
             </div>
             </div>
-          {/* Office In / Office / Office Out */}
-          <div className="grid grid-cols-3 gap-2" style={{ color: "var(--fg-secondary)" }}>
-            <div className="card-static p-2.5">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
-              <p className="text-callout font-semibold tabular-nums">{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
+          <div className="grid grid-cols-3 gap-1.5" style={{ color: "var(--fg-secondary)" }}>
+            <div className="card-static p-1.5">
+              <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
+              <p className="text-[10px] font-semibold tabular-nums">{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
           </div>
-            <div className="card-static p-2.5 text-center">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
-              <p className="text-callout font-semibold tabular-nums">{formatMinutes(pa.officeMinutes)}</p>
+            <div className="card-static p-1.5 text-center">
+              <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office</p>
+              <p className="text-[10px] font-semibold tabular-nums">{formatMinutes(pa.officeMinutes)}</p>
         </div>
-            <div className="card-static p-2.5 text-right">
-              <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
-              <p className="text-callout font-semibold tabular-nums">{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
+            <div className="card-static p-1.5 text-right">
+              <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
+              <p className="text-[10px] font-semibold tabular-nums">{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
               </div>
             </div>
-          {/* Office / Remote split */}
-          <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
-            <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--green) 7%, transparent)", color: "var(--green)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
-            <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
+          <div className="flex items-center gap-2 text-[9px]" style={{ color: "var(--fg-secondary)" }}>
+            <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--green) 7%, transparent)", color: "var(--green)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
+            <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
               </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-caption" style={{ color: "var(--fg-secondary)" }}>Shift progress</span>
-              <span className="text-caption tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes} / {shiftTarget}m ({shiftPct}%)</span>
+              <span className="text-[8px]" style={{ color: "var(--fg-secondary)" }}>Shift progress</span>
+              <span className="text-[8px] tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes}/{shiftTarget}m ({shiftPct}%)</span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+            <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
               <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
             </div>
             </div>
@@ -486,27 +480,27 @@ function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null;
   }, [pa, statusColor, isLoading]);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }} className="card-static flex flex-col p-5 sm:p-6">
-      <h3 className="text-section-header mb-4">Today&apos;s Activity</h3>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }} className="card-static flex flex-col p-3">
+      <h3 className="text-[11px] font-bold mb-2" style={{ color: "var(--fg)" }}>Today&apos;s Activity</h3>
       {isLoading ? (
-        <ul className="relative flex flex-col gap-0 pl-4">
-          <span className="absolute bottom-1 left-[7px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
+        <ul className="relative flex flex-col gap-0 pl-3">
+          <span className="absolute bottom-1 left-[5px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
           {[1, 2, 3].map((i) => (
-            <li key={i} className="relative flex gap-3 pb-5 last:pb-0">
-              <span className="shimmer mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" />
-              <div className="flex-1 space-y-1"><Bone w="w-12" h="h-2.5" /><Bone w="w-32" h="h-3" /></div>
+            <li key={i} className="relative flex gap-2 pb-3 last:pb-0">
+              <span className="shimmer mt-1 h-2 w-2 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-1"><Bone w="w-10" h="h-2" /><Bone w="w-28" h="h-2.5" /></div>
             </li>
           ))}
         </ul>
       ) : (
-        <ul className="relative flex flex-col gap-0 pl-4">
-          <span className="absolute bottom-1 left-[7px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
+        <ul className="relative flex flex-col gap-0 pl-3">
+          <span className="absolute bottom-1 left-[5px] top-1 w-px" style={{ background: "var(--border-strong)" }} aria-hidden />
           {events.map((ev, i) => (
-            <motion.li key={ev.key} initial={{ x: -8, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.15 + i * 0.07 }} className="relative flex gap-3 pb-5 last:pb-0">
-              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ev.dot, boxShadow: "0 0 0 2px var(--bg)" }} />
+            <motion.li key={ev.key} initial={{ x: -8, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.15 + i * 0.07 }} className="relative flex gap-2 pb-3 last:pb-0">
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ev.dot, boxShadow: "0 0 0 2px var(--bg)" }} />
               <div className="min-w-0 flex-1">
-                <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
-                <p className="text-callout mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
+                <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
+                <p className="text-[10px] mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
         </div>
             </motion.li>
           ))}
@@ -853,11 +847,68 @@ function AdminDashboard({
         <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
             </div>
 
-      {/* 2. Self overview + timeline (for Manager/Lead — SuperAdmin exempt from attendance) */}
+      {/* 2. Self overview + timeline + my tasks (for Manager/Lead — SuperAdmin exempt from attendance) */}
       {!isSuperAdmin && (
-        <div className="shrink-0 mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="shrink-0 mb-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
           <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} companyTz={companyTz} />
           <TodayTimelineCard pa={personalAttendance} dataLoading={dataLoading} />
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} className="card flex flex-col overflow-hidden p-3">
+            <div className="mb-1.5 flex shrink-0 items-center justify-between">
+              <h3 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>My Tasks</h3>
+              <div className="flex items-center gap-1.5">
+                {myTasks.length > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{myTasks.length}</span>}
+                {myCompleted > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{myCompleted} done</span>}
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-0.5" style={{ scrollbarWidth: "thin" }}>
+              {myChecklists.length > 0 && (
+                <div className="mb-1">
+                  <p className="text-[8px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Checklist</p>
+                  {myChecklists.map((item) => {
+                    const isDone = checklistOverrides.has(item.taskId) ? checklistOverrides.get(item.taskId)! : item.done;
+                    return (
+                      <button key={item.taskId} type="button" onClick={() => toggleChecklist(item.campaignId, item.taskId, isDone)}
+                        className="flex w-full items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]">
+                        <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded border transition-all"
+                          style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent" }}>
+                          {isDone && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                        </span>
+                        <span className="text-[9px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {myTasks.length > 0 && (
+                <div>
+                  {myChecklists.length > 0 && <p className="text-[8px] font-bold uppercase tracking-wider px-1 mb-0.5 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>}
+                  {myTasks.map((task) => {
+                    const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                    const statusLabel = task.status === "completed" ? "Done" : task.status === "inProgress" ? "Working" : "Pending";
+                    const isCycling = cyclingTask === task._id;
+                    return (
+                      <div key={task._id} className="flex items-center gap-1.5 rounded-lg px-1 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]"
+                        style={{ borderLeft: `2px solid ${statusColor}`, background: "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))" }}>
+                        <span className="text-[9px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
+                        <motion.button type="button" onClick={() => cycleTaskStatus(task)} disabled={isCycling}
+                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          className="inline-flex items-center gap-1 shrink-0 rounded-full border px-1.5 py-px text-[8px] font-semibold transition-all"
+                          style={{ borderColor: `color-mix(in srgb, ${statusColor} 30%, transparent)`, background: `color-mix(in srgb, ${statusColor} 10%, transparent)`, color: statusColor, opacity: isCycling ? 0.5 : 1 }}>
+                          <span className="relative h-1 w-1 rounded-full" style={{ background: statusColor }}>
+                            {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: statusColor }} />}
+                          </span>
+                          {statusLabel}
+                        </motion.button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {myTasks.length === 0 && myChecklists.length === 0 && (
+                <p className="py-4 text-center text-[9px]" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned to you</p>
+              )}
+            </div>
+          </motion.div>
               </div>
       )}
 
@@ -899,7 +950,7 @@ function AdminDashboard({
       <div className="flex min-h-0 flex-1 gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
         {/* 3a. Team Status — limited height */}
-        <motion.section data-tour="dashboard-team-status" className="card relative flex min-w-0 flex-col overflow-hidden p-3 sm:p-3.5" style={{ maxHeight: "55%" }} variants={slideUpItem} initial="hidden" animate="visible">
+        <motion.section data-tour="dashboard-team-status" className="card relative flex min-w-0 flex-col overflow-hidden p-3 sm:p-3.5" style={{ flex: "1 1 0", minHeight: 0 }} variants={slideUpItem} initial="hidden" animate="visible">
           <div className="mb-2 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ backgroundColor: "var(--teal)" }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--teal)" }} /></span>
@@ -993,8 +1044,8 @@ function AdminDashboard({
       </div>
         </motion.section>
 
-        {/* 3b. Bottom 3-column grid — Today's Snapshot + My Tasks + Needs Attention */}
-        <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
+        {/* 3b. Bottom 2-column grid — Today's Snapshot + Needs Attention */}
+        <div className="grid min-h-0 grid-cols-2 gap-3" style={{ flex: "1 1 0" }}>
           {/* Today's Snapshot */}
           <div className="card flex flex-col overflow-hidden p-3">
             <h3 className="mb-2 shrink-0 text-[12px] font-bold" style={{ color: "var(--fg)" }}>Today&apos;s Snapshot</h3>
@@ -1042,72 +1093,6 @@ function AdminDashboard({
               )}
               {!hasTeamAccess && !canViewTasks && !canViewCampaigns && (
                 <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No data to show</p>
-              )}
-            </div>
-          </div>
-
-          {/* My Tasks */}
-          <div className="card flex flex-col overflow-hidden p-3">
-            <div className="mb-2 flex shrink-0 items-center justify-between">
-              <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>My Tasks</h3>
-              <div className="flex items-center gap-1.5">
-                {myTasks.length > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{myTasks.length}</span>}
-                {myCompleted > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{myCompleted} done</span>}
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto space-y-0.5" style={{ scrollbarWidth: "thin" }}>
-              {myChecklists.length > 0 && (
-                <div className="mb-1.5">
-                  <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Today&apos;s Checklist</p>
-                  {myChecklists.map((item) => {
-                    const isDone = checklistOverrides.has(item.taskId) ? checklistOverrides.get(item.taskId)! : item.done;
-                    return (
-                      <button key={item.taskId} type="button" onClick={() => toggleChecklist(item.campaignId, item.taskId, isDone)}
-                        className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]">
-                        <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-all"
-                          style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent" }}>
-                          {isDone && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
-                        </span>
-                        <span className="text-[10px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
-                        <span className="text-[8px] shrink-0 truncate max-w-[60px]" style={{ color: "var(--fg-quaternary, var(--fg-tertiary))" }}>{item.campaignName}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {myTasks.length > 0 && (
-                <div>
-                  {myChecklists.length > 0 && <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>One-time Tasks</p>}
-                  {myTasks.map((task) => {
-                    const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                    const statusLabel = task.status === "completed" ? "Done" : task.status === "inProgress" ? "Working" : "Pending";
-                    const isCycling = cyclingTask === task._id;
-                    return (
-                      <div key={task._id} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]"
-                        style={{ borderLeft: `2px solid ${statusColor}`, background: "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))" }}>
-                        <span className="text-[10px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
-                        <motion.button type="button" onClick={() => cycleTaskStatus(task)} disabled={isCycling}
-                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                          className="inline-flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all"
-                          style={{ borderColor: `color-mix(in srgb, ${statusColor} 30%, transparent)`, background: `color-mix(in srgb, ${statusColor} 10%, transparent)`, color: statusColor, opacity: isCycling ? 0.5 : 1 }}
-                          title={`Click to change status`}>
-                          <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: statusColor }}>
-                            {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: statusColor }} />}
-                          </span>
-                          {statusLabel}
-                        </motion.button>
-                        {task.deadline && (() => {
-                          const dl = new Date(task.deadline).getTime();
-                          const isOverdue = dl < Date.now() && task.status !== "completed";
-                          return <span className="text-[8px] tabular-nums shrink-0" style={{ color: isOverdue ? "var(--rose)" : "var(--fg-tertiary)" }}>{new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>;
-                        })()}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {myTasks.length === 0 && myChecklists.length === 0 && (
-                <p className="py-6 text-center text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned to you</p>
               )}
             </div>
           </div>

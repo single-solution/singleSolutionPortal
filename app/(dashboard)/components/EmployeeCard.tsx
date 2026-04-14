@@ -111,7 +111,7 @@ type PulseVariant = "office" | "remote" | "lastSeen" | "absent";
 function pulseVariant(emp: EmployeeCardEmp): PulseVariant {
   if (emp.isLive && emp.status === "remote") return "remote";
   if (emp.isLive && (emp.status === "office" || emp.status === "overtime")) return "office";
-  if (emp.isLive) return "office";
+  if (emp.isLive) return (emp.remoteMinutes ?? 0) > (emp.officeMinutes ?? 0) ? "remote" : "office";
   if (emp.firstEntry) return "lastSeen";
   return "absent";
 }
