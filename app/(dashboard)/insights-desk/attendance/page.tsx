@@ -546,8 +546,8 @@ export default function AttendancePage() {
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
-      <div data-tour="attendance-header" className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
+      <div data-tour="attendance-header" className="flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {sessionReady && hasTeamAccess && filteredSummary.length > 5 ? (
               <div className="relative w-52">
                 <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
@@ -1288,67 +1288,81 @@ export default function AttendancePage() {
             Employee Overview · {filteredSummary.length}
           </p>
           <motion.div
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            className="grid grid-cols-1 gap-3 pt-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             initial="hidden" animate="visible"
             variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
           >
             {filteredSummary.map((emp) => {
               const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
               const onTimeColor = emp.onTimePercentage >= 80 ? "var(--green)" : emp.onTimePercentage >= 50 ? "var(--amber)" : "var(--rose)";
-              const statusDot = emp.presentDays > 0
-                ? (emp.lateDays > emp.onTimeDays ? "var(--amber)" : "var(--green)")
-                : "var(--fg-tertiary)";
+              const absentDays = Math.max(0, Math.round((emp.presentDays / (emp.attendancePercentage / 100 || 1)) - emp.presentDays));
               return (
                 <motion.div
                   key={emp._id}
-                  className="card group cursor-pointer overflow-hidden transition-all hover:shadow-md"
+                  className="card-static group relative cursor-pointer overflow-visible transition-all hover:shadow-md"
                   onClick={() => { setViewingUserId(emp._id); setSelectedDay(null); }}
                   variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className="p-4 space-y-3">
-                    {/* Name + department */}
-                    <div className="flex items-center gap-3">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusDot }} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
-                        <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>
-                      </div>
-                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{
-                        background: `color-mix(in srgb, ${attendColor} 12%, transparent)`,
-                        color: attendColor,
-                      }}>
-                        {Math.round(emp.attendancePercentage)}%
+                  {/* Absolute attendance pill */}
+                  <div className="pointer-events-none absolute right-1 z-[100] flex items-center gap-1" style={{ top: -10 }}>
+                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${attendColor} 30%, var(--border))`, color: attendColor }}>
+                      {Math.round(emp.attendancePercentage)}% attend.
+                    </span>
+                    {emp.lateDays > 0 && (
+                      <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: "color-mix(in srgb, var(--amber) 30%, var(--border))", color: "var(--amber)" }}>
+                        {emp.lateDays}d late
                       </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 p-2 sm:p-2.5">
+                    {/* Name + department */}
+                    <div className="pr-1 pt-0.5">
+                      <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                      <p className="text-caption truncate" style={{ color: "var(--fg-secondary)" }}>{emp.department}{emp.role ? ` · ${emp.role}` : ""}</p>
                     </div>
 
-                    {/* Stats grid */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days</p>
-                        <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{emp.presentDays}</p>
+                    {/* Days · Hours · Avg/Day */}
+                    <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
+                      <div>
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Present</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--green)" }}>{emp.presentDays}d</p>
                       </div>
-                      <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
-                        <p className="text-sm font-bold" style={{ color: "var(--teal)" }}>{fmtHours(emp.totalMinutes)}</p>
+                      <div className="text-center">
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--teal)" }}>{fmtHours(emp.totalMinutes)}</p>
                       </div>
-                      <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg/Day</p>
-                        <p className="text-sm font-bold" style={{ color: "var(--primary)" }}>{emp.averageDailyHours.toFixed(1)}h</p>
+                      <div className="text-right">
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Avg/Day</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{emp.averageDailyHours.toFixed(1)}h</p>
                       </div>
                     </div>
 
-                    {/* Bottom row */}
-                    <div className="flex items-center justify-between text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                      <div className="flex items-center gap-3">
-                        <span>On-time <strong style={{ color: onTimeColor }}>{Math.round(emp.onTimePercentage)}%</strong></span>
-                        <span>Late <strong style={{ color: emp.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</strong></span>
-                        {(emp.lateToOfficeDays ?? 0) > 0 && (
-                          <span>Office <strong style={{ color: "var(--rose)" }}>{emp.lateToOfficeDays}d</strong></span>
-                        )}
+                    {/* On-Time · Late · Absent */}
+                    <div className="grid grid-cols-3 gap-1 text-[11px]">
+                      <div>
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>On-Time</p>
+                        <p className="font-semibold tabular-nums" style={{ color: onTimeColor }}>{Math.round(emp.onTimePercentage)}%</p>
                       </div>
-                      <span className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>View →</span>
+                      <div className="text-center">
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Late</p>
+                        <p className="font-semibold tabular-nums" style={{ color: emp.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Absent</p>
+                        <p className="font-semibold tabular-nums" style={{ color: absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{absentDays}d</p>
+                      </div>
+                    </div>
+
+                    {/* Detail chips */}
+                    <div className="flex flex-wrap gap-1 border-t pt-1.5" style={{ borderColor: "var(--border)" }}>
+                      <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--green)" }}>{emp.onTimeDays}d on-time</span>
+                      {emp.lateToOfficeDays > 0 && (
+                        <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>{emp.lateToOfficeDays}d late to office</span>
+                      )}
+                      <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--primary)" }}>View →</span>
                     </div>
                   </div>
                 </motion.div>
