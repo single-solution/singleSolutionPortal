@@ -7,7 +7,7 @@ import { usePermissions } from "@/lib/usePermissions";
 import { ScopeStrip } from "../../components/ScopeStrip";
 import { useGuide } from "@/lib/useGuide";
 import { attendanceTour } from "@/lib/tourConfigs";
-import { Pill as SharedPill, StatChip as SharedStatChip } from "../../components/StatChips";
+import { Pill as SharedPill, StatChip as SharedStatChip, HeaderStatPill } from "../../components/StatChips";
 import { timeAgo } from "@/lib/formatters";
 import { useInsightsContext } from "../layout";
 
@@ -534,19 +534,30 @@ export default function AttendancePage() {
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div data-tour="attendance-header" className="flex items-center justify-between gap-2 flex-wrap">
-          {sessionReady && hasTeamAccess && filteredSummary.length > 5 ? (
-            <div className="relative w-52">
-              <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
-              <input
-                type="text"
-                value={pillSearch}
-                onChange={(e) => setPillSearch(e.target.value)}
-                placeholder="Search employees…"
-                className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
-                style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
-              />
-            </div>
-          ) : <div />}
+          <div className="flex items-center gap-2 flex-wrap">
+            {sessionReady && hasTeamAccess && filteredSummary.length > 5 ? (
+              <div className="relative w-52">
+                <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
+                <input
+                  type="text"
+                  value={pillSearch}
+                  onChange={(e) => setPillSearch(e.target.value)}
+                  placeholder="Search employees…"
+                  className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
+                  style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
+                />
+              </div>
+            ) : <div />}
+            {isAggregateMode && aggInsights && (
+              <>
+                <HeaderStatPill label={`Best: ${aggInsights.bestEmployee}`} value={`${Math.round(aggInsights.bestPct)}%`} dotColor="var(--green)" />
+                <HeaderStatPill label={`Needs Att: ${aggInsights.worstEmployee}`} value={`${Math.round(aggInsights.worstPct)}%`} dotColor={aggInsights.worstPct < 70 ? "var(--rose)" : "var(--amber)"} />
+                {aggInsights.lateEmployees > 0 && (
+                  <HeaderStatPill label={aggInsights.lateEmployees === 1 ? "late employee" : "late employees"} value={aggInsights.lateEmployees} dotColor="var(--amber)" />
+                )}
+              </>
+            )}
+          </div>
           {sessionReady && hasTeamAccess && <ScopeStrip value={scopeDept} onChange={setScopeDept} />}
       </div>
 
@@ -1013,7 +1024,7 @@ export default function AttendancePage() {
             ) : (
               /* ── Summary card (aggregate or individual, no date selected) ── */
               <motion.div key={isAggregateMode ? "agg-summary" : "ind-summary"} className="card-xl flex flex-1 flex-col overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                <div className="px-5 py-4">
                   <p className="text-headline" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1]} Summary</p>
                   {pillsLoading ? (
                     <span className="shimmer mt-1 block h-3 w-40 rounded" />
@@ -1051,22 +1062,6 @@ export default function AttendancePage() {
                       {aggLateToOfficeDays > 0 && (
                         <div className="grid grid-cols-2 gap-2">
                           <StatChip label="Late to Office" value={`${aggLateToOfficeDays}d`} color="var(--rose)" />
-                        </div>
-                      )}
-                      {aggInsights && (
-                        <div className="space-y-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-                          <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Insights</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            <StatChip label="Best On-Time" value={`${Math.round(aggInsights.bestOnTimePct)}%`} subtitle={aggInsights.bestOnTimeName} color="var(--green)" />
-                            <StatChip label="Needs Att. On-Time" value={`${Math.round(aggInsights.worstOnTimePct)}%`} subtitle={aggInsights.worstOnTimeName} color={aggInsights.worstOnTimePct < 80 ? "var(--rose)" : "var(--amber)"} />
-                          </div>
-                          <div className="flex flex-wrap justify-center gap-1.5">
-                            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: aggInsights.lateEmployees > 0 ? "color-mix(in srgb, var(--amber) 12%, transparent)" : "var(--bg-grouped)", color: aggInsights.lateEmployees > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{aggInsights.lateEmployees} late employees</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 12%, transparent)", color: "var(--green)" }}>Best: {aggInsights.bestEmployee} · {Math.round(aggInsights.bestPct)}%</span>
-                            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>Needs Att: {aggInsights.worstEmployee} · {Math.round(aggInsights.worstPct)}%</span>
-                          </div>
                         </div>
                       )}
                     </>
