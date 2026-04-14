@@ -1,18 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef, type ReactNode } from "react";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { Portal } from "../components/Portal";
-import { useQuery } from "@/lib/useQuery";
+import { useQuery, invalidateQueries } from "@/lib/useQuery";
 import { ease } from "@/lib/motion";
+import { ToggleSwitch } from "./ToggleSwitch";
+import { MiniCalendar } from "./MiniCalendar";
+import toast from "react-hot-toast";
 import {
   ALL_WEEKDAYS,
   WEEKDAY_LABELS,
   getTodaySchedule,
   resolveWeeklySchedule,
+  resolveGraceMinutes,
+  type Weekday,
+  type DaySchedule,
   type WeeklySchedule,
 } from "@/lib/schedule";
 
@@ -167,6 +172,19 @@ const SHIFT_LABELS: Record<string, string> = {
   partTime: "Part Time",
   contract: "Contract",
 };
+
+interface EditForm {
+  fullName: string;
+  password: string;
+  department: string;
+  managedDepartments: string[];
+  shiftType: string;
+  graceMinutes: number;
+  weeklySchedule: WeeklySchedule;
+  salary: string;
+}
+
+interface DeptOption { _id: string; title: string; manager?: string | { _id: string } }
 const TASK_STATUS_COLORS: Record<string, string> = {
   pending: "var(--amber)",
   inProgress: "var(--primary)",
@@ -180,11 +198,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: "var(--rose)",
 };
 const TZ = "Asia/Karachi";
-const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
-function todayStrKarachi() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
-}
 function initials(first: string, last: string) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
@@ -205,15 +219,6 @@ function primaryDesignation(memberships: MembershipRow[] | null, isSuperAdmin?: 
   if (isSuperAdmin) return "System Administrator";
   const w = memberships?.find((m) => m.designation?.name);
   return w?.designation?.name ?? "";
-}
-function calendarCells(year: number, month: number) {
-  const first = new Date(year, month - 1, 1),
-    last = new Date(year, month, 0),
-    cells: { day: number | null }[] = [];
-  for (let i = 0; i < first.getDay(); i++) cells.push({ day: null });
-  for (let d = 1; d <= last.getDate(); d++) cells.push({ day: d });
-  while (cells.length % 7) cells.push({ day: null });
-  return cells;
 }
 function avatarColor(id: string) {
   const h = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
@@ -259,6 +264,16 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const [calMonth, setCalMonth] = useState(n.getMonth() + 1);
   const detailRef = useRef<HTMLDivElement>(null);
 
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [departments, setDepartments] = useState<DeptOption[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [multiDeptUi, setMultiDeptUi] = useState(false);
+
+  const [locYear, setLocYear] = useState(n.getFullYear());
+  const [locMonth, setLocMonth] = useState(n.getMonth() + 1);
+  const [locDay, setLocDay] = useState<number | null>(n.getDate());
+
   useEffect(() => {
     if (initialEmployeeId) setUserId(initialEmployeeId);
   }, [initialEmployeeId]);
@@ -267,6 +282,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     if (initialEmployeeId) setUserId(initialEmployeeId);
     else if (!viewerIsSuperAdmin) setUserId("");
     setTab("overview");
+    setEditing(false);
+    setEditForm(null);
   }, [open, initialEmployeeId, viewerIsSuperAdmin]);
 
   const effectiveId = useMemo(() => {
@@ -331,6 +348,90 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     enabled: tab === "location",
   });
   const flags = flagsPayload?.flags ?? [];
+
+  const locDateStr = locDay ? `${locYear}-${String(locMonth).padStart(2, "0")}-${String(locDay).padStart(2, "0")}` : null;
+  const locDetailUrl =
+    open && effectiveId && canAtt && tab === "location" && locDateStr
+      ? `/api/attendance?type=detail&date=${locDateStr}&userId=${encodeURIComponent(effectiveId)}`
+      : null;
+  interface LocSession {
+    _id: string;
+    status: string;
+    sessionTime: { start: string; end?: string | null };
+    location?: { inOffice?: boolean; latitude?: number; longitude?: number; accuracy?: number; locationFlagged?: boolean; flagReason?: string };
+    totalMinutes?: number;
+  }
+  interface LocDetail {
+    totalWorkingMinutes?: number;
+    officeMinutes?: number;
+    remoteMinutes?: number;
+    isPresent?: boolean;
+    isOnTime?: boolean;
+    lateBy?: number;
+    firstOfficeEntry?: string;
+    lastOfficeExit?: string;
+    activitySessions?: LocSession[];
+  }
+  const { data: locDetail, loading: locDetailL } = useQuery<LocDetail | null>(locDetailUrl, undefined, {
+    enabled: tab === "location" && !!locDateStr,
+  });
+
+  const locDayFlags = useMemo(() => {
+    if (!locDateStr || !flags.length) return [];
+    return flags.filter((f) => {
+      const fDate = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(f.createdAt));
+      return fDate === locDateStr;
+    });
+  }, [flags, locDateStr]);
+
+  const locTimeline = useMemo(() => {
+    const items: { time: string; timeRaw: number; type: "session" | "flag"; label: string; sublabel?: string; lat?: number; lng?: number; color: string; icon: "office" | "remote" | "flag-warn" | "flag-viol" | "end" }[] = [];
+    const sessions = locDetail?.activitySessions ?? [];
+    for (const s of sessions) {
+      const startT = new Date(s.sessionTime.start);
+      const inOff2 = s.location?.inOffice ?? false;
+      items.push({
+        time: startT.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }),
+        timeRaw: startT.getTime(),
+        type: "session",
+        label: inOff2 ? "Office check-in" : "Remote check-in",
+        sublabel: s.totalMinutes != null ? `${Math.round(s.totalMinutes)}m` : undefined,
+        lat: s.location?.latitude,
+        lng: s.location?.longitude,
+        color: inOff2 ? "var(--green)" : "var(--teal)",
+        icon: inOff2 ? "office" : "remote",
+      });
+      if (s.sessionTime.end) {
+        const endT = new Date(s.sessionTime.end);
+        items.push({
+          time: endT.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }),
+          timeRaw: endT.getTime(),
+          type: "session",
+          label: "Check-out",
+          lat: s.location?.latitude,
+          lng: s.location?.longitude,
+          color: "var(--fg-tertiary)",
+          icon: "end",
+        });
+      }
+    }
+    for (const f of locDayFlags) {
+      const fT = new Date(f.createdAt);
+      items.push({
+        time: fT.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }),
+        timeRaw: fT.getTime(),
+        type: "flag",
+        label: f.severity === "violation" ? "Location violation" : "Location warning",
+        sublabel: f.reasons.join(", "),
+        lat: f.latitude,
+        lng: f.longitude,
+        color: f.severity === "violation" ? "var(--rose)" : "var(--amber)",
+        icon: f.severity === "violation" ? "flag-viol" : "flag-warn",
+      });
+    }
+    items.sort((a, b) => a.timeRaw - b.timeRaw);
+    return items;
+  }, [locDetail, locDayFlags]);
 
   const balUrl =
     open && effectiveId && canViewLeaves && (tab === "leaves" || tab === "overview" || tab === "attendance")
@@ -446,8 +547,6 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     const officeOnlyDays = present.filter((r) => (r.officeMinutes ?? 0) > 0 && (r.remoteMinutes ?? 0) === 0).length;
     return { totalLateMins, avgLateMins, perfectDays, avgBreakMins, bestDay, worstDay, bestAvg, worstAvg, longestPresentStreak, maxHoursDay, maxHoursMins, minHoursDay, minHoursMins, remoteOnlyDays, officeOnlyDays, onTimeStreak };
   }, [dailyList]);
-  const cells = calendarCells(calYear, calMonth);
-  const monthLab = new Date(calYear, calMonth - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const ms = monthlyRaw;
   const offPct =
     ms && (ms.totalOfficeHours ?? 0) + (ms.totalRemoteHours ?? 0) > 0
@@ -516,8 +615,103 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     }));
   }, [dailyList]);
 
-  const editSlug = employee?.username || id.slice(-6);
-  const onEdit = useCallback(() => onClose(), [onClose]);
+  const startEditing = useCallback(async () => {
+    if (!employee || !effectiveId) return;
+    const empRec2 = employee as unknown as Record<string, unknown>;
+    const sched = resolveWeeklySchedule(empRec2);
+    const grace = resolveGraceMinutes(empRec2);
+    setEditForm({
+      fullName: [employee.about?.firstName, employee.about?.lastName].filter(Boolean).join(" "),
+      password: "",
+      department: employee.department?._id ?? "",
+      managedDepartments: [],
+      shiftType: employee.shiftType ?? "fullTime",
+      graceMinutes: grace,
+      weeklySchedule: sched,
+      salary: employee.salary != null ? String(employee.salary) : "",
+    });
+    setMultiDeptUi(false);
+    try {
+      const deptRes = await fetch("/api/departments").then((r) => r.ok ? r.json() : []);
+      if (Array.isArray(deptRes)) {
+        setDepartments(deptRes);
+        const managed = deptRes.filter((d: DeptOption) => {
+          const mId = typeof d.manager === "object" && d.manager ? d.manager._id : d.manager;
+          return mId === effectiveId;
+        }).map((d: DeptOption) => d._id);
+        if (managed.length > 0) {
+          setMultiDeptUi(true);
+          setEditForm((f) => f ? { ...f, managedDepartments: managed } : f);
+        }
+      }
+    } catch { /* optional */ }
+    setEditing(true);
+    setTab("profile");
+  }, [employee, effectiveId]);
+
+  const cancelEditing = useCallback(() => {
+    setEditing(false);
+    setEditForm(null);
+  }, []);
+
+  const saveEdits = useCallback(async () => {
+    if (!editForm || !effectiveId) return;
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        fullName: editForm.fullName,
+        department: editForm.department || null,
+        managedDepartments: multiDeptUi ? editForm.managedDepartments : [],
+        weeklySchedule: editForm.weeklySchedule,
+        graceMinutes: editForm.graceMinutes,
+        shiftType: editForm.shiftType,
+      };
+      if (editForm.password) body.password = editForm.password;
+      if (canPerm("payroll_manageSalary") && editForm.salary !== "") body.salary = Number(editForm.salary);
+      const res = await fetch(`/api/employees/${effectiveId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        toast.success("Employee updated");
+        invalidateQueries(`/api/employees`);
+        invalidateQueries(`/api/departments`);
+        invalidateQueries(`/api/attendance`);
+        setEditing(false);
+        setEditForm(null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error((data as { error?: string }).error || "Failed to update");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setSaving(false);
+  }, [editForm, effectiveId, multiDeptUi, canPerm]);
+
+  const updateEditDay = useCallback((day: Weekday, patch: Partial<DaySchedule>) => {
+    setEditForm((f) => f ? { ...f, weeklySchedule: { ...f.weeklySchedule, [day]: { ...f.weeklySchedule[day], ...patch } } } : f);
+  }, []);
+
+  const copyMondayToAll = useCallback(() => {
+    setEditForm((f) => {
+      if (!f) return f;
+      const mon = f.weeklySchedule.mon;
+      const next = { ...f.weeklySchedule };
+      for (const d of ALL_WEEKDAYS) next[d] = { ...mon };
+      return { ...f, weeklySchedule: next };
+    });
+  }, []);
+
+  const toggleManagedDept = useCallback((deptId: string) => {
+    setEditForm((f) => f ? {
+      ...f,
+      managedDepartments: f.managedDepartments.includes(deptId)
+        ? f.managedDepartments.filter((id2) => id2 !== deptId)
+        : [...f.managedDepartments, deptId],
+    } : f);
+  }, []);
 
   return (
     <Portal>
@@ -555,8 +749,14 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-sm font-bold" style={{ color: "var(--fg)" }}>{displayName}</h3>
-                        {canEdit && editSlug && (
-                          <Link href={`/employee/${editSlug}/edit`} onClick={onEdit} className="shrink-0 text-[11px] font-semibold hover:underline" style={{ color: "var(--primary)" }}>Edit</Link>
+                        {canEdit && !editing && (
+                          <button type="button" onClick={startEditing} className="shrink-0 text-[11px] font-semibold hover:underline" style={{ color: "var(--primary)" }}>Edit</button>
+                        )}
+                        {editing && (
+                          <div className="flex items-center gap-1.5">
+                            <button type="button" onClick={cancelEditing} className="shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Cancel</button>
+                            <button type="button" onClick={saveEdits} disabled={saving} className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white transition-colors" style={{ background: saving ? "var(--fg-tertiary)" : "var(--primary)" }}>{saving ? "Saving…" : "Save"}</button>
+                          </div>
                         )}
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
@@ -834,64 +1034,25 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                       {tab === "attendance" && (
                         <div className="space-y-3">
-                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                              <h4 className="text-sm font-bold" style={{ color: "var(--fg)" }}>{monthLab}</h4>
-                              <div className="flex gap-1.5">
-                                <button
-                                  type="button"
-                                  className="btn btn-sm"
-                                  style={{ background: "var(--bg-grouped)", color: "var(--fg)" }}
-                                  onClick={() => {
-                                    if (calMonth === 1) {
-                                      setCalMonth(12);
-                                      setCalYear((y) => y - 1);
-                                    } else setCalMonth((m) => m - 1);
-                                  }}
-                                >
-                                  Prev
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm"
-                                  style={{ background: "var(--bg-grouped)", color: "var(--fg)" }}
-                                  onClick={() => {
-                                    if (calMonth === 12) {
-                                      setCalMonth(1);
-                                      setCalYear((y) => y + 1);
-                                    } else setCalMonth((m) => m + 1);
-                                  }}
-                                >
-                                  Next
-                                </button>
-                              </div>
-                            </div>
-                            {dayL ? (
-                              <div className="grid grid-cols-7 gap-1">{Array.from({ length: 28 }, (_, i) => <Sh key={i} c="aspect-square rounded-lg" />)}</div>
-                            ) : (
-                              <>
-                                <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{WD.map((d) => <div key={d}>{d}</div>)}</div>
-                                <div className="grid grid-cols-7 gap-1">
-                                  {cells.map((c, idx) =>
-                                    c.day === null ? (
-                                      <div key={`e-${idx}`} className="aspect-square rounded-lg" />
-                                    ) : (() => {
-                                      const key = `${calYear}-${String(calMonth).padStart(2, "0")}-${String(c.day).padStart(2, "0")}`,
-                                        rec = dailyMap.get(key),
-                                        dot = !rec || !rec.isPresent ? "var(--rose)" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "var(--amber)" : "var(--green)",
-                                        today = key === todayStrKarachi();
-                                      return (
-                                        <div key={key} className="flex aspect-square flex-col items-center justify-center rounded-lg border text-[10px] font-medium tabular-nums" style={{ borderColor: today ? "var(--primary)" : "var(--border)", background: "var(--bg-grouped)", color: "var(--fg)" }}>
-                                          <span>{c.day}</span>
-                                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
-                                        </div>
-                                      );
-                                    })(),
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                          <MiniCalendar
+                            year={calYear}
+                            month={calMonth}
+                            onPrevMonth={() => { if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); } else setCalMonth((m) => m - 1); }}
+                            onNextMonth={() => { if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); }}
+                            loading={dayL}
+                            getDayMeta={(day) => {
+                              const key = `${calYear}-${String(calMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                              const rec = dailyMap.get(key);
+                              const dot = !rec || !rec.isPresent ? "var(--rose)" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "var(--amber)" : "var(--green)";
+                              return { dotColor: dot };
+                            }}
+                            showLegend
+                            legendItems={[
+                              { label: "On Time", color: "var(--green)" },
+                              { label: "Late", color: "var(--amber)" },
+                              { label: "Absent", color: "var(--rose)" },
+                            ]}
+                          />
                           {/* Monthly stats — full StatChip grid matching insights-desk */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly stats</p>
@@ -1578,94 +1739,145 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                       {tab === "location" && canAtt && (
                         <div className="space-y-3">
-                          {/* Summary stats */}
-                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Location flags</p>
-                            {flagsL ? (
-                              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
-                            ) : flags.length === 0 ? (
-                              <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No location flags recorded.</p>
-                            ) : (() => {
-                              const total = flagsPayload?.total ?? flags.length;
-                              const warns = flags.filter((f) => f.severity === "warning").length;
-                              const viols = flags.filter((f) => f.severity === "violation").length;
-                              const acked = flags.filter((f) => f.acknowledged).length;
-                              const ackRate = total > 0 ? Math.round((acked / total) * 100) : 0;
-                              const now3 = Date.now();
-                              const recent7 = flags.filter((f) => now3 - new Date(f.createdAt).getTime() < 7 * 86400000).length;
-                              const older = total - recent7;
-                              const allReasons = flags.flatMap((f) => f.reasons);
-                              const reasonCounts: Record<string, number> = {};
-                              for (const r of allReasons) reasonCounts[r] = (reasonCounts[r] ?? 0) + 1;
-                              const topReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0];
-                              return (
-                                <>
-                                  <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                                    {([
-                                      ["Total", `${total}`, "var(--fg-secondary)"],
-                                      ["Warnings", `${warns}`, "var(--amber)"],
-                                      ["Violations", `${viols}`, "var(--rose)"],
-                                      ["Acknowledged", `${acked}`, "var(--green)"],
-                                      ["Ack Rate", `${ackRate}%`, ackRate >= 80 ? "var(--green)" : "var(--amber)"],
-                                      ["Last 7 Days", `${recent7}`, recent7 > 0 ? "var(--rose)" : "var(--green)"],
-                                    ] as const).map(([k, v, c]) => (
-                                      <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
-                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  {/* Severity bar */}
-                                  {total > 0 && (
-                                    <div className="mt-2 space-y-1">
-                                      <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-secondary)" }}>
-                                        <span>Severity split</span>
-                                        <span className="tabular-nums">{warns} warnings · {viols} violations</span>
-                                      </div>
-                                      <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                                        <motion.div className="h-full" style={{ background: "var(--amber)" }} initial={{ width: 0 }} animate={{ width: `${Math.round((warns / total) * 100)}%` }} transition={{ duration: 0.5, ease }} />
-                                        <motion.div className="h-full" style={{ background: "var(--rose)" }} initial={{ width: 0 }} animate={{ width: `${Math.round((viols / total) * 100)}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />
-                                      </div>
+                          {/* ── Date navigation + summary ── */}
+                          <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+                            {/* Daily timeline */}
+                            <div className="space-y-3">
+                              {/* Day header with quick nav */}
+                              <div className="flex items-center justify-between gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                <button type="button" onClick={() => {
+                                  const d = new Date(locYear, locMonth - 1, (locDay ?? 1) - 1);
+                                  setLocYear(d.getFullYear()); setLocMonth(d.getMonth() + 1); setLocDay(d.getDate());
+                                }} className="rounded-lg p-1 hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                                </button>
+                                <div className="text-center">
+                                  <p className="text-xs font-bold" style={{ color: "var(--fg)" }}>
+                                    {locDay ? new Date(locYear, locMonth - 1, locDay).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "Select a day"}
+                                  </p>
+                                  {locDetail && locDay && (
+                                    <div className="mt-0.5 flex items-center justify-center gap-2">
+                                      {locDetail.isPresent && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--green) 12%, transparent)", color: "var(--green)" }}>Present</span>}
+                                      {locDetail.officeMinutes != null && locDetail.officeMinutes > 0 && <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.officeMinutes)}m office</span>}
+                                      {locDetail.remoteMinutes != null && locDetail.remoteMinutes > 0 && <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.remoteMinutes)}m remote</span>}
+                                      {locDayFlags.length > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{locDayFlags.length} flag{locDayFlags.length > 1 ? "s" : ""}</span>}
                                     </div>
                                   )}
-                                  {/* Extra insight pills */}
-                                  <div className="mt-2 flex flex-wrap gap-1.5">
-                                    {topReason && <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Top reason: {topReason[0]} ({topReason[1]})</span>}
-                                    {older > 0 && <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-tertiary)" }}>{older} older flags</span>}
-                                  </div>
-                                </>
-                              );
-                            })()}
-                          </div>
-                          {/* Flag list */}
-                          {!flagsL && flags.length > 0 && (
-                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Flag history</p>
-                              <div className="max-h-[350px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                                {flags.map((f) => (
-                                  <div key={f._id} className="flex items-start justify-between gap-2 rounded-lg px-2.5 py-2" style={{ background: "var(--bg-grouped)" }}>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: f.severity === "violation" ? "var(--rose)" : "var(--amber)" }} />
-                                        <span className="text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{f.severity === "violation" ? "Violation" : "Warning"}</span>
-                                        <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{new Date(f.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                                      </div>
-                                      <p className="mt-0.5 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{f.reasons.join(", ")}</p>
-                                    </div>
-                                    <span
-                                      className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold"
-                                      style={{
-                                        background: f.acknowledged ? "color-mix(in srgb, var(--green) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)",
-                                        color: f.acknowledged ? "var(--green)" : "var(--amber)",
-                                      }}
-                                    >
-                                      {f.acknowledged ? "Ack" : "Pending"}
-                                    </span>
-                                  </div>
-                                ))}
+                                </div>
+                                <button type="button" onClick={() => {
+                                  const d = new Date(locYear, locMonth - 1, (locDay ?? 1) + 1);
+                                  if (d <= new Date()) { setLocYear(d.getFullYear()); setLocMonth(d.getMonth() + 1); setLocDay(d.getDate()); }
+                                }} className="rounded-lg p-1 hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                                </button>
                               </div>
+
+                              {/* Timeline */}
+                              <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Timeline</p>
+                                {locDetailL ? (
+                                  <div className="space-y-3">{[1, 2, 3].map((i) => <Sh key={i} c="h-14 w-full rounded-lg" />)}</div>
+                                ) : locTimeline.length === 0 ? (
+                                  <p className="py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No activity recorded for this day.</p>
+                                ) : (
+                                  <div className="relative pl-5">
+                                    <div className="absolute left-[7px] top-1 bottom-1 w-px" style={{ background: "var(--border)" }} />
+                                    <div className="space-y-0.5">
+                                      {locTimeline.map((item, idx) => (
+                                        <motion.div
+                                          key={idx}
+                                          className="relative flex items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-grouped)]"
+                                          initial={{ opacity: 0, x: -8 }}
+                                          animate={{ opacity: 1, x: 0 }}
+                                          transition={{ delay: idx * 0.03 }}
+                                        >
+                                          <div className="absolute -left-[13px] top-3 flex h-4 w-4 items-center justify-center rounded-full" style={{ background: "var(--bg-elevated)", border: `2px solid ${item.color}` }}>
+                                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.color }} />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[11px] font-bold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{item.time}</span>
+                                              <span className="text-[11px] font-semibold" style={{ color: item.color }}>{item.label}</span>
+                                              {item.sublabel && <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{item.sublabel}</span>}
+                                            </div>
+                                            {item.lat != null && item.lng != null && (
+                                              <div className="mt-1 flex items-center gap-2">
+                                                <span className="text-[9px] tabular-nums font-mono" style={{ color: "var(--fg-tertiary)" }}>{item.lat.toFixed(5)}, {item.lng.toFixed(5)}</span>
+                                                <a
+                                                  href={`https://www.google.com/maps?q=${item.lat},${item.lng}`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold transition-colors hover:opacity-80"
+                                                  style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                  Map
+                                                </a>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </motion.div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Overall flag summary */}
+                              {!flagsL && flags.length > 0 && (
+                                <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>All-time summary</p>
+                                  {(() => {
+                                    const total = flagsPayload?.total ?? flags.length;
+                                    const warns = flags.filter((f) => f.severity === "warning").length;
+                                    const viols = flags.filter((f) => f.severity === "violation").length;
+                                    const acked = flags.filter((f) => f.acknowledged).length;
+                                    const ackRate = total > 0 ? Math.round((acked / total) * 100) : 0;
+                                    return (
+                                      <div className="grid grid-cols-3 gap-2">
+                                        {([
+                                          ["Warnings", `${warns}`, "var(--amber)"],
+                                          ["Violations", `${viols}`, "var(--rose)"],
+                                          ["Ack Rate", `${ackRate}%`, ackRate >= 80 ? "var(--green)" : "var(--amber)"],
+                                        ] as const).map(([k, v, c]) => (
+                                          <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                            <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                            <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
                             </div>
-                          )}
+
+                            {/* Calendar sidebar */}
+                            <div className="hidden lg:block">
+                              <MiniCalendar
+                                year={locYear}
+                                month={locMonth}
+                                onPrevMonth={() => { if (locMonth === 1) { setLocMonth(12); setLocYear((y) => y - 1); } else setLocMonth((m) => m - 1); }}
+                                onNextMonth={() => { if (locMonth === 12) { setLocMonth(1); setLocYear((y) => y + 1); } else setLocMonth((m) => m + 1); }}
+                                selectedDay={locDay}
+                                onSelectDay={(d) => setLocDay(d)}
+                                compact
+                                getDayMeta={(day) => {
+                                  const ds = `${locYear}-${String(locMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                                  const dayFlags = flags.filter((f) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(f.createdAt)) === ds);
+                                  if (dayFlags.length === 0) return undefined;
+                                  const hasViol = dayFlags.some((f) => f.severity === "violation");
+                                  return { dotColor: hasViol ? "var(--rose)" : "var(--amber)" };
+                                }}
+                                showLegend
+                                legendItems={[
+                                  { label: "Warning", color: "var(--amber)" },
+                                  { label: "Violation", color: "var(--rose)" },
+                                ]}
+                              />
+                            </div>
+                          </div>
                         </div>
                       )}
 
@@ -1675,6 +1887,58 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Shift & Schedule</p>
                             {empL || !employee ? (
                               <div className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <Sh key={i} c="h-10 w-full rounded-lg" />)}</div>
+                            ) : editing && editForm ? (
+                              <>
+                                {/* Editable shift type + grace */}
+                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                  <div>
+                                    <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Shift Type</label>
+                                    <select className="input text-xs" value={editForm.shiftType} onChange={(e) => setEditForm({ ...editForm, shiftType: e.target.value })}>
+                                      <option value="fullTime">Full Time</option>
+                                      <option value="partTime">Part Time</option>
+                                      <option value="contract">Contract</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Grace Minutes</label>
+                                    <input className="input text-xs" type="number" min={0} value={editForm.graceMinutes} onChange={(e) => setEditForm({ ...editForm, graceMinutes: Number(e.target.value) || 0 })} />
+                                  </div>
+                                </div>
+                                {/* Editable weekly schedule */}
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly Schedule</p>
+                                  <button type="button" onClick={copyMondayToAll} className="text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ color: "var(--primary)", background: "var(--bg-grouped)" }}>Copy Mon → All</button>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {ALL_WEEKDAYS.map((day) => {
+                                    const ds = editForm.weeklySchedule[day];
+                                    return (
+                                      <div key={day} className="rounded-lg px-2.5 py-2" style={{ background: "var(--bg-grouped)" }}>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                          <span className="text-[11px] font-semibold" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[day]}</span>
+                                          <ToggleSwitch checked={ds.isWorking} onChange={() => updateEditDay(day, { isWorking: !ds.isWorking })} size="md" />
+                                        </div>
+                                        {ds.isWorking && (
+                                          <div className="grid grid-cols-3 gap-2">
+                                            <div>
+                                              <label className="block text-[9px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Start</label>
+                                              <input className="input text-xs py-1" type="time" value={ds.start} onChange={(e) => updateEditDay(day, { start: e.target.value })} />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[9px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>End</label>
+                                              <input className="input text-xs py-1" type="time" value={ds.end} onChange={(e) => updateEditDay(day, { end: e.target.value })} />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[9px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Break</label>
+                                              <input className="input text-xs py-1" type="number" min={0} value={ds.breakMinutes} onChange={(e) => updateEditDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </>
                             ) : (
                               <>
                                 <div className="grid grid-cols-2 gap-2">
@@ -1691,7 +1955,6 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <p className="mb-1 text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Today</p>
                                   <p className="text-sm font-bold" style={{ color: todayS.isWorking ? "var(--fg)" : "var(--amber)" }}>{todayS.isWorking ? `${todayS.start} – ${todayS.end} (${todayS.breakMinutes}m break)` : "Day off"}</p>
                                 </div>
-                                {/* Schedule insights */}
                                 {week && (() => {
                                   const workDays = ALL_WEEKDAYS.filter((d) => week[d]?.isWorking);
                                   const workDayCount = workDays.length;
@@ -1768,74 +2031,119 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                       {tab === "profile" && (
                         <div className="space-y-3">
-                          <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Identity & Account</p>
-                            {empL || !employee ? (
-                              <div className="space-y-2">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-4 w-full" />)}</div>
-                            ) : (
-                              <dl className="grid gap-2 sm:grid-cols-2">
-                                <ProfRow k="Email" v={employee.email} />
-                                <ProfRow k="Phone" v={employee.about?.phone || "—"} />
-                                <ProfRow k="Username" v={`@${employee.username}`} />
-                                <div className="flex justify-between gap-2 text-[12px] sm:block">
-                                  <dt style={{ color: "var(--fg-tertiary)" }}>Role</dt>
-                                  <dd className="flex flex-wrap items-center justify-end gap-1 sm:mt-0.5">
-                                    <span className="font-medium" style={{ color: "var(--fg)" }}>{designation}</span>
-                                    {employee.isSuperAdmin && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "var(--rose)", color: "#fff" }}>Super Admin</span>}
-                                    {employee.isVerified === true && (
-                                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--green) 18%, transparent)", color: "var(--green)" }}>Verified</span>
-                                    )}
-                                    {employee.isVerified === false && (
-                                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 18%, transparent)", color: "var(--amber)" }}>Unverified</span>
-                                    )}
-                                  </dd>
+                          {/* ── Editable Personal Info ── */}
+                          {editing && editForm ? (
+                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal Information</p>
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Full Name</label>
+                                  <input className="input text-xs" placeholder="Full Name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
                                 </div>
-                                <ProfRow k="Department" v={employee.department?.title ?? "—"} />
-                                <ProfRow k="Designation" v={designation} />
-                                <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
-                                <ProfRow k="Active" v={employee.isActive === false ? "Inactive" : "Active"} />
-                                {/* Account Age */}
-                                <ProfRow k="Account Age" v={(() => {
-                                  if (!employee.createdAt) return "—";
-                                  const diff = Date.now() - new Date(employee.createdAt).getTime();
-                                  const days = Math.floor(diff / 86400000);
-                                  if (days < 30) return `${days}d`;
-                                  const months = Math.floor(days / 30.44);
-                                  if (months < 12) return `${months}mo`;
-                                  const years = Math.floor(months / 12);
-                                  const rem = months % 12;
-                                  return rem > 0 ? `${years}y ${rem}mo` : `${years}y`;
-                                })()} />
-                                {/* Invited By */}
-                                {employee.createdBy && <ProfRow k="Invited By" v={employee.createdBy} />}
-                                {/* Last Active */}
-                                <ProfRow k="Last Active" v={(() => {
-                                  const le = sess?.lastExit;
-                                  if (!le) return hasAct ? "Now" : "—";
-                                  if (hasAct) return "Now";
-                                  const d = new Date(le);
-                                  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
-                                })()} />
-                              </dl>
-                            )}
-                          </section>
-                          {/* Memberships in profile */}
-                          <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
-                            {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
-                            : memActive.length === 0 ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No active memberships.</p>
-                            : (
-                              <div className="flex flex-wrap gap-1.5">
-                                {memActive.map((m) => (
-                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
-                                    {m.department?.title ?? "Dept"}{m.designation?.name ? ` · ${m.designation.name}` : ""}
-                                  </span>
-                                ))}
+                                <div>
+                                  <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>New Password (optional)</label>
+                                  <input className="input text-xs" type="password" placeholder="Leave blank to keep current" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
+                                </div>
                               </div>
-                            )}
-                          </section>
-                          {/* Salary in profile */}
-                          {employee?.salary != null && canPerm("payroll_manageSalary") && (
+                            </section>
+                          ) : (
+                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Identity & Account</p>
+                              {empL || !employee ? (
+                                <div className="space-y-2">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-4 w-full" />)}</div>
+                              ) : (
+                                <dl className="grid gap-2 sm:grid-cols-2">
+                                  <ProfRow k="Email" v={employee.email} />
+                                  <ProfRow k="Phone" v={employee.about?.phone || "—"} />
+                                  <ProfRow k="Username" v={`@${employee.username}`} />
+                                  <div className="flex justify-between gap-2 text-[12px] sm:block">
+                                    <dt style={{ color: "var(--fg-tertiary)" }}>Role</dt>
+                                    <dd className="flex flex-wrap items-center justify-end gap-1 sm:mt-0.5">
+                                      <span className="font-medium" style={{ color: "var(--fg)" }}>{designation}</span>
+                                      {employee.isSuperAdmin && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "var(--rose)", color: "#fff" }}>Super Admin</span>}
+                                      {employee.isVerified === true && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--green) 18%, transparent)", color: "var(--green)" }}>Verified</span>}
+                                      {employee.isVerified === false && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 18%, transparent)", color: "var(--amber)" }}>Unverified</span>}
+                                    </dd>
+                                  </div>
+                                  <ProfRow k="Department" v={employee.department?.title ?? "—"} />
+                                  <ProfRow k="Designation" v={designation} />
+                                  <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
+                                  <ProfRow k="Active" v={employee.isActive === false ? "Inactive" : "Active"} />
+                                  <ProfRow k="Account Age" v={(() => {
+                                    if (!employee.createdAt) return "—";
+                                    const diff = Date.now() - new Date(employee.createdAt).getTime();
+                                    const days = Math.floor(diff / 86400000);
+                                    if (days < 30) return `${days}d`;
+                                    const months = Math.floor(days / 30.44);
+                                    if (months < 12) return `${months}mo`;
+                                    const years = Math.floor(months / 12);
+                                    const rem = months % 12;
+                                    return rem > 0 ? `${years}y ${rem}mo` : `${years}y`;
+                                  })()} />
+                                  {employee.createdBy && <ProfRow k="Invited By" v={employee.createdBy} />}
+                                  <ProfRow k="Last Active" v={(() => {
+                                    const le = sess?.lastExit;
+                                    if (!le) return hasAct ? "Now" : "—";
+                                    if (hasAct) return "Now";
+                                    const d = new Date(le);
+                                    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+                                  })()} />
+                                </dl>
+                              )}
+                            </section>
+                          )}
+
+                          {/* ── Editable Department Assignment ── */}
+                          {editing && editForm && departments.length > 0 ? (
+                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                                {multiDeptUi ? "Managed Departments" : "Department"}
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {departments.map((d) => {
+                                  const active = multiDeptUi ? editForm.managedDepartments.includes(d._id) : editForm.department === d._id;
+                                  return (
+                                    <button
+                                      key={d._id}
+                                      type="button"
+                                      onClick={() => {
+                                        if (multiDeptUi) { toggleManagedDept(d._id); }
+                                        else { setEditForm((f) => f ? { ...f, department: f.department === d._id ? "" : d._id } : f); }
+                                      }}
+                                      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                                      style={active ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}
+                                    >
+                                      {d.title}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="mt-2">
+                                {!multiDeptUi ? (
+                                  <button type="button" className="text-[10px] font-medium hover:underline" style={{ color: "var(--primary)" }} onClick={() => {
+                                    setMultiDeptUi(true);
+                                    setEditForm((f) => f ? { ...f, managedDepartments: f.department ? [f.department] : f.managedDepartments } : f);
+                                  }}>Manage multiple departments</button>
+                                ) : (
+                                  <button type="button" className="text-[10px] font-medium hover:underline" style={{ color: "var(--fg-secondary)" }} onClick={() => {
+                                    setMultiDeptUi(false);
+                                    setEditForm((f) => f ? { ...f, department: f.department || f.managedDepartments[0] || "", managedDepartments: [] } : f);
+                                  }}>Use single department</button>
+                                )}
+                              </div>
+                            </section>
+                          ) : null}
+
+                          {/* ── Editable Salary ── */}
+                          {editing && editForm && canPerm("payroll_manageSalary") ? (
+                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
+                              <div>
+                                <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Base Salary (Monthly)</label>
+                                <input className="input text-xs" type="number" min={0} placeholder="e.g. 50000" value={editForm.salary} onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })} />
+                              </div>
+                            </section>
+                          ) : !editing && employee?.salary != null && canPerm("payroll_manageSalary") ? (
                             <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
                               <p className="text-lg font-bold tabular-nums" style={{ color: "var(--fg)" }}>{employee.salary.toLocaleString()}</p>
@@ -1850,7 +2158,23 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 </div>
                               ) : null}
                             </section>
-                          )}
+                          ) : null}
+
+                          {/* Memberships (read-only) */}
+                          <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
+                            {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
+                            : memActive.length === 0 ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No active memberships.</p>
+                            : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {memActive.map((m) => (
+                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
+                                    {m.department?.title ?? "Dept"}{m.designation?.name ? ` · ${m.designation.name}` : ""}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </section>
                         </div>
                       )}
                     </>

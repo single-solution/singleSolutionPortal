@@ -149,7 +149,7 @@ export default function WorkspacePage() {
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>(needsDropdown ? "/api/employees/dropdown" : null, "ws-emp");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>(canTagEntities ? "/api/departments" : null, "ws-dept");
   const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=30" : null, "ws-activity");
-  const { data: lastSeenPayload } = useQuery<{ lastSeenLogId: string | null }>(canViewLogs ? "/api/user/last-seen" : null, "ws-lastseen");
+  const { data: lastSeenPayload } = useQuery<{ lastSeenLogId: string | null; lastSeenLogIds: Record<string, string> }>(canViewLogs ? "/api/user/last-seen" : null, "ws-lastseen");
 
   const taskList = useMemo(() => tasks ?? [], [tasks]);
   const campaignList = useMemo(() => campaigns ?? [], [campaigns]);
@@ -170,29 +170,37 @@ export default function WorkspacePage() {
   }, [refetchLogs]);
 
   const lastSeenLogIdRef = useRef<string | null>(null);
-  useEffect(() => { lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null; }, [lastSeenPayload]);
+  const lastSeenEntityRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null;
+    lastSeenEntityRef.current = lastSeenPayload?.lastSeenLogIds ?? {};
+  }, [lastSeenPayload]);
   const [activityExpanded, setActivityExpanded] = useState<string | null>(null);
   const toggleActivityGroup = useCallback((entity: string) => {
     setActivityExpanded((prev) => prev === entity ? null : entity);
   }, []);
-  const [markedReadEntities, setMarkedReadEntities] = useState<Set<string>>(new Set());
   const [allMarkedRead, setAllMarkedRead] = useState(false);
 
   const wsLogGroups = useMemo(() => {
-    const lastId = lastSeenLogIdRef.current;
+    const globalId = lastSeenLogIdRef.current;
+    const entityIds = lastSeenEntityRef.current;
     const allLogs = logsPayload?.logs ?? [];
-    const seenIdx = lastId ? allLogs.findIndex((l) => l._id === lastId) : -1;
+    const globalIdx = globalId ? allLogs.findIndex((l) => l._id === globalId) : -1;
     const map = new Map<string, { logs: LogEntry[]; unread: number }>();
     wsLogs.forEach((log) => {
       const entry = map.get(log.entity) ?? { logs: [], unread: 0 };
       entry.logs.push(log);
-      const globalIdx = allLogs.indexOf(log);
-      const isNew = seenIdx === -1 || globalIdx < seenIdx;
-      if (isNew && !allMarkedRead && !markedReadEntities.has(log.entity)) entry.unread++;
+      if (allMarkedRead) { map.set(log.entity, entry); return; }
+      const logGlobalIdx = allLogs.indexOf(log);
+      const entCursorId = entityIds[log.entity];
+      const entIdx = entCursorId ? allLogs.findIndex((l) => l._id === entCursorId) : -1;
+      const effectiveIdx = entIdx !== -1 ? (globalIdx !== -1 ? Math.max(entIdx, globalIdx) : entIdx) : globalIdx;
+      const isNew = effectiveIdx === -1 || logGlobalIdx < effectiveIdx;
+      if (isNew) entry.unread++;
       map.set(log.entity, entry);
     });
     return map;
-  }, [wsLogs, logsPayload, allMarkedRead, markedReadEntities]);
+  }, [wsLogs, logsPayload, allMarkedRead]);
 
   const wsTotalUnread = useMemo(() => {
     let count = 0;
@@ -220,18 +228,19 @@ export default function WorkspacePage() {
     const allLogs = logsPayload?.logs ?? [];
     if (allLogs.length > 0) {
       lastSeenLogIdRef.current = allLogs[0]._id;
+      lastSeenEntityRef.current = {};
       fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: allLogs[0]._id }) }).catch(() => {});
     }
   }, [logsPayload]);
 
   const markWsEntityRead = useCallback((entity: string) => {
-    setMarkedReadEntities((prev) => new Set(prev).add(entity));
-    const allLogs = logsPayload?.logs ?? [];
-    if (allLogs.length > 0) {
-      lastSeenLogIdRef.current = allLogs[0]._id;
-      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: allLogs[0]._id }) }).catch(() => {});
+    const entityLogs = wsLogs.filter((l) => l.entity === entity);
+    if (entityLogs.length > 0) {
+      const latest = entityLogs[0]._id;
+      lastSeenEntityRef.current = { ...lastSeenEntityRef.current, [entity]: latest };
+      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entity, lastSeenLogId: latest }) }).catch(() => {});
     }
-  }, [logsPayload]);
+  }, [wsLogs]);
 
   /* ── checklist state for recurring tasks ── */
   const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());

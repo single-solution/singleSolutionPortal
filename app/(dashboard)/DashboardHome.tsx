@@ -653,7 +653,7 @@ function AdminDashboard({
 
   const canViewLogs = canPerm("activityLogs_view");
   const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=30" : null, "dash-activity");
-  const { data: lastSeenPayload } = useQuery<{ lastSeenLogId: string | null }>(canViewLogs ? "/api/user/last-seen" : null, "dash-lastseen");
+  const { data: lastSeenPayload } = useQuery<{ lastSeenLogId: string | null; lastSeenLogIds: Record<string, string> }>(canViewLogs ? "/api/user/last-seen" : null, "dash-lastseen");
   const { data: flagsPayload } = useQuery<{ flags: { _id: string; severity: string; acknowledged: boolean; createdAt: string }[]; total: number }>(
     hasTeamAccess ? "/api/location-flags?limit=200" : null,
     "dash-flags",
@@ -661,29 +661,37 @@ function AdminDashboard({
   const logs: LogEntry[] = useMemo(() => logsPayload?.logs ?? [], [logsPayload]);
 
   const lastSeenLogIdRef = useRef<string | null>(null);
-  useEffect(() => { lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null; }, [lastSeenPayload]);
+  const lastSeenEntityRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null;
+    lastSeenEntityRef.current = lastSeenPayload?.lastSeenLogIds ?? {};
+  }, [lastSeenPayload]);
   const [activityExpanded, setActivityExpanded] = useState<string | null>(null);
   const toggleActivityGroup = useCallback((entity: string) => {
     setActivityExpanded((prev) => prev === entity ? null : entity);
   }, []);
-  const [markedReadEntities, setMarkedReadEntities] = useState<Set<string>>(new Set());
   const [allMarkedRead, setAllMarkedRead] = useState(false);
   const [empModalOpen, setEmpModalOpen] = useState(false);
   const [empModalId, setEmpModalId] = useState<string | null>(null);
 
   const logGroups = useMemo(() => {
-    const lastId = lastSeenLogIdRef.current;
-    const seenIdx = lastId ? logs.findIndex((l) => l._id === lastId) : -1;
+    const globalId = lastSeenLogIdRef.current;
+    const entityIds = lastSeenEntityRef.current;
+    const globalIdx = globalId ? logs.findIndex((l) => l._id === globalId) : -1;
     const map = new Map<string, { logs: LogEntry[]; unread: number }>();
     logs.forEach((log, i) => {
       const entry = map.get(log.entity) ?? { logs: [], unread: 0 };
       entry.logs.push(log);
-      const isNew = seenIdx === -1 || i < seenIdx;
-      if (isNew && !allMarkedRead && !markedReadEntities.has(log.entity)) entry.unread++;
+      if (allMarkedRead) { map.set(log.entity, entry); return; }
+      const entCursorId = entityIds[log.entity];
+      const entIdx = entCursorId ? logs.findIndex((l) => l._id === entCursorId) : -1;
+      const effectiveIdx = entIdx !== -1 ? (globalIdx !== -1 ? Math.max(entIdx, globalIdx) : entIdx) : globalIdx;
+      const isNew = effectiveIdx === -1 || i < effectiveIdx;
+      if (isNew) entry.unread++;
       map.set(log.entity, entry);
     });
     return map;
-  }, [logs, allMarkedRead, markedReadEntities]);
+  }, [logs, allMarkedRead]);
 
   const totalUnread = useMemo(() => {
     let count = 0;
@@ -709,16 +717,17 @@ function AdminDashboard({
     setAllMarkedRead(true);
     if (logs.length > 0) {
       lastSeenLogIdRef.current = logs[0]._id;
+      lastSeenEntityRef.current = {};
       fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: logs[0]._id }) }).catch(() => {});
     }
   }, [logs]);
 
   const markEntityRead = useCallback((entity: string) => {
-    setMarkedReadEntities((prev) => new Set(prev).add(entity));
-    if (logs.length > 0) {
-      const latest = logs[0]._id;
-      lastSeenLogIdRef.current = latest;
-      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lastSeenLogId: latest }) }).catch(() => {});
+    const entityLogs = logs.filter((l) => l.entity === entity);
+    if (entityLogs.length > 0) {
+      const latest = entityLogs[0]._id;
+      lastSeenEntityRef.current = { ...lastSeenEntityRef.current, [entity]: latest };
+      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entity, lastSeenLogId: latest }) }).catch(() => {});
     }
   }, [logs]);
 

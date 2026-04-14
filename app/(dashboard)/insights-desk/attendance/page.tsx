@@ -11,6 +11,7 @@ import { Pill as SharedPill, StatChip as SharedStatChip } from "../../components
 import { timeAgo } from "@/lib/formatters";
 import { useInsightsContext } from "../layout";
 import { useCachedState } from "@/lib/useQuery";
+import { MiniCalendar } from "../../components/MiniCalendar";
 
 /* ───── Types ───── */
 
@@ -123,7 +124,6 @@ interface LeaveRecord {
 
 /* ───── Constants ───── */
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /* ───── Helpers ───── */
@@ -450,8 +450,6 @@ export default function AttendancePage() {
     };
   }, [records]);
 
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
   function prevMonth() {
@@ -679,98 +677,41 @@ export default function AttendancePage() {
       {/* Calendar + Detail panel */}
       <div data-tour="attendance-calendar" className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-7">
         {/* Calendar */}
-        <motion.div className="card-static p-3 sm:p-4 lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <div className="mb-3 flex items-center justify-between">
-            <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <AnimatePresence mode="wait">
-              <motion.span key={`${month}-${year}`} className="text-headline" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }} suppressHydrationWarning>
-                {MONTH_NAMES[month - 1]} {year}
-              </motion.span>
-            </AnimatePresence>
-            <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1">
-            {DAY_NAMES.map((d) => {
-              const isWeekendCol = d === "Sat" || d === "Sun";
-              return (
-                <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase" style={{ color: isWeekendCol ? "var(--fg-quaternary)" : "var(--fg-tertiary)" }}>{d}</div>
-              );
-            })}
-            <AnimatePresence mode="wait">
-              <motion.div key={`${year}-${month}-${viewingUserId}`} className="col-span-7 grid grid-cols-7 gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`empty-${i}`} />)}
-                {Array.from({ length: daysInMonth }, (_, i) => {
-                  const day = i + 1;
-                  const rec = recordMap.get(day);
-                  const dateObj = new Date(year, month - 1, day);
-                  const dayOfWeek = dateObj.getDay();
-                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                  const isHoliday = holidayDays.has(day);
-                  const isLeaveDay = leaveDays.has(day);
-                  const isOff = isWeekend || isHoliday;
-                  const isToday = isCurrentMonth && day === today.getDate();
-                  const isSelected = selectedDay === day;
-                  const isFuture = isCurrentMonth ? day > today.getDate() : dateObj > today;
-                  let dotColor = "transparent";
-                  if (!isAggregateMode) {
-                    if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
-                    else if (rec) dotColor = "var(--rose)";
-                  }
-                  if (isOff && dotColor === "transparent") dotColor = "color-mix(in srgb, var(--fg-tertiary) 25%, transparent)";
-
-                  const offBg = isLeaveDay
-                    ? "color-mix(in srgb, var(--teal) 10%, transparent)"
-                    : isHoliday
-                      ? "color-mix(in srgb, var(--purple) 8%, transparent)"
-                      : "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)";
-
-                  return (
-                    <motion.button key={day} type="button" onClick={() => !isFuture && setSelectedDay(isSelected ? null : day)} disabled={isFuture}
-                      className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all outline-none"
-                      style={{
-                        ...(isSelected
-                          ? { background: "var(--primary)", borderRadius: "0.5rem" }
-                          : isToday
-                            ? { boxShadow: "0 0 0 2px var(--primary)", borderRadius: "0.5rem", background: isOff || isLeaveDay ? offBg : undefined }
-                            : isOff || isLeaveDay
-                              ? { background: offBg }
-                              : {}),
-                        cursor: isFuture ? "default" : "pointer",
-                        opacity: isFuture ? 0.35 : 1,
-                      }}
-                      whileHover={!isFuture ? { scale: 1.08 } : undefined} whileTap={!isFuture ? { scale: 0.92 } : undefined}
-                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: isFuture ? 0.35 : 1, scale: 1 }} transition={{ duration: 0.2, delay: Math.min(i * 0.01, 0.3) }}
-                    >
-                      <span className="text-[13px] font-medium" style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : isOff ? "var(--fg-tertiary)" : "var(--fg)" }}>{day}</span>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
-                    </motion.button>
-                  );
-                })}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {sessionReady && (
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-caption" style={{ color: "var(--fg-tertiary)" }}>
-              {!isAggregateMode && (
-                <>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--green)" }} /> On Time</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> Late</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--rose)" }} /> Absent</span>
-                </>
-              )}
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--fg-tertiary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }} /> Weekend</span>
-              {holidayDays.size > 0 && (
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--purple) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--purple) 20%, transparent)" }} /> Holiday</span>
-              )}
-              {leaveDays.size > 0 && (
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--teal) 25%, transparent)" }} /> Leave</span>
-              )}
+        <motion.div className="lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <MiniCalendar
+            year={year}
+            month={month}
+            onPrevMonth={prevMonth}
+            onNextMonth={nextMonth}
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            getDayMeta={(day) => {
+              const rec = recordMap.get(day);
+              const dateObj = new Date(year, month - 1, day);
+              const dayOfWeek = dateObj.getDay();
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              const isHoliday = holidayDays.has(day);
+              const isLeave = leaveDays.has(day);
+              let dotColor = "transparent";
+              if (!isAggregateMode) {
+                if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
+                else if (rec) dotColor = "var(--rose)";
+              }
+              return { dotColor, isHoliday, isLeave };
+            }}
+            showLegend={sessionReady}
+            legendItems={[
+              ...(!isAggregateMode ? [
+                { label: "On Time", color: "var(--green)" },
+                { label: "Late", color: "var(--amber)" },
+                { label: "Absent", color: "var(--rose)" },
+              ] : []),
+              ...(holidayDays.size > 0 ? [{ label: "Holiday", color: "var(--purple)" }] : []),
+              ...(leaveDays.size > 0 ? [{ label: "Leave", color: "var(--teal)" }] : []),
+            ]}
+          />
+          {sessionReady && (holidayInsights.thisMonth > 0 || holidayInsights.upcoming > 0 || holidayInsights.next) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 px-1 text-caption" style={{ color: "var(--fg-tertiary)" }}>
               {holidayInsights.thisMonth > 0 && (
                 <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>{holidayInsights.thisMonth} this month</span>
               )}

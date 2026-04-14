@@ -188,6 +188,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
 
   useEffect(() => { if (liveUpdates) fetchPings(); }, [liveUpdates, fetchPings]);
 
+  const lastSeenEntityRef = useRef<Record<string, string>>({});
   const fetchLogs = useCallback(async () => {
     try {
       const [logsRes, seenRes] = await Promise.all([
@@ -199,17 +200,22 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
       const fetched: LogEntry[] = data.logs || [];
       setLogs(fetched);
 
-      const stored = seenRes.ok ? (await seenRes.json()).lastSeenLogId : null;
-      lastSeenRef.current = stored;
+      const seenData = seenRes.ok ? await seenRes.json() : {};
+      const globalId: string | null = seenData.lastSeenLogId ?? null;
+      const entityIds: Record<string, string> = seenData.lastSeenLogIds ?? {};
+      lastSeenRef.current = globalId;
+      lastSeenEntityRef.current = entityIds;
 
-      if (stored && fetched.length) {
-        const idx = fetched.findIndex((l) => l._id === stored);
-        setUnseenCount(idx === -1 ? fetched.length : idx);
-      } else if (fetched.length) {
-        setUnseenCount(fetched.length);
-      } else {
-        setUnseenCount(0);
+      const globalIdx = globalId ? fetched.findIndex((l) => l._id === globalId) : -1;
+      let unseen = 0;
+      for (let i = 0; i < fetched.length; i++) {
+        const log = fetched[i];
+        const entCursorId = entityIds[log.entity];
+        const entIdx = entCursorId ? fetched.findIndex((l) => l._id === entCursorId) : -1;
+        const effectiveIdx = entIdx !== -1 ? (globalIdx !== -1 ? Math.max(entIdx, globalIdx) : entIdx) : globalIdx;
+        if (effectiveIdx === -1 || i < effectiveIdx) unseen++;
       }
+      setUnseenCount(unseen);
     } catch { /* silent */ }
     setLogsLoaded(true);
   }, []);
@@ -500,12 +506,13 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                   setPingsOpen(false);
                   if (!wasOpen && logs.length > 0) {
                     setUnseenCount(0);
+                    lastSeenRef.current = logs[0]._id;
+                    lastSeenEntityRef.current = {};
                     fetch("/api/user/last-seen", {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ lastSeenLogId: logs[0]._id }),
                     }).catch(() => {});
-                    lastSeenRef.current = logs[0]._id;
                   }
                 }}
                   className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[var(--fg-secondary)] transition-colors hover:bg-[var(--hover-bg)]"
@@ -546,12 +553,13 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                           onClick={() => {
                             if (logs.length > 0) {
                               setUnseenCount(0);
+                              lastSeenRef.current = logs[0]._id;
+                              lastSeenEntityRef.current = {};
                               fetch("/api/user/last-seen", {
                                 method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ lastSeenLogId: logs[0]._id }),
                               }).catch(() => {});
-                              lastSeenRef.current = logs[0]._id;
                             }
                             setNotificationsOpen(false);
                           }}
@@ -568,9 +576,13 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                       ) : logs.length === 0 ? (
                         <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No activity yet</div>
                       ) : (() => {
-                        const seenIdx = lastSeenRef.current ? logs.findIndex((l) => l._id === lastSeenRef.current) : -1;
+                        const globalIdx = lastSeenRef.current ? logs.findIndex((l) => l._id === lastSeenRef.current) : -1;
+                        const entIds = lastSeenEntityRef.current;
                         return logs.map((log, i) => {
-                        const isSeen = seenIdx !== -1 && i >= seenIdx;
+                        const entCursorId = entIds[log.entity];
+                        const entIdx = entCursorId ? logs.findIndex((l) => l._id === entCursorId) : -1;
+                        const effectiveIdx = entIdx !== -1 ? (globalIdx !== -1 ? Math.max(entIdx, globalIdx) : entIdx) : globalIdx;
+                        const isSeen = effectiveIdx !== -1 && i >= effectiveIdx;
                         const href = getEntityHref(log.entity, log.entityId) || getEntityPageHref(log.entity);
                         const isSecurity = log.entity === "security";
                         let secMeta: { severity?: string; totalCount?: number; latitude?: number; longitude?: number; accuracy?: number | null; reasons?: string[]; windowDays?: number } | null = null;

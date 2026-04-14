@@ -68,6 +68,7 @@ export interface IUser extends Document {
   resetTokenExpiry?: Date;
   lastEmailChange?: Date;
   lastSeenLogId?: string;
+  lastSeenLogIds?: Record<string, string>;
   preferences?: {
     showCoordinates?: boolean;
   };
@@ -154,6 +155,7 @@ const userSchema = new Schema<IUser>(
     resetTokenExpiry: Date,
     lastEmailChange: { type: Date, default: null },
     lastSeenLogId: { type: String, default: null },
+    lastSeenLogIds: { type: Map, of: String, default: {} },
     preferences: {
       showCoordinates: { type: Boolean, default: false },
     },
