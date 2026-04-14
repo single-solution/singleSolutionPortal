@@ -186,22 +186,9 @@ export default function InsightsDeskLayout({ children }: { children: React.React
   return (
     <InsightsCtx.Provider value={ctxValue}>
       <div>
-        <div data-tour="insights-header" className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        <div data-tour="insights-header" className="mb-6 space-y-1.5">
+          <div className="flex items-center justify-between gap-4">
             <h1 className="shrink-0 text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Insights Desk</h1>
-            {teamCount > 0 && (
-              <HeaderStatPill label={teamCount === 1 ? "employee" : "employees"} value={teamCount} dotColor="var(--primary)" />
-            )}
-            {holidays.length > 0 && (
-              <>
-                {upcoming.length > 0 && <HeaderStatPill label={upcoming.length === 1 ? "upcoming holiday" : "upcoming holidays"} value={upcoming.length} dotColor="var(--purple)" />}
-                <HeaderStatPill label={holidays.length === 1 ? "holiday this year" : "holidays this year"} value={holidays.length} dotColor="var(--fg-tertiary)" />
-              </>
-            )}
-            {pagePills.map((p) => (
-              <HeaderStatPill key={p.key} label={p.label} value={p.value} dotColor={p.dotColor} />
-            ))}
-          </div>
 
           <div className="flex shrink-0 items-center gap-2">
             {/* Leaves — modal handles SuperAdmin exempt state internally */}
@@ -253,6 +240,23 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 )}
               </motion.button>
           </div>
+          </div>
+          {(teamCount > 0 || holidays.length > 0 || pagePills.length > 0) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {teamCount > 0 && (
+                <HeaderStatPill label={teamCount === 1 ? "employee" : "employees"} value={teamCount} dotColor="var(--primary)" />
+              )}
+              {holidays.length > 0 && (
+                <>
+                  {upcoming.length > 0 && <HeaderStatPill label={upcoming.length === 1 ? "upcoming holiday" : "upcoming holidays"} value={upcoming.length} dotColor="var(--purple)" />}
+                  <HeaderStatPill label={holidays.length === 1 ? "holiday this year" : "holidays this year"} value={holidays.length} dotColor="var(--fg-tertiary)" />
+                </>
+              )}
+              {pagePills.map((p) => (
+                <HeaderStatPill key={p.key} label={p.label} value={p.value} dotColor={p.dotColor} />
+              ))}
+            </div>
+          )}
         </div>
 
         {children}

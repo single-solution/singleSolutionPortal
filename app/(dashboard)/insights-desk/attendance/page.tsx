@@ -1092,22 +1092,6 @@ export default function AttendancePage() {
                           {monthlyStats.averageOfficeOutTime && <StatChip label="Avg Office Out" value={fmtTime(monthlyStats.averageOfficeOutTime)} color="var(--green)" />}
                         </div>
                       )}
-                      {records.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                          {personalInsights.perfectDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} perfect days</span>}
-                          {personalInsights.totalLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{fmtHours(personalInsights.totalLateMins)} total late</span>}
-                          {personalInsights.avgLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgLateMins}m when late</span>}
-                          {personalInsights.avgBreakMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgBreakMins}m break</span>}
-                          {personalInsights.bestDay && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best: {personalInsights.bestDay} ({fmtHours(personalInsights.bestAvg)})</span>}
-                          {personalInsights.worstDay && personalInsights.worstDay !== personalInsights.bestDay && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Least: {personalInsights.worstDay} ({fmtHours(personalInsights.worstAvg)})</span>}
-                          {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
-                          {personalInsights.maxHoursDay && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best: {fmtHours(personalInsights.maxHoursMins)} on {new Date(personalInsights.maxHoursDay).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
-                          {personalInsights.minHoursDay && personalInsights.minHoursDay !== personalInsights.maxHoursDay && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Min: {fmtHours(personalInsights.minHoursMins)} on {new Date(personalInsights.minHoursDay).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
-                          {personalInsights.remoteOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.remoteOnlyDays} remote-only</span>}
-                          {personalInsights.officeOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.officeOnlyDays} office-only</span>}
-                          {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
-                        </div>
-                      )}
                       {leaveBalance && (
                         <div className="rounded-xl p-3 space-y-2" style={{ background: "var(--bg-grouped)" }}>
                           <div className="flex items-center justify-between">
@@ -1448,9 +1432,24 @@ export default function AttendancePage() {
           </div>
         ) : records.length > 0 ? (
           <div>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records · {records.length}</p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records · {records.length}</p>
+            {/* Personal insight pills — descriptive */}
+            <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
+              {personalInsights.perfectDays > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} on-time days (perfect attendance)</span>}
+              {personalInsights.totalLateMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{fmtHours(personalInsights.totalLateMins)} total late across the month</span>}
+              {personalInsights.avgLateMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>avg {personalInsights.avgLateMins} min late per late day</span>}
+              {personalInsights.avgBreakMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>avg {personalInsights.avgBreakMins} min break per day</span>}
+              {personalInsights.bestDay && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most productive on {personalInsights.bestDay}s (avg {fmtHours(personalInsights.bestAvg)})</span>}
+              {personalInsights.worstDay && personalInsights.worstDay !== personalInsights.bestDay && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Least productive on {personalInsights.worstDay}s (avg {fmtHours(personalInsights.worstAvg)})</span>}
+              {personalInsights.longestPresentStreak > 1 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Longest present streak: {personalInsights.longestPresentStreak} consecutive days</span>}
+              {personalInsights.onTimeStreak > 1 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>Best on-time streak: {personalInsights.onTimeStreak} consecutive days</span>}
+              {personalInsights.maxHoursDay && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Longest day: {fmtHours(personalInsights.maxHoursMins)} on {new Date(personalInsights.maxHoursDay).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>}
+              {personalInsights.minHoursDay && personalInsights.minHoursDay !== personalInsights.maxHoursDay && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Shortest day: {fmtHours(personalInsights.minHoursMins)} on {new Date(personalInsights.minHoursDay).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>}
+              {personalInsights.remoteOnlyDays > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--teal)" }}>{personalInsights.remoteOnlyDays} fully remote days</span>}
+              {personalInsights.officeOnlyDays > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--green)" }}>{personalInsights.officeOnlyDays} fully in-office days</span>}
+            </div>
             <motion.div
-              className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               initial="hidden" animate="visible"
               variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.03 } } }}
             >
@@ -1458,48 +1457,84 @@ export default function AttendancePage() {
                 const recDay = new Date(rec.date).getDate();
                 const statusColor = rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)";
                 const statusLabel = rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent";
+                const officePct = rec.totalWorkingMinutes > 0 ? Math.round((rec.officeMinutes / rec.totalWorkingMinutes) * 100) : 0;
                 return (
                   <motion.button
                     key={rec._id}
                     type="button"
                     onClick={() => setSelectedDay(recDay)}
-                    className="card group cursor-pointer overflow-hidden p-3 text-left transition-all hover:shadow-md space-y-2"
+                    className="card-static group relative cursor-pointer overflow-visible p-2 sm:p-2.5 text-left transition-all hover:shadow-md space-y-1.5"
                     variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.2 } } }}
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusColor }} />
-                        <p className="text-xs font-semibold truncate" style={{ color: "var(--fg)" }}>
-                          {new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
-                        background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
-                        color: statusColor,
-                      }}>
+                    {/* Absolute status pill */}
+                    <div className="pointer-events-none absolute right-1 z-[100] flex items-center gap-1" style={{ top: -8 }}>
+                      <span className="rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${statusColor} 30%, var(--border))`, color: statusColor }}>
                         {statusLabel}
                       </span>
+                      {(rec.lateBy ?? 0) > 0 && (
+                        <span className="rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: "color-mix(in srgb, var(--amber) 30%, var(--border))", color: "var(--amber)" }}>
+                          {rec.lateBy}m late
+                        </span>
+                      )}
                     </div>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div className="rounded-lg p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Total</p>
-                        <p className="text-xs font-bold" style={{ color: "var(--primary)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
+
+                    {/* Date */}
+                    <p className="text-xs font-semibold truncate pr-16" style={{ color: "var(--fg)" }}>
+                      {new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                    </p>
+
+                    {/* Clock In · Hours · Clock Out */}
+                    <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
+                      <div>
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{fmtTime(rec.firstStart ?? rec.firstOfficeEntry)}</p>
                       </div>
-                      <div className="rounded-lg p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Office</p>
-                        <p className="text-xs font-bold" style={{ color: "var(--green)" }}>{fmtHours(rec.officeMinutes)}</p>
+                      <div className="text-center">
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
                       </div>
-                      <div className="rounded-lg p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Remote</p>
-                        <p className="text-xs font-bold" style={{ color: "var(--teal)" }}>{fmtHours(rec.remoteMinutes)}</p>
+                      <div className="text-right">
+                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{fmtTime(rec.lastEnd ?? rec.lastOfficeExit)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                      <span>{fmtTime(rec.firstStart ?? rec.firstOfficeEntry)} → {fmtTime(rec.lastEnd ?? rec.lastOfficeExit)}</span>
-                      <span className="font-medium" style={{ color: "var(--primary)" }}>Details →</span>
-                    </div>
+
+                    {/* Office In · Office · Office Out */}
+                    {rec.isPresent && (rec.firstOfficeEntry || rec.officeMinutes > 0) && (
+                      <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
+                        <div>
+                          <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
+                          <p className="font-semibold tabular-nums">{fmtTime(rec.firstOfficeEntry)}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
+                          <p className="font-semibold tabular-nums" style={{ color: "var(--green)" }}>{fmtHours(rec.officeMinutes)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
+                          <p className="font-semibold tabular-nums">{fmtTime(rec.lastOfficeExit)}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Detail chips */}
+                    {rec.isPresent && (
+                      <div className="flex flex-wrap gap-1 border-t pt-1.5" style={{ borderColor: "var(--border)" }}>
+                        {rec.remoteMinutes > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--teal)" }}>{fmtHours(rec.remoteMinutes)} remote</span>}
+                        {(rec.breakMinutes ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{rec.breakMinutes}m break</span>}
+                        {rec.isLateToOffice && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>late to office{(rec.lateToOfficeBy ?? 0) > 0 ? ` ${rec.lateToOfficeBy}m` : ""}</span>}
+                        {officePct > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{officePct}% office</span>}
+                        <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--primary)" }}>Details →</span>
+                      </div>
+                    )}
+
+                    {!rec.isPresent && (
+                      <div className="flex items-center justify-end pt-1">
+                        <span className="text-[9px] font-medium" style={{ color: "var(--primary)" }}>Details →</span>
+                      </div>
+                    )}
                   </motion.button>
                 );
               })}

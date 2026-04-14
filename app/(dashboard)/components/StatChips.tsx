@@ -36,7 +36,7 @@ export function StatChip({ label, value, color, subtitle }: { label: string; val
 export function HeaderStatPill({ label, value, color, dotColor }: { label: string; value: string | number; color?: string; dotColor?: string }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold"
       style={{ borderColor: "var(--border)", background: "var(--bg-elevated)", color: color ?? "var(--fg-secondary)" }}
     >
       {dotColor && <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: dotColor }} />}
