@@ -298,7 +298,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const { data: employee, loading: empL } = useQuery<EmployeeDoc>(empUrl);
   const { data: sess, loading: sessL } = useQuery<SessionApi>(sessUrl);
   const { data: memRaw, loading: memL } = useQuery<MembershipRow[]>(memUrl);
-  const { data: dailyRaw, loading: dayL } = useQuery<DailyRow[]>(dailyUrl, undefined, { enabled: tab === "attendance" });
+  const { data: dailyRaw, loading: dayL } = useQuery<DailyRow[]>(dailyUrl, undefined, { enabled: tab === "attendance" || tab === "overview" });
   const { data: monthlyRaw, loading: monL } = useQuery<MonthlyStats | null>(monthlyUrl, undefined, {
     enabled: tab === "attendance" || tab === "overview",
   });
@@ -337,7 +337,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
       ? `/api/leaves/balance${otherUserParam ? `?${otherUserParam}` : ""}`
       : null;
   const leavesUrl =
-    open && effectiveId && canViewLeaves && tab === "leaves"
+    open && effectiveId && canViewLeaves && (tab === "leaves" || tab === "overview")
       ? `/api/leaves${otherUserParam ? `?${otherUserParam}` : ""}`
       : null;
 
@@ -486,6 +486,36 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     const avgDur = leavesList.length ? totalDays / leavesList.length : 0;
     return { approvalRate, avgDur, halfDays, byType };
   }, [leavesList]);
+  const leaveExtras = useMemo(() => {
+    if (!leavesList.length) return { onLeaveToday: false, nextLeave: null as string | null, daysSinceLast: null as number | null, runoutDays: null as number | null };
+    const today = new Date(); const todayT = today.getTime();
+    const approved = leavesList.filter((l) => l.status === "approved");
+    const onLeaveToday = approved.some((l) => todayT >= new Date(l.startDate).getTime() && todayT <= new Date(l.endDate).getTime() + 86400000);
+    let nextLeave: string | null = null, nextT = Infinity;
+    for (const l of approved) { const s = new Date(l.startDate).getTime(); if (s > todayT && s < nextT) { nextT = s; nextLeave = l.startDate; } }
+    const past = approved.filter((l) => new Date(l.endDate).getTime() < todayT).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+    const daysSinceLast = past.length > 0 ? Math.ceil((todayT - new Date(past[0].endDate).getTime()) / 86400000) : null;
+    let runoutDays: number | null = null;
+    if (leaveBalance && leaveBalance.used > 0 && leaveBalance.remaining > 0) {
+      const yr = today.getFullYear();
+      const y0 = new Date(yr, 0, 1).getTime();
+      const months = Math.max((todayT - y0) / (86400000 * 30.44), 1 / 12);
+      const rate = leaveBalance.used / months;
+      if (rate > 0) runoutDays = Math.round((leaveBalance.remaining / rate) * 30.44);
+    }
+    return { onLeaveToday, nextLeave, daysSinceLast, runoutDays };
+  }, [leavesList, leaveBalance]);
+
+  const weeklyDots = useMemo(() => {
+    if (!dailyList.length) return [];
+    const sorted = [...dailyList].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return sorted.slice(0, 5).reverse().map((r) => ({
+      date: new Date(r.date).toLocaleDateString(undefined, { weekday: "short" }),
+      color: !r.isPresent ? "var(--rose)" : r.isOnTime ? "var(--green)" : "var(--amber)",
+      present: !!r.isPresent,
+    }));
+  }, [dailyList]);
+
   const editSlug = employee?.username || id.slice(-6);
   const onEdit = useCallback(() => onClose(), [onClose]);
 
@@ -713,16 +743,37 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     )}
                                   </div>
                                 )}
-                                {/* Monthly summary pills */}
-                                {(monL || overviewAttendancePct != null || monthlyRaw?.averageDailyHours != null) && (
+                                {/* Monthly summary pills + today-vs-avg + shift adherence */}
+                                {(monL || overviewAttendancePct != null || monthlyRaw?.averageDailyHours != null || tm > 0) && (
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     {monL ? <><Sh c="h-6 w-24 rounded-full" /><Sh c="h-6 w-28 rounded-full" /></> : (
                                       <>
                                         {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--green)" : "var(--rose)" }}>Attendance {overviewAttendancePct}%</span>}
                                         {monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>Avg {monthlyRaw.averageDailyHours}h / day</span>}
                                         {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
+                                        {tm > 0 && monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: (tm / 60) >= monthlyRaw.averageDailyHours ? "var(--green)" : "var(--amber)" }}>Today {(tm / 60).toFixed(1)}h vs avg {monthlyRaw.averageDailyHours.toFixed(1)}h</span>}
+                                        {pctRaw > 0 && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: pctRaw >= 100 ? "var(--green)" : "var(--fg-secondary)" }}>Shift {pctRaw}% done</span>}
                                       </>
                                     )}
+                                  </div>
+                                )}
+                                {/* Weekly snapshot — last 5 days */}
+                                {weeklyDots.length > 0 && (
+                                  <div className="mt-2 flex items-center gap-1.5">
+                                    <span className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Week</span>
+                                    {weeklyDots.map((d, i) => (
+                                      <div key={i} className="flex flex-col items-center gap-0.5">
+                                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
+                                        <span className="text-[8px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{d.date}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {/* Streaks */}
+                                {personalInsights && (personalInsights.longestPresentStreak > 1 || personalInsights.onTimeStreak > 1) && (
+                                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                    {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
+                                    {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
                                   </div>
                                 )}
                               </>
@@ -731,13 +782,19 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Tasks & Campaigns — EmployeeCard style */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Workload</p>
-                            {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (
+                            {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (() => {
+                              const overdueT = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && t.status !== "completed").length;
+                              const completedT = empTasks.filter((t) => t.status === "completed").length;
+                              return (
                               <div className="flex flex-wrap gap-1.5 text-[9px]">
                                 <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} pending</span>
                                 <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)" }}>{inProgT} active</span>
+                                {completedT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 20%, transparent)" }}>{completedT} done</span>}
+                                {overdueT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)", borderColor: "color-mix(in srgb, var(--rose) 20%, transparent)" }}>{overdueT} overdue</span>}
                                 <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: campCount > 0 ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "var(--bg-grouped)", color: campCount > 0 ? "var(--teal)" : "var(--fg-tertiary)", borderColor: campCount > 0 ? "color-mix(in srgb, var(--teal) 20%, transparent)" : "var(--border)" }}>{campCount} campaign{campCount !== 1 ? "s" : ""}</span>
                               </div>
-                            )}
+                              );
+                            })()}
                             {canViewLeaves && (
                               <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
                                 {balL ? <Sh c="h-7 w-full max-w-xs rounded-lg" /> : !leaveBalance ? (
@@ -747,6 +804,10 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Leave balance</span>
                                     <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>{leaveBalance.remaining} remaining</span>
                                     <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>of {leaveBalance.total} · used {leaveBalance.used}</span>
+                                    {leaveExtras.onLeaveToday && <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>On Leave Today</span>}
+                                    {leaveExtras.nextLeave && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Next: {new Date(leaveExtras.nextLeave).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                                    {leaveExtras.daysSinceLast != null && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{leaveExtras.daysSinceLast}d since last</span>}
+                                    {leaveExtras.runoutDays != null && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>~{leaveExtras.runoutDays}d until runout</span>}
                                   </>
                                 )}
                               </div>
@@ -908,6 +969,46 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${100 - offPct}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />
                                   </div>
                                 </div>
+                                {/* Extra stat row: Break / Late / Remote % / Overtime */}
+                                {(() => {
+                                  const present = dailyList.filter((r) => r.isPresent);
+                                  const totalBreak = present.reduce((s, r) => s + (r.breakMinutes ?? 0), 0);
+                                  const avgBreak = present.length ? Math.round(totalBreak / present.length) : 0;
+                                  const totalLate = present.reduce((s, r) => s + (r.lateBy ?? 0), 0);
+                                  const lateDays = present.filter((r) => (r.lateBy ?? 0) > 0);
+                                  const avgLate = lateDays.length ? Math.round(totalLate / lateDays.length) : 0;
+                                  const totalOff = present.reduce((s, r) => s + (r.officeMinutes ?? 0), 0);
+                                  const totalRem = present.reduce((s, r) => s + (r.remoteMinutes ?? 0), 0);
+                                  const remotePct = totalOff + totalRem > 0 ? Math.round((totalRem / (totalOff + totalRem)) * 100) : 0;
+                                  const schedMins = week ? ALL_WEEKDAYS.reduce((s, d) => s + (week[d]?.isWorking ? (() => { const [sh, sm2] = (week[d].start ?? "10:00").split(":").map(Number); const [eh, em2] = (week[d].end ?? "19:00").split(":").map(Number); return Math.max(eh * 60 + em2 - (sh * 60 + sm2) - (week[d].breakMinutes ?? 0), 0); })() : 0), 0) : 0;
+                                  const weeklyScheduleMins = schedMins > 0 ? schedMins / ALL_WEEKDAYS.filter((d) => week?.[d]?.isWorking).length : 0;
+                                  const overtimeMins = weeklyScheduleMins > 0 ? present.reduce((s, r) => { const extra = (r.totalWorkingMinutes ?? 0) - weeklyScheduleMins; return s + (extra > 0 ? extra : 0); }, 0) : 0;
+                                  return present.length > 0 ? (
+                                    <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-3">
+                                      <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--purple)" }}>Total Break</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(totalBreak)}</p>
+                                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>avg {avgBreak}m/day</p>
+                                      </div>
+                                      <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--amber)" }}>Total Late</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(totalLate)}</p>
+                                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{lateDays.length}d · avg {avgLate}m</p>
+                                      </div>
+                                      <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--teal)" }}>Remote %</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{remotePct}%</p>
+                                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{fmtHours(totalRem)} of {fmtHours(totalOff + totalRem)}</p>
+                                      </div>
+                                      {overtimeMins > 0 && (
+                                        <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Overtime</p>
+                                          <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(overtimeMins)}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : null;
+                                })()}
                               </>
                             )}
                           </div>
@@ -928,6 +1029,21 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {personalInsights.remoteOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.remoteOnlyDays} remote-only</span>}
                                 {personalInsights.officeOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.officeOnlyDays} office-only</span>}
                                 {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
+                                {(() => {
+                                  const present = dailyList.filter((r) => r.isPresent);
+                                  if (present.length < 3) return null;
+                                  const hours = present.map((r) => (r.totalWorkingMinutes ?? 0) / 60);
+                                  const mean = hours.reduce((s, v) => s + v, 0) / hours.length;
+                                  const variance = hours.reduce((s, v) => s + (v - mean) ** 2, 0) / hours.length;
+                                  const stdDev = Math.sqrt(variance);
+                                  const consistency = Math.max(0, Math.round(100 - stdDev * 15));
+                                  return <span className="rounded-full px-2 py-0.5" style={{ background: consistency >= 80 ? "color-mix(in srgb, var(--green) 10%, transparent)" : "var(--bg-grouped)", color: consistency >= 80 ? "var(--green)" : "var(--fg-tertiary)" }}>Consistency {consistency}%</span>;
+                                })()}
+                                {(() => {
+                                  const present = dailyList.filter((r) => r.isPresent);
+                                  const totalBreakMins = present.reduce((s, r) => s + (r.breakMinutes ?? 0), 0);
+                                  return totalBreakMins > 0 ? <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>{fmtHours(totalBreakMins)} total break</span> : null;
+                                })()}
                               </div>
                             </div>
                           )}
@@ -995,25 +1111,148 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>OT Pay: {(payEstimate.overtimePay ?? 0).toLocaleString()}</span>
                                   </div>
                                 )}
+                                {/* Pay composition bar */}
+                                {(() => {
+                                  const base = payEstimate.baseSalary ?? 0;
+                                  const ot = payEstimate.overtimePay ?? 0;
+                                  const ded = totalDeductionsAmount(payEstimate);
+                                  const total = base + ot;
+                                  if (total <= 0) return null;
+                                  const basePct = Math.round((base / total) * 100);
+                                  const otPct = Math.round((ot / total) * 100);
+                                  const dedPct = total > 0 ? Math.round((ded / total) * 100) : 0;
+                                  return (
+                                    <div className="mt-3 space-y-1">
+                                      <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-secondary)" }}>
+                                        <span>Pay composition</span>
+                                        <span className="tabular-nums">Base {basePct}%{ot > 0 ? ` · OT ${otPct}%` : ""} · Ded {dedPct}%</span>
+                                      </div>
+                                      <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                                        <motion.div className="h-full" style={{ background: "var(--green)" }} initial={{ width: 0 }} animate={{ width: `${basePct}%` }} transition={{ duration: 0.5, ease }} />
+                                        {ot > 0 && <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${otPct}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />}
+                                        {ded > 0 && <motion.div className="h-full" style={{ background: "var(--rose)" }} initial={{ width: 0 }} animate={{ width: `${dedPct}%` }} transition={{ duration: 0.5, delay: 0.08, ease }} />}
+                                      </div>
+                                      <div className="flex gap-3 text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                                        <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--green)" }} />Base</span>
+                                        {ot > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--teal)" }} />Overtime</span>}
+                                        {ded > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--rose)" }} />Deductions</span>}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </>
                             )}
                           </div>
+                          {/* Rate Insights */}
+                          {!payL && payEstimate && !payEstimate.exempt && (payEstimate.presentDays ?? 0) > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Rate insights</p>
+                              {(() => {
+                                const netPay = payEstimate.netPay ?? 0;
+                                const base = payEstimate.baseSalary ?? 0;
+                                const wd2 = payEstimate.workingDays ?? 1;
+                                const pd = payEstimate.presentDays ?? 1;
+                                const totalHrs = payEstimate.dailyBreakdown ? payEstimate.dailyBreakdown.reduce((s, d) => s + d.workingMinutes, 0) / 60 : 0;
+                                const effectiveHourly = totalHrs > 0 ? Math.round(netPay / totalHrs) : 0;
+                                const dailyRate = Math.round(base / wd2);
+                                const payPerPresent = Math.round(netPay / pd);
+                                const otHourly = (payEstimate.overtimeHours ?? 0) > 0 ? Math.round((payEstimate.overtimePay ?? 0) / payEstimate.overtimeHours!) : 0;
+                                const netDailyRate = Math.round(netPay / wd2);
+                                const costPerAbsent = (payEstimate.absentDays ?? 0) > 0 ? Math.round(base / wd2) : 0;
+                                const tiles: [string, string, string][] = [
+                                  ...(effectiveHourly > 0 ? [["Effective/hr", effectiveHourly.toLocaleString(), "var(--primary)"] as [string, string, string]] : []),
+                                  ["Daily Rate", dailyRate.toLocaleString(), "var(--fg-secondary)"],
+                                  ["Pay/Present Day", payPerPresent.toLocaleString(), "var(--green)"],
+                                  ...(otHourly > 0 ? [["OT/hr", otHourly.toLocaleString(), "var(--teal)"] as [string, string, string]] : []),
+                                  ["Net Daily Rate", netDailyRate.toLocaleString(), "var(--primary)"],
+                                  ...(costPerAbsent > 0 ? [["Cost/Absent Day", costPerAbsent.toLocaleString(), "var(--rose)"] as [string, string, string]] : []),
+                                ];
+                                return (
+                                  <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                                    {tiles.map(([k, v, c]) => (
+                                      <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                          {/* Deduction Analysis */}
+                          {!payL && payEstimate && !payEstimate.exempt && payEstimate.dailyBreakdown && payEstimate.dailyBreakdown.length > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Deduction analysis</p>
+                              {(() => {
+                                const bd = payEstimate.dailyBreakdown!;
+                                const withDed = bd.filter((d) => d.deduction > 0);
+                                const zeroDed = bd.filter((d) => d.status === "present" && d.deduction === 0).length;
+                                const maxDed = withDed.length > 0 ? Math.max(...withDed.map((d) => d.deduction)) : 0;
+                                const sorted = [...withDed.map((d) => d.deduction)].sort((a, b) => a - b);
+                                const medDed = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
+                                const totalLateMins = bd.reduce((s, d) => s + d.lateMinutes, 0);
+                                const totalOff = bd.reduce((s, d) => s + d.officeMinutes, 0);
+                                const totalRem = bd.reduce((s, d) => s + d.remoteMinutes, 0);
+                                const tiles: [string, string, string][] = [
+                                  ["Days w/ Deductions", `${withDed.length}`, withDed.length > 0 ? "var(--rose)" : "var(--green)"],
+                                  ["Zero Deduction", `${zeroDed}`, "var(--green)"],
+                                  ...(maxDed > 0 ? [["Max Deduction", maxDed.toLocaleString(), "var(--rose)"] as [string, string, string]] : []),
+                                  ...(medDed > 0 ? [["Median Deduction", medDed.toLocaleString(), "var(--amber)"] as [string, string, string]] : []),
+                                  ["Total Late", fmtHours(totalLateMins), "var(--amber)"],
+                                  ["Office / Remote", `${fmtHours(totalOff)} / ${fmtHours(totalRem)}`, "var(--teal)"],
+                                ];
+                                return (
+                                  <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                                    {tiles.map(([k, v, c]) => (
+                                      <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                          {/* Deduction Breakdown */}
+                          {!payL && payEstimate && !payEstimate.exempt && Array.isArray(payEstimate.deductions) && payEstimate.deductions.length > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Deduction breakdown</p>
+                              <div className="space-y-1">
+                                {(payEstimate.deductions as { name: string; amount: number }[]).map((d, i) => (
+                                  <div key={i} className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                                    <span className="text-[11px] font-medium" style={{ color: "var(--fg)" }}>{d.name}</span>
+                                    <span className="text-[11px] font-bold tabular-nums" style={{ color: "var(--rose)" }}>{d.amount.toLocaleString()}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Year to Date — upgraded */}
                           {!payL && payEstimate && !payEstimate.exempt && payEstimate.ytd && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Year to date</p>
-                              <div className="grid grid-cols-3 gap-2">
-                                {(
-                                  [
-                                    ["Earned", payEstimate.ytd.earned],
-                                    ["Deductions", payEstimate.ytd.deductions],
-                                    ["Net Pay", payEstimate.ytd.netPay],
-                                  ] as const
-                                ).map(([k, v]) => (
-                                  <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
-                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v.toLocaleString()}</p>
-                                  </div>
-                                ))}
+                              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                                {(() => {
+                                  const y = payEstimate.ytd!;
+                                  const avgNet = y.months > 0 ? Math.round(y.netPay / y.months) : 0;
+                                  const dedPct = y.earned > 0 ? Math.round((y.deductions / y.earned) * 100) : 0;
+                                  const tiles: [string, string, string][] = [
+                                    ["Earned", y.earned.toLocaleString(), "var(--green)"],
+                                    ["Deductions", y.deductions.toLocaleString(), "var(--rose)"],
+                                    ["Net Pay", y.netPay.toLocaleString(), "var(--primary)"],
+                                    ["Months", `${y.months}`, "var(--fg-secondary)"],
+                                    ["Avg Monthly Net", avgNet.toLocaleString(), "var(--teal)"],
+                                    ["Deduction %", `${dedPct}%`, dedPct > 10 ? "var(--rose)" : "var(--fg-secondary)"],
+                                  ];
+                                  return tiles.map(([k, v, c]) => (
+                                    <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
+                                      <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                      <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                    </div>
+                                  ));
+                                })()}
                               </div>
                             </div>
                           )}
@@ -1067,6 +1306,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                       {tab === "leaves" && (
                         <div className="space-y-3">
+                          {/* Balance + progress bar */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Balance</p>
                             {balL ? (
@@ -1074,24 +1314,31 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ) : !leaveBalance ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Leave balance not available.</p>
                             ) : (
-                              <div className="grid grid-cols-3 gap-2">
-                                {(
-                                  [
-                                    ["Total", `${leaveBalance.total}`, "var(--primary)"],
-                                    ["Used", `${leaveBalance.used}`, "var(--amber)"],
+                              <>
+                                <div className="grid grid-cols-3 gap-2">
+                                  {(
                                     [
-                                      "Remaining",
-                                      `${leaveBalance.remaining}`,
-                                      leaveBalance.remaining > 0 ? "var(--green)" : "var(--rose)",
-                                    ],
-                                  ] as [string, string, string][]
-                                ).map(([k, v, c]) => (
-                                  <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
-                                    <p className="text-sm font-bold tabular-nums" style={{ color: c }}>{v}</p>
+                                      ["Total", `${leaveBalance.total}`, "var(--primary)"],
+                                      ["Used", `${leaveBalance.used}`, "var(--amber)"],
+                                      ["Remaining", `${leaveBalance.remaining}`, leaveBalance.remaining > 0 ? "var(--green)" : "var(--rose)"],
+                                    ] as [string, string, string][]
+                                  ).map(([k, v, c]) => (
+                                    <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                      <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
+                                      <p className="text-sm font-bold tabular-nums" style={{ color: c }}>{v}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                                {/* Balance progress bar */}
+                                {leaveBalance.total > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                                      <motion.div className="h-full rounded-full" style={{ background: (leaveBalance.used / leaveBalance.total) > 0.8 ? "var(--rose)" : (leaveBalance.used / leaveBalance.total) > 0.5 ? "var(--amber)" : "var(--green)" }} initial={{ width: 0 }} animate={{ width: `${Math.round((leaveBalance.used / leaveBalance.total) * 100)}%` }} transition={{ duration: 0.6 }} />
+                                    </div>
+                                    <p className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round((leaveBalance.used / leaveBalance.total) * 100)}% used</p>
                                   </div>
-                                ))}
-                              </div>
+                                )}
+                              </>
                             )}
                             {!balL && leaveBalance && leaveInsights && leavesList.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-1.5 border-t pt-2" style={{ borderColor: "var(--border)" }}>
@@ -1100,12 +1347,83 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 )}
                                 <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Avg dur. {leaveInsights.avgDur.toFixed(1)}d</span>
                                 <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>Half-days {leaveInsights.halfDays}</span>
-                                {Object.entries(leaveInsights.byType).map(([typ, n]) => (
-                                  <span key={typ} className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{typ}: {n}</span>
+                                {Object.entries(leaveInsights.byType).map(([typ, n2]) => (
+                                  <span key={typ} className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{typ}: {n2}</span>
                                 ))}
                               </div>
                             )}
                           </div>
+                          {/* Quick Insights */}
+                          {!balL && leaveBalance && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Quick insights</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                  <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>On Leave Today</p>
+                                  <p className="text-sm font-bold" style={{ color: leaveExtras.onLeaveToday ? "var(--teal)" : "var(--fg-secondary)" }}>{leaveExtras.onLeaveToday ? "Yes" : "No"}</p>
+                                </div>
+                                <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                  <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Next Leave</p>
+                                  <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{leaveExtras.nextLeave ? new Date(leaveExtras.nextLeave).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}</p>
+                                </div>
+                                <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                  <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Since Last Leave</p>
+                                  <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{leaveExtras.daysSinceLast != null ? `${leaveExtras.daysSinceLast}d` : "—"}</p>
+                                </div>
+                                <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                  <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Est. Balance Runout</p>
+                                  <p className="text-sm font-bold tabular-nums" style={{ color: leaveExtras.runoutDays != null && leaveExtras.runoutDays < 60 ? "var(--amber)" : "var(--fg)" }}>{leaveExtras.runoutDays != null ? `~${leaveExtras.runoutDays}d` : "—"}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {/* Monthly distribution */}
+                          {!leaveL && leavesList.length > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly distribution</p>
+                              {(() => {
+                                const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                                const byMonth = Array(12).fill(0) as number[];
+                                for (const l of leavesList.filter((x) => x.status === "approved")) {
+                                  const s = new Date(l.startDate);
+                                  const e = new Date(l.endDate);
+                                  const days = l.isHalfDay ? 0.5 : Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
+                                  byMonth[s.getMonth()] += days;
+                                }
+                                const maxVal = Math.max(...byMonth, 1);
+                                const curMonth = new Date().getMonth();
+                                return (
+                                  <div className="flex items-end gap-1">
+                                    {MONTHS.map((m, i) => (
+                                      <div key={m} className="flex flex-1 flex-col items-center gap-0.5">
+                                        <div className="w-full rounded-sm" style={{ height: `${Math.max(byMonth[i] / maxVal * 32, 2)}px`, background: i === curMonth ? "var(--primary)" : byMonth[i] > 0 ? "var(--teal)" : "var(--border)" }} />
+                                        <span className="text-[7px] font-medium" style={{ color: i === curMonth ? "var(--primary)" : "var(--fg-tertiary)" }}>{m}</span>
+                                        {byMonth[i] > 0 && <span className="text-[7px] font-bold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{byMonth[i]}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                          {/* Leave type breakdown */}
+                          {!leaveL && leaveInsights && Object.keys(leaveInsights.byType).length > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>By type</p>
+                              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                                {Object.entries(leaveInsights.byType).map(([typ, cnt]) => {
+                                  const typeColors: Record<string, string> = { Sick: "var(--rose)", Casual: "var(--amber)", Annual: "var(--teal)", Unpaid: "var(--fg-tertiary)", General: "var(--primary)" };
+                                  return (
+                                    <div key={typ} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                      <p className="text-[9px] font-semibold uppercase" style={{ color: typeColors[typ] ?? "var(--fg-secondary)" }}>{typ}</p>
+                                      <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{cnt}d</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          {/* History — show all with "show more" */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>History</p>
                             {leaveL ? (
@@ -1113,19 +1431,21 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ) : leavesList.length === 0 ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No leave records found.</p>
                             ) : (
-                              <div className="max-h-[300px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                                {leavesList.slice(0, 20).map((l) => {
+                              <div className="max-h-[350px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                                {leavesList.map((l) => {
                                   const sc: Record<string, string> = { approved: "var(--green)", pending: "var(--amber)", rejected: "var(--rose)", cancelled: "var(--fg-tertiary)" };
                                   const col = sc[l.status] ?? "var(--fg-secondary)";
                                   const start = new Date(l.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" });
                                   const end = new Date(l.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" });
                                   const same = l.startDate === l.endDate;
+                                  const days = l.isHalfDay ? 0.5 : Math.max(1, Math.round((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / 86400000) + 1);
                                   return (
                                     <div key={l._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
                                       <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5">
                                           <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
                                           <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{l.type || "Leave"}{l.isHalfDay ? " (½)" : ""}</span>
+                                          <span className="shrink-0 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{days}d</span>
                                         </div>
                                         <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{same ? start : `${start} – ${end}`}{l.reason ? ` · ${l.reason}` : ""}</p>
                                       </div>
@@ -1141,6 +1461,45 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                       {tab === "tasks" && canTasksNav && (
                         <div className="space-y-3">
+                          {/* Task summary stats */}
+                          {!taskL && empTasks.length > 0 && (() => {
+                            const total = empTasks.length;
+                            const completed = empTasks.filter((t) => t.status === "completed").length;
+                            const inProg = empTasks.filter((t) => t.status === "inProgress").length;
+                            const pending = empTasks.filter((t) => t.status === "pending").length;
+                            const overdue = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && t.status !== "completed").length;
+                            const compRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+                            const tiles: [string, string, string][] = [
+                              ["Total", `${total}`, "var(--fg-secondary)"],
+                              ["Completed", `${completed}`, "var(--green)"],
+                              ["In Progress", `${inProg}`, "var(--primary)"],
+                              ["Pending", `${pending}`, "var(--amber)"],
+                              ...(overdue > 0 ? [["Overdue", `${overdue}`, "var(--rose)"] as [string, string, string]] : []),
+                              ["Completion", `${compRate}%`, compRate >= 80 ? "var(--green)" : "var(--fg-secondary)"],
+                            ];
+                            return (
+                              <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Summary</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  {tiles.map(([k, v, c]) => (
+                                    <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                      <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                      <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                                {/* Priority breakdown pills */}
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {(["urgent", "high", "medium", "low"] as const).map((p) => {
+                                    const cnt = empTasks.filter((t) => t.priority === p).length;
+                                    if (cnt === 0) return null;
+                                    return <span key={p} className="rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize tabular-nums" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[p]} 12%, transparent)`, color: PRIORITY_COLORS[p] }}>{cnt} {p}</span>;
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          {/* Task list */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>
                             {taskL ? (
@@ -1148,11 +1507,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ) : empTasks.length === 0 ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned.</p>
                             ) : (
-                              <div className="max-h-[250px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                              <div className="max-h-[280px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                                 {empTasks.map((t) => {
-                                  const stCol = TASK_STATUS_COLORS[t.status] ?? "var(--fg-secondary)";
-                                  const prCol = PRIORITY_COLORS[t.priority] ?? "var(--fg-tertiary)";
-                                  const overdue = t.deadline && new Date(t.deadline) < new Date() && t.status !== "completed";
+                                  const stCol2 = TASK_STATUS_COLORS[t.status] ?? "var(--fg-secondary)";
+                                  const prCol2 = PRIORITY_COLORS[t.priority] ?? "var(--fg-tertiary)";
+                                  const overdue2 = t.deadline && new Date(t.deadline) < new Date() && t.status !== "completed";
                                   return (
                                     <div key={t._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
                                       <div className="min-w-0 flex-1">
@@ -1160,15 +1519,15 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                         <div className="mt-0.5 flex flex-wrap gap-1.5">
                                           {t.campaign?.name && <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{t.campaign.name}</span>}
                                           {t.deadline && (
-                                            <span className="text-[9px] tabular-nums" style={{ color: overdue ? "var(--rose)" : "var(--fg-tertiary)" }}>
+                                            <span className="text-[9px] tabular-nums" style={{ color: overdue2 ? "var(--rose)" : "var(--fg-tertiary)" }}>
                                               Due {new Date(t.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                                             </span>
                                           )}
                                         </div>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-1.5">
-                                        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${prCol} 14%, transparent)`, color: prCol }}>{t.priority || "—"}</span>
-                                        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${stCol} 14%, transparent)`, color: stCol }}>{t.status}</span>
+                                        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${prCol2} 14%, transparent)`, color: prCol2 }}>{t.priority || "—"}</span>
+                                        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${stCol2} 14%, transparent)`, color: stCol2 }}>{t.status}</span>
                                       </div>
                                     </div>
                                   );
@@ -1176,6 +1535,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               </div>
                             )}
                           </div>
+                          {/* Campaigns with task progress */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Campaigns</p>
                             {campL ? (
@@ -1183,19 +1543,33 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ) : empCampaigns.length === 0 ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No campaign involvement.</p>
                             ) : (
-                              <div className="max-h-[220px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                                {empCampaigns.map((c) => (
-                                  <div key={c._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{c.name}</p>
-                                      <div className="mt-0.5 flex flex-wrap gap-1.5 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                              <div className="max-h-[260px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                                {empCampaigns.map((c) => {
+                                  const campTasks = empTasks.filter((t) => t.campaign?._id === c._id);
+                                  const campDone = campTasks.filter((t) => t.status === "completed").length;
+                                  return (
+                                    <div key={c._id} className="rounded-lg px-2.5 py-2" style={{ background: "var(--bg-grouped)" }}>
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="min-w-0 flex-1 truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{c.name}</p>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{c.status}</span>
+                                      </div>
+                                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                                         {c.startDate && <span>Start {new Date(c.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
                                         {c.endDate && <span>End {new Date(c.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                                        {campTasks.length > 0 && (
+                                          <span className="font-semibold" style={{ color: campDone === campTasks.length ? "var(--green)" : "var(--fg-secondary)" }}>
+                                            {campDone}/{campTasks.length} tasks done
+                                          </span>
+                                        )}
                                       </div>
+                                      {campTasks.length > 0 && (
+                                        <div className="mt-1 h-1 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((campDone / campTasks.length) * 100)}%`, background: campDone === campTasks.length ? "var(--green)" : "var(--primary)" }} />
+                                        </div>
+                                      )}
                                     </div>
-                                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{c.status}</span>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -1204,20 +1578,70 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                       {tab === "location" && canAtt && (
                         <div className="space-y-3">
+                          {/* Summary stats */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Location flags</p>
-                            <div className="mb-2 flex flex-wrap gap-1.5">
-                              <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Total {flagsPayload?.total ?? flags.length}</span>
-                              <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>Warnings {flags.filter((f) => f.severity === "warning").length}</span>
-                              <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>Violations {flags.filter((f) => f.severity === "violation").length}</span>
-                              <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>Ack {flags.filter((f) => f.acknowledged).length}</span>
-                            </div>
                             {flagsL ? (
-                              <div className="space-y-1.5">{[1, 2, 3, 4].map((i) => <Sh key={i} c="h-14 w-full rounded-lg" />)}</div>
+                              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
                             ) : flags.length === 0 ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No location flags recorded.</p>
-                            ) : (
-                              <div className="mt-2 max-h-[350px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                            ) : (() => {
+                              const total = flagsPayload?.total ?? flags.length;
+                              const warns = flags.filter((f) => f.severity === "warning").length;
+                              const viols = flags.filter((f) => f.severity === "violation").length;
+                              const acked = flags.filter((f) => f.acknowledged).length;
+                              const ackRate = total > 0 ? Math.round((acked / total) * 100) : 0;
+                              const now3 = Date.now();
+                              const recent7 = flags.filter((f) => now3 - new Date(f.createdAt).getTime() < 7 * 86400000).length;
+                              const older = total - recent7;
+                              const allReasons = flags.flatMap((f) => f.reasons);
+                              const reasonCounts: Record<string, number> = {};
+                              for (const r of allReasons) reasonCounts[r] = (reasonCounts[r] ?? 0) + 1;
+                              const topReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0];
+                              return (
+                                <>
+                                  <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                                    {([
+                                      ["Total", `${total}`, "var(--fg-secondary)"],
+                                      ["Warnings", `${warns}`, "var(--amber)"],
+                                      ["Violations", `${viols}`, "var(--rose)"],
+                                      ["Acknowledged", `${acked}`, "var(--green)"],
+                                      ["Ack Rate", `${ackRate}%`, ackRate >= 80 ? "var(--green)" : "var(--amber)"],
+                                      ["Last 7 Days", `${recent7}`, recent7 > 0 ? "var(--rose)" : "var(--green)"],
+                                    ] as const).map(([k, v, c]) => (
+                                      <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {/* Severity bar */}
+                                  {total > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-secondary)" }}>
+                                        <span>Severity split</span>
+                                        <span className="tabular-nums">{warns} warnings · {viols} violations</span>
+                                      </div>
+                                      <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                                        <motion.div className="h-full" style={{ background: "var(--amber)" }} initial={{ width: 0 }} animate={{ width: `${Math.round((warns / total) * 100)}%` }} transition={{ duration: 0.5, ease }} />
+                                        <motion.div className="h-full" style={{ background: "var(--rose)" }} initial={{ width: 0 }} animate={{ width: `${Math.round((viols / total) * 100)}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Extra insight pills */}
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {topReason && <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Top reason: {topReason[0]} ({topReason[1]})</span>}
+                                    {older > 0 && <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-tertiary)" }}>{older} older flags</span>}
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                          {/* Flag list */}
+                          {!flagsL && flags.length > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Flag history</p>
+                              <div className="max-h-[350px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                                 {flags.map((f) => (
                                   <div key={f._id} className="flex items-start justify-between gap-2 rounded-lg px-2.5 py-2" style={{ background: "var(--bg-grouped)" }}>
                                     <div className="min-w-0 flex-1">
@@ -1240,8 +1664,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   </div>
                                 ))}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1267,12 +1691,53 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <p className="mb-1 text-[9px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Today</p>
                                   <p className="text-sm font-bold" style={{ color: todayS.isWorking ? "var(--fg)" : "var(--amber)" }}>{todayS.isWorking ? `${todayS.start} – ${todayS.end} (${todayS.breakMinutes}m break)` : "Day off"}</p>
                                 </div>
+                                {/* Schedule insights */}
+                                {week && (() => {
+                                  const workDays = ALL_WEEKDAYS.filter((d) => week[d]?.isWorking);
+                                  const workDayCount = workDays.length;
+                                  let weeklyMins = 0, weeklyBreakMins = 0;
+                                  for (const d of workDays) {
+                                    const wd2 = week[d];
+                                    if (!wd2.isWorking) continue;
+                                    const [sh3, sm3] = (wd2.start ?? "10:00").split(":").map(Number);
+                                    const [eh3, em3] = (wd2.end ?? "19:00").split(":").map(Number);
+                                    const dayMins = Math.max(eh3 * 60 + em3 - (sh3 * 60 + sm3), 0);
+                                    weeklyMins += dayMins;
+                                    weeklyBreakMins += wd2.breakMinutes ?? 0;
+                                  }
+                                  const netWeeklyMins = weeklyMins - weeklyBreakMins;
+                                  const avgDaily = ms?.averageDailyHours;
+                                  const scheduledDailyHrs = workDayCount > 0 ? netWeeklyMins / workDayCount / 60 : 0;
+                                  const adherence = avgDaily && scheduledDailyHrs > 0 ? Math.round((avgDaily / scheduledDailyHrs) * 100) : null;
+                                  return (
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                      <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--primary)" }}>Weekly Hours</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(netWeeklyMins)}</p>
+                                      </div>
+                                      <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--fg-secondary)" }}>Working Days</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{workDayCount}/wk</p>
+                                      </div>
+                                      <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--purple)" }}>Weekly Break</p>
+                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(weeklyBreakMins)}</p>
+                                      </div>
+                                      {adherence != null && (
+                                        <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
+                                          <p className="text-[9px] font-semibold uppercase" style={{ color: adherence >= 90 ? "var(--green)" : "var(--amber)" }}>Adherence</p>
+                                          <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{adherence}%</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                                 {week && (
                                   <div className="mt-3">
                                     <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly schedule</p>
                                     <div className="space-y-1">
                                       {ALL_WEEKDAYS.map((d) => {
-                                        const wd = week[d];
+                                        const wd3 = week[d];
                                         const isToday = d === todayWeekdayKey();
                                         return (
                                           <div
@@ -1286,8 +1751,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                             <span className="text-[11px] font-semibold" style={{ color: isToday ? "var(--primary)" : "var(--fg-secondary)" }}>
                                               {WEEKDAY_LABELS[d]}{isToday ? " (Today)" : ""}
                                             </span>
-                                            <span className="text-[11px] font-bold tabular-nums" style={{ color: wd.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>
-                                              {wd.isWorking ? `${wd.start} – ${wd.end} · ${wd.breakMinutes}m break` : "Off"}
+                                            <span className="text-[11px] font-bold tabular-nums" style={{ color: wd3.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>
+                                              {wd3.isWorking ? `${wd3.start} – ${wd3.end} · ${wd3.breakMinutes}m break` : "Off"}
                                             </span>
                                           </div>
                                         );
@@ -1302,34 +1767,91 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                       )}
 
                       {tab === "profile" && (
-                        <section className="space-y-2 rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                          {empL || !employee ? (
-                            <div className="space-y-2">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-4 w-full" />)}</div>
-                          ) : (
-                            <dl className="grid gap-2 sm:grid-cols-2">
-                              <ProfRow k="Email" v={employee.email} />
-                              <ProfRow k="Phone" v={employee.about?.phone || "—"} />
-                              <ProfRow k="Username" v={`@${employee.username}`} />
-                              <div className="flex justify-between gap-2 text-[12px] sm:block">
-                                <dt style={{ color: "var(--fg-tertiary)" }}>Role</dt>
-                                <dd className="flex flex-wrap items-center justify-end gap-1 sm:mt-0.5">
-                                  <span className="font-medium" style={{ color: "var(--fg)" }}>{designation}</span>
-                                  {employee.isSuperAdmin && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "var(--rose)", color: "#fff" }}>Super Admin</span>}
-                                  {employee.isVerified === true && (
-                                    <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--green) 18%, transparent)", color: "var(--green)" }}>Verified</span>
-                                  )}
-                                  {employee.isVerified === false && (
-                                    <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 18%, transparent)", color: "var(--amber)" }}>Unverified</span>
-                                  )}
-                                </dd>
+                        <div className="space-y-3">
+                          <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Identity & Account</p>
+                            {empL || !employee ? (
+                              <div className="space-y-2">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-4 w-full" />)}</div>
+                            ) : (
+                              <dl className="grid gap-2 sm:grid-cols-2">
+                                <ProfRow k="Email" v={employee.email} />
+                                <ProfRow k="Phone" v={employee.about?.phone || "—"} />
+                                <ProfRow k="Username" v={`@${employee.username}`} />
+                                <div className="flex justify-between gap-2 text-[12px] sm:block">
+                                  <dt style={{ color: "var(--fg-tertiary)" }}>Role</dt>
+                                  <dd className="flex flex-wrap items-center justify-end gap-1 sm:mt-0.5">
+                                    <span className="font-medium" style={{ color: "var(--fg)" }}>{designation}</span>
+                                    {employee.isSuperAdmin && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "var(--rose)", color: "#fff" }}>Super Admin</span>}
+                                    {employee.isVerified === true && (
+                                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--green) 18%, transparent)", color: "var(--green)" }}>Verified</span>
+                                    )}
+                                    {employee.isVerified === false && (
+                                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 18%, transparent)", color: "var(--amber)" }}>Unverified</span>
+                                    )}
+                                  </dd>
+                                </div>
+                                <ProfRow k="Department" v={employee.department?.title ?? "—"} />
+                                <ProfRow k="Designation" v={designation} />
+                                <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
+                                <ProfRow k="Active" v={employee.isActive === false ? "Inactive" : "Active"} />
+                                {/* Account Age */}
+                                <ProfRow k="Account Age" v={(() => {
+                                  if (!employee.createdAt) return "—";
+                                  const diff = Date.now() - new Date(employee.createdAt).getTime();
+                                  const days = Math.floor(diff / 86400000);
+                                  if (days < 30) return `${days}d`;
+                                  const months = Math.floor(days / 30.44);
+                                  if (months < 12) return `${months}mo`;
+                                  const years = Math.floor(months / 12);
+                                  const rem = months % 12;
+                                  return rem > 0 ? `${years}y ${rem}mo` : `${years}y`;
+                                })()} />
+                                {/* Invited By */}
+                                {employee.createdBy && <ProfRow k="Invited By" v={employee.createdBy} />}
+                                {/* Last Active */}
+                                <ProfRow k="Last Active" v={(() => {
+                                  const le = sess?.lastExit;
+                                  if (!le) return hasAct ? "Now" : "—";
+                                  if (hasAct) return "Now";
+                                  const d = new Date(le);
+                                  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+                                })()} />
+                              </dl>
+                            )}
+                          </section>
+                          {/* Memberships in profile */}
+                          <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
+                            {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
+                            : memActive.length === 0 ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No active memberships.</p>
+                            : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {memActive.map((m) => (
+                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
+                                    {m.department?.title ?? "Dept"}{m.designation?.name ? ` · ${m.designation.name}` : ""}
+                                  </span>
+                                ))}
                               </div>
-                              <ProfRow k="Department" v={employee.department?.title ?? "—"} />
-                              <ProfRow k="Designation" v={designation} />
-                              <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
-                              <ProfRow k="Active" v={employee.isActive === false ? "Inactive" : "Active"} />
-                            </dl>
+                            )}
+                          </section>
+                          {/* Salary in profile */}
+                          {employee?.salary != null && canPerm("payroll_manageSalary") && (
+                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
+                              <p className="text-lg font-bold tabular-nums" style={{ color: "var(--fg)" }}>{employee.salary.toLocaleString()}</p>
+                              {employee.salaryHistory?.length ? (
+                                <div className="mt-2 space-y-1">
+                                  {employee.salaryHistory.slice().reverse().slice(0, 5).map((h, i) => (
+                                    <div key={i} className="flex items-center justify-between rounded-lg px-2 py-1" style={{ background: "var(--bg-grouped)" }}>
+                                      <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{new Date(h.effectiveDate).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
+                                      <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{h.previousSalary.toLocaleString()} → {h.newSalary.toLocaleString()}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </section>
                           )}
-                        </section>
+                        </div>
                       )}
                     </>
                   )}

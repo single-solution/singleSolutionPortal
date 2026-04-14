@@ -1290,7 +1290,7 @@ export default function AttendancePage() {
                   whileTap={{ scale: 0.98 }}
                 >
                   {/* Absolute attendance pill */}
-                  <div className="pointer-events-none absolute right-1 z-[100] flex items-center gap-1" style={{ top: -10 }}>
+                  <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -10 }}>
                     <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${attendColor} 30%, var(--border))`, color: attendColor }}>
                       {Math.round(emp.attendancePercentage)}% attend.
                     </span>
@@ -1469,7 +1469,7 @@ export default function AttendancePage() {
                     whileTap={{ scale: 0.98 }}
                   >
                     {/* Absolute status pill */}
-                    <div className="pointer-events-none absolute right-1 z-[100] flex items-center gap-1" style={{ top: -8 }}>
+                    <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -8 }}>
                       <span className="rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${statusColor} 30%, var(--border))`, color: statusColor }}>
                         {statusLabel}
                       </span>

@@ -155,9 +155,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   }, [userId, session?.user?.id, isSuperAdmin, selYear]);
 
   const loadLeaves = useCallback(async () => {
-    if (isSuperAdmin && !userId) { setLeaves([]); return; }
     const uid = userId || session?.user?.id;
-    if (!uid) return;
+    if (!isSuperAdmin && !uid) return;
     setLeavesLoading(true);
     try {
       const q = new URLSearchParams({ year: String(selYear) });
@@ -303,14 +302,45 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     setSubmitting(false);
   }
 
-  const selfExempt = isSuperAdmin && !userId;
+  const allMode = isSuperAdmin && !userId;
   const balPct = balance && balance.total > 0 ? Math.round((balance.used / balance.total) * 100) : 0;
   const barColor = balPct > 80 ? "var(--rose)" : balPct > 50 ? "var(--amber)" : "var(--teal)";
   const showSidebar = canViewTeam;
 
-  const detailLabel = userId
-    ? (selectedEmployee ? nameOf(selectedEmployee) : "Employee")
-    : (isSuperAdmin ? "" : "Yourself");
+  const detailLabel = allMode
+    ? "All Employees"
+    : userId
+      ? (selectedEmployee ? nameOf(selectedEmployee) : "Employee")
+      : "Yourself";
+
+  const allEmployeeSummary = useMemo(() => {
+    if (!allMode || !leaves.length) return null;
+    const byEmp = new Map<string, { name: string; dept: string; total: number; approved: number; pending: number; rejected: number; days: number }>();
+    for (const l of leaves) {
+      const uid = l.user?._id ?? "unknown";
+      const n = l.user?.about ? `${l.user.about.firstName ?? ""} ${l.user.about.lastName ?? ""}`.trim() : l.user?.email ?? "—";
+      if (!byEmp.has(uid)) byEmp.set(uid, { name: n || "—", dept: "", total: 0, approved: 0, pending: 0, rejected: 0, days: 0 });
+      const row = byEmp.get(uid)!;
+      row.total++;
+      if (l.status === "approved") { row.approved++; row.days += l.days ?? 0; }
+      else if (l.status === "pending") row.pending++;
+      else if (l.status === "rejected") row.rejected++;
+    }
+    const empMatch = (uid: string) => employees.find((e) => e._id === uid);
+    for (const [uid, row] of byEmp) {
+      const emp = empMatch(uid);
+      if (emp?.department?.title) row.dept = emp.department.title;
+      if (emp && !row.name.trim()) row.name = nameOf(emp);
+    }
+    const rows = [...byEmp.values()].sort((a, b) => b.days - a.days);
+    const totalLeaves = leaves.length;
+    const totalApproved = leaves.filter((l) => l.status === "approved").length;
+    const totalPending = leaves.filter((l) => l.status === "pending").length;
+    const totalRejected = leaves.filter((l) => l.status === "rejected").length;
+    const totalDays = leaves.filter((l) => l.status === "approved").reduce((s, l) => s + (l.days ?? 0), 0);
+    const uniqueEmployees = byEmp.size;
+    return { rows, totalLeaves, totalApproved, totalPending, totalRejected, totalDays, uniqueEmployees };
+  }, [allMode, leaves, employees]);
 
   return (
     <Portal>
@@ -332,7 +362,11 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
               <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
                 <div>
                   <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>Leaves</h2>
-                  {!selfExempt && balance && !balLoading && (
+                  {allMode ? (
+                    <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                      All Employees · {selYear}{allEmployeeSummary ? ` · ${allEmployeeSummary.totalDays} days used` : ""}
+                    </p>
+                  ) : balance && !balLoading && (
                     <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
                       {detailLabel && <>{detailLabel} · </>}
                       {balance.remaining} of {balance.total} remaining · {selYear}
@@ -345,7 +379,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                     <span className="px-1.5 text-xs font-bold tabular-nums" style={{ color: "var(--fg)" }}>{selYear}</span>
                     <button type="button" onClick={() => setSelYear(y => y + 1)} disabled={selYear >= new Date().getFullYear()} className="px-2 py-1 text-xs font-bold disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>›</button>
                   </div>
-                  {!selfExempt && (
+                  {(
                     <motion.button
                       type="button"
                       onClick={() => setShowForm((p) => !p)}
@@ -463,30 +497,191 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
                 {/* ── Right detail panel ── */}
                 <div ref={detailRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                  {selfExempt ? (
-                    <div className="flex flex-col items-center justify-center py-16">
-                      <div className="rounded-full p-4 mb-3" style={{ background: "var(--bg-grouped)" }}>
-                        <svg className="h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                        </svg>
+                  {allMode ? (
+                    <div className="space-y-4">
+                      {/* All Employees header */}
+                      <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>All Employees</p>
+                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Organization-wide leave overview · {selYear}</p>
+                        </div>
                       </div>
-                      <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>Select an employee</p>
-                      <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                        Choose from the sidebar to view leave data
-                      </p>
+                      {leavesLoading ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-2">{[1,2,3,4,5,6].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
+                          <div className="shimmer h-48 rounded-xl" />
+                        </div>
+                      ) : !allEmployeeSummary ? (
+                        <p className="py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No leave records for {selYear}.</p>
+                      ) : (
+                        <>
+                          {/* Summary stats */}
+                          <div className="grid grid-cols-3 gap-2">
+                            {([
+                              ["Total Leaves", `${allEmployeeSummary.totalLeaves}`, "var(--fg-secondary)"],
+                              ["Approved", `${allEmployeeSummary.totalApproved}`, "var(--green)"],
+                              ["Pending", `${allEmployeeSummary.totalPending}`, "var(--amber)"],
+                              ["Rejected", `${allEmployeeSummary.totalRejected}`, "var(--rose)"],
+                              ["Total Days", `${allEmployeeSummary.totalDays}`, "var(--teal)"],
+                              ["Employees", `${allEmployeeSummary.uniqueEmployees}`, "var(--primary)"],
+                            ] as const).map(([k, v, c]) => (
+                              <div key={k} className="rounded-xl p-2.5 text-center space-y-0.5" style={{ background: "var(--bg-grouped)" }}>
+                                <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Type breakdown */}
+                          {leaveSummary.typeDayBreakdown.length > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leave type breakdown</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {leaveSummary.typeDayBreakdown.map((t) => (
+                                  <span key={t.label} className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
+                                    {t.label}: {t.days}d
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Employee table */}
+                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Employee leave details</p>
+                            <div className="max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                              <table className="w-full text-[11px]">
+                                <thead>
+                                  <tr style={{ color: "var(--fg-tertiary)" }}>
+                                    <th className="py-1.5 text-left font-semibold">Employee</th>
+                                    <th className="py-1.5 text-right font-semibold">Days</th>
+                                    <th className="py-1.5 text-right font-semibold">Approved</th>
+                                    <th className="py-1.5 text-right font-semibold">Pending</th>
+                                    <th className="py-1.5 text-right font-semibold">Rejected</th>
+                                    <th className="py-1.5 text-right font-semibold">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {allEmployeeSummary.rows.map((r, i) => (
+                                    <tr key={i} className="border-t" style={{ borderColor: "var(--border)" }}>
+                                      <td className="py-1.5">
+                                        <p className="font-medium truncate max-w-[180px]" style={{ color: "var(--fg)" }}>{r.name}</p>
+                                        {r.dept && <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{r.dept}</p>}
+                                      </td>
+                                      <td className="py-1.5 text-right tabular-nums font-semibold" style={{ color: "var(--teal)" }}>{r.days}</td>
+                                      <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--green)" }}>{r.approved}</td>
+                                      <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--amber)" }}>{r.pending}</td>
+                                      <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--rose)" }}>{r.rejected}</td>
+                                      <td className="py-1.5 text-right tabular-nums font-semibold" style={{ color: "var(--fg)" }}>{r.total}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot>
+                                  <tr className="border-t font-bold" style={{ borderColor: "var(--border)" }}>
+                                    <td className="py-1.5" style={{ color: "var(--fg)" }}>Total</td>
+                                    <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--teal)" }}>{allEmployeeSummary.totalDays}</td>
+                                    <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--green)" }}>{allEmployeeSummary.totalApproved}</td>
+                                    <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--amber)" }}>{allEmployeeSummary.totalPending}</td>
+                                    <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--rose)" }}>{allEmployeeSummary.totalRejected}</td>
+                                    <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--fg)" }}>{allEmployeeSummary.totalLeaves}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          </div>
+                          {/* Recent leave history */}
+                          {leaves.length > 0 && (
+                            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Recent leave requests</p>
+                              <div className="max-h-[250px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                                {leaves.slice(0, 30).map((l) => {
+                                  const col = STATUS_COLORS[l.status] ?? "var(--fg-secondary)";
+                                  const empName = l.user?.about ? `${l.user.about.firstName ?? ""} ${l.user.about.lastName ?? ""}`.trim() : l.user?.email ?? "";
+                                  return (
+                                    <div key={l._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
+                                          <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
+                                          <span className="shrink-0 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{l.days}d</span>
+                                        </div>
+                                        <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                                          {l.type || "Leave"}{l.isHalfDay ? " (½)" : ""} · {fmtDate(l.startDate)}{l.startDate !== l.endDate ? ` – ${fmtDate(l.endDate)}` : ""}{l.reason ? ` · ${l.reason}` : ""}
+                                        </p>
+                                      </div>
+                                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{l.status}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   ) : canViewTeam && deptFilter && !userId ? (
-                    <div className="flex flex-col items-center justify-center py-16">
-                      <div className="rounded-full p-4 mb-3" style={{ background: "var(--bg-grouped)" }}>
-                        <svg className="h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                      </div>
-                      <p className="text-sm font-semibold text-center" style={{ color: "var(--fg-secondary)" }}>Select an employee to view their leave details</p>
-                      <p className="text-xs mt-1 text-center max-w-xs" style={{ color: "var(--fg-tertiary)" }}>
-                        Department selected. Pick someone from the list below this department, or choose All Employees to return to your own leave data.
-                      </p>
-                    </div>
+                    (() => {
+                      const deptName = deptGroups.find((g) => g.id === deptFilter)?.title ?? "Department";
+                      const deptEmpIds = new Set(employees.filter((e) => deptFilter === "__none" ? !e.department : e.department?.id === deptFilter).map((e) => e._id));
+                      const deptLeaves = leaves.filter((l) => l.user?._id && deptEmpIds.has(l.user._id));
+                      const dApproved = deptLeaves.filter((l) => l.status === "approved");
+                      const dPending = deptLeaves.filter((l) => l.status === "pending");
+                      const dRejected = deptLeaves.filter((l) => l.status === "rejected");
+                      const dDays = dApproved.reduce((s, l) => s + (l.days ?? 0), 0);
+                      return (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>{deptEmpIds.size}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{deptName}</p>
+                              <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{deptEmpIds.size} employee{deptEmpIds.size !== 1 ? "s" : ""} · {selYear}</p>
+                            </div>
+                          </div>
+                          {deptLeaves.length === 0 ? (
+                            <p className="py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No leave records for this department in {selYear}.</p>
+                          ) : (
+                            <>
+                              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                                {([
+                                  ["Approved", `${dApproved.length}`, "var(--green)"],
+                                  ["Pending", `${dPending.length}`, "var(--amber)"],
+                                  ["Rejected", `${dRejected.length}`, "var(--rose)"],
+                                  ["Total Days", `${dDays}`, "var(--teal)"],
+                                ] as const).map(([k, v, c]) => (
+                                  <div key={k} className="rounded-xl p-2.5 text-center space-y-0.5" style={{ background: "var(--bg-grouped)" }}>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Recent leaves · {deptName}</p>
+                                <div className="max-h-[300px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                                  {deptLeaves.slice(0, 25).map((l) => {
+                                    const col = STATUS_COLORS[l.status] ?? "var(--fg-secondary)";
+                                    const empName = l.user?.about ? `${l.user.about.firstName ?? ""} ${l.user.about.lastName ?? ""}`.trim() : l.user?.email ?? "";
+                                    return (
+                                      <div key={l._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
+                                            <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
+                                          </div>
+                                          <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                                            {l.type || "Leave"} · {fmtDate(l.startDate)}{l.startDate !== l.endDate ? ` – ${fmtDate(l.endDate)}` : ""} · {l.days}d
+                                          </p>
+                                        </div>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{l.status}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          <p className="text-center text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Select an employee from the sidebar for individual details</p>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <>
                       {/* Selected employee header */}

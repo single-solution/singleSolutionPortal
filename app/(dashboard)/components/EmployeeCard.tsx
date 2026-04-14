@@ -286,7 +286,7 @@ export const EmployeeCard = memo(function EmployeeCard({
 
       {/* Absolute pills (top-right, higher z-index) */}
       {(showAttendance || showAttendanceDetail) && (
-        <div className="pointer-events-none absolute right-0 z-[100] flex items-center gap-1 hidden sm:flex" style={{ top: -13 }}>
+        <div className="pointer-events-none absolute right-0 z-20 flex items-center gap-1 hidden sm:flex" style={{ top: -13 }}>
           {showAttendanceDetail && <LatePill emp={emp} attendanceLoading={attendanceLoading} />}
           {showAttendance && <StatusPulsePill emp={emp} attendanceLoading={attendanceLoading} />}
         </div>

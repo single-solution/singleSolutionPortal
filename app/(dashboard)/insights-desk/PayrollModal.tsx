@@ -149,7 +149,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const [loading, setLoading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [detailTab, setDetailTab] = useState<DetailTab>("summary");
+  const [detailTab, setDetailTab] = useState<DetailTab>(selectedUserId ? "summary" : "report");
 
   const [yearData, setYearData] = useState<(EstimateData | null)[]>([]);
   const [yearLoading, setYearLoading] = useState(false);
