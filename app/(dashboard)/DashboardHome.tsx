@@ -788,6 +788,46 @@ function AdminDashboard({
   }, [flagsPayload]);
 
   const pendingTasks = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
+
+  const myTasks = useMemo(() => tasks.filter((t) => t.assignedTo?._id === user.id && t.status !== "completed"), [tasks, user.id]);
+  const myCompleted = useMemo(() => tasks.filter((t) => t.assignedTo?._id === user.id && t.status === "completed").length, [tasks, user.id]);
+  const myChecklists = useMemo(() => {
+    const items: { campaignId: string; campaignName: string; taskId: string; title: string; done: boolean }[] = [];
+    for (const c of campaigns) {
+      if (c.todayChecklist) {
+        for (const item of c.todayChecklist) items.push({ campaignId: c._id, campaignName: c.name, taskId: item._id, title: item.title, done: item.done });
+      }
+    }
+    return items;
+  }, [campaigns]);
+
+  const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
+  const [cyclingTask, setCyclingTask] = useState<string | null>(null);
+
+  const cycleTaskStatus = useCallback(async (task: ApiTask) => {
+    const nextMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
+    const next = nextMap[task.status] ?? "pending";
+    setCyclingTask(task._id);
+    try {
+      const res = await fetch(`/api/tasks/${task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+      if (res.ok) onRefreshFull();
+    } catch { /* ignore */ }
+    setCyclingTask(null);
+  }, [onRefreshFull]);
+
+  const toggleChecklist = useCallback(async (campaignId: string, taskId: string, currentDone: boolean) => {
+    setChecklistOverrides((prev) => new Map(prev).set(taskId, !currentDone));
+    try {
+      await fetch(`/api/campaigns/${campaignId}/checklist`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId, done: !currentDone }),
+      });
+      onRefreshFull();
+    } catch {
+      setChecklistOverrides((prev) => { const m = new Map(prev); m.delete(taskId); return m; });
+    }
+  }, [onRefreshFull]);
+
   const liveCount = otherEmps.filter((e) => e.isLive).length;
 
   const [pingSending, setPingSending] = useState<string | null>(null);
@@ -953,8 +993,8 @@ function AdminDashboard({
       </div>
         </motion.section>
 
-        {/* 3b. Bottom 2-column grid — Today's Snapshot + Needs Attention */}
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+        {/* 3b. Bottom 3-column grid — Today's Snapshot + My Tasks + Needs Attention */}
+        <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
           {/* Today's Snapshot */}
           <div className="card flex flex-col overflow-hidden p-3">
             <h3 className="mb-2 shrink-0 text-[12px] font-bold" style={{ color: "var(--fg)" }}>Today&apos;s Snapshot</h3>
@@ -1002,6 +1042,72 @@ function AdminDashboard({
               )}
               {!hasTeamAccess && !canViewTasks && !canViewCampaigns && (
                 <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No data to show</p>
+              )}
+            </div>
+          </div>
+
+          {/* My Tasks */}
+          <div className="card flex flex-col overflow-hidden p-3">
+            <div className="mb-2 flex shrink-0 items-center justify-between">
+              <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>My Tasks</h3>
+              <div className="flex items-center gap-1.5">
+                {myTasks.length > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{myTasks.length}</span>}
+                {myCompleted > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{myCompleted} done</span>}
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-0.5" style={{ scrollbarWidth: "thin" }}>
+              {myChecklists.length > 0 && (
+                <div className="mb-1.5">
+                  <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Today&apos;s Checklist</p>
+                  {myChecklists.map((item) => {
+                    const isDone = checklistOverrides.has(item.taskId) ? checklistOverrides.get(item.taskId)! : item.done;
+                    return (
+                      <button key={item.taskId} type="button" onClick={() => toggleChecklist(item.campaignId, item.taskId, isDone)}
+                        className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]">
+                        <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-all"
+                          style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent" }}>
+                          {isDone && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                        </span>
+                        <span className="text-[10px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
+                        <span className="text-[8px] shrink-0 truncate max-w-[60px]" style={{ color: "var(--fg-quaternary, var(--fg-tertiary))" }}>{item.campaignName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {myTasks.length > 0 && (
+                <div>
+                  {myChecklists.length > 0 && <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>One-time Tasks</p>}
+                  {myTasks.map((task) => {
+                    const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                    const statusLabel = task.status === "completed" ? "Done" : task.status === "inProgress" ? "Working" : "Pending";
+                    const isCycling = cyclingTask === task._id;
+                    return (
+                      <div key={task._id} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]"
+                        style={{ borderLeft: `2px solid ${statusColor}`, background: "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))" }}>
+                        <span className="text-[10px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
+                        <motion.button type="button" onClick={() => cycleTaskStatus(task)} disabled={isCycling}
+                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          className="inline-flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all"
+                          style={{ borderColor: `color-mix(in srgb, ${statusColor} 30%, transparent)`, background: `color-mix(in srgb, ${statusColor} 10%, transparent)`, color: statusColor, opacity: isCycling ? 0.5 : 1 }}
+                          title={`Click to change status`}>
+                          <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: statusColor }}>
+                            {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: statusColor }} />}
+                          </span>
+                          {statusLabel}
+                        </motion.button>
+                        {task.deadline && (() => {
+                          const dl = new Date(task.deadline).getTime();
+                          const isOverdue = dl < Date.now() && task.status !== "completed";
+                          return <span className="text-[8px] tabular-nums shrink-0" style={{ color: isOverdue ? "var(--rose)" : "var(--fg-tertiary)" }}>{new Date(task.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>;
+                        })()}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {myTasks.length === 0 && myChecklists.length === 0 && (
+                <p className="py-6 text-center text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned to you</p>
               )}
             </div>
           </div>
@@ -1099,7 +1205,24 @@ function AdminDashboard({
                                         {log.details && log.entity !== "security" && (
                                           <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
-                                        <span className="text-[9px] tabular-nums mt-1 block" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                          {log.entity === "task" && log.entityId && (() => {
+                                            const linkedTask = tasks.find((t) => t._id === log.entityId);
+                                            if (!linkedTask || linkedTask.status === "completed") return null;
+                                            const sc = linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                                            const sl = linkedTask.status === "inProgress" ? "Working" : "Pending";
+                                            return (
+                                              <motion.button type="button" onClick={() => cycleTaskStatus(linkedTask)}
+                                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[8px] font-semibold"
+                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 10%, transparent)`, color: sc }}>
+                                                <span className="h-1 w-1 rounded-full" style={{ background: sc }} />
+                                                {sl}
+                                              </motion.button>
+                                            );
+                                          })()}
+                                        </div>
             </div>
           </div>
                       </div>

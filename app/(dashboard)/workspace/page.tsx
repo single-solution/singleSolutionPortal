@@ -291,39 +291,47 @@ export default function WorkspacePage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [fTitle, setFTitle] = useState("");
   const [fDesc, setFDesc] = useState("");
-  const [fAssignee, setFAssignee] = useState("");
+  const [fAssignees, setFAssignees] = useState<string[]>([]);
   const [fCampaign, setFCampaign] = useState("");
   const [fPriority, setFPriority] = useState("medium");
   const [fDeadline, setFDeadline] = useState("");
-  const [fStatus, setFStatus] = useState("pending");
   const [fRecurFreq, setFRecurFreq] = useState<string>("");
   const [fRecurDays, setFRecurDays] = useState<number[]>([]);
   const [taskSaving, setTaskSaving] = useState(false);
   const [fParentTask, setFParentTask] = useState("");
 
   function openCreateTask(campaignId: string, parentTaskId?: string) {
-    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignee(""); setFCampaign(campaignId); setFPriority("medium"); setFDeadline(""); setFStatus("pending"); setFRecurFreq(""); setFRecurDays([]); setFParentTask(parentTaskId ?? ""); setTaskModalOpen(true);
+    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignees([]); setFCampaign(campaignId); setFPriority("medium"); setFDeadline(""); setFRecurFreq(""); setFRecurDays([]); setFParentTask(parentTaskId ?? ""); setTaskModalOpen(true);
   }
   function openEditTask(t: Task) {
-    setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignee(t.assignedTo?._id ?? ""); setFCampaign(t.campaign?._id ?? ""); setFPriority(t.priority); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : ""); setFStatus(t.status);
+    setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignees(t.assignedTo?._id ? [t.assignedTo._id] : []); setFCampaign(t.campaign?._id ?? ""); setFPriority(t.priority); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : "");
     setFRecurFreq(t.recurrence?.frequency ?? ""); setFRecurDays(t.recurrence?.days ?? []); setFParentTask(t.parentTask ?? "");
     setTaskModalOpen(true);
   }
   async function handleSaveTask() {
-    if (!fTitle.trim()) return;
+    if (!fTitle.trim() || fAssignees.length === 0) return;
     setTaskSaving(true);
     try {
-      const payload: Record<string, unknown> = { title: fTitle.trim(), description: fDesc, priority: fPriority, status: fStatus, assignedTo: fAssignee || undefined, campaign: fCampaign || null, deadline: fDeadline || undefined };
-      if (fParentTask) payload.parentTask = fParentTask;
+      const basePayload: Record<string, unknown> = { title: fTitle.trim(), description: fDesc, priority: fPriority, status: "pending", campaign: fCampaign || null, deadline: fDeadline || undefined };
+      if (fParentTask) basePayload.parentTask = fParentTask;
       if (fRecurFreq && fRecurDays.length > 0) {
-        payload.recurrence = { frequency: fRecurFreq, days: fRecurDays };
+        basePayload.recurrence = { frequency: fRecurFreq, days: fRecurDays };
       } else {
-        payload.recurrence = null;
+        basePayload.recurrence = null;
       }
-      const res = editingTask
-        ? await fetch(`/api/tasks/${editingTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-        : await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save task"); return; }
+
+      if (editingTask) {
+        const payload = { ...basePayload, assignedTo: fAssignees[0] };
+        const res = await fetch(`/api/tasks/${editingTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save task"); setTaskSaving(false); return; }
+      } else {
+        const results = await Promise.all(fAssignees.map((assigneeId) =>
+          fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...basePayload, assignedTo: assigneeId }) })
+        ));
+        const failed = results.filter((r) => !r.ok);
+        if (failed.length > 0) { toast.error(`Failed to create ${failed.length} of ${fAssignees.length} task(s)`); }
+      }
+
       setTaskModalOpen(false);
       if (fParentTask && !editingTask) {
         await loadSubtasks(fParentTask);
@@ -602,7 +610,7 @@ export default function WorkspacePage() {
       )}
 
       {/* ── main + feed ── */}
-      <div className="flex min-h-0 flex-1 gap-4">
+      <div className="flex min-h-0 flex-1 gap-4" style={{ containerType: "size" }}>
         {/* ── campaign card grid ── */}
         <div className="min-w-0 min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
           {loading ? (
@@ -657,7 +665,7 @@ export default function WorkspacePage() {
                 return (
                   <motion.div key={c._id} variants={cardVariants} custom={ci}
                     className="card-xl overflow-hidden flex flex-col transition-opacity"
-                    style={{ opacity: isInactive ? 0.5 : 1, minHeight: 200, maxHeight: "calc(50vh - 24px)" }}>
+                    style={{ opacity: isInactive ? 0.5 : 1, minHeight: 200, maxHeight: "50cqh" }}>
                     {/* ── card header ── */}
                     <div className="flex items-center gap-1.5 px-2.5 py-2">
                       <div className="min-w-0 flex-1">
@@ -946,7 +954,24 @@ export default function WorkspacePage() {
                                         {log.details && (
                                           <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
-                                        <span className="text-[9px] tabular-nums mt-1 block" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                          {log.entity === "task" && log.entityId && (() => {
+                                            const linkedTask = taskList.find((t) => t._id === log.entityId);
+                                            if (!linkedTask || linkedTask.status === "completed") return null;
+                                            const sc = linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                                            const sl = linkedTask.status === "inProgress" ? "Working" : "Pending";
+                                            return (
+                                              <motion.button type="button" onClick={() => cycleTaskStatus(linkedTask)}
+                                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[8px] font-semibold"
+                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 10%, transparent)`, color: sc }}>
+                                                <span className="h-1 w-1 rounded-full" style={{ background: sc }} />
+                                                {sl}
+                                              </motion.button>
+                                            );
+                                          })()}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -972,7 +997,7 @@ export default function WorkspacePage() {
         subtitle={editingTask ? "Update task details." : "Create and assign a task."}
         maxWidth="max-w-md"
         footer={<>
-          <motion.button type="button" onClick={handleSaveTask} disabled={taskSaving || !fTitle.trim()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">{taskSaving ? "Saving…" : editingTask ? "Update" : "Create"}</motion.button>
+          <motion.button type="button" onClick={handleSaveTask} disabled={taskSaving || !fTitle.trim() || fAssignees.length === 0} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary flex-1">{taskSaving ? "Saving…" : editingTask ? "Update" : fAssignees.length > 1 ? `Create ${fAssignees.length} Tasks` : "Create"}</motion.button>
           <button type="button" onClick={() => setTaskModalOpen(false)} className="btn btn-secondary flex-1">Cancel</button>
         </>}
       >
@@ -980,19 +1005,24 @@ export default function WorkspacePage() {
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label><textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)} rows={2} className="input" /></div>
         {canReassignTasks && allEmployees.length > 0 && (() => {
           const camp = fCampaign ? campaignList.find((c) => c._id === fCampaign) : null;
-          const taggedIds = camp ? new Set(camp.tags.employees.map((e) => e._id)) : null;
-          const assignable = taggedIds ? allEmployees.filter((e) => taggedIds.has(e._id)) : allEmployees;
-          return (
-            <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Assign To{taggedIds ? <span className="font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>({assignable.length} in campaign)</span> : ""}</label><select value={fAssignee} onChange={(e) => setFAssignee(e.target.value)} className="input" required><option value="">Select…</option>{assignable.map((o) => <option key={o._id} value={o._id}>{o.label}</option>)}</select></div>
-          );
+          const assignable = camp ? allEmployees.filter((e) => camp.tags.employees.some((te) => te._id === e._id)) : allEmployees;
+          return assignable.length > 0 ? (
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">
+                Assign To
+                <span className="font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>({fAssignees.length}/{assignable.length})</span>
+              </label>
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                {assignable.map((e) => (
+                  <button key={e._id} type="button"
+                    onClick={() => setFAssignees((prev) => prev.includes(e._id) ? prev.filter((id) => id !== e._id) : [...prev, e._id])}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${fAssignees.includes(e._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                    style={fAssignees.includes(e._id) ? { background: "var(--purple)" } : { background: "var(--bg-grouped)" }}>{e.label}</button>
+                ))}
+              </div>
+            </div>
+          ) : <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No employees tagged in this campaign.</p>;
         })()}
-        <div>
-          <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Campaign</label>
-          <select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} className="input" disabled={!!fCampaign && !editingTask}>
-            <option value="">None</option>
-            {campaignList.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
-          </select>
-        </div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Priority</label><select value={fPriority} onChange={(e) => setFPriority(e.target.value)} className="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Deadline</label><input type="date" value={fDeadline} onChange={(e) => setFDeadline(e.target.value)} className="input" /></div>
@@ -1000,13 +1030,16 @@ export default function WorkspacePage() {
         {!fParentTask && (
           <div>
             <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Recurrence</label>
-            <select value={fRecurFreq} onChange={(e) => { setFRecurFreq(e.target.value); setFRecurDays([]); }} className="input">
-              <option value="">One-time (no recurrence)</option>
-              <option value="weekly">Weekly — pick days of the week</option>
-              <option value="monthly">Monthly — pick dates of the month</option>
-            </select>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {([["", "One-time"], ["weekly", "Weekly"], ["monthly", "Monthly"]] as const).map(([val, label]) => (
+                <button key={val} type="button"
+                  onClick={() => { setFRecurFreq(val); setFRecurDays([]); }}
+                  className="rounded-lg px-3 py-1.5 text-[11px] font-semibold border transition-all"
+                  style={{ background: fRecurFreq === val ? "var(--primary)" : "var(--bg-grouped)", color: fRecurFreq === val ? "white" : "var(--fg-secondary)", borderColor: fRecurFreq === val ? "var(--primary)" : "var(--border)" }}>{label}</button>
+              ))}
+            </div>
             {fRecurFreq === "weekly" && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
+              <div className="flex flex-wrap gap-1.5">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, idx) => (
                   <button key={idx} type="button"
                     onClick={() => setFRecurDays((prev) => prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx])}
@@ -1016,7 +1049,7 @@ export default function WorkspacePage() {
               </div>
             )}
             {fRecurFreq === "monthly" && (
-              <div className="flex flex-wrap gap-1 mt-2">
+              <div className="flex flex-wrap gap-1">
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                   <button key={d} type="button"
                     onClick={() => setFRecurDays((prev) => prev.includes(d) ? prev.filter((v) => v !== d) : [...prev, d])}
@@ -1026,9 +1059,6 @@ export default function WorkspacePage() {
               </div>
             )}
           </div>
-        )}
-        {editingTask && (
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="input"><option value="pending">Pending</option><option value="inProgress">In Progress</option><option value="completed">Completed</option></select></div>
         )}
       </ModalShell>
 

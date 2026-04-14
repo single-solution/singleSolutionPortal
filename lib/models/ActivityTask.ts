@@ -14,7 +14,7 @@ export interface IActivityTask extends Document {
   title: string;
   slug: string;
   description?: string;
-  assignedTo: Types.ObjectId;
+  assignedTo: Types.ObjectId[];
   campaign?: Types.ObjectId;
   parentTask?: Types.ObjectId;
   order: number;
@@ -55,7 +55,7 @@ const activityTaskSchema = new Schema<IActivityTask>(
     title: { type: String, required: true, trim: true },
     slug: { type: String, unique: true },
     description: { type: String, default: "" },
-    assignedTo: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    assignedTo: [{ type: Schema.Types.ObjectId, ref: "User" }],
     campaign: { type: Schema.Types.ObjectId, ref: "Campaign" },
     parentTask: { type: Schema.Types.ObjectId, ref: "ActivityTask", default: null },
     order: { type: Number, default: 0 },
