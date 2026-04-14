@@ -154,6 +154,10 @@ const LOG_ENTITY_LABELS: Record<string, string> = {
   attendance: "Attendance", leave: "Leave", payroll: "Payroll", security: "Security",
   settings: "Settings", auth: "Auth",
 };
+const LOG_ENTITY_PRIORITY: Record<string, number> = {
+  task: 0, campaign: 1, attendance: 2, employee: 3, leave: 4,
+  department: 5, payroll: 6, settings: 7, security: 8, auth: 9,
+};
 function logAvatarLabel(log: LogEntry) {
   const n = (log.userName || "").trim();
   if (n) { const parts = n.split(/\s+/).filter(Boolean); return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : (parts[0]?.slice(0, 2) ?? "?").toUpperCase(); }
@@ -531,6 +535,56 @@ function matchPresenceFilter(status: PresenceStatus, f: PresenceFilter): boolean
   return status === f;
 }
 
+function NeedsAttentionItems({ tasks, canViewTasks, emps, hasTeamAccess, flagStats, taskQuickStats }: {
+  tasks: ApiTask[];
+  canViewTasks: boolean;
+  emps: PresenceEmployee[];
+  hasTeamAccess: boolean;
+  flagStats: { total: number; warnings: number; violations: number } | null;
+  taskQuickStats: { total: number; pending: number; inProg: number; dueSoon: number; dueThisWeek: number; overdue: number; overdueHU: number; overdue7d: number } | null;
+}) {
+  const items: { key: string; icon: React.ReactNode; label: string; detail: string; color: string }[] = [];
+
+  if (canViewTasks && taskQuickStats) {
+    if (taskQuickStats.overdue > 0) items.push({ key: "overdue", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>, label: `${taskQuickStats.overdue} overdue task${taskQuickStats.overdue !== 1 ? "s" : ""}`, detail: taskQuickStats.overdueHU > 0 ? `${taskQuickStats.overdueHU} high/urgent` : "", color: "var(--rose)" });
+    if (taskQuickStats.dueSoon > 0) items.push({ key: "duesoon", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, label: `${taskQuickStats.dueSoon} task${taskQuickStats.dueSoon !== 1 ? "s" : ""} due within 48h`, detail: "", color: "var(--amber)" });
+  }
+
+  if (hasTeamAccess) {
+    const absent = emps.filter((e) => e.status === "absent").length;
+    if (absent > 0) items.push({ key: "absent", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>, label: `${absent} absent today`, detail: "", color: "var(--fg-tertiary)" });
+    const late = emps.filter((e) => e.lateBy && e.lateBy > 0).length;
+    if (late > 0) items.push({ key: "late", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, label: `${late} late arrival${late !== 1 ? "s" : ""}`, detail: "", color: "var(--amber)" });
+  }
+
+  if (flagStats && flagStats.total > 0) {
+    items.push({ key: "flags", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>, label: `${flagStats.total} location flag${flagStats.total !== 1 ? "s" : ""}`, detail: flagStats.violations > 0 ? `${flagStats.violations} violation${flagStats.violations !== 1 ? "s" : ""}` : "", color: "var(--rose)" });
+  }
+
+  if (canViewTasks) {
+    const unassigned = tasks.filter((t) => t.status !== "completed" && !t.assignedTo).length;
+    if (unassigned > 0) items.push({ key: "unassigned", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>, label: `${unassigned} unassigned task${unassigned !== 1 ? "s" : ""}`, detail: "", color: "var(--fg-secondary)" });
+  }
+
+  if (items.length === 0) {
+    return <p className="py-4 text-center text-caption" style={{ color: "var(--green)" }}>All clear! Nothing needs attention.</p>;
+  }
+
+  return (
+    <>
+      {items.map((item) => (
+        <div key={item.key} className="flex items-center gap-2.5 rounded-lg px-2.5 py-2" style={{ background: `color-mix(in srgb, ${item.color} 6%, transparent)` }}>
+          <span className="shrink-0" style={{ color: item.color }}>{item.icon}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold" style={{ color: item.color }}>{item.label}</p>
+            {item.detail && <p className="text-[9px]" style={{ color: item.color, opacity: 0.7 }}>{item.detail}</p>}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function AdminDashboard({
   user,
   presenceEmps,
@@ -642,6 +696,9 @@ function AdminDashboard({
     if (autoOpenedRef.current || logGroups.size === 0) return;
     autoOpenedRef.current = true;
     const sorted = Array.from(logGroups.entries()).sort((a, b) => {
+      const pa = LOG_ENTITY_PRIORITY[a[0]] ?? 50;
+      const pb = LOG_ENTITY_PRIORITY[b[0]] ?? 50;
+      if (pa !== pb) return pa - pb;
       if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
       return b[1].logs.length - a[1].logs.length;
     });
@@ -824,7 +881,7 @@ function AdminDashboard({
             </LayoutGroup>
           )}
         </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarWidth: "thin" }}>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 pt-4" style={{ scrollbarWidth: "thin" }}>
             {presenceLoading && filteredPresence.length === 0 ? (
               <div className="grid grid-cols-3 gap-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -887,70 +944,64 @@ function AdminDashboard({
       </div>
         </motion.section>
 
-        {/* 3b. Bottom 2-column grid — Pending Tasks + Active Campaigns */}
+        {/* 3b. Bottom 2-column grid — Today's Snapshot + Needs Attention */}
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-          {/* Pending Tasks */}
+          {/* Today's Snapshot */}
           <div className="card flex flex-col overflow-hidden p-3">
-            <div className="mb-2 flex shrink-0 items-center justify-between">
-              <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Pending Tasks</h3>
-              {canViewTasks && <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--amber)" }}>{pendingTasks.length}</span>}
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-              {!canViewTasks ? (
-                <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No access</p>
-              ) : pendingTasks.length === 0 ? (
-                <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>All caught up!</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {pendingTasks.slice(0, 15).map((t) => {
-                    const dl = t.deadline ? new Date(t.deadline) : null;
-                    const overdue = dl && dl < new Date();
-                    return (
-                      <div key={t._id} className="flex items-start gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[11px] font-medium" style={{ color: "var(--fg)" }}>{t.title}</p>
-                          {t.campaign && typeof t.campaign === "object" && <p className="truncate text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{t.campaign.name}</p>}
-                        </div>
-                        {dl && (
-                          <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: overdue ? "color-mix(in srgb, var(--rose) 10%, transparent)" : "var(--bg-elevated)", color: overdue ? "var(--rose)" : "var(--fg-tertiary)" }}>
-                            {dl.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
+            <h3 className="mb-2 shrink-0 text-[12px] font-bold" style={{ color: "var(--fg)" }}>Today&apos;s Snapshot</h3>
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-2" style={{ scrollbarWidth: "thin" }}>
+              {hasTeamAccess && teamTodayStats && !presenceLoading && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { label: "Present", value: `${teamTodayStats.pctPresent}%`, color: "var(--green)" },
+                    { label: "In Office", value: `${teamTodayStats.pctInOffice}%`, color: "var(--teal)" },
+                    { label: "Avg Hours", value: formatMinutes(teamTodayStats.avgMins), color: "var(--primary)" },
+                    { label: "Office / Remote", value: `${teamTodayStats.officePct}% / ${100 - teamTodayStats.officePct}%`, color: "var(--fg-secondary)" },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                      <p className="text-[8px] font-semibold uppercase" style={{ color: s.color }}>{s.label}</p>
+                      <p className="text-[13px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{s.value}</p>
+                    </div>
+                  ))}
                 </div>
+              )}
+              {canViewTasks && taskQuickStats && (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { label: "Tasks", value: taskQuickStats.total, color: "var(--fg-secondary)" },
+                    { label: "Pending", value: taskQuickStats.pending, color: "var(--amber)" },
+                    { label: "In Progress", value: taskQuickStats.inProg, color: "var(--primary)" },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                      <p className="text-[8px] font-semibold uppercase" style={{ color: s.color }}>{s.label}</p>
+                      <p className="text-[13px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {canViewCampaigns && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                    <p className="text-[8px] font-semibold uppercase" style={{ color: "var(--teal)" }}>Active Campaigns</p>
+                    <p className="text-[13px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{campaigns.filter((c) => c.status === "active").length}</p>
+                  </div>
+                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                    <p className="text-[8px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Total Campaigns</p>
+                    <p className="text-[13px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{campaigns.length}</p>
+                  </div>
+                </div>
+              )}
+              {!hasTeamAccess && !canViewTasks && !canViewCampaigns && (
+                <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No data to show</p>
               )}
             </div>
           </div>
-          {/* Active Campaigns */}
+
+          {/* Needs Attention */}
           <div className="card flex flex-col overflow-hidden p-3">
-            <div className="mb-2 flex shrink-0 items-center justify-between">
-              <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Active Campaigns</h3>
-              <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--teal)" }}>{campaigns.filter((c) => c.status === "active").length}</span>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-              {campaigns.filter((c) => c.status === "active").length === 0 ? (
-                <p className="py-4 text-center text-caption" style={{ color: "var(--fg-tertiary)" }}>No active campaigns</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {campaigns.filter((c) => c.status === "active").map((c) => {
-                    const empCount = c.tags?.employees?.length ?? 0;
-                    const tStats = c.taskStats;
-                    return (
-                      <div key={c._id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[11px] font-medium" style={{ color: "var(--fg)" }}>{c.name}</p>
-                        </div>
-                        <div className="flex shrink-0 gap-1">
-                          {empCount > 0 && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "var(--bg-elevated)", color: "var(--fg-tertiary)" }}>{empCount} users</span>}
-                          {tStats && tStats.total > 0 && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "var(--bg-elevated)", color: "var(--primary)" }}>{tStats.total} tasks</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            <h3 className="mb-2 shrink-0 text-[12px] font-bold" style={{ color: "var(--fg)" }}>Needs Attention</h3>
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-1.5" style={{ scrollbarWidth: "thin" }}>
+              <NeedsAttentionItems tasks={tasks} canViewTasks={canViewTasks} emps={otherEmps} hasTeamAccess={hasTeamAccess} flagStats={flagStats} taskQuickStats={taskQuickStats} />
             </div>
           </div>
         </div>
@@ -984,6 +1035,9 @@ function AdminDashboard({
                 <div className="flex flex-1 min-h-0 flex-col gap-1 p-2">
                   {Array.from(logGroups.entries())
                     .sort((a, b) => {
+                      const pa = LOG_ENTITY_PRIORITY[a[0]] ?? 50;
+                      const pb = LOG_ENTITY_PRIORITY[b[0]] ?? 50;
+                      if (pa !== pb) return pa - pb;
                       if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
                       return b[1].logs.length - a[1].logs.length;
                     })

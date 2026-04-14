@@ -203,7 +203,11 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (wsAutoOpenedRef.current || wsLogGroups.size === 0) return;
     wsAutoOpenedRef.current = true;
+    const WS_PRIORITY: Record<string, number> = { task: 0, campaign: 1 };
     const sorted = Array.from(wsLogGroups.entries()).sort((a, b) => {
+      const pa = WS_PRIORITY[a[0]] ?? 50;
+      const pb = WS_PRIORITY[b[0]] ?? 50;
+      if (pa !== pb) return pa - pb;
       if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
       return b[1].logs.length - a[1].logs.length;
     });
@@ -897,6 +901,10 @@ export default function WorkspacePage() {
                 <div className="flex flex-1 min-h-0 flex-col gap-1 p-2">
                   {Array.from(wsLogGroups.entries())
                     .sort((a, b) => {
+                      const WS_P: Record<string, number> = { task: 0, campaign: 1 };
+                      const pa = WS_P[a[0]] ?? 50;
+                      const pb = WS_P[b[0]] ?? 50;
+                      if (pa !== pb) return pa - pb;
                       if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
                       return b[1].logs.length - a[1].logs.length;
                     })
