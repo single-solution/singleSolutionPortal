@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { Portal } from "../components/Portal";
+import { useCachedState } from "@/lib/useQuery";
 
 /* ───── Interfaces ───── */
 
@@ -141,21 +142,21 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const canManageSalary = canPerm("payroll_manageSalary");
 
   const now = new Date();
-  const [employees, setEmployees] = useState<DropdownEmp[]>([]);
+  const [employees, setEmployees] = useCachedState<DropdownEmp[]>("$payroll/employees", []);
   const [sidebarLoading, setSidebarLoading] = useState(false);
   const [userId, setUserId] = useState(selectedUserId || "");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
   const [selYear, setSelYear] = useState(now.getFullYear());
-  const [estimate, setEstimate] = useState<EstimateData | null>(null);
+  const [estimate, setEstimate] = useCachedState<EstimateData | null>("$payroll/estimate", null);
   const [loading, setLoading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [detailTab, setDetailTab] = useState<DetailTab>(selectedUserId ? "summary" : "overview");
 
-  const [yearData, setYearData] = useState<(EstimateData | null)[]>([]);
+  const [yearData, setYearData] = useCachedState<(EstimateData | null)[]>("$payroll/yearData", []);
   const [yearLoading, setYearLoading] = useState(false);
-  const [payrollSheet, setPayrollSheet] = useState<PayrollSheet | null>(null);
+  const [payrollSheet, setPayrollSheet] = useCachedState<PayrollSheet | null>("$payroll/sheet", null);
   const [sheetLoading, setSheetLoading] = useState(false);
 
   const detailRef = useRef<HTMLDivElement>(null);

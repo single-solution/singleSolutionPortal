@@ -7,6 +7,7 @@ import { usePermissions } from "@/lib/usePermissions";
 import { Portal } from "../components/Portal";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import toast from "react-hot-toast";
+import { useCachedState } from "@/lib/useQuery";
 
 interface DropdownEmp {
   _id: string;
@@ -101,13 +102,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const { can: canPerm, isSuperAdmin } = usePermissions();
   const canViewTeam = canPerm("leaves_viewTeam");
 
-  const [employees, setEmployees] = useState<DropdownEmp[]>([]);
+  const [employees, setEmployees] = useCachedState<DropdownEmp[]>("$leaves/employees", []);
   const [sidebarLoading, setSidebarLoading] = useState(false);
   const [userId, setUserId] = useState(selectedUserId || "");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
-  const [balance, setBalance] = useState<BalancePayload | null>(null);
+  const [balance, setBalance] = useCachedState<BalancePayload | null>("$leaves/balance", null);
   const [balLoading, setBalLoading] = useState(false);
-  const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
+  const [leaves, setLeaves] = useCachedState<LeaveRecord[]>("$leaves/records", []);
   const [leavesLoading, setLeavesLoading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [selYear, setSelYear] = useState(new Date().getFullYear());

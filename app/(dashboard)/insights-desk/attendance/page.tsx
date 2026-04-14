@@ -10,6 +10,7 @@ import { attendanceTour } from "@/lib/tourConfigs";
 import { Pill as SharedPill, StatChip as SharedStatChip } from "../../components/StatChips";
 import { timeAgo } from "@/lib/formatters";
 import { useInsightsContext } from "../layout";
+import { useCachedState } from "@/lib/useQuery";
 
 /* ───── Types ───── */
 
@@ -160,35 +161,35 @@ export default function AttendancePage() {
   const { setTeamCount, openLeavesModal, setPagePills } = useInsightsContext();
 
   /* ── Team overview state ── */
-  const [teamSummary, setTeamSummary] = useState<TeamMonthlySummary[]>([]);
-  const [teamLoading, setTeamLoading] = useState(true);
+  const [teamSummary, setTeamSummary] = useCachedState<TeamMonthlySummary[]>("$att/teamSummary", []);
+  const [teamLoading, setTeamLoading] = useState(teamSummary.length === 0);
   const [scopeDept, setScopeDept] = useState("all");
   const [pillSearch, setPillSearch] = useState("");
 
   /* ── Individual state ── */
   const [viewingUserId, setViewingUserId] = useState<string>("");
-  const [records, setRecords] = useState<DailyRecord[]>([]);
+  const [records, setRecords] = useCachedState<DailyRecord[]>("$att/records", []);
   const [loading, setLoading] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [detailData, setDetailData] = useState<DetailData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
-  const [selfMonthlyStats, setSelfMonthlyStats] = useState<MonthlyStats | null>(null);
+  const [monthlyStats, setMonthlyStats] = useCachedState<MonthlyStats | null>("$att/monthlyStats", null);
+  const [selfMonthlyStats, setSelfMonthlyStats] = useCachedState<MonthlyStats | null>("$att/selfMonthlyStats", null);
 
   /* ── Team date state ── */
   const [teamDateData, setTeamDateData] = useState<TeamDateRecord[]>([]);
   const [teamDateLoading, setTeamDateLoading] = useState(false);
 
   /* ── Holidays for calendar highlighting ── */
-  const [calendarHolidays, setCalendarHolidays] = useState<{ date: string }[]>([]);
+  const [calendarHolidays, setCalendarHolidays] = useCachedState<{ date: string }[]>("$att/holidays", []);
 
   /* ── Leaves for calendar + list ── */
-  const [calendarLeaves, setCalendarLeaves] = useState<LeaveRecord[]>([]);
+  const [calendarLeaves, setCalendarLeaves] = useCachedState<LeaveRecord[]>("$att/leaves", []);
 
   /* ── Leave balance for summary card ── */
-  const [leaveBalance, setLeaveBalance] = useState<{ total: number; used: number; remaining: number } | null>(null);
+  const [leaveBalance, setLeaveBalance] = useCachedState<{ total: number; used: number; remaining: number } | null>("$att/leaveBalance", null);
 
   const userIdParam = viewingUserId || "";
   const hasSelectedEmployee = !!viewingUserId;

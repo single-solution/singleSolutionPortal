@@ -22,7 +22,7 @@ import { useGuide } from "@/lib/useGuide";
 import { usePermissions } from "@/lib/usePermissions";
 import { useLive } from "@/lib/useLive";
 import { dashboardTour } from "@/lib/tourConfigs";
-import { useQuery } from "@/lib/useQuery";
+import { useQuery, useCachedState } from "@/lib/useQuery";
 import { timeAgo } from "@/lib/formatters";
 import {
   getTodaySchedule,
@@ -1304,17 +1304,18 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
 /* ──────────────────────── MAIN EXPORT ──────────────────────── */
 
 export default function DashboardHome({ user }: { user: User }) {
-  const [employees, setEmployees] = useState<ApiEmployee[]>([]);
-  const [tasks, setTasks] = useState<ApiTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useCachedState<ApiEmployee[]>("$dash/employees", []);
+  const [tasks, setTasks] = useCachedState<ApiTask[]>("$dash/tasks", []);
+  const [realPresence, setRealPresence] = useCachedState<PresenceEmployee[] | null>("$dash/presence", null);
+  const [personalAttendance, setPersonalAttendance] = useCachedState<PersonalAttendance | null>("$dash/personalAttendance", null);
+  const [campaigns, setCampaigns] = useCachedState<ApiCampaign[]>("$dash/campaigns", []);
+  const [weeklyRecords, setWeeklyRecords] = useCachedState<WeeklyDay[]>("$dash/weeklyRecords", []);
+  const [monthlyStats, setMonthlyStats] = useCachedState<FullMonthlyStats | null>("$dash/monthlyStats", null);
+  const [userProfile, setUserProfile] = useCachedState<UserProfile | null>("$dash/userProfile", null);
+  const [companyTz, setCompanyTz] = useCachedState<string>("$dash/companyTz", "Asia/Karachi");
 
-  const [realPresence, setRealPresence] = useState<PresenceEmployee[] | null>(null);
-  const [personalAttendance, setPersonalAttendance] = useState<PersonalAttendance | null>(null);
-  const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
-  const [weeklyRecords, setWeeklyRecords] = useState<WeeklyDay[]>([]);
-  const [monthlyStats, setMonthlyStats] = useState<FullMonthlyStats | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [companyTz, setCompanyTz] = useState("Asia/Karachi");
+  const hasCachedData = employees.length > 0 || campaigns.length > 0 || tasks.length > 0;
+  const [loading, setLoading] = useState(!hasCachedData);
 
   const isSuperAdmin = user.isSuperAdmin === true;
   const { can: canPermRoot, hasSubordinates } = usePermissions();
