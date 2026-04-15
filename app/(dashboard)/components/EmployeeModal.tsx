@@ -828,7 +828,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                     <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>No user selected</p>
                   </div>
                 ) : (
-                  <>
+                  <AnimatePresence mode="wait">
+                  <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }} className="space-y-3">
 
                       {tab === "overview" && (() => {
                         const sFirstArrival = sessL ? "—" : sess?.firstEntry ? (sess.firstEntry.includes("T") ? new Date(sess.firstEntry).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true }) : sess.firstEntry) : "—";
@@ -2177,8 +2178,9 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           </section>
                         </div>
                       )}
-                    </>
-                  )}
+                  </motion.div>
+                  </AnimatePresence>
+                )}
                 </div>
               </div>
             </motion.div>

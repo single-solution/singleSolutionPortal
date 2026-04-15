@@ -86,7 +86,7 @@ interface PayrollSheet {
   employees: SheetEmpRow[];
 }
 
-type AllTab = "overview" | "employees" | "insights";
+type AllTab = "overview" | "employees";
 type EmpTab = "summary" | "daily" | "year";
 type DetailTab = AllTab | EmpTab;
 
@@ -238,7 +238,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   }, [canViewTeam, selMonth, selYear]);
 
   useEffect(() => {
-    const isAllTab = detailTab === "overview" || detailTab === "employees" || detailTab === "insights";
+    const isAllTab = detailTab === "overview" || detailTab === "employees";
     if (open && isAllTab) loadPayrollSheet();
   }, [open, detailTab, loadPayrollSheet]);
 
@@ -853,11 +853,11 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                       {/* ── Tabs — mode-aware ── */}
                       <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
                         {(allMode
-                          ? (["overview", "employees", "insights"] as AllTab[]).map((t) => (
+                          ? (["overview", "employees"] as AllTab[]).map((t) => (
                               <button key={t} type="button" onClick={() => setDetailTab(t)}
                                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${detailTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                               >
-                                {t === "overview" ? "Overview" : t === "employees" ? "Employees" : "Insights"}
+                                {t === "overview" ? "Overview" : "Employees"}
                               </button>
                             ))
                           : (["summary", "daily", "year"] as EmpTab[]).map((t) => (
@@ -1154,6 +1154,111 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   const deptName = deptGroups.find((g) => g.id === deptFilter)?.title ?? "Department";
                                   return <p className="text-[10px] font-semibold rounded-lg px-2.5 py-1" style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)", color: "var(--primary)" }}>Filtered: {deptName}</p>;
                                 })()}
+
+                                {/* ── Insights (merged) ── */}
+                                {teamSheetStats && (
+                                  <>
+                                    <div className="mt-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Team Insights · {MN[selMonth - 1]} {selYear}</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Attendance</p>
+                                        <p className="text-lg font-bold" style={{ color: "var(--green)" }}>{teamSheetStats.teamAvgAttendancePct}%</p>
+                                      </div>
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Overtime</p>
+                                        <p className="text-lg font-bold" style={{ color: teamSheetStats.teamTotalOvertimeHours > 0 ? "var(--teal)" : "var(--fg)" }}>{teamSheetStats.teamTotalOvertimeHours.toFixed(1)}h</p>
+                                      </div>
+                                      {teamSheetStats.teamAvgNetPay != null && (
+                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Net Pay</p>
+                                          <p className="text-lg font-bold" style={{ color: "var(--primary)" }}>{fmt(Math.round(teamSheetStats.teamAvgNetPay))}</p>
+                                        </div>
+                                      )}
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero Deduction</p>
+                                        <p className="text-lg font-bold" style={{ color: "var(--green)" }}>{teamSheetStats.zeroDeductionEmployees}</p>
+                                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
+                                      </div>
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>With Overtime</p>
+                                        <p className="text-lg font-bold" style={{ color: teamSheetStats.overtimeEmployees > 0 ? "var(--teal)" : "var(--fg-tertiary)" }}>{teamSheetStats.overtimeEmployees}</p>
+                                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
+                                      </div>
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Late Days</p>
+                                        <p className="text-lg font-bold" style={{ color: teamSheetStats.avgLateDays > 0 ? "var(--amber)" : "var(--fg)" }}>{teamSheetStats.avgLateDays}</p>
+                                      </div>
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Absence Days</p>
+                                        <p className="text-lg font-bold" style={{ color: teamSheetStats.avgAbsenceDays > 0 ? "var(--rose)" : "var(--fg)" }}>{teamSheetStats.avgAbsenceDays}</p>
+                                      </div>
+                                      {teamSheetStats.avgSalary != null && (
+                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Salary</p>
+                                          <p className="text-lg font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.avgSalary)}</p>
+                                        </div>
+                                      )}
+                                      {teamSheetStats.medianSalary != null && (
+                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Median Salary</p>
+                                          <p className="text-lg font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.medianSalary)}</p>
+                                        </div>
+                                      )}
+                                      {teamSheetStats.salaryRange != null && (
+                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary Range</p>
+                                          <p className="text-lg font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.salaryRange)}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highlights</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                      {teamSheetStats.highestPaid && (
+                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Paid</p>
+                                          <p className="text-xs font-bold truncate" style={{ color: "var(--primary)" }}>{teamSheetStats.highestPaid.name}</p>
+                                          <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestPaid.salary)}</p>
+                                        </div>
+                                      )}
+                                      {teamSheetStats.lowestPaid && (
+                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Paid</p>
+                                          <p className="text-xs font-bold truncate" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.lowestPaid.name}</p>
+                                          <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestPaid.salary)}</p>
+                                        </div>
+                                      )}
+                                      {teamSheetStats.highestDed && teamSheetStats.highestDed.totalDeductions > 0 && (
+                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Deductions</p>
+                                          <p className="text-xs font-bold truncate" style={{ color: "var(--rose)" }}>{teamSheetStats.highestDed.name}</p>
+                                          <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestDed.totalDeductions)}</p>
+                                        </div>
+                                      )}
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Attendance</p>
+                                        <p className="text-xs font-bold truncate" style={{ color: "var(--green)" }}>{teamSheetStats.bestAttendanceName}</p>
+                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.bestAttendancePct}%</p>
+                                      </div>
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Attendance</p>
+                                        <p className="text-xs font-bold truncate" style={{ color: "var(--rose)" }}>{teamSheetStats.worstAttendanceName}</p>
+                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.worstAttendancePct}%</p>
+                                      </div>
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Most Late Days</p>
+                                        <p className="text-xs font-bold truncate" style={{ color: teamSheetStats.mostLateDays > 0 ? "var(--amber)" : "var(--fg)" }}>{teamSheetStats.mostLateName}</p>
+                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.mostLateDays} days</p>
+                                      </div>
+                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Net Pay</p>
+                                        <p className="text-xs font-bold truncate" style={{ color: "var(--primary)" }}>{teamSheetStats.lowestNetName}</p>
+                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestNet)}</p>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
                               </>
                             )}
                           </motion.div>
@@ -1207,119 +1312,6 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   </div>
                                 </div>
                               </div>
-                            )}
-                          </motion.div>
-                        )}
-
-                        {/* ═══════ ALL-EMPLOYEES: INSIGHTS TAB ═══════ */}
-                        {detailTab === "insights" && (
-                          <motion.div key="all-insights" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15 }} className="space-y-4">
-                            {sheetLoading ? (
-                              <div className="space-y-3">
-                                <div className="grid grid-cols-3 gap-2">{[1,2,3,4,5,6,7,8,9].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
-                              </div>
-                            ) : !teamSheetStats ? (
-                              <div className="py-8 text-center"><p className="text-xs font-medium" style={{ color: "var(--fg-tertiary)" }}>No insight data available.</p></div>
-                            ) : (
-                              <>
-                                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Team Insights · {MN[selMonth - 1]} {selYear}</p>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Attendance</p>
-                                    <p className="text-lg font-bold" style={{ color: "var(--green)" }}>{teamSheetStats.teamAvgAttendancePct}%</p>
-                                  </div>
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Overtime</p>
-                                    <p className="text-lg font-bold" style={{ color: teamSheetStats.teamTotalOvertimeHours > 0 ? "var(--teal)" : "var(--fg)" }}>{teamSheetStats.teamTotalOvertimeHours.toFixed(1)}h</p>
-                                  </div>
-                                  {teamSheetStats.teamAvgNetPay != null && (
-                                    <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Net Pay</p>
-                                      <p className="text-lg font-bold" style={{ color: "var(--primary)" }}>{fmt(Math.round(teamSheetStats.teamAvgNetPay))}</p>
-                                    </div>
-                                  )}
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero Deduction</p>
-                                    <p className="text-lg font-bold" style={{ color: "var(--green)" }}>{teamSheetStats.zeroDeductionEmployees}</p>
-                                    <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
-                                  </div>
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>With Overtime</p>
-                                    <p className="text-lg font-bold" style={{ color: teamSheetStats.overtimeEmployees > 0 ? "var(--teal)" : "var(--fg-tertiary)" }}>{teamSheetStats.overtimeEmployees}</p>
-                                    <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
-                                  </div>
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Late Days</p>
-                                    <p className="text-lg font-bold" style={{ color: teamSheetStats.avgLateDays > 0 ? "var(--amber)" : "var(--fg)" }}>{teamSheetStats.avgLateDays}</p>
-                                  </div>
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Absence Days</p>
-                                    <p className="text-lg font-bold" style={{ color: teamSheetStats.avgAbsenceDays > 0 ? "var(--rose)" : "var(--fg)" }}>{teamSheetStats.avgAbsenceDays}</p>
-                                  </div>
-                                  {teamSheetStats.avgSalary != null && (
-                                    <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Salary</p>
-                                      <p className="text-lg font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.avgSalary)}</p>
-                                    </div>
-                                  )}
-                                  {teamSheetStats.medianSalary != null && (
-                                    <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Median Salary</p>
-                                      <p className="text-lg font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.medianSalary)}</p>
-                                    </div>
-                                  )}
-                                  {teamSheetStats.salaryRange != null && (
-                                    <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary Range</p>
-                                      <p className="text-lg font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.salaryRange)}</p>
-                                    </div>
-                                  )}
-                                </div>
-                                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highlights</p>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                  {teamSheetStats.highestPaid && (
-                                    <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Paid</p>
-                                      <p className="text-xs font-bold truncate" style={{ color: "var(--primary)" }}>{teamSheetStats.highestPaid.name}</p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestPaid.salary)}</p>
-                                    </div>
-                                  )}
-                                  {teamSheetStats.lowestPaid && (
-                                    <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Paid</p>
-                                      <p className="text-xs font-bold truncate" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.lowestPaid.name}</p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestPaid.salary)}</p>
-                                    </div>
-                                  )}
-                                  {teamSheetStats.highestDed && teamSheetStats.highestDed.totalDeductions > 0 && (
-                                    <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Deductions</p>
-                                      <p className="text-xs font-bold truncate" style={{ color: "var(--rose)" }}>{teamSheetStats.highestDed.name}</p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestDed.totalDeductions)}</p>
-                                    </div>
-                                  )}
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Attendance</p>
-                                    <p className="text-xs font-bold truncate" style={{ color: "var(--green)" }}>{teamSheetStats.bestAttendanceName}</p>
-                                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.bestAttendancePct}%</p>
-                                  </div>
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Attendance</p>
-                                    <p className="text-xs font-bold truncate" style={{ color: "var(--rose)" }}>{teamSheetStats.worstAttendanceName}</p>
-                                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.worstAttendancePct}%</p>
-                                  </div>
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Most Late Days</p>
-                                    <p className="text-xs font-bold truncate" style={{ color: teamSheetStats.mostLateDays > 0 ? "var(--amber)" : "var(--fg)" }}>{teamSheetStats.mostLateName}</p>
-                                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.mostLateDays} days</p>
-                                  </div>
-                                  <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Net Pay</p>
-                                    <p className="text-xs font-bold truncate" style={{ color: "var(--primary)" }}>{teamSheetStats.lowestNetName}</p>
-                                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestNet)}</p>
-                                  </div>
-                                </div>
-                              </>
                             )}
                           </motion.div>
                         )}

@@ -18,6 +18,7 @@ import { EmployeeCard } from "./components/EmployeeCard";
 import { ScopeStrip } from "./components/ScopeStrip";
 import { RefreshBtn } from "./components/ui";
 import { EmployeeModal } from "./components/EmployeeModal";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { useGuide } from "@/lib/useGuide";
 import { usePermissions } from "@/lib/usePermissions";
 import { useLive } from "@/lib/useLive";
@@ -96,6 +97,8 @@ interface PresenceEmployee {
   designation: string;
   department: string;
   departmentId: string | null;
+  parentDepartment: string;
+  reportsTo: string | null;
   status: PresenceStatus;
   todayMinutes: number;
   officeMinutes: number;
@@ -798,29 +801,46 @@ function AdminDashboard({
   const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
   const [cyclingTask, setCyclingTask] = useState<string | null>(null);
 
-  const cycleTaskStatus = useCallback(async (task: ApiTask) => {
-    const nextMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
-    const next = nextMap[task.status] ?? "pending";
-    setCyclingTask(task._id);
-    try {
-      const res = await fetch(`/api/tasks/${task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
-      if (res.ok) onRefreshFull();
-    } catch { /* ignore */ }
-    setCyclingTask(null);
-  }, [onRefreshFull]);
+  const dashStatusLabels: Record<string, string> = { pending: "Pending", inProgress: "Working", completed: "Done" };
+  const dashNextStatusMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
 
-  const toggleChecklist = useCallback(async (campaignId: string, taskId: string, currentDone: boolean) => {
-    setChecklistOverrides((prev) => new Map(prev).set(taskId, !currentDone));
+  const [dashStatusConfirm, setDashStatusConfirm] = useState<{ type: "task"; task: ApiTask; next: string; label: string } | { type: "checklist"; campaignId: string; taskId: string; title: string; currentDone: boolean } | null>(null);
+  const [dashStatusUpdating, setDashStatusUpdating] = useState(false);
+
+  const requestCycleTask = useCallback((task: ApiTask) => {
+    const next = dashNextStatusMap[task.status] ?? "pending";
+    setDashStatusConfirm({ type: "task", task, next, label: dashStatusLabels[next] ?? next });
+  }, []);
+
+  const requestToggleChecklist = useCallback((campaignId: string, taskId: string, title: string, currentDone: boolean) => {
+    setDashStatusConfirm({ type: "checklist", campaignId, taskId, title, currentDone });
+  }, []);
+
+  const handleDashStatusConfirm = useCallback(async () => {
+    if (!dashStatusConfirm) return;
+    setDashStatusUpdating(true);
     try {
-      await fetch(`/api/campaigns/${campaignId}/checklist`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId, done: !currentDone }),
-      });
-      onRefreshFull();
-    } catch {
-      setChecklistOverrides((prev) => { const m = new Map(prev); m.delete(taskId); return m; });
-    }
-  }, [onRefreshFull]);
+      if (dashStatusConfirm.type === "task") {
+        setCyclingTask(dashStatusConfirm.task._id);
+        const res = await fetch(`/api/tasks/${dashStatusConfirm.task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: dashStatusConfirm.next }) });
+        if (res.ok) onRefreshFull();
+        setCyclingTask(null);
+      } else {
+        setChecklistOverrides((prev) => new Map(prev).set(dashStatusConfirm.taskId, !dashStatusConfirm.currentDone));
+        try {
+          await fetch(`/api/campaigns/${dashStatusConfirm.campaignId}/checklist`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: dashStatusConfirm.taskId, done: !dashStatusConfirm.currentDone }),
+          });
+          onRefreshFull();
+        } catch {
+          setChecklistOverrides((prev) => { const m = new Map(prev); m.delete(dashStatusConfirm.taskId); return m; });
+        }
+      }
+    } catch { /* ignore */ }
+    setDashStatusConfirm(null);
+    setDashStatusUpdating(false);
+  }, [dashStatusConfirm, onRefreshFull]);
 
   const liveCount = otherEmps.filter((e) => e.isLive).length;
 
@@ -856,60 +876,160 @@ function AdminDashboard({
             <div className="mb-1.5 flex shrink-0 items-center justify-between">
               <h3 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>My Tasks</h3>
               <div className="flex items-center gap-1.5">
-                {myTasks.length > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{myTasks.length}</span>}
-                {myCompleted > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{myCompleted} done</span>}
+                {(myTasks.length + myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length) > 0 && (
+                  <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>
+                    {myTasks.length + myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length} pending
+                  </span>
+                )}
+                {(myCompleted + myChecklists.filter((cl) => checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done).length) > 0 && (
+                  <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+                    {myCompleted + myChecklists.filter((cl) => checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done).length} done
+                  </span>
+                )}
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto space-y-0.5" style={{ scrollbarWidth: "thin" }}>
-              {myChecklists.length > 0 && (
-                <div className="mb-1">
-                  <p className="text-[8px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Checklist</p>
-                  {myChecklists.map((item) => {
-                    const isDone = checklistOverrides.has(item.taskId) ? checklistOverrides.get(item.taskId)! : item.done;
+              {(() => {
+                type UnifiedItem = { key: string; kind: "checklist"; campaignId: string; taskId: string; title: string; done: boolean } | { key: string; kind: "task"; task: ApiTask };
+                const unified: UnifiedItem[] = [
+                  ...myChecklists.map((item) => ({ key: `cl-${item.taskId}`, kind: "checklist" as const, campaignId: item.campaignId, taskId: item.taskId, title: item.title, done: checklistOverrides.has(item.taskId) ? checklistOverrides.get(item.taskId)! : item.done })),
+                  ...myTasks.map((t) => ({ key: `tk-${t._id}`, kind: "task" as const, task: t })),
+                ];
+                const isDoneItem = (item: UnifiedItem) => item.kind === "checklist" ? item.done : item.task.status === "completed";
+                unified.sort((a, b) => {
+                  const ad = isDoneItem(a) ? 1 : 0;
+                  const bd = isDoneItem(b) ? 1 : 0;
+                  return ad - bd;
+                });
+
+                if (unified.length === 0) return <p className="py-4 text-center text-[9px]" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned to you</p>;
+
+                return unified.map((item) => {
+                  if (item.kind === "checklist") {
+                    const isDone = item.done;
                     return (
-                      <button key={item.taskId} type="button" onClick={() => toggleChecklist(item.campaignId, item.taskId, isDone)}
-                        className="flex w-full items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]">
-                        <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded border transition-all"
-                          style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent" }}>
-                          {isDone && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                      <button key={item.key} type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, isDone)}
+                        className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-all hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]"
+                        style={{
+                          borderLeft: isDone ? "2px solid var(--teal)" : "2px solid var(--amber)",
+                          background: isDone ? "color-mix(in srgb, var(--teal) 5%, transparent)" : "transparent",
+                          opacity: isDone ? 0.7 : 1,
+                        }}>
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md border-2 transition-all"
+                          style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent", boxShadow: isDone ? "0 0 4px color-mix(in srgb, var(--teal) 25%, transparent)" : "none" }}>
+                          {isDone && (
+                            <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+                              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
+                              <path d="M20 6L9 17l-5-5" />
+                            </motion.svg>
+                          )}
                         </span>
-                        <span className="text-[9px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
+                        <span className="text-[9px] flex-1 truncate transition-all" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : "none", textDecorationColor: isDone ? "var(--teal)" : undefined }}>{item.title}</span>
+                        {isDone
+                          ? <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[7px] font-bold" style={{ background: "color-mix(in srgb, var(--teal) 14%, transparent)", color: "var(--teal)" }}>✓</span>
+                          : <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[7px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>○</span>
+                        }
                       </button>
                     );
-                  })}
-                </div>
-              )}
-              {myTasks.length > 0 && (
-                <div>
-                  {myChecklists.length > 0 && <p className="text-[8px] font-bold uppercase tracking-wider px-1 mb-0.5 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>}
-                  {myTasks.map((task) => {
-                    const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                    const statusLabel = task.status === "completed" ? "Done" : task.status === "inProgress" ? "Working" : "Pending";
-                    const isCycling = cyclingTask === task._id;
-                    return (
-                      <div key={task._id} className="flex items-center gap-1.5 rounded-lg px-1 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]"
-                        style={{ borderLeft: `2px solid ${statusColor}`, background: "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))" }}>
-                        <span className="text-[9px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
-                        <motion.button type="button" onClick={() => cycleTaskStatus(task)} disabled={isCycling}
-                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                          className="inline-flex items-center gap-1 shrink-0 rounded-full border px-1.5 py-px text-[8px] font-semibold transition-all"
-                          style={{ borderColor: `color-mix(in srgb, ${statusColor} 30%, transparent)`, background: `color-mix(in srgb, ${statusColor} 10%, transparent)`, color: statusColor, opacity: isCycling ? 0.5 : 1 }}>
-                          <span className="relative h-1 w-1 rounded-full" style={{ background: statusColor }}>
-                            {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: statusColor }} />}
-                          </span>
-                          {statusLabel}
-                        </motion.button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {myTasks.length === 0 && myChecklists.length === 0 && (
-                <p className="py-4 text-center text-[9px]" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned to you</p>
-              )}
+                  }
+                  const { task } = item;
+                  const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                  const statusLabel = task.status === "completed" ? "Done" : task.status === "inProgress" ? "Working" : "Pending";
+                  const isCycling = cyclingTask === task._id;
+                  const isCompleted = task.status === "completed";
+                  return (
+                    <div key={item.key} className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-all hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]"
+                      style={{ borderLeft: `2px solid ${statusColor}`, background: isCompleted ? "color-mix(in srgb, var(--teal) 5%, transparent)" : "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))", opacity: isCompleted ? 0.7 : 1 }}>
+                      <span className="text-[9px] font-medium flex-1 truncate" style={{ color: isCompleted ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isCompleted ? "line-through" : undefined, textDecorationColor: isCompleted ? "var(--teal)" : undefined }}>{task.title}</span>
+                      <motion.button type="button" onClick={() => requestCycleTask(task)} disabled={isCycling}
+                        whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
+                        className="inline-flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all"
+                        style={{ borderColor: `color-mix(in srgb, ${statusColor} 30%, transparent)`, background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor, opacity: isCycling ? 0.5 : 1, cursor: "pointer" }}>
+                        <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: statusColor }}>
+                          {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: statusColor }} />}
+                        </span>
+                        {statusLabel}
+                        <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+                      </motion.button>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </motion.div>
               </div>
+      )}
+
+      {/* 2-SA. My Tasks for SuperAdmin (no self-overview row) */}
+      {isSuperAdmin && (myTasks.length > 0 || myChecklists.length > 0) && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="card shrink-0 mb-3 flex flex-col overflow-hidden p-3" style={{ maxHeight: 160 }}>
+          <div className="mb-1.5 flex shrink-0 items-center justify-between">
+            <h3 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>My Tasks</h3>
+            <div className="flex items-center gap-1.5">
+              {myTasks.length > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{myTasks.length}</span>}
+              {myCompleted > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-bold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{myCompleted} done</span>}
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto flex flex-wrap gap-1" style={{ scrollbarWidth: "thin" }}>
+            {(() => {
+              type SAItem = { key: string; kind: "checklist"; campaignId: string; taskId: string; title: string; done: boolean } | { key: string; kind: "task"; task: ApiTask };
+              const saUnified: SAItem[] = [
+                ...myChecklists.map((item) => ({ key: `cl-${item.taskId}`, kind: "checklist" as const, campaignId: item.campaignId, taskId: item.taskId, title: item.title, done: checklistOverrides.has(item.taskId) ? checklistOverrides.get(item.taskId)! : item.done })),
+                ...myTasks.map((t) => ({ key: `tk-${t._id}`, kind: "task" as const, task: t })),
+              ];
+              const saIsDone = (i: SAItem) => i.kind === "checklist" ? i.done : i.task.status === "completed";
+              saUnified.sort((a, b) => (saIsDone(a) ? 1 : 0) - (saIsDone(b) ? 1 : 0));
+
+              return saUnified.map((item) => {
+                if (item.kind === "checklist") {
+                  const isDone = item.done;
+                  return (
+                    <button key={item.key} type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, isDone)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[9px] font-medium transition-all"
+                      style={{
+                        borderColor: isDone ? "var(--teal)" : "var(--border)",
+                        background: isDone ? "color-mix(in srgb, var(--teal) 8%, transparent)" : "var(--bg-grouped)",
+                        color: isDone ? "var(--fg-tertiary)" : "var(--fg)",
+                        textDecoration: isDone ? "line-through" : undefined,
+                        textDecorationColor: isDone ? "var(--teal)" : undefined,
+                        opacity: isDone ? 0.7 : 1,
+                      }}>
+                      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-md border-2 transition-all"
+                        style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent", boxShadow: isDone ? "0 0 4px color-mix(in srgb, var(--teal) 25%, transparent)" : "none" }}>
+                        {isDone && (
+                          <motion.svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+                            initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
+                            <path d="M20 6L9 17l-5-5" />
+                          </motion.svg>
+                        )}
+                      </span>
+                      {item.title}
+                    </button>
+                  );
+                }
+                const { task } = item;
+                const sc = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                const sl = task.status === "completed" ? "Done" : task.status === "inProgress" ? "Working" : "Pending";
+                const isCycling = cyclingTask === task._id;
+                const isComp = task.status === "completed";
+                return (
+                  <div key={item.key} className="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[9px] font-medium"
+                    style={{ borderLeft: `2px solid ${sc}`, borderColor: "var(--border)", background: isComp ? "color-mix(in srgb, var(--teal) 8%, transparent)" : "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))", opacity: isComp ? 0.7 : 1 }}>
+                    <span className="truncate max-w-[140px]" style={{ color: isComp ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isComp ? "line-through" : undefined, textDecorationColor: isComp ? "var(--teal)" : undefined }}>{task.title}</span>
+                    <motion.button type="button" onClick={() => requestCycleTask(task)} disabled={isCycling}
+                      whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
+                      className="inline-flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-semibold"
+                      style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc, opacity: isCycling ? 0.5 : 1, cursor: "pointer" }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: sc }} />
+                      {sl}
+                      <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+                    </motion.button>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </motion.div>
       )}
 
       {/* 2b. Quick stat pills */}
@@ -1022,7 +1142,7 @@ function AdminDashboard({
                         showCampaigns={canViewCampaigns}
                         emp={{
                           _id: emp._id, username: emp.username, firstName: emp.firstName, lastName: emp.lastName, email: emp.email,
-                          designation: emp.designation, department: emp.department, isLive: emp.isLive, status: emp.status,
+                          designation: emp.designation, department: emp.department, parentDepartment: emp.parentDepartment, reportsTo: emp.reportsTo, isLive: emp.isLive, status: emp.status,
                           locationFlagged: emp.locationFlagged, flagReason: emp.flagReason, flagCoords: emp.flagCoords,
                           firstEntry: emp.firstEntry ?? undefined, firstOfficeEntry: emp.firstOfficeEntry ?? undefined,
                           lastOfficeExit: emp.lastOfficeExit ?? undefined, lastExit: emp.lastExit ?? undefined,
@@ -1194,16 +1314,20 @@ function AdminDashboard({
                                           <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                                           {log.entity === "task" && log.entityId && (() => {
                                             const linkedTask = tasks.find((t) => t._id === log.entityId);
-                                            if (!linkedTask || linkedTask.status === "completed") return null;
-                                            const sc = linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                                            const sl = linkedTask.status === "inProgress" ? "Working" : "Pending";
+                                            if (!linkedTask) return null;
+                                            const sc = linkedTask.status === "completed" ? "var(--teal)" : linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                                            const sl = linkedTask.status === "completed" ? "Done" : linkedTask.status === "inProgress" ? "Working" : "Pending";
+                                            const canAct = linkedTask.status !== "completed";
                                             return (
-                                              <motion.button type="button" onClick={() => cycleTaskStatus(linkedTask)}
-                                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                                                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[8px] font-semibold"
-                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 10%, transparent)`, color: sc }}>
-                                                <span className="h-1 w-1 rounded-full" style={{ background: sc }} />
+                                              <motion.button type="button" onClick={canAct ? () => requestCycleTask(linkedTask) : undefined} disabled={!canAct}
+                                                whileHover={canAct ? { scale: 1.06 } : undefined} whileTap={canAct ? { scale: 0.94 } : undefined}
+                                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all disabled:cursor-default"
+                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc, cursor: canAct ? "pointer" : "default" }}>
+                                                <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: sc }}>
+                                                  {linkedTask.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: sc }} />}
+                                                </span>
                                                 {sl}
+                                                {canAct && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>}
                                               </motion.button>
                                             );
                                           })()}
@@ -1237,6 +1361,24 @@ function AdminDashboard({
         )}
       </AnimatePresence>
       <EmployeeModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} initialEmployeeId={empModalId} />
+
+      {/* ── status change confirm ── */}
+      <ConfirmDialog
+        open={!!dashStatusConfirm}
+        title={dashStatusConfirm?.type === "task"
+          ? `Mark as ${dashStatusConfirm.label}?`
+          : dashStatusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
+        description={dashStatusConfirm?.type === "task"
+          ? `Change "${dashStatusConfirm.task.title}" status to ${dashStatusConfirm.label}.`
+          : dashStatusConfirm?.currentDone
+            ? `Unmark "${dashStatusConfirm?.title}" as completed for today.`
+            : `Mark "${dashStatusConfirm?.title}" as completed for today.`}
+        confirmLabel={dashStatusConfirm?.type === "task" ? dashStatusConfirm.label : dashStatusConfirm?.currentDone ? "Undo" : "Done"}
+        variant={dashStatusConfirm?.type === "task" && dashStatusConfirm.next === "pending" ? "warning" : "default"}
+        loading={dashStatusUpdating}
+        onConfirm={handleDashStatusConfirm}
+        onCancel={() => setDashStatusConfirm(null)}
+      />
     </div>
   );
 }
@@ -1451,9 +1593,11 @@ export default function DashboardHome({ user }: { user: User }) {
         firstName: p.firstName,
         lastName: p.lastName,
         email: p.email ?? "",
-        designation: p.isSuperAdmin ? "System Administrator" : "",
-        department: p.department,
+        designation: p.isSuperAdmin ? "System Administrator" : (p.designation ?? ""),
+        department: p.department ?? "",
         departmentId: p.departmentId ?? null,
+        parentDepartment: p.parentDepartment ?? "",
+        reportsTo: p.reportsTo ?? null,
         status: p.status as PresenceStatus,
         todayMinutes: p.todayMinutes,
         officeMinutes: p.officeMinutes ?? 0,
@@ -1667,9 +1811,23 @@ export default function DashboardHome({ user }: { user: User }) {
       firstName: e.about?.firstName ?? "",
       lastName: e.about?.lastName ?? "",
       email: e.email ?? "",
-      designation: e.isSuperAdmin ? "System Administrator" : "",
-      department: (e.department as { title?: string })?.title ?? "Unassigned",
-      departmentId: (e.department as { _id?: string })?._id ?? null,
+      designation: e.isSuperAdmin ? "System Administrator" : (() => {
+        const mems = (e as unknown as { memberships?: { designation?: { name?: string } }[] }).memberships;
+        return mems?.find((m) => m.designation?.name)?.designation?.name ?? "";
+      })(),
+      department: (() => {
+        const mems = (e as unknown as { memberships?: { department?: { title?: string } }[] }).memberships;
+        return mems?.find((m) => m.department?.title)?.department?.title ?? "";
+      })(),
+      departmentId: (() => {
+        const mems = (e as unknown as { memberships?: { department?: { _id?: string } }[] }).memberships;
+        return mems?.find((m) => m.department?._id)?.department?._id ?? null;
+      })(),
+      parentDepartment: (() => {
+        const mems = (e as unknown as { memberships?: { department?: { parentDepartment?: { title?: string } } }[] }).memberships;
+        return mems?.find((m) => m.department?.parentDepartment?.title)?.department?.parentDepartment?.title ?? "";
+      })(),
+      reportsTo: null,
       status: "absent" as PresenceStatus,
       todayMinutes: 0,
       officeMinutes: 0,

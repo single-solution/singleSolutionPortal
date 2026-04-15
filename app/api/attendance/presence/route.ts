@@ -1,6 +1,8 @@
 import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
+import Membership from "@/lib/models/Membership";
+import FlowLayout from "@/lib/models/FlowLayout";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User, { resolveWeeklySchedule, type Weekday } from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
@@ -44,7 +46,7 @@ export async function GET() {
 
   const empIds = employees.map((e) => e._id);
 
-  const [activeSessions, dailyRecords, sessionAgg] = await Promise.all([
+  const [activeSessions, dailyRecords, sessionAgg, memberships, flowLayout] = await Promise.all([
     ActivitySession.find({
       user: { $in: empIds },
       sessionDate: today,
@@ -62,7 +64,39 @@ export async function GET() {
         lastEnd: { $max: { $ifNull: ["$sessionTime.end", "$lastActivity"] } },
       }},
     ]),
+    Membership.find({ user: { $in: empIds }, isActive: true })
+      .populate("designation", "name color")
+      .populate({ path: "department", select: "title parentDepartment", populate: { path: "parentDepartment", select: "title" } })
+      .lean(),
+    FlowLayout.findOne({ canvasId: "org" }).lean(),
   ]);
+
+  /* ── Build per-employee maps for membership data ── */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const membershipsByUser = new Map<string, any[]>();
+  for (const m of memberships) {
+    const uid = m.user.toString();
+    if (!membershipsByUser.has(uid)) membershipsByUser.set(uid, []);
+    membershipsByUser.get(uid)!.push(m);
+  }
+
+  const empLinks = ((flowLayout as { links?: { source: string; target: string; sourceHandle: string; targetHandle: string }[] })?.links ?? []);
+  const empNameMap = new Map(employees.map((e) => [e._id.toString(), `${e.about.firstName} ${e.about.lastName}`.trim()]));
+  const reportsToMap = new Map<string, string>();
+  for (const link of empLinks) {
+    if (link.source.startsWith("emp-") && link.target.startsWith("emp-") && link.sourceHandle === "bottom" && link.targetHandle === "top") {
+      const subordinateId = link.target.slice(4);
+      const managerId = link.source.slice(4);
+      const managerName = empNameMap.get(managerId);
+      if (managerName) reportsToMap.set(subordinateId, managerName);
+    }
+    if (link.source.startsWith("emp-") && link.target.startsWith("emp-") && link.sourceHandle === "top" && link.targetHandle === "bottom") {
+      const subordinateId = link.source.slice(4);
+      const managerId = link.target.slice(4);
+      const managerName = empNameMap.get(managerId);
+      if (managerName) reportsToMap.set(subordinateId, managerName);
+    }
+  }
 
   const STALE_MS = 3 * 60 * 1000;
   const nowMs = Date.now();
@@ -120,6 +154,14 @@ export async function GET() {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const e = emp as any;
 
+    const userMemberships = membershipsByUser.get(id) ?? [];
+    const primaryMembership = userMemberships[0];
+    const desName = primaryMembership?.designation?.name ?? "";
+    const deptObj = primaryMembership?.department as { _id?: unknown; title?: string; parentDepartment?: { title?: string } } | undefined;
+    const deptTitle = deptObj?.title ?? "";
+    const deptId = deptObj?._id?.toString() ?? null;
+    const parentDeptTitle = deptObj?.parentDepartment?.title ?? "";
+
     return {
       _id: id,
       username: e.username ?? "",
@@ -157,6 +199,11 @@ export async function GET() {
         ? { lat: active.location.latitude, lng: active.location.longitude }
         : null,
       isActive: true,
+      designation: desName,
+      department: deptTitle,
+      departmentId: deptId,
+      parentDepartment: parentDeptTitle,
+      reportsTo: reportsToMap.get(id) ?? null,
     };
   });
 

@@ -4,6 +4,96 @@ import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Portal } from "./Portal";
 
+/* ─── PageTransition — wraps page content with a subtle entrance ─── */
+
+const pageEnter = { opacity: 1, y: 0, filter: "blur(0px)" };
+const pageInit = { opacity: 0, y: 10, filter: "blur(2px)" };
+const pageTrans = { duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
+
+export function PageTransition({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <motion.div initial={pageInit} animate={pageEnter} transition={pageTrans} className={className}>
+      {children}
+    </motion.div>
+  );
+}
+
+/* ─── FadeIn — lightweight reveal for individual sections ─── */
+
+export function FadeIn({ children, delay = 0, className, y = 8 }: { children: ReactNode; delay?: number; className?: string; y?: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay, ease: [0.22, 1, 0.36, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ─── StaggerList — auto-staggers children ─── */
+
+export function StaggerList({ children, className, staggerMs = 50 }: { children: ReactNode; className?: string; staggerMs?: number }) {
+  return (
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: staggerMs / 1000 } } }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+export function StaggerItem({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <motion.div
+      variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } } }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ─── AnimatedNumber — smooth count transitions ─── */
+
+export function AnimatedNumber({ value, className, style }: { value: number; className?: string; style?: React.CSSProperties }) {
+  return (
+    <motion.span
+      key={value}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      className={className}
+      style={{ ...style, fontVariantNumeric: "tabular-nums", display: "inline-block" }}
+    >
+      {value}
+    </motion.span>
+  );
+}
+
+/* ─── TabContent — AnimatePresence wrapper for tab switches ─── */
+
+export function TabContent({ activeKey, children }: { activeKey: string; children: ReactNode }) {
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={activeKey}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 /* ─── RefreshBtn ─── */
 
 export function RefreshBtn({ onRefresh }: { onRefresh: () => void }) {

@@ -107,6 +107,7 @@ function StatusDot({ status }: { status: string }) {
 function TaskStatusToggle({ task, canChange, onCycle }: { task: Task; canChange: boolean; onCycle: () => void }) {
   const states: TaskStatus[] = ["pending", "inProgress", "completed"];
   const idx = states.indexOf(task.status);
+  const nextLabel = { pending: "Start", inProgress: "Complete", completed: "Reopen" }[task.status] ?? "Start";
   const labels: Record<string, { short: string; color: string }> = {
     pending: { short: "Pending", color: "var(--amber)" },
     inProgress: { short: "Working", color: "var(--primary)" },
@@ -114,15 +115,17 @@ function TaskStatusToggle({ task, canChange, onCycle }: { task: Task; canChange:
   };
   const s = labels[task.status] ?? labels.pending;
   return (
-    <button type="button" disabled={!canChange} onClick={canChange ? onCycle : undefined}
-      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all disabled:cursor-default"
-      style={{ borderColor: `color-mix(in srgb, ${s.color} 30%, transparent)`, background: `color-mix(in srgb, ${s.color} 10%, transparent)`, color: s.color }}
-      title={canChange ? `Click to change (${states[(idx + 1) % 3]})` : task.status}>
-      <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: s.color }}>
+    <motion.button type="button" disabled={!canChange} onClick={canChange ? onCycle : undefined}
+      whileHover={canChange ? { scale: 1.06 } : undefined} whileTap={canChange ? { scale: 0.94 } : undefined}
+      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-all disabled:cursor-default"
+      style={{ borderColor: `color-mix(in srgb, ${s.color} 30%, transparent)`, background: `color-mix(in srgb, ${s.color} 12%, transparent)`, color: s.color, cursor: canChange ? "pointer" : "default" }}
+      title={canChange ? `Click to ${nextLabel}` : task.status}>
+      <span className="relative h-2 w-2 rounded-full" style={{ background: s.color }}>
         {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: s.color }} />}
       </span>
       {s.short}
-    </button>
+      {canChange && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>}
+    </motion.button>
   );
 }
 
@@ -245,18 +248,6 @@ export default function WorkspacePage() {
 
   /* ── checklist state for recurring tasks ── */
   const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
-  const toggleChecklist = useCallback(async (campaignId: string, taskId: string, currentDone: boolean) => {
-    setChecklistOverrides((prev) => new Map(prev).set(taskId, !currentDone));
-    try {
-      await fetch(`/api/campaigns/${campaignId}/checklist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId }),
-      });
-    } catch {
-      setChecklistOverrides((prev) => { const n = new Map(prev); n.delete(taskId); return n; });
-    }
-  }, []);
 
   /* ── admin overview state for expanded campaigns ── */
   const [overviewData, setOverviewData] = useState<{ dates: string[]; tasks: { _id: string; title: string; frequency: string }[]; employees: OverviewEmployee[] } | null>(null);
@@ -392,13 +383,41 @@ export default function WorkspacePage() {
     setDeleting(false);
   }
 
-  /* ── quick status update ── */
-  async function cycleTaskStatus(task: Task) {
-    const nextMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
-    const next = nextMap[task.status] ?? "pending";
-    const res = await fetch(`/api/tasks/${task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
-    if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to update status"); return; }
-    await refetchTasks();
+  /* ── quick status update with confirmation ── */
+  const statusLabels: Record<string, string> = { pending: "Pending", inProgress: "Working", completed: "Done" };
+  const nextStatusMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
+
+  const [statusConfirm, setStatusConfirm] = useState<{ type: "task"; task: Task; next: string; label: string } | { type: "checklist"; campaignId: string; taskId: string; title: string; currentDone: boolean } | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+
+  function requestCycleTask(task: Task) {
+    const next = nextStatusMap[task.status] ?? "pending";
+    setStatusConfirm({ type: "task", task, next, label: statusLabels[next] ?? next });
+  }
+
+  function requestToggleChecklist(campaignId: string, taskId: string, title: string, currentDone: boolean) {
+    setStatusConfirm({ type: "checklist", campaignId, taskId, title, currentDone });
+  }
+
+  async function handleStatusConfirm() {
+    if (!statusConfirm) return;
+    setStatusUpdating(true);
+    try {
+      if (statusConfirm.type === "task") {
+        const res = await fetch(`/api/tasks/${statusConfirm.task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: statusConfirm.next }) });
+        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to update status"); setStatusUpdating(false); return; }
+        await refetchTasks();
+      } else {
+        setChecklistOverrides((prev) => new Map(prev).set(statusConfirm.taskId, !statusConfirm.currentDone));
+        try {
+          await fetch(`/api/campaigns/${statusConfirm.campaignId}/checklist`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: statusConfirm.taskId }) });
+        } catch {
+          setChecklistOverrides((prev) => { const n = new Map(prev); n.delete(statusConfirm.taskId); return n; });
+        }
+      }
+    } catch { toast.error("Network error"); }
+    setStatusConfirm(null);
+    setStatusUpdating(false);
   }
 
   /* ── build campaign → tasks map ── */
@@ -714,16 +733,60 @@ export default function WorkspacePage() {
                           <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring</p>
                           {todayChecklist.map((item) => {
                             const isDone = checklistOverrides.has(item._id) ? checklistOverrides.get(item._id)! : item.done;
+                            const fullTask = taskList.find((t) => t._id === item._id);
+                            const recurLabel = fullTask?.recurrence?.frequency === "weekly" ? "Weekly" : fullTask?.recurrence?.frequency === "monthly" ? "Monthly" : "Recurring";
                             return (
-                              <button key={item._id} type="button" onClick={() => toggleChecklist(c._id, item._id, isDone)}
-                                className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]"
-                                style={{ background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
-                                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-all"
-                                  style={{ borderColor: isDone ? "var(--teal)" : "var(--border-strong)", background: isDone ? "var(--teal)" : "transparent" }}>
-                                  {isDone && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
-                                </span>
-                                <span className="text-[10px] flex-1 truncate" style={{ color: isDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: isDone ? "line-through" : undefined }}>{item.title}</span>
-                              </button>
+                              <div key={item._id} className="group mb-0.5">
+                                <div className="flex items-center gap-2 rounded-xl px-2 py-2 transition-all"
+                                  style={{
+                                    background: isDone
+                                      ? "color-mix(in srgb, var(--teal) 6%, var(--bg-elevated))"
+                                      : "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))",
+                                    borderLeft: isDone ? "3px solid var(--teal)" : "3px solid var(--amber)",
+                                    opacity: isDone ? 0.75 : 1,
+                                  }}>
+                                  <button type="button" onClick={() => requestToggleChecklist(c._id, item._id, item.title, isDone)}
+                                    className="shrink-0 transition-transform hover:scale-110 active:scale-90">
+                                    <span className="flex h-[18px] w-[18px] items-center justify-center rounded-md border-2 transition-all"
+                                      style={{
+                                        borderColor: isDone ? "var(--teal)" : "var(--border-strong)",
+                                        background: isDone ? "var(--teal)" : "transparent",
+                                        boxShadow: isDone ? "0 0 6px color-mix(in srgb, var(--teal) 30%, transparent)" : "none",
+                                      }}>
+                                      {isDone && (
+                                        <motion.svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+                                          initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
+                                          <path d="M20 6L9 17l-5-5" />
+                                        </motion.svg>
+                                      )}
+                                    </span>
+                                  </button>
+                                  <span className="text-[10px] font-medium flex-1 truncate transition-all" style={{
+                                    color: isDone ? "var(--fg-tertiary)" : "var(--fg)",
+                                    textDecoration: isDone ? "line-through" : "none",
+                                    textDecorationColor: isDone ? "var(--teal)" : undefined,
+                                    textDecorationThickness: isDone ? "1.5px" : undefined,
+                                  }}>{item.title}</span>
+                                  <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 10%, transparent)", color: isDone ? "color-mix(in srgb, #8b5cf6 50%, var(--fg-tertiary))" : "#8b5cf6" }}>{recurLabel}</span>
+                                  {isDone ? (
+                                    <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold" style={{ background: "color-mix(in srgb, var(--teal) 14%, transparent)", color: "var(--teal)" }}>✓ Done</span>
+                                  ) : (
+                                    <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>To do</span>
+                                  )}
+                                  <div className="flex items-center gap-px opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                    {canEditTasks && fullTask && (
+                                      <button type="button" onClick={() => openEditTask(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                      </button>
+                                    )}
+                                    {canDeleteTasks && (
+                                      <button type="button" onClick={() => setDeleteTarget({ type: "task", id: item._id, name: item.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
+                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
@@ -750,7 +813,7 @@ export default function WorkspacePage() {
                                     </motion.svg>
                                   </button>
                                   <span className="text-[10px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
-                                  <TaskStatusToggle task={task} canChange={!!canChange} onCycle={() => cycleTaskStatus(task)} />
+                                  <TaskStatusToggle task={task} canChange={!!canChange} onCycle={() => requestCycleTask(task)} />
                                   {task.deadline && <span className="text-[8px] tabular-nums shrink-0" style={{ color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
                                   <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                     {canEditTasks && (
@@ -958,16 +1021,20 @@ export default function WorkspacePage() {
                                           <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                                           {log.entity === "task" && log.entityId && (() => {
                                             const linkedTask = taskList.find((t) => t._id === log.entityId);
-                                            if (!linkedTask || linkedTask.status === "completed") return null;
-                                            const sc = linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                                            const sl = linkedTask.status === "inProgress" ? "Working" : "Pending";
+                                            if (!linkedTask) return null;
+                                            const sc = linkedTask.status === "completed" ? "var(--teal)" : linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                                            const sl = linkedTask.status === "completed" ? "Done" : linkedTask.status === "inProgress" ? "Working" : "Pending";
+                                            const canAct = linkedTask.status !== "completed";
                                             return (
-                                              <motion.button type="button" onClick={() => cycleTaskStatus(linkedTask)}
-                                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                                                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[8px] font-semibold"
-                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 10%, transparent)`, color: sc }}>
-                                                <span className="h-1 w-1 rounded-full" style={{ background: sc }} />
+                                              <motion.button type="button" onClick={canAct ? () => requestCycleTask(linkedTask) : undefined} disabled={!canAct}
+                                                whileHover={canAct ? { scale: 1.06 } : undefined} whileTap={canAct ? { scale: 0.94 } : undefined}
+                                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all disabled:cursor-default"
+                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc, cursor: canAct ? "pointer" : "default" }}>
+                                                <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: sc }}>
+                                                  {linkedTask.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: sc }} />}
+                                                </span>
                                                 {sl}
+                                                {canAct && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>}
                                               </motion.button>
                                             );
                                           })()}
@@ -1114,6 +1181,24 @@ export default function WorkspacePage() {
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* ── status change confirm ── */}
+      <ConfirmDialog
+        open={!!statusConfirm}
+        title={statusConfirm?.type === "task"
+          ? `Mark as ${statusConfirm.label}?`
+          : statusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
+        description={statusConfirm?.type === "task"
+          ? `Change "${statusConfirm.task.title}" status to ${statusConfirm.label}.`
+          : statusConfirm?.currentDone
+            ? `Unmark "${statusConfirm?.title}" as completed for today.`
+            : `Mark "${statusConfirm?.title}" as completed for today.`}
+        confirmLabel={statusConfirm?.type === "task" ? statusConfirm.label : statusConfirm?.currentDone ? "Undo" : "Done"}
+        variant={statusConfirm?.type === "task" && statusConfirm.next === "pending" ? "warning" : "default"}
+        loading={statusUpdating}
+        onConfirm={handleStatusConfirm}
+        onCancel={() => setStatusConfirm(null)}
       />
     </div>
   );

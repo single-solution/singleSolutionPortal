@@ -512,11 +512,11 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       </div>
                       {/* All-employees tabs */}
                       <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                        {(["overview", "employees", "history"] as const).map((t) => (
+                        {(["overview", "employees"] as const).map((t) => (
                           <button key={t} type="button" onClick={() => setLeaveTab(t)}
                             className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${leaveTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                           >
-                            {t === "overview" ? "Overview" : t === "employees" ? "Employees" : "History"}
+                            {t === "overview" ? "Overview" : "Employees"}
                           </button>
                         ))}
                       </div>
@@ -578,6 +578,33 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                     </div>
                                   </div>
                                 )}
+                                {/* ── History (merged) ── */}
+                                {leaves.length > 0 && (
+                                  <div className="mt-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Leave History · {selYear}</p>
+                                    <div className="max-h-[300px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                                      {leaves.map((l) => {
+                                        const col = STATUS_COLORS[l.status] ?? "var(--fg-secondary)";
+                                        const empName = l.user?.about ? `${l.user.about.firstName ?? ""} ${l.user.about.lastName ?? ""}`.trim() : l.user?.email ?? "";
+                                        return (
+                                          <div key={l._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                                            <div className="min-w-0 flex-1">
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
+                                                <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
+                                                <span className="shrink-0 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{l.days}d</span>
+                                              </div>
+                                              <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                                                {l.type || "Leave"}{l.isHalfDay ? " (½)" : ""} · {fmtDate(l.startDate)}{l.startDate !== l.endDate ? ` – ${fmtDate(l.endDate)}` : ""}{l.reason ? ` · ${l.reason}` : ""}
+                                              </p>
+                                            </div>
+                                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{l.status}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                               </>
                             )}
                           </motion.div>
@@ -631,38 +658,6 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                     </tfoot>
                                   </table>
                                 </div>
-                              </div>
-                            )}
-                          </motion.div>
-                        )}
-                        {/* ALL: HISTORY */}
-                        {leaveTab === "history" && (
-                          <motion.div key="all-history" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15 }} className="space-y-4">
-                            {leavesLoading ? (
-                              <div className="space-y-2">{[1,2,3,4,5].map((i) => <div key={i} className="shimmer h-10 rounded-lg" />)}</div>
-                            ) : leaves.length === 0 ? (
-                              <p className="py-8 text-center text-sm" style={{ color: "var(--fg-tertiary)" }}>No leave records for {selYear}.</p>
-                            ) : (
-                              <div className="space-y-1.5">
-                                {leaves.map((l) => {
-                                  const col = STATUS_COLORS[l.status] ?? "var(--fg-secondary)";
-                                  const empName = l.user?.about ? `${l.user.about.firstName ?? ""} ${l.user.about.lastName ?? ""}`.trim() : l.user?.email ?? "";
-                                  return (
-                                    <div key={l._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
-                                          <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
-                                          <span className="shrink-0 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{l.days}d</span>
-                                        </div>
-                                        <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                                          {l.type || "Leave"}{l.isHalfDay ? " (½)" : ""} · {fmtDate(l.startDate)}{l.startDate !== l.endDate ? ` – ${fmtDate(l.endDate)}` : ""}{l.reason ? ` · ${l.reason}` : ""}
-                                        </p>
-                                      </div>
-                                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{l.status}</span>
-                                    </div>
-                                  );
-                                })}
                               </div>
                             )}
                           </motion.div>
@@ -750,21 +745,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                         </div>
                       )}
 
-                      {/* Single-employee tabs */}
-                      <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                        {(["summary", "history"] as const).map((t) => (
-                          <button key={t} type="button" onClick={() => setLeaveTab(t)}
-                            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${leaveTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
-                          >
-                            {t === "summary" ? "Summary" : "History"}
-                          </button>
-                        ))}
-                      </div>
 
-                      <AnimatePresence mode="wait">
-                      {/* SINGLE: SUMMARY */}
-                      {leaveTab === "summary" && (
-                        <motion.div key="emp-summary" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.15 }} className="space-y-4">
+                      <div className="space-y-4">
 
                       {/* Balance card */}
                       {balLoading ? (
@@ -935,12 +917,6 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                         )}
                       </AnimatePresence>
 
-                        </motion.div>
-                      )}
-                      {/* SINGLE: HISTORY */}
-                      {leaveTab === "history" && (
-                        <motion.div key="emp-history" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15 }} className="space-y-4">
-
                       {/* Leave history */}
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
@@ -1019,9 +995,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                         )}
                       </div>
 
-                        </motion.div>
-                      )}
-                      </AnimatePresence>
+                      </div>
                     </>
                   )}
                 </div>

@@ -29,7 +29,7 @@ interface Employee {
   username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   isSuperAdmin?: boolean;
-  memberships?: Array<{ designation?: { name: string } | null }>;
+  memberships?: Array<{ designation?: { name: string } | null; department?: { _id: string; title: string; parentDepartment?: { title: string } | null } | null }>;
   department?: { _id: string; title: string };
   isActive: boolean;
   isVerified?: boolean;
@@ -87,6 +87,16 @@ function primaryDesignationLabel(emp: Employee): string {
     }
   }
   return "";
+}
+
+function primaryDepartmentLabel(emp: Employee): string {
+  const m = emp.memberships?.find((mb) => mb.department?.title);
+  return m?.department?.title ?? emp.department?.title ?? "";
+}
+
+function parentDepartmentLabel(emp: Employee): string {
+  const m = emp.memberships?.find((mb) => mb.department?.parentDepartment?.title);
+  return m?.department?.parentDepartment?.title ?? "";
 }
 
 function shiftSummaryLine(emp: Employee) {
@@ -171,7 +181,7 @@ export default function EmployeesPage() {
     let newThisMonth = 0;
     for (const e of empList) {
       if (e.isActive === false) inactive++;
-      if (e.department == null) noDept++;
+      if (!primaryDepartmentLabel(e)) noDept++;
       const created = new Date(e.createdAt);
       if (!Number.isNaN(created.getTime()) && created >= monthStart && created < nextMonthStart) newThisMonth++;
       const ext = e as Employee & { password?: unknown };
@@ -213,7 +223,10 @@ export default function EmployeesPage() {
 
   const filtered = useMemo(() => {
     let list = empList;
-    if (scopeDept !== "all") list = list.filter((e) => e.department?._id === scopeDept);
+    if (scopeDept !== "all") list = list.filter((e) => {
+      const memDept = e.memberships?.find((m) => m.department?._id)?.department?._id;
+      return memDept === scopeDept || e.department?._id === scopeDept;
+    });
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((e) => `${e.about.firstName} ${e.about.lastName} ${e.email} ${e.username}`.toLowerCase().includes(q));
@@ -230,8 +243,9 @@ export default function EmployeesPage() {
     if (groupMode === "flat") return null;
     const map = new Map<string, { label: string; employees: typeof filtered }>();
     for (const emp of filtered) {
-      const key = emp.department?._id ?? "__none__";
-      const label = emp.department?.title ?? "No Department";
+      const memDept = emp.memberships?.find((m) => m.department?._id)?.department;
+      const key = memDept?._id ?? emp.department?._id ?? "__none__";
+      const label = memDept?.title ?? emp.department?.title ?? "No Department";
       if (!map.has(key)) map.set(key, { label, employees: [] });
       map.get(key)!.employees.push(emp);
     }
@@ -526,7 +540,8 @@ export default function EmployeesPage() {
                     lastName: emp.about.lastName,
                     email: emp.email,
                     designation: primaryDesignationLabel(emp),
-                    department: emp.department?.title,
+                    department: primaryDepartmentLabel(emp),
+                    parentDepartment: parentDepartmentLabel(emp),
                     profileImage: emp.about.profileImage,
                     isVerified: emp.isVerified,
                     isLive: p?.isLive,

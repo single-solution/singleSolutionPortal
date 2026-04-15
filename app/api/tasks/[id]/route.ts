@@ -39,7 +39,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  const validStatuses = ["pending", "in-progress", "completed", "cancelled"];
+  const validStatuses = ["pending", "inProgress", "completed"];
   const validPriorities = ["low", "medium", "high", "urgent"];
 
   if (body.status !== undefined && !validStatuses.includes(body.status)) {

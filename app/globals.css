@@ -216,6 +216,11 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .card-static:hover { box-shadow: var(--shadow); }
 }
 
 /* ============================================ */
@@ -262,7 +267,7 @@ body {
   padding: 9px 12px;
   font-size: 14px;
   color: var(--fg);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   width: 100%;
 }
 
@@ -279,6 +284,7 @@ body {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-light);
+  transform: translateY(-0.5px);
 }
 
 select.input {
@@ -391,7 +397,7 @@ select.input {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  transition: transform 0.2s;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 @media (min-width: 640px) {
@@ -580,6 +586,95 @@ select.input {
 .animate-reveal-delay-3 { animation-delay: 0.24s; opacity: 0; }
 .animate-reveal-delay-4 { animation-delay: 0.32s; opacity: 0; }
 .animate-reveal-delay-5 { animation-delay: 0.40s; opacity: 0; }
+
+/* ============================================ */
+/* MICRO-ANIMATIONS — LIGHTWEIGHT & GPU-ONLY   */
+/* ============================================ */
+
+/* Pill / chip hover lift (pure CSS, no JS) */
+@media (hover: hover) {
+  .pill-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+}
+.pill-hover { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+
+/* Interactive list row highlight */
+.row-hover { transition: background 0.15s ease, transform 0.15s ease; }
+@media (hover: hover) {
+  .row-hover:hover { background: color-mix(in srgb, var(--fg) 3%, transparent); }
+}
+
+/* Smooth accordion expand/collapse (height auto via grid trick) */
+.accordion-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  opacity: 0;
+}
+.accordion-body[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.accordion-body > * { overflow: hidden; }
+
+/* Card group subtle lift on parent hover */
+@media (hover: hover) {
+  .card-group:hover > .card { box-shadow: var(--shadow); }
+}
+
+/* Tabular number counter animation */
+@keyframes count-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.animate-count { animation: count-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards; font-variant-numeric: tabular-nums; }
+
+/* Stagger entrance for lists (CSS-only, no JS bundle cost) */
+@keyframes list-item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.animate-list-item { animation: list-item-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-list-item:nth-child(1) { animation-delay: 0.02s; }
+.animate-list-item:nth-child(2) { animation-delay: 0.04s; }
+.animate-list-item:nth-child(3) { animation-delay: 0.06s; }
+.animate-list-item:nth-child(4) { animation-delay: 0.08s; }
+.animate-list-item:nth-child(5) { animation-delay: 0.10s; }
+.animate-list-item:nth-child(6) { animation-delay: 0.12s; }
+.animate-list-item:nth-child(7) { animation-delay: 0.14s; }
+.animate-list-item:nth-child(8) { animation-delay: 0.16s; }
+.animate-list-item:nth-child(9) { animation-delay: 0.18s; }
+.animate-list-item:nth-child(10) { animation-delay: 0.20s; }
+.animate-list-item:nth-child(n+11) { animation-delay: 0.22s; }
+
+/* Badge entrance pop */
+@keyframes badge-pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+.animate-badge { animation: badge-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Subtle glow on active/focused interactive elements */
+.glow-ring { transition: box-shadow 0.2s ease; }
+.glow-ring:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }
+
+/* Smooth tooltip/popover entrance */
+@keyframes tooltip-in { from { opacity: 0; transform: translateY(4px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.animate-tooltip { animation: tooltip-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Slide-in from right for sidebars/drawers (CSS fallback) */
+@keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.animate-slide-right { animation: slide-in-right 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Fade scale for modals (CSS fallback) */
+@keyframes modal-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+.animate-modal { animation: modal-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Smooth value change highlight */
+@keyframes value-flash { 0% { background: color-mix(in srgb, var(--primary) 12%, transparent); } 100% { background: transparent; } }
+.animate-value-change { animation: value-flash 0.6s ease-out; }
+
+/* Reduced motion: disable all custom animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* ============================================ */
 /* FOCUS / SCROLLBAR / SELECTION                */

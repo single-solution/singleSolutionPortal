@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
+import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
@@ -45,7 +46,30 @@ export async function GET(req: Request) {
     .sort({ createdAt: -1 })
     .lean();
 
-  return ok(users);
+  const userIds = users.map((u) => u._id);
+  const allMemberships = await Membership.find({ user: { $in: userIds }, isActive: true })
+    .populate("designation", "name color")
+    .populate({ path: "department", select: "title parentDepartment", populate: { path: "parentDepartment", select: "title" } })
+    .lean();
+
+  const membershipsByUser = new Map<string, typeof allMemberships>();
+  for (const m of allMemberships) {
+    const uid = m.user.toString();
+    if (!membershipsByUser.has(uid)) membershipsByUser.set(uid, []);
+    membershipsByUser.get(uid)!.push(m);
+  }
+
+  const enriched = users.map((u) => ({
+    ...u,
+    memberships: (membershipsByUser.get(u._id.toString()) ?? []).map((m) => ({
+      _id: m._id,
+      designation: m.designation,
+      department: m.department,
+      direction: m.direction,
+    })),
+  }));
+
+  return ok(enriched);
 }
 
 export async function POST(req: Request) {

@@ -13,6 +13,8 @@ export interface EmployeeCardEmp {
   email?: string;
   designation?: string;
   department?: string;
+  parentDepartment?: string;
+  reportsTo?: string | null;
   isLive?: boolean;
   status?: string;
   locationFlagged?: boolean;
@@ -111,7 +113,7 @@ type PulseVariant = "office" | "remote" | "lastSeen" | "absent";
 function pulseVariant(emp: EmployeeCardEmp): PulseVariant {
   if (emp.isLive && emp.status === "remote") return "remote";
   if (emp.isLive && (emp.status === "office" || emp.status === "overtime")) return "office";
-  if (emp.isLive) return (emp.remoteMinutes ?? 0) > (emp.officeMinutes ?? 0) ? "remote" : "office";
+  if (emp.isLive) return "office";
   if (emp.firstEntry) return "lastSeen";
   return "absent";
 }
@@ -260,10 +262,17 @@ export const EmployeeCard = memo(function EmployeeCard({
   const firstArrival =
     attendanceLoading ? "—" : emp.firstEntry ? (emp.firstEntry.includes("T") ? formatTimeStr(emp.firstEntry) : emp.firstEntry) : "—";
 
-  const subtitle =
-    emp.designation || emp.department
-      ? [emp.designation, emp.department].filter(Boolean).join(" · ")
-      : emp.email ?? "";
+  const subtitle = (() => {
+    const parts: string[] = [];
+    if (emp.designation) parts.push(emp.designation);
+    if (emp.department) {
+      parts.push(emp.parentDepartment ? `${emp.department} · ${emp.parentDepartment}` : emp.department);
+    } else if (emp.parentDepartment) {
+      parts.push(emp.parentDepartment);
+    }
+    if (parts.length === 0 && emp.reportsTo) parts.push(`Reports to ${emp.reportsTo}`);
+    return parts.length > 0 ? parts.join(" · ") : (emp.email ?? "");
+  })();
 
   const dimmed = !attendanceLoading && !emp.isLive;
 
@@ -358,9 +367,20 @@ export const EmployeeCard = memo(function EmployeeCard({
             <div className="flex items-center justify-between gap-2">
               <span style={{ color: "var(--fg-tertiary)" }}>Department</span>
               <span className="truncate font-medium text-right" style={{ color: "var(--fg)" }}>
-                {emp.department ?? "—"}
+                {emp.department || "—"}
+                {emp.parentDepartment && (
+                  <span style={{ color: "var(--fg-tertiary)" }}> · {emp.parentDepartment}</span>
+                )}
               </span>
             </div>
+            {emp.reportsTo && (
+              <div className="flex items-center justify-between gap-2">
+                <span style={{ color: "var(--fg-tertiary)" }}>Reports to</span>
+                <span className="truncate font-medium text-right" style={{ color: "var(--fg)" }}>
+                  {emp.reportsTo}
+                </span>
+              </div>
+            )}
             {emp.shiftSummary && (
               <div className="flex items-start justify-between gap-2">
                 <span className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>

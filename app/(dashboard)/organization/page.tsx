@@ -36,7 +36,7 @@ interface Employee {
   _id: string; email: string; username: string;
   about: { firstName: string; lastName: string; phone?: string; profileImage?: string };
   isSuperAdmin?: boolean;
-  memberships?: Array<{ designation?: { name: string } | null }>;
+  memberships?: Array<{ designation?: { name: string } | null; department?: { _id: string; title: string; parentDepartment?: { title: string } | null } | null }>;
   department?: { _id: string; title: string };
   isActive: boolean; isVerified?: boolean;
   weeklySchedule?: WeeklySchedule;
@@ -75,6 +75,16 @@ function primaryDesignationLabel(emp: Employee): string {
     }
   }
   return "";
+}
+
+function primaryDepartmentLabel(emp: Employee): string {
+  const m = emp.memberships?.find((mb) => mb.department?.title);
+  return m?.department?.title ?? emp.department?.title ?? "";
+}
+
+function parentDepartmentLabel(emp: Employee): string {
+  const m = emp.memberships?.find((mb) => mb.department?.parentDepartment?.title);
+  return m?.department?.parentDepartment?.title ?? "";
 }
 
 function shiftSummaryLine(emp: Employee) {
@@ -427,7 +437,8 @@ export default function OrganizationPage() {
                         lastName: emp.about.lastName,
                         email: emp.email,
                         designation: primaryDesignationLabel(emp),
-                        department: emp.department?.title,
+                        department: primaryDepartmentLabel(emp),
+                        parentDepartment: parentDepartmentLabel(emp),
                         profileImage: emp.about.profileImage,
                         isVerified: emp.isVerified,
                         isLive: p?.isLive,
