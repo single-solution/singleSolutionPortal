@@ -38,7 +38,7 @@ export function ToggleSwitch({
       title={title}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex ${s.track} shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors disabled:opacity-50`}
-      style={{ backgroundColor: checked ? color : "var(--bg-tertiary)" }}
+      style={{ backgroundColor: checked ? color : "color-mix(in srgb, var(--fg) 20%, var(--bg))" }}
     >
       <motion.span
         className={`pointer-events-none inline-block ${s.thumb} rounded-full bg-white shadow`}

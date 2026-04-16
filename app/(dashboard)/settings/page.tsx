@@ -363,8 +363,8 @@ function PreferencesSection() {
         <h2 className="text-headline mb-4">Preferences</h2>
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium" style={{ color: "var(--fg)" }}>Show coordinates in time pill</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Display your current lat/lng next to the session timer.</p>
+            <p className="text-sm font-medium" style={{ color: "var(--fg)" }}>Show coordinates on session timer</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Display your current latitude/longitude next to the session timer.</p>
           </div>
           <ToggleSwitch checked={showCoords} onChange={() => toggle()} disabled={saving} size="lg" />
         </div>

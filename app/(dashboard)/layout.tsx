@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { DashboardShell } from "./DashboardShell";
+import { AppLayout } from "./AppLayout";
 import Providers from "./Providers";
 import { GuideProvider } from "@/lib/useGuide";
 import { PermissionsProvider } from "@/lib/usePermissions";
@@ -31,7 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <Providers>
       <PermissionsProvider initialData={permissionsPayload}>
         <GuideProvider userName={session.user.firstName ?? "there"}>
-          <DashboardShell user={session.user} liveUpdates={liveUpdates}>{children}</DashboardShell>
+          <AppLayout user={session.user} liveUpdates={liveUpdates}>{children}</AppLayout>
         </GuideProvider>
       </PermissionsProvider>
     </Providers>

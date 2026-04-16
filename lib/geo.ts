@@ -8,7 +8,7 @@ function toRad(deg: number) {
   return (deg * Math.PI) / 180;
 }
 
-export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
@@ -16,7 +16,7 @@ export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export async function getOfficeConfig(): Promise<{ lat: number; lng: number; radius: number }> {
+async function getOfficeConfig(): Promise<{ lat: number; lng: number; radius: number }> {
   if (cachedConfig && Date.now() - cacheTime < CACHE_TTL) return cachedConfig;
 
   const envLat = parseFloat(process.env.OFFICE_LAT ?? "31.4763416");
@@ -49,7 +49,7 @@ export async function getOfficeConfig(): Promise<{ lat: number; lng: number; rad
 
 /* ── Fake-location detection ─────────────────────────────────────── */
 
-export interface LocationValidation {
+interface LocationValidation {
   flagged: boolean;
   reasons: string[];
 }

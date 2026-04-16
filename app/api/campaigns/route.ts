@@ -50,12 +50,20 @@ export async function GET() {
   const campaignIds = campaigns.map((c) => c._id);
   const today = todayKey();
 
-  const [allTasks, myLogs] = await Promise.all([
+  const [allTasks, allSubtasks, myLogs] = await Promise.all([
     ActivityTask.find({ campaign: { $in: campaignIds }, isActive: true, parentTask: null }).lean(),
+    ActivityTask.find({ campaign: { $in: campaignIds }, isActive: true, parentTask: { $ne: null } }).lean(),
     ChecklistLog.find({ employee: actor.id, date: today }).lean(),
   ]);
 
   const doneTaskIds = new Set(myLogs.map((l) => l.task.toString()));
+
+  const subtasksByParent = new Map<string, typeof allSubtasks>();
+  for (const st of allSubtasks) {
+    const pid = st.parentTask!.toString();
+    if (!subtasksByParent.has(pid)) subtasksByParent.set(pid, []);
+    subtasksByParent.get(pid)!.push(st);
+  }
 
   const byCampaign = new Map<string, typeof allTasks>();
   for (const t of allTasks) {
@@ -84,11 +92,20 @@ export async function GET() {
         todayDue: todayRecurring.length,
         todayDone,
       },
-      todayChecklist: todayRecurring.map((t) => ({
-        _id: t._id.toString(),
-        title: t.title,
-        done: doneTaskIds.has(t._id.toString()),
-      })),
+      todayChecklist: todayRecurring.map((t) => {
+        const subs = (subtasksByParent.get(t._id.toString()) ?? [])
+          .filter((s) => s.recurrence && isDueToday(s.recurrence as { frequency: string; days?: number[] }));
+        return {
+          _id: t._id.toString(),
+          title: t.title,
+          done: doneTaskIds.has(t._id.toString()),
+          subtasks: subs.map((s) => ({
+            _id: s._id.toString(),
+            title: s.title,
+            done: doneTaskIds.has(s._id.toString()),
+          })),
+        };
+      }),
     };
   });
 

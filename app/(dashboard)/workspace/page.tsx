@@ -8,10 +8,13 @@ import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { RefreshBtn, SearchField, SegmentedControl, EmptyState, ModalShell } from "../components/ui";
-import { HeaderStatPill } from "../components/StatChips";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { HeaderStatPill } from "../components/StatChips";
 import toast from "react-hot-toast";
 import { formatShortDate, timeAgo } from "@/lib/formatters";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 /* ─── types ─── */
 
@@ -33,20 +36,28 @@ interface Campaign {
   createdBy?: { about: { firstName: string; lastName: string } };
   createdAt: string; updatedAt?: string;
 }
+interface UserStatusEntry {
+  user: { _id?: string; about?: { firstName: string; lastName: string }; email?: string } | string;
+  status: string;
+  updatedAt?: string;
+}
 interface Task {
   _id: string; title: string; description?: string; priority: TaskPriority; status: TaskStatus;
   deadline?: string;
   parentTask?: string | null;
   recurrence?: Recurrence;
   campaign?: { _id: string; name: string; status: CampaignStatus } | null;
-  assignedTo?: { _id: string; about?: { firstName: string; lastName: string }; email?: string };
+  assignedTo?: { _id: string; about?: { firstName: string; lastName: string }; email?: string }[];
   createdBy?: { _id: string; about?: { firstName: string; lastName: string }; email?: string };
   createdAt: string;
+  userStatuses?: UserStatusEntry[];
+  isActive?: boolean;
 }
-interface OverviewEmployee {
-  _id: string; name: string; email: string;
-  byDate: { date: string; done: number; total: number }[];
+
+function isTaskAssigned(task: Task, userId: string): boolean {
+  return Array.isArray(task.assignedTo) ? task.assignedTo.some((a) => a._id === userId) : false;
 }
+
 interface SelectOption { _id: string; label: string; departmentId?: string }
 
 interface LogEntry {
@@ -63,17 +74,31 @@ const WS_LOG_COLORS: Record<string, { bg: string; fg: string }> = {
   task:     { bg: "color-mix(in srgb, var(--primary) 14%, transparent)", fg: "var(--primary)" },
   campaign: { bg: "color-mix(in srgb, #8b5cf6 14%, transparent)", fg: "#8b5cf6" },
 };
-const WS_LOG_LABELS: Record<string, string> = { task: "Tasks", campaign: "Campaigns" };
-function logAvatarLabel(log: LogEntry) {
+const WS_LOG_LABELS: Record<string, string> = { task: "Task updates", campaign: "Campaign updates" };
+function resolveLogName(log: LogEntry) {
   const n = (log.userName || "").trim();
-  if (n) { const parts = n.split(/\s+/).filter(Boolean); return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : (parts[0]?.slice(0, 2) ?? "?").toUpperCase(); }
-  return (log.userEmail || "?").slice(0, 2).toUpperCase();
+  if (n) return n;
+  if (!log.userEmail) return "Unknown";
+  const local = log.userEmail.split("@")[0] ?? "";
+  if (/^admin$/i.test(local)) return "Admin";
+  return local.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function logAvatarLabel(log: LogEntry) {
+  const n = resolveLogName(log);
+  const parts = n.split(/\s+/).filter(Boolean);
+  return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
 /* ─── helpers ─── */
 
 const formatDate = formatShortDate;
-function assigneeName(t: Task) { return t.assignedTo?.about ? `${t.assignedTo.about.firstName} ${t.assignedTo.about.lastName}` : "Unassigned"; }
+function assigneeName(t: Task) {
+  if (Array.isArray(t.assignedTo) && t.assignedTo.length > 0) {
+    return t.assignedTo.map((a) => a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown").join(", ");
+  }
+  return "Unassigned";
+}
 
 function deadlineUrgency(deadline?: string): "overdue" | "soon" | "normal" | "none" {
   if (!deadline) return "none";
@@ -84,11 +109,11 @@ function deadlineUrgency(deadline?: string): "overdue" | "soon" | "normal" | "no
 }
 
 function taskStateLabel(task: Task): { label: string; color: string; bg: string } {
-  if (task.status === "completed") return { label: "Done", color: "var(--teal)", bg: "color-mix(in srgb, var(--teal) 12%, transparent)" };
+  if (task.status === "completed") return { label: "Completed", color: "var(--teal)", bg: "color-mix(in srgb, var(--teal) 12%, transparent)" };
   if (task.status === "inProgress") {
     const urg = deadlineUrgency(task.deadline);
     if (urg === "overdue") return { label: "Delayed", color: "var(--rose)", bg: "color-mix(in srgb, var(--rose) 12%, transparent)" };
-    return { label: "Working", color: "var(--primary)", bg: "color-mix(in srgb, var(--primary) 12%, transparent)" };
+    return { label: "In progress", color: "var(--primary)", bg: "color-mix(in srgb, var(--primary) 12%, transparent)" };
   }
   const urg = deadlineUrgency(task.deadline);
   if (urg === "overdue") return { label: "Delayed", color: "var(--rose)", bg: "color-mix(in srgb, var(--rose) 12%, transparent)" };
@@ -110,8 +135,8 @@ function TaskStatusToggle({ task, canChange, onCycle }: { task: Task; canChange:
   const nextLabel = { pending: "Start", inProgress: "Complete", completed: "Reopen" }[task.status] ?? "Start";
   const labels: Record<string, { short: string; color: string }> = {
     pending: { short: "Pending", color: "var(--amber)" },
-    inProgress: { short: "Working", color: "var(--primary)" },
-    completed: { short: "Done", color: "var(--teal)" },
+    inProgress: { short: "In progress", color: "var(--primary)" },
+    completed: { short: "Completed", color: "var(--teal)" },
   };
   const s = labels[task.status] ?? labels.pending;
   return (
@@ -119,13 +144,29 @@ function TaskStatusToggle({ task, canChange, onCycle }: { task: Task; canChange:
       whileHover={canChange ? { scale: 1.06 } : undefined} whileTap={canChange ? { scale: 0.94 } : undefined}
       className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-all disabled:cursor-default"
       style={{ borderColor: `color-mix(in srgb, ${s.color} 30%, transparent)`, background: `color-mix(in srgb, ${s.color} 12%, transparent)`, color: s.color, cursor: canChange ? "pointer" : "default" }}
-      title={canChange ? `Click to ${nextLabel}` : task.status}>
+      title={canChange ? `Click to ${nextLabel}` : labels[task.status]?.short ?? task.status}>
       <span className="relative h-2 w-2 rounded-full" style={{ background: s.color }}>
         {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: s.color }} />}
       </span>
       {s.short}
       {canChange && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>}
     </motion.button>
+  );
+}
+
+/* ─── sortable task row wrapper ─── */
+
+function SortableTaskRow({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, position: "relative", zIndex: isDragging ? 10 : undefined }} {...attributes}>
+      <div className="flex items-stretch">
+        <button type="button" {...listeners} className="shrink-0 flex items-center px-0.5 cursor-grab active:cursor-grabbing touch-none" style={{ color: "var(--fg-tertiary)" }} title="Drag to reorder">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="4" r="2" /><circle cx="16" cy="4" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="16" cy="12" r="2" /><circle cx="8" cy="20" r="2" /><circle cx="16" cy="20" r="2" /></svg>
+        </button>
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -164,8 +205,6 @@ export default function WorkspacePage() {
   /* ── state ── */
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
-  const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
-
   /* ── workspace activity sidebar state ── */
   useEffect(() => {
     const handler = () => { if (document.visibilityState === "visible") void refetchLogs(); };
@@ -249,18 +288,6 @@ export default function WorkspacePage() {
   /* ── checklist state for recurring tasks ── */
   const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
 
-  /* ── admin overview state for expanded campaigns ── */
-  const [overviewData, setOverviewData] = useState<{ dates: string[]; tasks: { _id: string; title: string; frequency: string }[]; employees: OverviewEmployee[] } | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(false);
-  const loadOverview = useCallback(async (campaignId: string) => {
-    setOverviewLoading(true);
-    try {
-      const res = await fetch(`/api/campaigns/${campaignId}/checklist/overview?days=7`);
-      if (res.ok) setOverviewData(await res.json());
-    } catch { /* ignore */ }
-    setOverviewLoading(false);
-  }, []);
-
   /* ── subtasks state ── */
   const [subtasksByParent, setSubtasksByParent] = useState<Map<string, Task[]>>(new Map());
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
@@ -292,10 +319,19 @@ export default function WorkspacePage() {
   const [fParentTask, setFParentTask] = useState("");
 
   function openCreateTask(campaignId: string, parentTaskId?: string) {
-    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignees([]); setFCampaign(campaignId); setFPriority("medium"); setFDeadline(""); setFRecurFreq(""); setFRecurDays([]); setFParentTask(parentTaskId ?? ""); setTaskModalOpen(true);
+    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignees([]); setFCampaign(campaignId); setFPriority("medium"); setFDeadline(""); setFRecurDays([]);
+    if (parentTaskId) {
+      const parent = taskList.find((t) => t._id === parentTaskId);
+      setFRecurFreq(parent?.recurrence?.frequency ? "weekly" : "");
+      setFParentTask(parentTaskId);
+    } else {
+      setFRecurFreq("");
+      setFParentTask("");
+    }
+    setTaskModalOpen(true);
   }
   function openEditTask(t: Task) {
-    setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignees(t.assignedTo?._id ? [t.assignedTo._id] : []); setFCampaign(t.campaign?._id ?? ""); setFPriority(t.priority); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : "");
+    setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignees(Array.isArray(t.assignedTo) ? t.assignedTo.map((a) => a._id) : []); setFCampaign(t.campaign?._id ?? ""); setFPriority(t.priority); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : "");
     setFRecurFreq(t.recurrence?.frequency ?? ""); setFRecurDays(t.recurrence?.days ?? []); setFParentTask(t.parentTask ?? "");
     setTaskModalOpen(true);
   }
@@ -303,7 +339,7 @@ export default function WorkspacePage() {
     if (!fTitle.trim() || fAssignees.length === 0) return;
     setTaskSaving(true);
     try {
-      const basePayload: Record<string, unknown> = { title: fTitle.trim(), description: fDesc, priority: fPriority, status: "pending", campaign: fCampaign || null, deadline: fDeadline || undefined };
+      const basePayload: Record<string, unknown> = { title: fTitle.trim(), description: fDesc, status: "pending", campaign: fCampaign || null, deadline: fRecurFreq === "" && fDeadline ? fDeadline : undefined };
       if (fParentTask) basePayload.parentTask = fParentTask;
       if (fRecurFreq && fRecurDays.length > 0) {
         basePayload.recurrence = { frequency: fRecurFreq, days: fRecurDays };
@@ -337,25 +373,40 @@ export default function WorkspacePage() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [cName, setCName] = useState("");
   const [cDesc, setCDesc] = useState("");
-  const [cStatus, setCStatus] = useState<CampaignStatus>("active");
-  const [cStart, setCStart] = useState("");
-  const [cEnd, setCEnd] = useState("");
-  const [cOngoing, setCOngoing] = useState(false);
+  
+  
   const [cTagEmployees, setCTagEmployees] = useState<string[]>([]);
   const [cTagDepts, setCTagDepts] = useState<string[]>([]);
   const [campaignSaving, setCampaignSaving] = useState(false);
 
   function openCreateCampaign() {
-    setEditingCampaign(null); setCName(""); setCDesc(""); setCStatus("active"); setCStart(""); setCEnd(""); setCOngoing(true); setCTagEmployees([]); setCTagDepts([]); setCampaignModalOpen(true);
+    setEditingCampaign(null); setCName(""); setCDesc(""); setCTagEmployees([]); setCTagDepts([]); setCampaignModalOpen(true);
   }
   function openEditCampaign(c: Campaign) {
-    setEditingCampaign(c); setCName(c.name); setCDesc(c.description ?? ""); setCStatus(c.status); setCStart(c.startDate ? c.startDate.slice(0, 10) : ""); setCEnd(c.endDate ? c.endDate.slice(0, 10) : ""); setCOngoing(!c.endDate); setCTagEmployees(c.tags.employees.map((e) => e._id)); setCTagDepts(c.tags.departments.map((d) => d._id)); setCampaignModalOpen(true);
+    setEditingCampaign(c); setCName(c.name); setCDesc(c.description ?? ""); setCTagEmployees(c.tags.employees.map((e) => e._id)); setCTagDepts(c.tags.departments.map((d) => d._id)); setCampaignModalOpen(true);
   }
+  async function toggleTaskActive(taskId: string, currentlyActive: boolean) {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !currentlyActive }) });
+      if (res.ok) void refetchTasks();
+      else toast.error("Failed to update task");
+    } catch { toast.error("Network error"); }
+  }
+
+  async function toggleCampaignActive(campaignId: string, currentStatus: string) {
+    const next = currentStatus === "active" ? "paused" : "active";
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+      if (res.ok) void refetchCampaigns();
+      else toast.error("Failed to update campaign");
+    } catch { toast.error("Network error"); }
+  }
+
   async function handleSaveCampaign() {
     if (!cName.trim()) return;
     setCampaignSaving(true);
     try {
-      const payload: Record<string, unknown> = { name: cName.trim(), description: cDesc, status: cStatus, startDate: cStart || null, endDate: cOngoing ? null : (cEnd || null), tagEmployees: cTagEmployees, tagDepartments: cTagDepts };
+      const payload: Record<string, unknown> = { name: cName.trim(), description: cDesc, status: editingCampaign ? editingCampaign.status : "active", tagEmployees: cTagEmployees, tagDepartments: cTagDepts };
       const res = editingCampaign
         ? await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -384,7 +435,7 @@ export default function WorkspacePage() {
   }
 
   /* ── quick status update with confirmation ── */
-  const statusLabels: Record<string, string> = { pending: "Pending", inProgress: "Working", completed: "Done" };
+  const statusLabels: Record<string, string> = { pending: "Pending", inProgress: "In progress", completed: "Completed" };
   const nextStatusMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
 
   const [statusConfirm, setStatusConfirm] = useState<{ type: "task"; task: Task; next: string; label: string } | { type: "checklist"; campaignId: string; taskId: string; title: string; currentDone: boolean } | null>(null);
@@ -450,6 +501,24 @@ export default function WorkspacePage() {
     return result;
   }, [campaignTaskMap, statusFilter, search]);
 
+  /* ── drag-and-drop reorder ── */
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const handleDragEnd = useCallback(async (campaignId: string, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const tasks = filteredCampaignTasks.get(campaignId) ?? [];
+    const oneTime = tasks.filter((t) => !t.recurrence);
+    const oldIdx = oneTime.findIndex((t) => t._id === active.id);
+    const newIdx = oneTime.findIndex((t) => t._id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(oneTime, oldIdx, newIdx);
+    const orderedIds = reordered.map((t) => t._id);
+    try {
+      await fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds }) });
+      await refetchTasks();
+    } catch { toast.error("Reorder failed"); }
+  }, [filteredCampaignTasks, refetchTasks]);
+
   const statusCounts = useMemo(() => {
     const m: Record<string, number> = { all: taskList.length, pending: 0, inProgress: 0, completed: 0 };
     for (const t of taskList) m[t.status] = (m[t.status] ?? 0) + 1;
@@ -483,9 +552,9 @@ export default function WorkspacePage() {
       else if (t.priority === "medium") medium++;
       else if (t.priority === "high") high++;
       else if (t.priority === "urgent") urgent++;
-      if (userId && t.assignedTo?._id === userId) assignedToMe++;
+      if (userId && isTaskAssigned(t, userId)) assignedToMe++;
       if (userId && t.createdBy?._id === userId) createdByMe++;
-      if (!t.assignedTo) unassigned++;
+      if (!t.assignedTo || t.assignedTo.length === 0) unassigned++;
       if (t.recurrence) { recurring++; if (t.recurrence.frequency === "weekly") weeklyRecur++; else monthlyRecur++; } else oneTime++;
       const created = new Date(t.createdAt).getTime();
       if (created >= todayStart.getTime()) createdToday++;
@@ -527,13 +596,22 @@ export default function WorkspacePage() {
   }, [campaignList]);
 
   const visibleCampaigns = useMemo(() => {
-    if (!search.trim()) return campaignList;
-    const q = search.toLowerCase();
-    return campaignList.filter((c) => {
-      if (c.name.toLowerCase().includes(q)) return true;
-      const tasks = filteredCampaignTasks.get(c._id) ?? [];
-      return tasks.length > 0;
+    let list = [...campaignList];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((c) => {
+        if (c.name.toLowerCase().includes(q)) return true;
+        const tasks = filteredCampaignTasks.get(c._id) ?? [];
+        return tasks.length > 0;
+      });
+    }
+    list.sort((a, b) => {
+      const aActive = a.status === "active" ? 0 : 1;
+      const bActive = b.status === "active" ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return a.name.localeCompare(b.name);
     });
+    return list;
   }, [campaignList, search, filteredCampaignTasks]);
 
   const loading = tasksLoading || campaignsLoading;
@@ -541,7 +619,7 @@ export default function WorkspacePage() {
 
   /* ─── render ─── */
   return (
-    <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(90dvh - 80px)" }}>
+    <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* ── header ── */}
       <div className="mb-4 shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
@@ -550,13 +628,26 @@ export default function WorkspacePage() {
             <span className="shimmer inline-block h-4 w-44 rounded" />
           ) : (
             <>
-              <HeaderStatPill label={statusCounts.all === 1 ? "task" : "tasks"} value={statusCounts.all} dotColor="var(--primary)" />
               <HeaderStatPill label={campaignList.length === 1 ? "campaign" : "campaigns"} value={campaignList.length} dotColor="var(--teal)" />
-              <HeaderStatPill label="in progress" value={statusCounts.inProgress} dotColor="var(--amber)" />
-              <HeaderStatPill label="done" value={`${taskInsights.completionRate}%`} dotColor="var(--green)" />
-              {taskInsights.overdue > 0 && <HeaderStatPill label="overdue" value={taskInsights.overdue} dotColor="var(--rose)" />}
-              {taskInsights.dueSoon > 0 && <HeaderStatPill label="due soon" value={taskInsights.dueSoon} dotColor="var(--amber)" />}
+              <HeaderStatPill label="completion rate" value={`${taskInsights.completionRate}%`} dotColor="var(--green)" />
+              {taskInsights.overdue > 0 && <HeaderStatPill label={taskInsights.overdue === 1 ? "task overdue" : "tasks overdue"} value={taskInsights.overdue} dotColor="var(--rose)" />}
+              {taskInsights.dueSoon > 0 && <HeaderStatPill label={taskInsights.dueSoon === 1 ? "due soon" : "due soon"} value={taskInsights.dueSoon} dotColor="var(--amber)" />}
+              {taskInsights.dueThisWeek > 0 && <HeaderStatPill label="due this week" value={taskInsights.dueThisWeek} dotColor="var(--fg-tertiary)" />}
+              {taskInsights.unassigned > 0 && <HeaderStatPill label="unassigned" value={taskInsights.unassigned} dotColor="var(--fg-tertiary)" />}
+              {taskInsights.noDeadline > 0 && <HeaderStatPill label="no deadline" value={taskInsights.noDeadline} dotColor="var(--fg-tertiary)" />}
+              <HeaderStatPill label="recurring" value={`${taskInsights.recurring} (${taskInsights.weeklyRecur}w · ${taskInsights.monthlyRecur}m)`} dotColor="#8b5cf6" />
+              {taskInsights.assignedToMe > 0 && <HeaderStatPill label="assigned to me" value={taskInsights.assignedToMe} dotColor="var(--primary)" />}
+              {taskInsights.createdByMe > 0 && <HeaderStatPill label="created by me" value={taskInsights.createdByMe} dotColor="var(--fg-tertiary)" />}
+              {taskInsights.completedToday > 0 && <HeaderStatPill label="done today" value={taskInsights.completedToday} dotColor="var(--green)" />}
+              {taskInsights.completedThisWeek > 0 && <HeaderStatPill label="done this week" value={taskInsights.completedThisWeek} dotColor="var(--green)" />}
+              {taskInsights.completedThisMonth > 0 && <HeaderStatPill label="completed this month" value={taskInsights.completedThisMonth} dotColor="var(--green)" />}
+              {taskInsights.createdToday > 0 && <HeaderStatPill label="created today" value={taskInsights.createdToday} dotColor="var(--fg-tertiary)" />}
               {campaignInsights.active > 0 && <HeaderStatPill label={campaignInsights.active === 1 ? "active campaign" : "active campaigns"} value={campaignInsights.active} dotColor="var(--green)" />}
+              {campaignInsights.completed > 0 && <HeaderStatPill label="done campaigns" value={campaignInsights.completed} dotColor="var(--fg-tertiary)" />}
+              {campaignInsights.completionRate > 0 && <HeaderStatPill label="campaigns done" value={`${campaignInsights.completionRate}%`} dotColor="var(--fg-tertiary)" />}
+              {campaignInsights.noTasks > 0 && <HeaderStatPill label="empty campaigns" value={campaignInsights.noTasks} dotColor="var(--fg-tertiary)" />}
+              {campaignInsights.pastEnd > 0 && <HeaderStatPill label="past end date" value={campaignInsights.pastEnd} dotColor="var(--rose)" />}
+              {campaignInsights.nearingEnd > 0 && <HeaderStatPill label="nearing end" value={campaignInsights.nearingEnd} dotColor="var(--amber)" />}
             </>
           )}
         </div>
@@ -592,50 +683,14 @@ export default function WorkspacePage() {
         />
       </div>
 
-      {/* ── insights strip ── */}
-      {!loading && taskList.length > 0 && (
-        <div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-          {taskInsights.overdue > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{taskInsights.overdue} overdue</span>}
-          {taskInsights.dueSoon > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{taskInsights.dueSoon} due soon</span>}
-          {taskInsights.dueThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.dueThisWeek} due this week</span>}
-          {taskInsights.highUrgent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}>{taskInsights.highUrgent} high/urgent</span>}
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Low {taskInsights.low}</span>
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Med {taskInsights.medium}</span>
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>High {taskInsights.high}</span>
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Urgent {taskInsights.urgent}</span>
-          {taskInsights.unassigned > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.unassigned} unassigned</span>}
-          {taskInsights.noDeadline > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.noDeadline} no deadline</span>}
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.recurring} recurring ({taskInsights.weeklyRecur}w · {taskInsights.monthlyRecur}m)</span>
-          {taskInsights.overdueHighUrgent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 14%, transparent)", color: "var(--rose)" }}>{taskInsights.overdueHighUrgent} overdue high/urgent</span>}
-          {taskInsights.assignedToMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskInsights.assignedToMe} assigned to me</span>}
-          {taskInsights.createdByMe > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdByMe} created by me</span>}
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.oneTime} one-time</span>
-          {taskInsights.completedToday > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{taskInsights.completedToday} done today</span>}
-          {taskInsights.completedThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)" }}>{taskInsights.completedThisWeek} done this week</span>}
-          {taskInsights.completedThisMonth > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)" }}>{taskInsights.completedThisMonth} completed this month</span>}
-          {taskInsights.createdToday > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdToday} created today</span>}
-          {taskInsights.createdThisWeek > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdThisWeek} new this week</span>}
-          {taskInsights.createdThisMonth > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{taskInsights.createdThisMonth} created this month</span>}
-          {campaignInsights.active > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{campaignInsights.active} active campaigns</span>}
-          {campaignInsights.completed > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.completed} done campaigns</span>}
-          {campaignInsights.completionRate > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.completionRate}% campaigns done</span>}
-          {campaignInsights.uniqueEmployees > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.uniqueEmployees} people in campaigns</span>}
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {campaignInsights.avgTasksPerCampaign} tasks/campaign</span>
-          {campaignInsights.noTasks > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{campaignInsights.noTasks} empty campaigns</span>}
-          {campaignInsights.pastEnd > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{campaignInsights.pastEnd} past end date</span>}
-          {campaignInsights.nearingEnd > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{campaignInsights.nearingEnd} nearing end</span>}
-          {campaignInsights.todayDueAll > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>checklist {campaignInsights.todayDoneAll}/{campaignInsights.todayDueAll} ({campaignInsights.todayChecklistPct}%)</span>}
-        </div>
-      )}
-
       {/* ── main + feed ── */}
       <div className="flex min-h-0 flex-1 gap-4" style={{ containerType: "size" }}>
         {/* ── campaign card grid ── */}
-        <div className="min-w-0 min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+        <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[1, 2, 3, 4, 5, 6].map((g) => (
-                <div key={g} className="card-xl overflow-hidden">
+                <div key={g} className="rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
                   <div className="p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="shimmer h-4 w-32 rounded" />
@@ -663,19 +718,16 @@ export default function WorkspacePage() {
               action={canCreateCampaigns && campaignList.length === 0 ? <button type="button" onClick={openCreateCampaign} className="btn btn-primary btn-sm">Create your first campaign</button> : undefined}
             />
           ) : (
-            <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+            <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
               {visibleCampaigns.map((c, ci) => {
                 const allTasks = campaignTaskMap.get(c._id) ?? [];
                 const visibleTasks = filteredCampaignTasks.get(c._id) ?? [];
                 const oneTimeTasks = visibleTasks.filter((t) => !t.recurrence);
                 const todayChecklist = c.todayChecklist ?? [];
                 const todayDone = todayChecklist.filter((t) => checklistOverrides.has(t._id) ? checklistOverrides.get(t._id) : t.done).length;
-                const hasRecurring = (c.taskStats?.recurring ?? 0) > 0 || todayChecklist.length > 0;
-                const isExpanded = expandedCampaign === c._id;
                 const isInactive = c.status !== "active";
 
                 const totalTasks = allTasks.length;
-                const pendingTasks = allTasks.filter((t) => t.status === "pending").length;
                 const inProgressTasks = allTasks.filter((t) => t.status === "inProgress").length;
                 const completedTasks = allTasks.filter((t) => t.status === "completed").length;
                 const empCount = c.tags.employees.length;
@@ -683,29 +735,21 @@ export default function WorkspacePage() {
 
                 return (
                   <motion.div key={c._id} variants={cardVariants} custom={ci}
-                    className="card-xl overflow-hidden flex flex-col transition-opacity"
-                    style={{ opacity: isInactive ? 0.5 : 1, minHeight: 200, maxHeight: "50cqh" }}>
+                    className="rounded-xl border overflow-hidden flex flex-col transition-opacity"
+                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isInactive ? 0.4 : 1, height: "50cqh", minHeight: 180 }}>
                     {/* ── card header ── */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-2">
+                    <div className="flex items-center gap-1.5 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="text-[12px] font-bold truncate" style={{ color: "var(--fg)" }}>{c.name}</span>
                           {todayChecklist.length > 0 && (
-                            <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums" style={{ background: todayDone === todayChecklist.length ? "color-mix(in srgb, var(--teal) 14%, transparent)" : "color-mix(in srgb, var(--amber) 14%, transparent)", color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
+                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: todayDone === todayChecklist.length ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "color-mix(in srgb, var(--amber) 10%, transparent)", color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
                               {todayDone}/{todayChecklist.length}
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center shrink-0">
-                        {hasRecurring && canViewCampaigns && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                            onClick={() => { const next = isExpanded ? null : c._id; setExpandedCampaign(next); if (next) void loadOverview(c._id); }}
-                            className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]"
-                            style={{ color: isExpanded ? "var(--primary)" : "var(--fg-tertiary)" }} title={isExpanded ? "Collapse" : "Compliance"}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" /></svg>
-                          </motion.button>
-                        )}
+                      <div className="flex items-center shrink-0 gap-1">
                         {canCreateTasks && (
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openCreateTask(c._id)}
                             className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
@@ -727,139 +771,238 @@ export default function WorkspacePage() {
                     </div>
 
                     {/* ── card body ── */}
-                    <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-1.5" style={{ scrollbarWidth: "thin" }}>
+                    <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-3">
                       {todayChecklist.length > 0 && (
                         <div className="mb-1">
-                          <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring</p>
-                          {todayChecklist.map((item) => {
-                            const isDone = checklistOverrides.has(item._id) ? checklistOverrides.get(item._id)! : item.done;
-                            const fullTask = taskList.find((t) => t._id === item._id);
-                            const recurLabel = fullTask?.recurrence?.frequency === "weekly" ? "Weekly" : fullTask?.recurrence?.frequency === "monthly" ? "Monthly" : "Recurring";
-                            return (
-                              <div key={item._id} className="group mb-0.5">
-                                <div className="flex items-center gap-2 rounded-xl px-2 py-2 transition-all"
-                                  style={{
-                                    background: isDone
-                                      ? "color-mix(in srgb, var(--teal) 6%, var(--bg-elevated))"
-                                      : "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))",
-                                    borderLeft: isDone ? "3px solid var(--teal)" : "3px solid var(--amber)",
-                                    opacity: isDone ? 0.75 : 1,
-                                  }}>
-                                  <button type="button" onClick={() => requestToggleChecklist(c._id, item._id, item.title, isDone)}
-                                    className="shrink-0 transition-transform hover:scale-110 active:scale-90">
-                                    <span className="flex h-[18px] w-[18px] items-center justify-center rounded-md border-2 transition-all"
-                                      style={{
-                                        borderColor: isDone ? "var(--teal)" : "var(--border-strong)",
-                                        background: isDone ? "var(--teal)" : "transparent",
-                                        boxShadow: isDone ? "0 0 6px color-mix(in srgb, var(--teal) 30%, transparent)" : "none",
-                                      }}>
-                                      {isDone && (
-                                        <motion.svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
-                                          initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
-                                          <path d="M20 6L9 17l-5-5" />
-                                        </motion.svg>
-                                      )}
-                                    </span>
-                                  </button>
-                                  <span className="text-[10px] font-medium flex-1 truncate transition-all" style={{
-                                    color: isDone ? "var(--fg-tertiary)" : "var(--fg)",
-                                    textDecoration: isDone ? "line-through" : "none",
-                                    textDecorationColor: isDone ? "var(--teal)" : undefined,
-                                    textDecorationThickness: isDone ? "1.5px" : undefined,
-                                  }}>{item.title}</span>
-                                  <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 10%, transparent)", color: isDone ? "color-mix(in srgb, #8b5cf6 50%, var(--fg-tertiary))" : "#8b5cf6" }}>{recurLabel}</span>
-                                  {isDone ? (
-                                    <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold" style={{ background: "color-mix(in srgb, var(--teal) 14%, transparent)", color: "var(--teal)" }}>✓ Done</span>
-                                  ) : (
-                                    <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>To do</span>
-                                  )}
-                                  <div className="flex items-center gap-px opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                    {canEditTasks && fullTask && (
-                                      <button type="button" onClick={() => openEditTask(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
-                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                                      </button>
-                                    )}
-                                    {canDeleteTasks && (
-                                      <button type="button" onClick={() => setDeleteTarget({ type: "task", id: item._id, name: item.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
-                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                          <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring <span className="font-normal">(drag to sequence)</span></p>
+                          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => {
+                            const { active, over } = e;
+                            if (!over || active.id === over.id) return;
+                            const ids = todayChecklist.map((t) => t._id);
+                            const oldIdx = ids.indexOf(active.id as string);
+                            const newIdx = ids.indexOf(over.id as string);
+                            if (oldIdx < 0 || newIdx < 0) return;
+                            const reordered = arrayMove(ids, oldIdx, newIdx);
+                            fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds: reordered }) })
+                              .then(() => refetchTasks()).catch(() => toast.error("Reorder failed"));
+                          }}>
+                            <SortableContext items={todayChecklist.map((t) => t._id)} strategy={verticalListSortingStrategy}>
+                              {todayChecklist.map((item) => {
+                                const fullTask = taskList.find((t) => t._id === item._id);
+                                const taskActive = fullTask?.isActive !== false;
+                                const recurLabel = fullTask?.recurrence?.frequency === "weekly" ? "Weekly" : fullTask?.recurrence?.frequency === "monthly" ? "Monthly" : "Recurring";
+                                return (
+                                  <SortableTaskRow key={item._id} id={item._id}>
+                                    <div className="mb-1.5">
+                                      <div className="group relative rounded-xl border transition-all"
+                                        style={{
+                                          background: "var(--bg-elevated)",
+                                          borderColor: "var(--border)",
+                                          opacity: taskActive ? 1 : 0.45,
+                                        }}>
+                                        <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
+                                        <div className="flex items-center gap-1.5 px-2 py-1.5">
+                                          <button type="button" onClick={() => {
+                                            const next = expandedTask === item._id ? null : item._id;
+                                            setExpandedTask(next);
+                                            if (next && !subtasksByParent.has(item._id)) void loadSubtasks(item._id);
+                                          }} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
+                                            <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: expandedTask === item._id ? 90 : 0 }}>
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                            </motion.svg>
+                                          </button>
+                                          <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(item._id, taskActive)} />
+                                          <div className="flex-1 min-w-0">
+                                            <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{item.title}</span>
+                                            {fullTask?.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                              {fullTask?.assignedTo?.map((a) => (
+                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {canEditTasks && fullTask && (
+                                              <button type="button" onClick={() => openEditTask(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                              </button>
+                                            )}
+                                            {canDeleteTasks && (
+                                              <button type="button" onClick={() => setDeleteTarget({ type: "task", id: item._id, name: item.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
+                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <AnimatePresence initial={false}>
+                                        {expandedTask === item._id && (
+                                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                            <div className="ml-4 border-l pl-2 pr-1 py-1 space-y-1.5" style={{ borderColor: "color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }}>
+                                              {subtaskLoading === item._id ? (
+                                                <div className="space-y-1">{[1, 2].map((i) => <div key={i} className="shimmer h-4 w-full rounded" />)}</div>
+                                              ) : (subtasksByParent.get(item._id) ?? []).length === 0 ? (
+                                                <p className="text-[10px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
+                                              ) : (
+                                                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(ev) => {
+                                                  const { active, over } = ev;
+                                                  if (!over || active.id === over.id) return;
+                                                  const subList = subtasksByParent.get(item._id) ?? [];
+                                                  const ids = subList.map((s) => s._id);
+                                                  const oI = ids.indexOf(active.id as string);
+                                                  const nI = ids.indexOf(over.id as string);
+                                                  if (oI < 0 || nI < 0) return;
+                                                  const reordered = arrayMove(ids, oI, nI);
+                                                  fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds: reordered }) })
+                                                    .then(() => loadSubtasks(item._id)).catch(() => toast.error("Reorder failed"));
+                                                }}>
+                                                  <SortableContext items={(subtasksByParent.get(item._id) ?? []).map((s) => s._id)} strategy={verticalListSortingStrategy}>
+                                                    {(subtasksByParent.get(item._id) ?? []).map((sub) => {
+                                                      const subColor = sub.status === "completed" ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
+                                                      return (
+                                                        <SortableTaskRow key={sub._id} id={sub._id}>
+                                                          <div className="flex items-center gap-1.5 rounded-lg px-1.5 py-1" style={{ borderLeft: `2px solid ${subColor}`, background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
+                                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
+                                                            <span className="text-[10px] flex-1 truncate" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
+                                                          </div>
+                                                        </SortableTaskRow>
+                                                      );
+                                                    })}
+                                                  </SortableContext>
+                                                </DndContext>
+                                              )}
+                                              {canCreateTasks && (
+                                                <button type="button" onClick={() => openCreateTask(c._id, item._id)}
+                                                  className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
+                                                  style={{ color: "var(--primary)" }}>
+                                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                                  Subtask
+                                                </button>
+                                              )}
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                  </SortableTaskRow>
+                                );
+                              })}
+                            </SortableContext>
+                          </DndContext>
                         </div>
                       )}
 
                       {oneTimeTasks.length > 0 && (
                         <div>
-                          {todayChecklist.length > 0 && <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>}
-                          {oneTimeTasks.map((task) => {
-                            const isTaskExpanded = expandedTask === task._id;
-                            const subs = subtasksByParent.get(task._id) ?? [];
-                            const canChange = canEditTasks || task.assignedTo?._id === session?.user?.id;
-                            const statusColor = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                            return (
-                              <div key={task._id} className="mb-px">
-                                <div className="group flex items-center gap-1.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_5%,transparent)]" style={{ borderLeft: `2px solid ${statusColor}`, background: "color-mix(in srgb, var(--fg) 2%, var(--bg-elevated))" }}>
-                                  <button type="button" onClick={() => {
-                                    const next = isTaskExpanded ? null : task._id;
-                                    setExpandedTask(next);
-                                    if (next && !subtasksByParent.has(task._id)) void loadSubtasks(task._id);
-                                  }} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
-                                    <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: isTaskExpanded ? 90 : 0 }}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                    </motion.svg>
-                                  </button>
-                                  <span className="text-[10px] font-medium flex-1 truncate" style={{ color: task.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.status === "completed" ? "line-through" : undefined }}>{task.title}</span>
-                                  <TaskStatusToggle task={task} canChange={!!canChange} onCycle={() => requestCycleTask(task)} />
-                                  {task.deadline && <span className="text-[8px] tabular-nums shrink-0" style={{ color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
-                                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                    {canEditTasks && (
-                                      <button type="button" onClick={() => openEditTask(task)} className="h-4 w-4 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
-                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                                      </button>
-                                    )}
-                                    {canDeleteTasks && (
-                                      <button type="button" onClick={() => setDeleteTarget({ type: "task", id: task._id, name: task.title })} className="h-4 w-4 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
-                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                                <AnimatePresence initial={false}>
-                                  {isTaskExpanded && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                      <div className="ml-4 border-l pl-2 pr-1 py-0.5 space-y-px" style={{ borderColor: "color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }}>
-                                        {subtaskLoading === task._id ? (
-                                          <div className="space-y-1">{[1, 2].map((i) => <div key={i} className="shimmer h-4 w-full rounded" />)}</div>
-                                        ) : subs.length === 0 ? (
-                                          <p className="text-[9px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
-                                        ) : subs.map((sub) => {
-                                          const subColor = sub.status === "completed" ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
-                                          return (
-                                            <div key={sub._id} className="flex items-center gap-1.5 rounded-lg px-1.5 py-1" style={{ borderLeft: `2px solid ${subColor}`, background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
-                                              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
-                                              <span className="text-[9px] flex-1 truncate" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
-                                            </div>
-                                          );
-                                        })}
-                                        {canCreateTasks && (
-                                          <button type="button" onClick={() => openCreateTask(c._id, task._id)}
-                                            className="flex items-center gap-1 text-[9px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
-                                            style={{ color: "var(--primary)" }}>
-                                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                                            Subtask
+                          {todayChecklist.length > 0 && <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks <span className="font-normal" style={{ color: "var(--fg-tertiary)" }}>(drag to prioritize)</span></p>}
+                          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(c._id, e)}>
+                            <SortableContext items={oneTimeTasks.map((t) => t._id)} strategy={verticalListSortingStrategy}>
+                              {oneTimeTasks.map((task) => {
+                                const isTaskExpanded = expandedTask === task._id;
+                                const subs = subtasksByParent.get(task._id) ?? [];
+                                const taskActive = task.isActive !== false;
+                                return (
+                                  <SortableTaskRow key={task._id} id={task._id}>
+                                    <div className="mb-1.5">
+                                      <div className="group relative rounded-xl border transition-all"
+                                        style={{
+                                          background: "var(--bg-elevated)",
+                                          borderColor: "var(--border)",
+                                          opacity: taskActive ? 1 : 0.45,
+                                        }}>
+                                        {(() => {
+                                          const sc = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                                          const sl = task.status === "completed" ? "Done" : task.status === "inProgress" ? "In Progress" : "Pending";
+                                          return <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${sc} 18%, transparent)`, color: sc, border: `1px solid color-mix(in srgb, ${sc} 30%, var(--border))` }}>{sl}</span>;
+                                        })()}
+                                        <div className="flex items-center gap-1.5 px-2 py-1.5">
+                                          <button type="button" onClick={() => {
+                                            const next = isTaskExpanded ? null : task._id;
+                                            setExpandedTask(next);
+                                            if (next && !subtasksByParent.has(task._id)) void loadSubtasks(task._id);
+                                          }} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
+                                            <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: isTaskExpanded ? 90 : 0 }}>
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                            </motion.svg>
                                           </button>
-                                        )}
+                                          <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(task._id, taskActive)} />
+                                          <div className="flex-1 min-w-0">
+                                            <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{task.title}</span>
+                                            {task.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                              {task.assignedTo?.map((a) => (
+                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                              ))}
+                                              {task.deadline && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: deadlineUrgency(task.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {canEditTasks && (
+                                              <button type="button" onClick={() => openEditTask(task)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                              </button>
+                                            )}
+                                            {canDeleteTasks && (
+                                              <button type="button" onClick={() => setDeleteTarget({ type: "task", id: task._id, name: task.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
+                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
                                       </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            );
-                          })}
+                                      <AnimatePresence initial={false}>
+                                        {isTaskExpanded && (
+                                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                            <div className="ml-4 border-l pl-2 pr-1 py-1 space-y-1.5" style={{ borderColor: "color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }}>
+                                              {subtaskLoading === task._id ? (
+                                                <div className="space-y-1">{[1, 2].map((i) => <div key={i} className="shimmer h-4 w-full rounded" />)}</div>
+                                              ) : subs.length === 0 ? (
+                                                <p className="text-[10px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
+                                              ) : (
+                                                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(ev) => {
+                                                  const { active, over } = ev;
+                                                  if (!over || active.id === over.id) return;
+                                                  const ids = subs.map((s) => s._id);
+                                                  const oI = ids.indexOf(active.id as string);
+                                                  const nI = ids.indexOf(over.id as string);
+                                                  if (oI < 0 || nI < 0) return;
+                                                  const reordered = arrayMove(ids, oI, nI);
+                                                  fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds: reordered }) })
+                                                    .then(() => loadSubtasks(task._id)).catch(() => toast.error("Reorder failed"));
+                                                }}>
+                                                  <SortableContext items={subs.map((s) => s._id)} strategy={verticalListSortingStrategy}>
+                                                    {subs.map((sub) => {
+                                                      const subColor = sub.status === "completed" ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
+                                                      return (
+                                                        <SortableTaskRow key={sub._id} id={sub._id}>
+                                                          <div className="flex items-center gap-1.5 rounded-lg px-1.5 py-1" style={{ borderLeft: `2px solid ${subColor}`, background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
+                                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
+                                                            <span className="text-[10px] flex-1 truncate" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
+                                                          </div>
+                                                        </SortableTaskRow>
+                                                      );
+                                                    })}
+                                                  </SortableContext>
+                                                </DndContext>
+                                              )}
+                                              {canCreateTasks && (
+                                                <button type="button" onClick={() => openCreateTask(c._id, task._id)}
+                                                  className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
+                                                  style={{ color: "var(--primary)" }}>
+                                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                                  Subtask
+                                                </button>
+                                              )}
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                  </SortableTaskRow>
+                                );
+                              })}
+                            </SortableContext>
+                          </DndContext>
                         </div>
                       )}
 
@@ -868,63 +1011,17 @@ export default function WorkspacePage() {
                       )}
                     </div>
 
-                    {/* ── compliance overview (expanded) ── */}
-                    <AnimatePresence initial={false}>
-                      {isExpanded && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t" style={{ borderColor: "var(--border)" }}>
-                          <div className="p-2">
-                            <h4 className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--fg-tertiary)" }}>Compliance (7d)</h4>
-                            {overviewLoading ? (
-                              <div className="space-y-1">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-6 w-full rounded" />)}</div>
-                            ) : !overviewData ? (
-                              <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>No data</p>
-                            ) : (
-                              <div className="overflow-x-auto rounded border" style={{ borderColor: "var(--border)" }}>
-                                <table className="w-full text-[9px]">
-                                  <thead>
-                                    <tr style={{ background: "var(--bg-grouped)" }}>
-                                      <th className="text-left px-1.5 py-1 font-semibold sticky left-0" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Employee</th>
-                                      {overviewData.dates.map((d) => (
-                                        <th key={d} className="px-1 py-1 text-center font-medium whitespace-nowrap" style={{ color: "var(--fg-tertiary)" }}>
-                                          {new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {overviewData.employees.map((emp) => (
-                                      <tr key={emp._id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                                        <td className="px-1.5 py-1 font-medium sticky left-0" style={{ background: "var(--bg-elevated)", color: "var(--fg)" }}>{emp.name}</td>
-                                        {emp.byDate.map((day) => {
-                                          const pct = day.total > 0 ? Math.round((day.done / day.total) * 100) : 0;
-                                          const bg = pct === 100 ? "color-mix(in srgb, var(--teal) 15%, transparent)" : pct > 0 ? "color-mix(in srgb, var(--amber) 15%, transparent)" : "transparent";
-                                          const fg = pct === 100 ? "var(--teal)" : pct > 0 ? "var(--amber)" : "var(--fg-tertiary)";
-                                          return (
-                                            <td key={day.date} className="px-1 py-1 text-center" style={{ background: bg }}>
-                                              <span className="font-semibold tabular-nums" style={{ color: fg }}>{day.done}/{day.total}</span>
-                                            </td>
-                                          );
-                                        })}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    
 
                     {/* ── card footer: stat pills ── */}
                     <div className="border-t px-2 py-1.5 flex items-center gap-1 flex-wrap" style={{ borderColor: "var(--border)" }}>
-                      {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
-                      {pendingTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{pendingTasks} pending</span>}
-                      {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} active</span>}
-                      {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} done</span>}
-                      {recurCount > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{recurCount} recurring</span>}
-                      {empCount > 0 && <span className="rounded-full px-1.5 py-px text-[8px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{empCount} people</span>}
-                      {c.startDate && <span className="text-[8px] tabular-nums ml-auto" style={{ color: "var(--fg-tertiary)" }}>{formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : " · ongoing"}</span>}
+                      {canEditCampaigns && <ToggleSwitch size="sm" checked={c.status === "active"} onChange={() => toggleCampaignActive(c._id, c.status)} />}
+                      {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
+                      {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
+                      {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}
+                      {recurCount > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{recurCount} recurring</span>}
+                      {empCount > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{empCount} team member{empCount !== 1 ? "s" : ""}</span>}
+                      {c.startDate && <span className="text-[9px] tabular-nums ml-auto" style={{ color: "var(--fg-tertiary)" }}>{formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : " · ongoing"}</span>}
                     </div>
                   </motion.div>
                 );
@@ -937,9 +1034,9 @@ export default function WorkspacePage() {
         {canViewLogs && (
           <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-              <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                 <div className="flex items-center min-w-0">
-                  <h3 className="text-headline" style={{ color: "var(--fg)" }}>Activity</h3>
+                  <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Workspace activity</h3>
                   <RefreshBtn onRefresh={() => void refetchLogs()} />
                   {wsTotalUnread > 0 && (
                     <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
@@ -956,7 +1053,7 @@ export default function WorkspacePage() {
                 )}
               </div>
               {wsLogs.length === 0 ? (
-                <p className="text-center text-xs py-8 flex-1" style={{ color: "var(--fg-tertiary)" }}>No workspace activity yet</p>
+                <p className="text-center text-[10px] py-8 flex-1" style={{ color: "var(--fg-tertiary)" }}>No workspace activity yet</p>
               ) : (
                 <div className="flex flex-1 min-h-0 flex-col gap-1 p-2">
                   {Array.from(wsLogGroups.entries())
@@ -977,7 +1074,7 @@ export default function WorkspacePage() {
                           <div className="flex w-full shrink-0 items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
                             <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
-                              <span className="text-[12px] font-semibold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
+                              <span className="text-[12px] font-bold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
                               {group.unread > 0 && (
                                 <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
                                   {group.unread}
@@ -996,12 +1093,20 @@ export default function WorkspacePage() {
                               </motion.button>
                             )}
                           </div>
+                          <AnimatePresence initial={false}>
                           {isOpen && (
-                            <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-1.5" style={{ scrollbarWidth: "thin" }}>
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                              className="flex-1 min-h-0 overflow-hidden"
+                            >
+                            <div className="overflow-y-auto px-2 pb-2 space-y-1.5 h-full">
                               {group.logs.map((log) => {
                                 const isSelf = session?.user?.email && log.userEmail?.toLowerCase() === session.user.email.toLowerCase();
                                 const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
-                                const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName?.trim() || log.userEmail);
+                                const displayName = isSelf ? (needsPossessive ? "Your" : "You") : resolveLogName(log);
                                 return (
                                   <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
                                     <div className="flex items-start gap-2">
@@ -1023,7 +1128,7 @@ export default function WorkspacePage() {
                                             const linkedTask = taskList.find((t) => t._id === log.entityId);
                                             if (!linkedTask) return null;
                                             const sc = linkedTask.status === "completed" ? "var(--teal)" : linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                                            const sl = linkedTask.status === "completed" ? "Done" : linkedTask.status === "inProgress" ? "Working" : "Pending";
+                                            const sl = linkedTask.status === "completed" ? "Completed" : linkedTask.status === "inProgress" ? "In progress" : "Pending";
                                             const canAct = linkedTask.status !== "completed";
                                             return (
                                               <motion.button type="button" onClick={canAct ? () => requestCycleTask(linkedTask) : undefined} disabled={!canAct}
@@ -1045,7 +1150,9 @@ export default function WorkspacePage() {
                                 );
                               })}
                             </div>
+                            </motion.div>
                           )}
+                          </AnimatePresence>
                         </div>
                       );
                     })}
@@ -1069,10 +1176,17 @@ export default function WorkspacePage() {
         </>}
       >
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label><input type="text" value={fTitle} onChange={(e) => setFTitle(e.target.value)} className="input" autoFocus required /></div>
-        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label><textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)} rows={2} className="input" /></div>
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Brief description</label><input type="text" value={fDesc} onChange={(e) => setFDesc(e.target.value)} className="input" placeholder="Brief summary" maxLength={120} /></div>
         {canReassignTasks && allEmployees.length > 0 && (() => {
-          const camp = fCampaign ? campaignList.find((c) => c._id === fCampaign) : null;
-          const assignable = camp ? allEmployees.filter((e) => camp.tags.employees.some((te) => te._id === e._id)) : allEmployees;
+          let assignable: SelectOption[];
+          if (fParentTask) {
+            const parent = taskList.find((t) => t._id === fParentTask);
+            const parentIds = parent?.assignedTo?.map((a) => a._id) ?? [];
+            assignable = allEmployees.filter((e) => parentIds.includes(e._id));
+          } else {
+            const camp = fCampaign ? campaignList.find((c) => c._id === fCampaign) : null;
+            assignable = camp ? allEmployees.filter((e) => camp.tags.employees.some((te) => te._id === e._id)) : allEmployees;
+          }
           return assignable.length > 0 ? (
             <div>
               <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">
@@ -1088,44 +1202,50 @@ export default function WorkspacePage() {
                 ))}
               </div>
             </div>
-          ) : <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No employees tagged in this campaign.</p>;
+          ) : <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{fParentTask ? "No employees on parent task." : "No employees tagged in this campaign."}</p>;
         })()}
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Priority</label><select value={fPriority} onChange={(e) => setFPriority(e.target.value)} className="input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Deadline</label><input type="date" value={fDeadline} onChange={(e) => setFDeadline(e.target.value)} className="input" /></div>
-        </div>
-        {!fParentTask && (
-          <div>
-            <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Recurrence</label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {([["", "One-time"], ["weekly", "Weekly"], ["monthly", "Monthly"]] as const).map(([val, label]) => (
-                <button key={val} type="button"
-                  onClick={() => { setFRecurFreq(val); setFRecurDays([]); }}
-                  className="rounded-lg px-3 py-1.5 text-[11px] font-semibold border transition-all"
-                  style={{ background: fRecurFreq === val ? "var(--primary)" : "var(--bg-grouped)", color: fRecurFreq === val ? "white" : "var(--fg-secondary)", borderColor: fRecurFreq === val ? "var(--primary)" : "var(--border)" }}>{label}</button>
-              ))}
+        {(() => {
+          const parentIsRecurring = fParentTask ? !!taskList.find((t) => t._id === fParentTask)?.recurrence : false;
+          if (fParentTask && !parentIsRecurring) return null;
+          const freqOptions: [string, string][] = fParentTask
+            ? [["weekly", "Weekly"], ["monthly", "Monthly"]]
+            : [["", "One-time"], ["weekly", "Weekly"], ["monthly", "Monthly"]];
+          return (
+            <div>
+              <label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Recurrence{fParentTask ? " (inherits recurring type)" : ""}</label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {freqOptions.map(([val, label]) => (
+                  <button key={val} type="button"
+                    onClick={() => { setFRecurFreq(val); setFRecurDays([]); }}
+                    className="rounded-lg px-3 py-1.5 text-[11px] font-semibold border transition-all"
+                    style={{ background: fRecurFreq === val ? "var(--primary)" : "var(--bg-grouped)", color: fRecurFreq === val ? "white" : "var(--fg-secondary)", borderColor: fRecurFreq === val ? "var(--primary)" : "var(--border)" }}>{label}</button>
+                ))}
+              </div>
+              {fRecurFreq === "weekly" && (
+                <div className="flex flex-wrap gap-1.5">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, idx) => (
+                    <button key={idx} type="button"
+                      onClick={() => setFRecurDays((prev) => prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx])}
+                      className="rounded-lg px-2 py-1 text-[11px] font-semibold border transition-all"
+                      style={{ background: fRecurDays.includes(idx) ? "var(--primary)" : "var(--bg-grouped)", color: fRecurDays.includes(idx) ? "white" : "var(--fg-secondary)", borderColor: fRecurDays.includes(idx) ? "var(--primary)" : "var(--border)" }}>{label}</button>
+                  ))}
+                </div>
+              )}
+              {fRecurFreq === "monthly" && (
+                <div className="flex flex-wrap gap-1">
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <button key={d} type="button"
+                      onClick={() => setFRecurDays((prev) => prev.includes(d) ? prev.filter((v) => v !== d) : [...prev, d])}
+                      className="h-7 w-7 rounded-lg text-[10px] font-semibold border transition-all flex items-center justify-center"
+                      style={{ background: fRecurDays.includes(d) ? "var(--primary)" : "var(--bg-grouped)", color: fRecurDays.includes(d) ? "white" : "var(--fg-secondary)", borderColor: fRecurDays.includes(d) ? "var(--primary)" : "var(--border)" }}>{d}</button>
+                  ))}
+                </div>
+              )}
             </div>
-            {fRecurFreq === "weekly" && (
-              <div className="flex flex-wrap gap-1.5">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, idx) => (
-                  <button key={idx} type="button"
-                    onClick={() => setFRecurDays((prev) => prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx])}
-                    className="rounded-lg px-2 py-1 text-[11px] font-semibold border transition-all"
-                    style={{ background: fRecurDays.includes(idx) ? "var(--primary)" : "var(--bg-grouped)", color: fRecurDays.includes(idx) ? "white" : "var(--fg-secondary)", borderColor: fRecurDays.includes(idx) ? "var(--primary)" : "var(--border)" }}>{label}</button>
-                ))}
-              </div>
-            )}
-            {fRecurFreq === "monthly" && (
-              <div className="flex flex-wrap gap-1">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <button key={d} type="button"
-                    onClick={() => setFRecurDays((prev) => prev.includes(d) ? prev.filter((v) => v !== d) : [...prev, d])}
-                    className="h-7 w-7 rounded-lg text-[10px] font-semibold border transition-all flex items-center justify-center"
-                    style={{ background: fRecurDays.includes(d) ? "var(--primary)" : "var(--bg-grouped)", color: fRecurDays.includes(d) ? "white" : "var(--fg-secondary)", borderColor: fRecurDays.includes(d) ? "var(--primary)" : "var(--border)" }}>{d}</button>
-                ))}
-              </div>
-            )}
-          </div>
+          );
+        })()}
+        {fRecurFreq === "" && (
+          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Deadline</label><input type="date" value={fDeadline} onChange={(e) => setFDeadline(e.target.value)} className="input" /></div>
         )}
       </ModalShell>
 
@@ -1141,25 +1261,9 @@ export default function WorkspacePage() {
         </>}
       >
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Name</label><input type="text" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="e.g. Q2 Marketing Push" className="input" autoFocus /></div>
-        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Description</label><textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} rows={2} className="input" /></div>
-        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Status</label><select value={cStatus} onChange={(e) => setCStatus(e.target.value as CampaignStatus)} className="input"><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Start</label><input type="date" value={cStart} onChange={(e) => setCStart(e.target.value)} className="input" /></div>
-          {!cOngoing ? (
-            <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">End</label><input type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} className="input" /></div>
-          ) : (
-            <div className="flex items-center gap-2 self-end pb-2">
-              <ToggleSwitch size="sm" checked={cOngoing} onChange={() => { setCOngoing((v) => !v); if (!cOngoing) setCEnd(""); }} />
-              <label className="text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Ongoing</label>
-            </div>
-          )}
-        </div>
-        {!cOngoing && (
-          <div className="flex items-center gap-2">
-            <ToggleSwitch size="sm" checked={cOngoing} onChange={() => { setCOngoing((v) => !v); if (!cOngoing) setCEnd(""); }} />
-            <label className="text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>Ongoing (no end date)</label>
-          </div>
-        )}
+        <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Short description</label><input type="text" value={cDesc} onChange={(e) => setCDesc(e.target.value)} placeholder="Brief summary" className="input" maxLength={120} /></div>
+        
+        
         {canTagEntities && allDepartments.length > 0 && (
           <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Tag Departments</label><div className="flex flex-wrap gap-1.5">{allDepartments.map((d) => (<button key={d._id} type="button" onClick={() => { const next = toggleArr(cTagDepts, d._id); setCTagDepts(next); if (next.length > 0) setCTagEmployees((prev) => prev.filter((eid) => { const emp = allEmployees.find((x) => x._id === eid); return emp?.departmentId && next.includes(emp.departmentId); })); }} className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${cTagDepts.includes(d._id) ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`} style={cTagDepts.includes(d._id) ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}>{d.label}</button>))}</div></div>
         )}

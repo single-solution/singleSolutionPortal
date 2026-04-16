@@ -6,7 +6,7 @@ import { AnimatePresence } from "framer-motion";
 import { WelcomeGuide } from "@/app/(dashboard)/components/WelcomeGuide";
 import { SpotlightTour, type TourStep } from "@/app/(dashboard)/components/SpotlightTour";
 
-type TourName = "welcome" | "dashboard" | "organization" | "workspace" | "insights-desk" | "settings" | "employees" | "departments" | "campaigns" | "tasks" | "attendance";
+type TourName = "welcome" | "dashboard" | "organization" | "workspace" | "insights-desk" | "settings" | "attendance";
 
 interface GuideContextValue {
   startTour: (name: TourName) => void;

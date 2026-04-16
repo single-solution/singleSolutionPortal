@@ -12,10 +12,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   await connectDB();
 
-  const filter: Record<string, unknown> = { parentTask: id, isActive: true };
+  const filter: Record<string, unknown> = { parentTask: id };
 
   if (!isSuperAdmin(actor) && !hasPermission(actor, "tasks_view")) {
     filter.assignedTo = actor.id;
+    filter.isActive = true;
   } else if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
     filter.assignedTo = { $in: [actor.id, ...subordinateIds] };

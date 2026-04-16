@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef, type ReactNode } fro
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
-import { Portal } from "../components/Portal";
+import { Portal } from "./Portal";
 import { useQuery, invalidateQueries } from "@/lib/useQuery";
 import { ease } from "@/lib/motion";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -133,6 +133,11 @@ interface LeaveRecord {
   reason?: string;
   isHalfDay?: boolean;
 }
+interface TaskUserStatus {
+  user: { _id?: string } | string;
+  status: string;
+  updatedAt?: string;
+}
 interface TaskRow {
   _id: string;
   title: string;
@@ -140,8 +145,9 @@ interface TaskRow {
   priority: string;
   deadline?: string;
   campaign?: { _id: string; name: string };
-  assignedTo?: { _id?: string } | string;
+  assignedTo?: { _id?: string }[] | string;
   createdAt?: string;
+  userStatuses?: TaskUserStatus[];
 }
 interface CampaignRow {
   _id: string;
@@ -225,9 +231,19 @@ function avatarColor(id: string) {
   return `hsl(${h}, 55%, 50%)`;
 }
 function assigneeId(t: TaskRow) {
-  if (typeof t.assignedTo === "object" && t.assignedTo?._id) return String(t.assignedTo._id);
+  if (Array.isArray(t.assignedTo) && t.assignedTo.length > 0 && t.assignedTo[0]._id) return String(t.assignedTo[0]._id);
   if (typeof t.assignedTo === "string") return t.assignedTo;
   return undefined;
+}
+function employeeTaskStatus(t: TaskRow, employeeId: string): string {
+  if (Array.isArray(t.userStatuses)) {
+    const entry = t.userStatuses.find((us) => {
+      const uid = typeof us.user === "object" && us.user ? us.user._id : String(us.user);
+      return uid === employeeId;
+    });
+    if (entry) return entry.status;
+  }
+  return t.status;
 }
 function todayWeekdayKey() {
   const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
@@ -459,8 +475,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     return !effectiveId ? [] : list.filter((t) => assigneeId(t) === effectiveId);
   }, [tasksRaw, effectiveId]);
   const activeTasks = useMemo(
-    () => empTasks.filter((t) => t.status === "pending" || t.status === "inProgress").length,
-    [empTasks],
+    () => empTasks.filter((t) => { const s = effectiveId ? employeeTaskStatus(t, effectiveId) : t.status; return s === "pending" || s === "inProgress"; }).length,
+    [empTasks, effectiveId],
   );
   const empCampaigns = useMemo(() => {
     const list = Array.isArray(campRaw) ? campRaw : [];
@@ -485,7 +501,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const inOff = sess?.activeSession?.location?.inOffice ?? false;
   const stLabel =
     employee && !employee.isActive ? "Inactive"
-    : hasAct ? (inOff ? "Active · Office" : "Active · Remote")
+    : hasAct ? (inOff ? "Working · In office" : "Working · Remote")
     : tm > 0 ? "Checked in"
     : "Off shift";
   const stCol =
@@ -857,8 +873,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           const span2 = (new Date(sess.lastExit).getTime() - new Date(sess.firstEntry).getTime()) / 60000;
                           sIdleMins = Math.max(0, Math.round(span2 - tm));
                         }
-                        const pendingT = empTasks.filter((t) => t.status === "pending").length;
-                        const inProgT = empTasks.filter((t) => t.status === "inProgress").length;
+                        const pendingT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "pending").length;
+                        const inProgT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "inProgress").length;
                         return (
                         <div className="space-y-3">
                           {/* Today's attendance — EmployeeCard style */}
@@ -868,33 +884,33 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               <div className="space-y-2"><Sh c="h-12 rounded-lg" /><Sh c="h-12 rounded-lg" /><Sh c="h-8 rounded-lg" /></div>
                             ) : (
                               <>
-                                {/* Clock In / Hours / Clock Out */}
+                                {/* Clock in / Hours today / Clock out */}
                                 <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ borderColor: "var(--border)" }}>
                                   <div>
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
                                     <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sFirstArrival}</p>
                                   </div>
                                   <div className="text-center">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours today</p>
                                     <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(tm)}</p>
                                   </div>
                                   <div className="text-right">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
                                     <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sClockOut}</p>
                                   </div>
                                 </div>
-                                {/* Office In / Office / Office Out */}
+                                {/* Office entry / Office hours / Office exit */}
                                 <div className="mt-2 grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
                                   <div>
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
                                     <p className="font-semibold tabular-nums">{sOfficeIn}</p>
                                   </div>
                                   <div className="text-center">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
                                     <p className="font-semibold tabular-nums">{formatMinutes(sOfficeMins)}</p>
                                   </div>
                                   <div className="text-right">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
+                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
                                     <p className="font-semibold tabular-nums">{sOfficeOut}</p>
                                   </div>
                                 </div>
@@ -984,13 +1000,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Workload</p>
                             {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (() => {
-                              const overdueT = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && t.status !== "completed").length;
-                              const completedT = empTasks.filter((t) => t.status === "completed").length;
+                              const overdueT = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) !== "completed").length;
+                              const completedT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "completed").length;
                               return (
                               <div className="flex flex-wrap gap-1.5 text-[9px]">
-                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} pending</span>
-                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)" }}>{inProgT} active</span>
-                                {completedT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 20%, transparent)" }}>{completedT} done</span>}
+                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} tasks pending</span>
+                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)" }}>{inProgT} in progress</span>
+                                {completedT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 20%, transparent)" }}>{completedT} completed</span>}
                                 {overdueT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)", borderColor: "color-mix(in srgb, var(--rose) 20%, transparent)" }}>{overdueT} overdue</span>}
                                 <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: campCount > 0 ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "var(--bg-grouped)", color: campCount > 0 ? "var(--teal)" : "var(--fg-tertiary)", borderColor: campCount > 0 ? "color-mix(in srgb, var(--teal) 20%, transparent)" : "var(--border)" }}>{campCount} campaign{campCount !== 1 ? "s" : ""}</span>
                               </div>
@@ -1103,18 +1119,18 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.lateArrivals ?? 0}</p>
                                   </div>
                                 </div>
-                                {/* Row 4: Avg Office In · Avg Office Out */}
+                                {/* Row 4: Avg office entry · Avg office exit */}
                                 {(ms.averageOfficeInTime || ms.averageOfficeOutTime) && (
                                   <div className="mt-2 grid grid-cols-2 gap-2">
                                     {ms.averageOfficeInTime && (
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg Office In</p>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg office entry</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeInTime}</p>
                                       </div>
                                     )}
                                     {ms.averageOfficeOutTime && (
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg Office Out</p>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg office exit</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeOutTime}</p>
                                       </div>
                                     )}
@@ -1421,13 +1437,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {!payL && payEstimate && !payEstimate.exempt && payEstimate.dailyBreakdown && payEstimate.dailyBreakdown.length > 0 && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Daily breakdown</p>
-                              <div className="max-h-[200px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                              <div className="max-h-[200px] overflow-y-auto">
                                 <table className="w-full text-[10px]">
                                   <thead>
                                     <tr style={{ color: "var(--fg-tertiary)" }}>
                                       <th className="py-1 text-left font-semibold">Day</th>
-                                      <th className="py-1 text-left font-semibold">Status</th>
-                                      <th className="py-1 text-right font-semibold">Hours</th>
+                                      <th className="py-1 text-left font-semibold">Attendance</th>
+                                      <th className="py-1 text-right font-semibold">Hours worked</th>
                                       <th className="py-1 text-right font-semibold">Late</th>
                                       <th className="py-1 text-right font-semibold">Deduction</th>
                                     </tr>
@@ -1436,7 +1452,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     {payEstimate.dailyBreakdown.map((d) => (
                                       <tr key={d.day} style={{ color: "var(--fg)" }}>
                                         <td className="py-1 tabular-nums">{d.dayOfWeek} {d.day}</td>
-                                        <td className="py-1">{d.status}</td>
+                                        <td className="py-1">{{ present: "Present", late: "Late", absent: "Absent", leave: "Leave", holiday: "Holiday", weekend: "Weekend", off: "Day off" }[d.status] ?? d.status}</td>
                                         <td className="py-1 text-right tabular-nums">{((d.workingMinutes ?? 0) / 60).toFixed(1)}h</td>
                                         <td className="py-1 text-right tabular-nums">{d.lateMinutes ?? 0}m</td>
                                         <td className="py-1 text-right tabular-nums">{(d.deduction ?? 0).toLocaleString()}</td>
@@ -1480,9 +1496,9 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 <div className="grid grid-cols-3 gap-2">
                                   {(
                                     [
-                                      ["Total", `${leaveBalance.total}`, "var(--primary)"],
-                                      ["Used", `${leaveBalance.used}`, "var(--amber)"],
-                                      ["Remaining", `${leaveBalance.remaining}`, leaveBalance.remaining > 0 ? "var(--green)" : "var(--rose)"],
+                                      ["Total days", `${leaveBalance.total}`, "var(--primary)"],
+                                      ["Days used", `${leaveBalance.used}`, "var(--amber)"],
+                                      ["Days left", `${leaveBalance.remaining}`, leaveBalance.remaining > 0 ? "var(--green)" : "var(--rose)"],
                                     ] as [string, string, string][]
                                   ).map(([k, v, c]) => (
                                     <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
@@ -1507,8 +1523,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {leaveInsights.approvalRate != null && (
                                   <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Approval {leaveInsights.approvalRate}%</span>
                                 )}
-                                <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Avg dur. {leaveInsights.avgDur.toFixed(1)}d</span>
-                                <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>Half-days {leaveInsights.halfDays}</span>
+                                <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Avg duration {leaveInsights.avgDur.toFixed(1)} days</span>
+                                <span className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{leaveInsights.halfDays} half-day leaves</span>
                                 {Object.entries(leaveInsights.byType).map(([typ, n2]) => (
                                   <span key={typ} className="rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{typ}: {n2}</span>
                                 ))}
@@ -1593,7 +1609,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ) : leavesList.length === 0 ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No leave records found.</p>
                             ) : (
-                              <div className="max-h-[350px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                              <div className="max-h-[350px] space-y-1.5 overflow-y-auto">
                                 {leavesList.map((l) => {
                                   const sc: Record<string, string> = { approved: "var(--green)", pending: "var(--amber)", rejected: "var(--rose)", cancelled: "var(--fg-tertiary)" };
                                   const col = sc[l.status] ?? "var(--fg-secondary)";
@@ -1611,7 +1627,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                         </div>
                                         <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{same ? start : `${start} – ${end}`}{l.reason ? ` · ${l.reason}` : ""}</p>
                                       </div>
-                                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{l.status}</span>
+                                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{{ pending: "Pending approval", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}</span>
                                     </div>
                                   );
                                 })}
@@ -1626,18 +1642,19 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Task summary stats */}
                           {!taskL && empTasks.length > 0 && (() => {
                             const total = empTasks.length;
-                            const completed = empTasks.filter((t) => t.status === "completed").length;
-                            const inProg = empTasks.filter((t) => t.status === "inProgress").length;
-                            const pending = empTasks.filter((t) => t.status === "pending").length;
-                            const overdue = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && t.status !== "completed").length;
+                            const ets = (t: TaskRow) => effectiveId ? employeeTaskStatus(t, effectiveId) : t.status;
+                            const completed = empTasks.filter((t) => ets(t) === "completed").length;
+                            const inProg = empTasks.filter((t) => ets(t) === "inProgress").length;
+                            const pending = empTasks.filter((t) => ets(t) === "pending").length;
+                            const overdue = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && ets(t) !== "completed").length;
                             const compRate = total > 0 ? Math.round((completed / total) * 100) : 0;
                             const tiles: [string, string, string][] = [
-                              ["Total", `${total}`, "var(--fg-secondary)"],
-                              ["Completed", `${completed}`, "var(--green)"],
-                              ["In Progress", `${inProg}`, "var(--primary)"],
-                              ["Pending", `${pending}`, "var(--amber)"],
-                              ...(overdue > 0 ? [["Overdue", `${overdue}`, "var(--rose)"] as [string, string, string]] : []),
-                              ["Completion", `${compRate}%`, compRate >= 80 ? "var(--green)" : "var(--fg-secondary)"],
+                              ["Total tasks", `${total}`, "var(--fg-secondary)"],
+                              ["Completed tasks", `${completed}`, "var(--green)"],
+                              ["Tasks in progress", `${inProg}`, "var(--primary)"],
+                              ["Tasks pending", `${pending}`, "var(--amber)"],
+                              ...(overdue > 0 ? [["Tasks overdue", `${overdue}`, "var(--rose)"] as [string, string, string]] : []),
+                              ["Completion rate", `${compRate}%`, compRate >= 80 ? "var(--green)" : "var(--fg-secondary)"],
                             ];
                             return (
                               <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
@@ -1669,11 +1686,12 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ) : empTasks.length === 0 ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No tasks assigned.</p>
                             ) : (
-                              <div className="max-h-[280px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                              <div className="max-h-[280px] space-y-1.5 overflow-y-auto">
                                 {empTasks.map((t) => {
-                                  const stCol2 = TASK_STATUS_COLORS[t.status] ?? "var(--fg-secondary)";
+                                  const empSt = effectiveId ? employeeTaskStatus(t, effectiveId) : t.status;
+                                  const stCol2 = TASK_STATUS_COLORS[empSt] ?? "var(--fg-secondary)";
                                   const prCol2 = PRIORITY_COLORS[t.priority] ?? "var(--fg-tertiary)";
-                                  const overdue2 = t.deadline && new Date(t.deadline) < new Date() && t.status !== "completed";
+                                  const overdue2 = t.deadline && new Date(t.deadline) < new Date() && empSt !== "completed";
                                   return (
                                     <div key={t._id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
                                       <div className="min-w-0 flex-1">
@@ -1689,7 +1707,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                       </div>
                                       <div className="flex shrink-0 items-center gap-1.5">
                                         <span className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${prCol2} 14%, transparent)`, color: prCol2 }}>{t.priority || "—"}</span>
-                                        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${stCol2} 14%, transparent)`, color: stCol2 }}>{t.status}</span>
+                                        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${stCol2} 14%, transparent)`, color: stCol2 }}>{{ pending: "Pending", inProgress: "In progress", completed: "Completed" }[empSt] ?? empSt}</span>
                                       </div>
                                     </div>
                                   );
@@ -1705,15 +1723,15 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ) : empCampaigns.length === 0 ? (
                               <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No campaign involvement.</p>
                             ) : (
-                              <div className="max-h-[260px] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                              <div className="max-h-[260px] space-y-1.5 overflow-y-auto">
                                 {empCampaigns.map((c) => {
                                   const campTasks = empTasks.filter((t) => t.campaign?._id === c._id);
-                                  const campDone = campTasks.filter((t) => t.status === "completed").length;
+                                  const campDone = campTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "completed").length;
                                   return (
                                     <div key={c._id} className="rounded-lg px-2.5 py-2" style={{ background: "var(--bg-grouped)" }}>
                                       <div className="flex items-center justify-between gap-2">
                                         <p className="min-w-0 flex-1 truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{c.name}</p>
-                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{c.status}</span>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold capitalize" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{{ active: "Active", paused: "Paused", completed: "Completed", cancelled: "Cancelled" }[c.status] ?? c.status}</span>
                                       </div>
                                       <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                                         {c.startDate && <span>Start {new Date(c.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
@@ -2069,7 +2087,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <ProfRow k="Department" v={employee.department?.title ?? "—"} />
                                   <ProfRow k="Designation" v={designation} />
                                   <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
-                                  <ProfRow k="Active" v={employee.isActive === false ? "Inactive" : "Active"} />
+                                  <ProfRow k="Account status" v={employee.isActive === false ? "Inactive" : "Active"} />
                                   <ProfRow k="Account Age" v={(() => {
                                     if (!employee.createdAt) return "—";
                                     const diff = Date.now() - new Date(employee.createdAt).getTime();

@@ -49,6 +49,3 @@ export function dateInTz(
   return new Date(ref - (localAsUtc - ref));
 }
 
-export function todayDateStr(tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
-}

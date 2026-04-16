@@ -157,30 +157,32 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
 
   return (
     <>
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold" style={{ color: "var(--fg)" }}>Designations</h2>
-            <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
-              {loading && !designations ? "Loading…" : `${sorted.length} title${sorted.length !== 1 ? "s" : ""}`}
-            </p>
-          </div>
+      {/* ── Card header ── */}
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+        <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Designations</h3>
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+            {loading && !designations ? "…" : sorted.length}
+          </span>
           {canManage && (
             <motion.button
               type="button"
               onClick={openCreate}
               whileTap={{ scale: 0.96 }}
-              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-              style={{ background: "var(--primary)", color: "white" }}
+              className="flex h-5 w-5 items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
+              style={{ color: "var(--primary)" }}
               title="Add Designation"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
             </motion.button>
           )}
         </div>
+      </div>
 
+      {/* ── Card content ── */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
         <motion.div className="flex flex-col gap-1.5" variants={staggerContainerFast} initial="hidden" animate="visible">
           <AnimatePresence mode="popLayout">
             {loading && !designations ? (
@@ -193,7 +195,7 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                 </motion.div>
               ))
             ) : sorted.length === 0 ? (
-              <p className="text-[11px] p-2" style={{ color: "var(--fg-tertiary)" }}>
+              <p className="text-[10px] p-2" style={{ color: "var(--fg-tertiary)" }}>
                 No designations yet.
               </p>
             ) : (
@@ -218,11 +220,11 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                       style={{ background: d.color || "var(--primary)" }}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium" style={{ color: "var(--fg)" }}>
+                      <p className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>
                         {d.name}
                       </p>
                       {d.description && (
-                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                        <p className="truncate text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
                           {d.description}
                         </p>
                       )}
@@ -298,17 +300,17 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                className="card-static flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden shadow-xl"
-                style={{ borderColor: "var(--border-strong)" }}
+                className="rounded-xl border flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden shadow-xl"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
-                  className="flex items-center justify-between border-b px-5 py-4 shrink-0"
+                  className="shrink-0 flex items-center justify-between px-3 py-2 border-b"
                   style={{ borderColor: "var(--border)" }}
                 >
-                  <h2 className="text-base font-semibold" style={{ color: "var(--fg)" }}>
+                  <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>
                     {modalMode === "create" ? "New Designation" : "Edit Designation"}
-                  </h2>
+                  </h3>
                   <button
                     type="button"
                     onClick={closeModal}

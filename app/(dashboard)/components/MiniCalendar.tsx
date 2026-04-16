@@ -69,7 +69,7 @@ export function MiniCalendar({
   }
 
   return (
-    <div className={`rounded-xl border p-3 ${className}`} style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+    <div className={`flex flex-col rounded-xl border p-3 ${className}`} style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
       <div className="mb-3 flex items-center justify-between">
         <button type="button" onClick={onPrevMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>

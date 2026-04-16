@@ -1,10 +1,5 @@
-import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-
-export async function getSession() {
-  return auth();
-}
 
 export function forbidden(msg = "Forbidden") {
   return NextResponse.json({ error: msg }, { status: 403 });

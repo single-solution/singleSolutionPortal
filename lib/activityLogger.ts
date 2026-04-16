@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/db";
 import ActivityLog from "@/lib/models/ActivityLog";
+import User from "@/lib/models/User";
 import { emitSocket } from "@/lib/socket";
 
 interface LogInput {
@@ -17,8 +18,26 @@ interface LogInput {
 export async function logActivity(input: LogInput): Promise<void> {
   try {
     await connectDB();
+
+    let resolvedName = (input.userName || "").trim();
+    if (!resolvedName && input.userEmail) {
+      const u = await User.findOne({ email: input.userEmail })
+        .select("about.firstName about.lastName username isSuperAdmin")
+        .lean();
+      if (u) {
+        if (u.isSuperAdmin) {
+          resolvedName = "Admin";
+        } else {
+          const first = (u.about?.firstName ?? "").trim();
+          const last = (u.about?.lastName ?? "").trim();
+          resolvedName = `${first} ${last}`.trim() || u.username || "";
+        }
+      }
+    }
+
     await ActivityLog.create({
       ...input,
+      userName: resolvedName,
       targetUserIds: input.targetUserIds ?? [],
       visibility: input.visibility ?? "targeted",
     });

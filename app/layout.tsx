@@ -35,13 +35,14 @@ export default function RootLayout({
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+      </head>
+      <body className="antialiased min-h-screen" suppressHydrationWarning>
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("ss-theme");var d=t==="dark";document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})();if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js").catch(function(){})`,
           }}
         />
-      </head>
-      <body className="antialiased min-h-screen">
         <ToasterProvider />
         {children}
       </body>

@@ -9,6 +9,12 @@ export interface IRecurrence {
   days: number[]; // weekly: 0=Sun..6=Sat  |  monthly: 1..31
 }
 
+export interface IUserStatus {
+  user: Types.ObjectId;
+  status: TaskStatus;
+  updatedAt: Date;
+}
+
 export interface IActivityTask extends Document {
   _id: Types.ObjectId;
   title: string;
@@ -22,6 +28,7 @@ export interface IActivityTask extends Document {
   deadline?: Date;
   priority: TaskPriority;
   status: TaskStatus;
+  userStatuses: IUserStatus[];
   isActive: boolean;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -50,6 +57,19 @@ const recurrenceSchema = new Schema(
   { _id: false },
 );
 
+const userStatusSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    status: {
+      type: String,
+      enum: ["pending", "inProgress", "completed"],
+      default: "pending",
+    },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const activityTaskSchema = new Schema<IActivityTask>(
   {
     title: { type: String, required: true, trim: true },
@@ -71,6 +91,7 @@ const activityTaskSchema = new Schema<IActivityTask>(
       enum: ["pending", "inProgress", "completed"],
       default: "pending",
     },
+    userStatuses: { type: [userStatusSchema], default: [] },
     isActive: { type: Boolean, default: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
@@ -81,18 +102,31 @@ const activityTaskSchema = new Schema<IActivityTask>(
 activityTaskSchema.index({ campaign: 1 });
 activityTaskSchema.index({ parentTask: 1 });
 activityTaskSchema.index({ "recurrence.frequency": 1 });
+activityTaskSchema.index({ "userStatuses.user": 1 });
 
 activityTaskSchema.pre("save", async function () {
-  if (!this.isModified("title")) return;
-  let base = slugify(this.title);
-  let slug = base;
-  let counter = 0;
-  const Model = this.constructor as mongoose.Model<IActivityTask>;
-  while (await Model.findOne({ slug, _id: { $ne: this._id } })) {
-    counter++;
-    slug = `${base}-${counter}`;
+  if (this.isModified("title")) {
+    let base = slugify(this.title);
+    let slug = base;
+    let counter = 0;
+    const Model = this.constructor as mongoose.Model<IActivityTask>;
+    while (await Model.findOne({ slug, _id: { $ne: this._id } })) {
+      counter++;
+      slug = `${base}-${counter}`;
+    }
+    this.slug = slug;
   }
-  this.slug = slug;
+
+  if (this.userStatuses && this.userStatuses.length > 0 && !this.recurrence) {
+    const statuses = this.userStatuses.map((us) => us.status);
+    if (statuses.every((s) => s === "completed")) {
+      this.status = "completed";
+    } else if (statuses.some((s) => s === "inProgress" || s === "completed")) {
+      this.status = "inProgress";
+    } else {
+      this.status = "pending";
+    }
+  }
 });
 
 const ActivityTask =

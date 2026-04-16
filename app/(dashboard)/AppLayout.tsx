@@ -88,7 +88,7 @@ const ENTITY_COLORS: Record<string, string> = {
 
 function getEntityHref(entity: string, entityId?: string): string | null {
   switch (entity) {
-    case "employee": return entityId ? `/employee/${entityId}/edit` : "/organization";
+    case "employee": return "/organization";
     case "department": return "/organization";
     case "campaign": return "/workspace";
     case "task": return "/workspace";
@@ -124,7 +124,7 @@ async function checkoutSession(): Promise<Response | undefined> {
 }
 
 
-interface DashboardShellProps {
+interface AppLayoutProps {
   user: {
     id: string;
     email: string;
@@ -147,7 +147,7 @@ const PATH_TO_TOUR_NAME: Record<string, string> = {
   "/settings": "Settings",
 };
 
-export function DashboardShell({ user, liveUpdates = false, children }: DashboardShellProps) {
+export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { startTour, startWelcome } = useGuide();
@@ -457,7 +457,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                             setPings((prev) => prev.map((p) => ({ ...p, read: true })));
                           }}
                         >
-                          Mark all read
+                          Mark all as read
                         </button>
                       )}
                     </div>
@@ -542,7 +542,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                     >
                       <div className="flex items-center justify-between border-b px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
                       <div className="flex items-center min-w-0">
-                        <span className="text-headline text-sm">Activity Log</span>
+                        <span className="text-headline text-sm">Activity log</span>
                         <RefreshBtn onRefresh={fetchLogs} />
                       </div>
                       {logs.length > 0 && (
@@ -564,7 +564,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                             setNotificationsOpen(false);
                           }}
                         >
-                          Mark all read
+                          Mark all as read
                         </button>
                       )}
                     </div>
@@ -607,7 +607,13 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                 {(() => {
                                   const isSelf = log.userEmail?.toLowerCase() === user.email?.toLowerCase();
                                   const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
-                                  const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (log.userName || log.userEmail.split("@")[0]);
+                                  const displayName = isSelf ? (needsPossessive ? "Your" : "You") : (() => {
+                                    const n = (log.userName || "").trim();
+                                    if (n) return n;
+                                    const local = (log.userEmail || "").split("@")[0] ?? "";
+                                    if (/^admin$/i.test(local)) return "Admin";
+                                    return local.replace(/[._-]/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase()) || "Unknown";
+                                  })();
 
                                   if (isSecurity && secMeta) {
                                     const isViolation = secMeta.severity === "violation";
@@ -627,7 +633,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                               color: isViolation ? "var(--rose)" : "var(--amber)",
                                             }}
                                           >
-                                            {isViolation ? "Violation" : "Warning"}
+                                            {isViolation ? "Security violation" : "Security warning"}
                                           </span>
                                           <span className="text-[9px] font-semibold tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                                             #{secMeta.totalCount ?? "?"} in {secMeta.windowDays ?? 30}d
@@ -660,7 +666,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                           </a>
                                         )}
                                         <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                                          {isSelf ? "you" : log.userEmail.split("@")[0]} · {timeAgo(log.createdAt)}
+                                          {isSelf ? "you" : displayName.toLowerCase()} · {timeAgo(log.createdAt)}
                                         </p>
                                       </>
                                     );
@@ -692,7 +698,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                         <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                       )}
                                       <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
-                                        {isSelf ? "you" : log.userEmail.split("@")[0]} · {timeAgo(log.createdAt)}
+                                        {isSelf ? "you" : displayName.toLowerCase()} · {timeAgo(log.createdAt)}
                                       </p>
                                     </>
                                   );
@@ -758,7 +764,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
                                 ? "insights-desk"
                                 : pathname.startsWith("/workspace")
                                   ? "workspace"
-                                  : pathname.slice(1);
+                                  : pathname.replace("/", "");
                           startTour(tourKey as Parameters<typeof startTour>[0]);
                         }}
                         className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors text-[var(--fg-secondary)] hover:bg-[var(--hover-bg)]"
@@ -831,7 +837,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
 
               {/* Profile */}
               <Link
-                href={`/employee/${user.username}`}
+                href="/settings"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 transition-colors"
                 style={{ borderBottom: "1px solid var(--border)" }}
@@ -962,7 +968,7 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
       </AnimatePresence>
 
       {/* ── Main content with page transition ── */}
-      <main className="mx-auto max-w-[1600px] px-5 py-4 pb-30 sm:px-8 sm:py-5 sm:pb-30 lg:px-14">
+      <main className="mx-auto max-w-[1600px] px-5 py-4 pb-20 sm:px-8 sm:py-5 sm:pb-20 lg:px-14">
         <LiveProvider enabled={liveUpdates}>
           <motion.div
             key={pathname}
@@ -980,13 +986,13 @@ export function DashboardShell({ user, liveUpdates = false, children }: Dashboar
         initial={dockEntrance.initial}
         animate={dockEntrance.animate}
         transition={dockEntrance.transition}
-        className="fixed bottom-0 left-0 right-0 z-50 sm:bottom-5 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto"
+        className="fixed bottom-0 left-0 right-0 z-50 sm:bottom-[5px] sm:left-1/2 sm:-translate-x-1/2 sm:right-auto"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <div className="mx-3 mb-2 sm:mx-0">
+        <div className="mx-3 mb-1 sm:mx-0">
           {/* Session timer bar — superadmin doesn't track attendance */}
           {!user.isSuperAdmin && (
-          <div className="mb-2">
+          <div className="relative -mb-2 z-[1] flex justify-center">
             <SessionTracker />
           </div>
           )}

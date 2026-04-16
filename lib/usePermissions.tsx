@@ -13,7 +13,7 @@ interface PermissionsState {
   refresh: () => Promise<void>;
 }
 
-export interface PermissionsInitialData {
+interface PermissionsInitialData {
   isSuperAdmin: boolean;
   permissions: Partial<Record<keyof IPermissions, boolean>>;
   hasSubordinates: boolean;

@@ -12,7 +12,6 @@ import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { SearchField } from "../components/ui";
 import { EmployeeModal } from "../components/EmployeeModal";
 import toast from "react-hot-toast";
 import { HeaderStatPill } from "../components/StatChips";
@@ -30,7 +29,7 @@ import {
   type WeeklySchedule,
 } from "@/lib/schedule";
 
-const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="card-xl shimmer h-full" style={{ minHeight: 340 }} /> });
+const OrgFlowTree = dynamic(() => import("./OrgFlowTree").then((m) => m.OrgFlowTree), { ssr: false, loading: () => <div className="rounded-xl border shimmer h-full" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", minHeight: 340 }} /> });
 
 interface Employee {
   _id: string; email: string; username: string;
@@ -312,81 +311,52 @@ export default function OrganizationPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(90dvh - 80px)" }}>
+    <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(93dvh - 80px)" }}>
       {/* ── Title row ── */}
-      <div data-tour="org-header" className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div data-tour="org-header" className="mb-4 shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="shrink-0">
-            <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Organization</h1>
-            <p className="mt-0.5 text-sm" style={{ color: "var(--fg-secondary)" }}>Departments and people.</p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <HeaderStatPill label={scopedEmps.length === 1 ? "employee" : "employees"} value={scopedEmps.length} dotColor="var(--teal)" />
-            <HeaderStatPill label={scopedDepts.length === 1 ? "department" : "departments"} value={scopedDepts.length} dotColor="var(--purple)" />
-            {scopedEmps.filter((e) => e.isActive).length !== scopedEmps.length && (
-              <HeaderStatPill label="active" value={scopedEmps.filter((e) => e.isActive).length} dotColor="var(--green)" />
-            )}
-          </div>
+          <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Organization</h1>
+          <HeaderStatPill label={scopedEmps.length === 1 ? "employee" : "employees"} value={scopedEmps.length} dotColor="var(--teal)" />
+          <HeaderStatPill label={scopedDepts.length === 1 ? "department" : "departments"} value={scopedDepts.length} dotColor="var(--purple)" />
+          {scopedEmps.filter((e) => e.isActive).length !== scopedEmps.length && (
+            <HeaderStatPill label="active accounts" value={scopedEmps.filter((e) => e.isActive).length} dotColor="var(--green)" />
+          )}
         </div>
-        <div className="relative group/legend">
-          <button type="button" className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[var(--bg-grouped)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Chart Legend
-          </button>
-          <div className="invisible absolute right-0 top-full z-30 mt-1 w-72 rounded-xl border p-3 shadow-lg group-hover/legend:visible" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-            <div className="space-y-2">
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--purple)" }}>
-                <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: "var(--purple)" }} />
-                Department node
-              </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--teal)" }}>
-                <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ background: "var(--teal)" }} />
-                Employee node
-              </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
-                <svg className="shrink-0" width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" /></svg>
-                Solid line = department membership
-              </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
-                <svg className="shrink-0" width="16" height="4" viewBox="0 0 16 4"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
-                Dashed line = reporting to another employee
-              </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--green)" }}>
-                <svg className="shrink-0" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-                Above = manages / supervises
-              </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                <span className="inline-block h-3 rounded-full border px-1.5 text-[7px] font-bold leading-[12px] shrink-0" style={{ background: "var(--primary)", color: "white", borderColor: "var(--primary)" }}>Pill</span>
-                Designation &amp; privileges (click to edit)
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Search + Add Employee ── */}
-      <div className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
-        <SearchField value={search} onChange={setSearch} placeholder="Search people, departments…" />
-        {sessionStatus !== "loading" && canCreateEmployees && (
-          <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Add Employee
-          </motion.button>
-        )}
       </div>
 
       {/* ── Main layout: sidebar + flow ── */}
       <div data-tour="org-tree" className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch">
-        {/* Left sidebar: separate cards */}
+        {/* Left sidebar */}
         <aside className="flex w-full shrink-0 flex-col gap-3 min-h-0 lg:w-[280px]">
+          {/* Search + Add Employee */}
+          <div className="shrink-0 flex items-center gap-2 rounded-xl border px-3 py-2" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+            <svg className="pointer-events-none h-3.5 w-3.5 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search…"
+              className="flex-1 min-w-0 bg-transparent text-[11px] outline-none"
+              style={{ color: "var(--fg)", border: "none" }}
+            />
+            {sessionStatus !== "loading" && canCreateEmployees && (
+              <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
+                style={{ color: "var(--primary)" }} title="Add Employee">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              </motion.button>
+            )}
+          </div>
           {/* Departments card */}
-          <div className="card-xl flex-1 min-h-0 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
+          <div className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
             <DepartmentsPanel departments={scopedDepts} loading={deptsLoading} refetch={refetchDepts} canCreate={canCreateDepts} canEdit={canEditDepts} canDelete={canDeleteDepts} />
           </div>
 
           {/* Designations card */}
           {canViewDesignations && (
-            <div className="card-xl flex-1 min-h-0 overflow-y-auto p-3" style={{ borderColor: "var(--border)" }}>
+            <div className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
               <DesignationsPanel canManage={canManageDesignations} />
             </div>
           )}
@@ -526,14 +496,14 @@ export default function OrganizationPage() {
                             <span style={{ color: "var(--fg-tertiary)" }}>–</span>
                             <input type="time" value={ds.end} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { end: e.target.value })} className="input text-[10px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
                             <input type="number" min={0} value={ds.breakMinutes} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { breakMinutes: Number(e.target.value) || 0 })} className="input text-[10px] py-0.5 w-12 text-center" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
-                            <span style={{ color: "var(--fg-tertiary)" }}>brk</span>
+                            <span style={{ color: "var(--fg-tertiary)" }}>break (min)</span>
                           </div>
                         );
                       })}
                     </div>
                     <div className={`mt-2 grid gap-2 ${canManageSalary ? "grid-cols-3" : "grid-cols-2"}`}>
-                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option></select></div>
-                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Grace (min)</label><input type="number" min={0} value={empForm.graceMinutes} onChange={(e) => setEmpForm((f) => ({ ...f, graceMinutes: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
+                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Employment type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option></select></div>
+                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Clock-in grace (minutes)</label><input type="number" min={0} value={empForm.graceMinutes} onChange={(e) => setEmpForm((f) => ({ ...f, graceMinutes: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
                       {canManageSalary && (
                         <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Salary</label><input type="number" min={0} step="any" value={empForm.salary} onChange={(e) => setEmpForm((f) => ({ ...f, salary: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
                       )}

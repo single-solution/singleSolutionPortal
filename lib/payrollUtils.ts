@@ -5,7 +5,7 @@ export function utcDateKey(y: number, m0: number, d: number): string {
   return `${y}-${String(m0 + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-export function isWeekendUtc(y: number, m0: number, d: number): boolean {
+function isWeekendUtc(y: number, m0: number, d: number): boolean {
   const day = new Date(Date.UTC(y, m0, d)).getUTCDay();
   return day === 0 || day === 6;
 }

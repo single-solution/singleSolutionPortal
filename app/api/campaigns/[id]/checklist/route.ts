@@ -30,7 +30,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!task) return notFound("Recurring task not found in this campaign");
   if (!task.recurrence) return badRequest("Task is not recurring");
 
-  const isAssigned = task.assignedTo.toString() === actor.id;
+  const assigneeIds = (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).map((a: unknown) => String(a));
+  const isAssigned = assigneeIds.includes(actor.id);
   if (!isAssigned && !isSuperAdmin(actor)) {
     return forbidden("You can only complete tasks assigned to you");
   }

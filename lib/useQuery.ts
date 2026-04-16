@@ -31,17 +31,6 @@ function subscribe(key: string, cb: () => void): () => void {
   };
 }
 
-/* ═══════ Public cache utilities ═══════ */
-
-export function getCached<T>(key: string): T | undefined {
-  return (cache.get(key) as CacheEntry<T> | undefined)?.data;
-}
-
-export function setQueryData<T>(key: string, data: T): void {
-  cache.set(key, { data, timestamp: Date.now() });
-  notifySubscribers(key);
-}
-
 export function invalidateQueries(prefix?: string): void {
   if (!prefix) {
     cache.clear();
@@ -84,12 +73,12 @@ export async function prefetch<T = unknown>(url: string): Promise<T> {
    useQuery — SWR-style hook with configurable staleTime
    ═══════════════════════════════════════════════════════════════ */
 
-export interface UseQueryOptions {
+interface UseQueryOptions {
   enabled?: boolean;
   staleTime?: number;
 }
 
-export interface UseQueryResult<T> {
+interface UseQueryResult<T> {
   data: T | null;
   loading: boolean;
   error: string | null;

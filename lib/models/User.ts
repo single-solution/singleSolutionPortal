@@ -22,7 +22,7 @@ export type {
   WeeklySchedule,
 } from "@/lib/schedule";
 
-export type ProposalStatus = "pending" | "submitted" | "shortlisted" | "interview" | "hired" | "rejected" | "withdrawn";
+type ProposalStatus = "pending" | "submitted" | "shortlisted" | "interview" | "hired" | "rejected" | "withdrawn";
 
 export interface IUser extends Document {
   _id: Types.ObjectId;

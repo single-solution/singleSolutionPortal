@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
+import TaskStatusLog from "@/lib/models/TaskStatusLog";
 import Campaign from "@/lib/models/Campaign";
 import User from "@/lib/models/User";
 import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
@@ -11,6 +12,11 @@ import {
   getCampaignScopeFilter,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
@@ -27,14 +33,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const task = await ActivityTask.findById(id);
   if (!task) return notFound("Task not found");
 
-  const assigneeId = task.assignedTo.toString();
-  const isOwner = assigneeId === actor.id;
+  const assigneeIds: string[] = (task.assignedTo ?? []).map((a: unknown) => String(a));
+  const isOwner = assigneeIds.includes(actor.id);
   const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_edit");
   if (!isPrivileged && !isOwner) return forbidden();
 
   if (isPrivileged && !isSuperAdmin(actor) && !isOwner) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (!subordinateIds.includes(assigneeId)) {
+    const hasAccess = assigneeIds.some((aid: string) => subordinateIds.includes(aid));
+    if (!hasAccess) {
       return forbidden("Can only edit tasks assigned to employees within your hierarchy");
     }
   }
@@ -79,17 +86,31 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       if (!isSuperAdmin(actor) && !hasPermission(actor, "tasks_reassign")) {
         return forbidden("You don't have permission to reassign tasks");
       }
-      const target = await User.findById(body.assignedTo).select("isSuperAdmin").lean();
-      if (target?.isSuperAdmin === true) return badRequest("Cannot assign tasks to superadmin");
+      const newIds: string[] = Array.isArray(body.assignedTo) ? body.assignedTo : [body.assignedTo];
+      const targets = await User.find({ _id: { $in: newIds } }).select("isSuperAdmin").lean();
+      if (targets.some((t) => t.isSuperAdmin === true)) return badRequest("Cannot assign tasks to superadmin");
 
       if (!isSuperAdmin(actor)) {
         const subordinateIds = await getSubordinateUserIds(actor.id);
-        if (!subordinateIds.includes(body.assignedTo)) {
-          return badRequest("Can only assign tasks to employees within your hierarchy");
+        for (const nid of newIds) {
+          if (!subordinateIds.includes(nid)) {
+            return badRequest("Can only assign tasks to employees within your hierarchy");
+          }
         }
       }
-      task.assignedTo = body.assignedTo;
+      task.assignedTo = newIds as unknown as typeof task.assignedTo;
+
+      if (!task.recurrence) {
+        const existingMap = new Map(task.userStatuses.map((us: { user: unknown; status: string; updatedAt: Date }) => [String(us.user), us]));
+        const now = new Date();
+        task.userStatuses = newIds.map((uid) => {
+          const existing = existingMap.get(uid);
+          return existing ?? { user: uid, status: "pending", updatedAt: now } as typeof task.userStatuses[0];
+        });
+      }
     }
+    if (typeof body.order === "number") task.order = body.order;
+    if (typeof body.isActive === "boolean") task.isActive = body.isActive;
     if (body.recurrence !== undefined) {
       if (body.recurrence === null) {
         task.recurrence = undefined;
@@ -106,18 +127,42 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
   }
-  if (body.status !== undefined) task.status = body.status;
-  task.updatedBy = actor.id as unknown as typeof task.updatedBy;
 
+  if (body.status !== undefined && !task.recurrence) {
+    const targetUserId = body.userId && isPrivileged ? body.userId : actor.id;
+    const now = new Date();
+    const today = todayKey();
+
+    const us = task.userStatuses.find((s: { user: unknown }) => String(s.user) === targetUserId);
+    if (us) {
+      us.status = body.status;
+      us.updatedAt = now;
+    } else {
+      task.userStatuses.push({ user: targetUserId, status: body.status, updatedAt: now } as typeof task.userStatuses[0]);
+    }
+
+    TaskStatusLog.create({
+      task: id,
+      employee: targetUserId,
+      status: body.status,
+      date: today,
+      changedAt: now,
+      changedBy: actor.id,
+    }).catch(() => {});
+  } else if (body.status !== undefined) {
+    task.status = body.status;
+  }
+
+  task.updatedBy = actor.id as unknown as typeof task.updatedBy;
   await task.save();
 
   const populated = await ActivityTask.findById(task._id)
     .populate("assignedTo", "about.firstName about.lastName email")
+    .populate("userStatuses.user", "about.firstName about.lastName email")
     .populate("campaign", "name status")
     .lean();
 
   const changes = Object.keys(body).filter((k) => k !== "assignedTo").join(", ");
-  const assigneeIdStr = task.assignedTo.toString();
   logActivity({
     userEmail: actor.email,
     userName: "",
@@ -125,7 +170,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     entity: "task",
     entityId: id,
     details: changes ? `Changed: ${changes}` : task.title,
-    targetUserIds: assigneeIdStr !== actor.id ? [assigneeIdStr] : [],
+    targetUserIds: assigneeIds.filter((aid: string) => aid !== actor.id),
     visibility: "targeted",
   });
 
@@ -146,15 +191,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!task) return notFound("Task not found");
 
   if (!isSuperAdmin(actor)) {
-    const assigneeId = task.assignedTo.toString();
+    const delIds: string[] = (task.assignedTo ?? []).map((a: unknown) => String(a));
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (!subordinateIds.includes(assigneeId)) {
+    if (!delIds.some((aid: string) => subordinateIds.includes(aid))) {
       return forbidden("Can only delete tasks assigned to employees within your hierarchy");
     }
   }
 
   const taskTitle = task.title;
-  const assigneeIdStr = task.assignedTo.toString();
+  const delTargets: string[] = (task.assignedTo ?? []).map((a: unknown) => String(a));
   await task.deleteOne();
 
   logActivity({
@@ -164,7 +209,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     entity: "task",
     entityId: id,
     details: taskTitle,
-    targetUserIds: assigneeIdStr ? [assigneeIdStr] : [],
+    targetUserIds: delTargets.filter((aid: string) => aid !== actor.id),
     visibility: "targeted",
   });
 

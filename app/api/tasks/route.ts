@@ -19,23 +19,38 @@ export async function GET() {
 
   await connectDB();
 
-  const filter: Record<string, unknown> = { isActive: true, parentTask: null };
+  const filter: Record<string, unknown> = { parentTask: null };
 
   if (isSuperAdmin(actor)) {
-    // SuperAdmin sees all tasks
+    // SuperAdmin sees all tasks including inactive
   } else if (hasPermission(actor, "tasks_view")) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
     filter.assignedTo = { $in: [actor.id, ...subordinateIds] };
   } else {
     filter.assignedTo = actor.id;
+    filter.isActive = true;
   }
 
   const tasks = await ActivityTask.find(filter)
     .populate("assignedTo", "about.firstName about.lastName email")
+    .populate("userStatuses.user", "about.firstName about.lastName email")
     .populate("campaign", "name status")
     .populate("createdBy", "about.firstName about.lastName email")
     .sort({ order: 1, createdAt: -1 })
     .lean();
+
+  if (!isSuperAdmin(actor) && !hasPermission(actor, "tasks_view")) {
+    for (const t of tasks) {
+      if (Array.isArray(t.userStatuses)) {
+        t.userStatuses = t.userStatuses.filter(
+          (us: { user?: { _id?: string } | string }) => {
+            const uid = typeof us.user === "object" && us.user ? (us.user._id?.toString() ?? "") : String(us.user);
+            return uid === actor.id;
+          },
+        );
+      }
+    }
+  }
 
   return ok(tasks);
 }
@@ -54,14 +69,19 @@ export async function POST(req: Request) {
     return badRequest("Title and assignedTo are required");
   }
 
-  const assignee = await User.findById(body.assignedTo).select("isSuperAdmin").lean();
-  if (!assignee) return badRequest("Assignee not found");
-  if (assignee.isSuperAdmin === true) return badRequest("Cannot assign tasks to superadmin");
+  const assignedIds: string[] = Array.isArray(body.assignedTo) ? body.assignedTo : [body.assignedTo];
+  if (assignedIds.length === 0) return badRequest("At least one assignee is required");
+
+  const assignees = await User.find({ _id: { $in: assignedIds } }).select("isSuperAdmin").lean();
+  if (assignees.length !== assignedIds.length) return badRequest("One or more assignees not found");
+  if (assignees.some((a) => a.isSuperAdmin === true)) return badRequest("Cannot assign tasks to superadmin");
 
   if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
-    if (!subordinateIds.includes(body.assignedTo)) {
-      return badRequest("Can only assign tasks to employees within your hierarchy");
+    for (const aid of assignedIds) {
+      if (!subordinateIds.includes(aid)) {
+        return badRequest("Can only assign tasks to employees within your hierarchy");
+      }
     }
   }
 
@@ -95,23 +115,31 @@ export async function POST(req: Request) {
     recurrence = { frequency: body.recurrence.frequency, days };
   }
 
+  const initialStatus = body.status ?? "pending";
+  const now = new Date();
+  const userStatuses = recurrence
+    ? []
+    : assignedIds.map((uid: string) => ({ user: uid, status: initialStatus, updatedAt: now }));
+
   const task = await ActivityTask.create({
     title: body.title.trim(),
     description: body.description ?? "",
-    assignedTo: body.assignedTo,
+    assignedTo: assignedIds,
     campaign: campaignId,
     parentTask: parentTaskId,
     order: typeof body.order === "number" ? body.order : 0,
     recurrence,
     deadline: body.deadline || undefined,
     priority: body.priority ?? "medium",
-    status: body.status ?? "pending",
+    status: initialStatus,
+    userStatuses,
     isActive: true,
     createdBy: actor.id,
   });
 
   const populated = await ActivityTask.findById(task._id)
     .populate("assignedTo", "about.firstName about.lastName email")
+    .populate("userStatuses.user", "about.firstName about.lastName email")
     .populate("campaign", "name status")
     .lean();
 
@@ -122,7 +150,7 @@ export async function POST(req: Request) {
     entity: "task",
     entityId: task._id.toString(),
     details: body.title.trim(),
-    targetUserIds: [body.assignedTo],
+    targetUserIds: assignedIds,
     targetDepartmentId: undefined,
     visibility: "targeted",
   });

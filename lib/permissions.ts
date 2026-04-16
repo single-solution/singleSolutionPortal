@@ -11,7 +11,7 @@ import { auth } from "@/lib/auth";
 /* MEMBERSHIP-ENRICHED SESSION                                       */
 /* ================================================================ */
 
-export interface MembershipContext {
+interface MembershipContext {
   membershipId: string;
   departmentId: string;
   departmentName: string;
@@ -143,7 +143,7 @@ export function hasPermission(
 /**
  * Check if user has ANY of the given permissions across any membership.
  */
-export function hasAnyPermission(actor: VerifiedUser, permissions: (keyof IPermissions)[]): boolean {
+function hasAnyPermission(actor: VerifiedUser, permissions: (keyof IPermissions)[]): boolean {
   if (actor.isSuperAdmin) return true;
   return permissions.some((p) => hasPermission(actor, p));
 }

@@ -694,11 +694,13 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     if (changes.some((c) => c.type === "position" && c.dragging === false)) setNodes((cur) => { savePositions(cur); return cur; });
   }, [onNodesChange, savePositions, setNodes]);
 
-  if (!loaded) return <div className="card-xl shimmer h-full" style={{ minHeight: 340 }} />;
+  if (!loaded) return <div className="rounded-xl border shimmer h-full" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", minHeight: 340 }} />;
 
   return (
     <>
-      <div className="card-xl overflow-hidden relative h-full" style={{ minHeight: 340 }}>
+      <div className="rounded-xl border overflow-hidden flex flex-col relative h-full" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", minHeight: 340 }}>
+        <h3 className="shrink-0 px-3 py-2 text-[12px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>Org Chart</h3>
+        <div className="flex-1 min-h-0 relative">
         <ReactFlow
           nodes={nodes} edges={edgesState}
           onNodesChange={handleNodesChange} onEdgesChange={handleEdgesChange}
@@ -715,6 +717,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
             className="!bg-[var(--bg-elevated)] !border-[var(--border)] !shadow-lg !rounded-xl [&>button]:!bg-[var(--bg-elevated)] [&>button]:!border-[var(--border)] [&>button]:!fill-[var(--fg-secondary)] [&>button:hover]:!bg-[var(--bg-grouped)]" />
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
         </ReactFlow>
+        </div>
       </div>
 
       {/* ── New Connection Modal ── */}

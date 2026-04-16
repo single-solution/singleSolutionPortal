@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 
-const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password", "/setup-password", "/preview"];
+const PUBLIC_ROUTES = ["/login", "/forgot-password", "/reset-password"];
 
 export const authConfig: NextAuthConfig = {
   providers: [],
@@ -53,10 +53,7 @@ export const authConfig: NextAuthConfig = {
       if (!isLoggedIn) return false;
 
       // Legacy route redirects
-      if (pathname.startsWith("/employees/") && !pathname.startsWith("/employees/EmployeeForm") && !pathname.startsWith("/employees?")) {
-        const rest = pathname.slice("/employees".length);
-        return Response.redirect(new URL(`/employee${rest}`, nextUrl));
-      }
+      if (pathname.startsWith("/employees") || pathname.startsWith("/employee")) return Response.redirect(new URL("/organization", nextUrl));
       if (pathname.startsWith("/departments")) return Response.redirect(new URL("/organization", nextUrl));
       if (pathname === "/teams" || pathname.startsWith("/teams/")) return Response.redirect(new URL("/organization", nextUrl));
       if (pathname === "/campaigns") return Response.redirect(new URL("/workspace", nextUrl));
@@ -69,7 +66,7 @@ export const authConfig: NextAuthConfig = {
       if (userInfo?.isSuperAdmin === true) return true;
 
       // Permission-based route access is enforced at the page/API level,
-      // not in middleware. All authenticated users can reach all routes.
+      // not in proxy. All authenticated users can reach all routes.
       return true;
     },
   },

@@ -85,41 +85,6 @@ export async function sendResetEmail(to: string, resetUrl: string): Promise<bool
   return sendMail(to, "Reset Your Password — Single Solution Sync", html);
 }
 
-export async function sendWelcomeEmail(to: string, name: string, role: string, tempPassword: string): Promise<boolean> {
-  const loginUrl = `${getBaseUrl()}/login`;
-  const html = wrap(
-    "linear-gradient(135deg, #0071e3, #0055cc)",
-    "🎉",
-    "Welcome to the Team!",
-    "Single Solution Sync",
-    `<p style="color: #475569; font-size: 15px; margin: 0 0 12px; font-weight: 500; text-align: center;">
-        Hi <strong style="color: #1e293b;">${name}</strong>, your account has been created.
-      </p>
-      <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 0 0 16px;">
-        ${infoRow("Role", role)}
-        ${infoRow("Temporary Password", `<code style="background:#f1f5f9;padding:2px 8px;border-radius:6px;font-size:14px;">${tempPassword}</code>`)}
-      </div>
-      <p style="color: #475569; font-size: 13px; margin: 0 0 16px; text-align: center;">
-        Please change your password after first login.
-      </p>
-      <div style="text-align: center;">${ctaButton(loginUrl, "Sign In →")}</div>`,
-    "This is an automated message from your team's presence system.",
-  );
-  return sendMail(to, "Welcome to Single Solution Sync", html);
-}
-
-export async function sendAttendanceAlert(to: string | string[], subject: string, body: string): Promise<boolean> {
-  const html = wrap(
-    "linear-gradient(135deg, #f59e0b, #d97706)",
-    "⚠️",
-    "Attendance Alert",
-    "Single Solution Sync",
-    `<div style="color: #475569; font-size: 15px; line-height: 1.6; text-align: center;">${body}</div>`,
-    "This is an automated notification from your presence system.",
-  );
-  return sendMail(to, subject, html);
-}
-
 export function buildInviteHtml(invitedBy: string, testMode = false): string {
   const baseUrl = getBaseUrl();
   return wrap(
