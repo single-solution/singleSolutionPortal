@@ -390,15 +390,6 @@ export default function AttendancePage() {
     return days;
   }, [calendarLeaves, year, month]);
 
-  const holidayInsights = useMemo(() => {
-    const now = new Date();
-    const upcoming = calendarHolidays.filter((h) => new Date(h.date) > now).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const next = upcoming[0] ?? null;
-    const daysUntilNext = next ? Math.ceil((new Date(next.date).getTime() - now.getTime()) / 86400000) : null;
-    const thisMonth = calendarHolidays.filter((h) => { const d = new Date(h.date); return d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month; }).length;
-    const remainingThisYear = calendarHolidays.filter((h) => new Date(h.date) > now).length;
-    return { upcoming: upcoming.length, next, daysUntilNext, thisMonth, remainingThisYear };
-  }, [calendarHolidays, year, month]);
 
   const personalInsights = useMemo(() => {
     const present = records.filter((r) => r.isPresent);
@@ -555,7 +546,7 @@ export default function AttendancePage() {
                   value={pillSearch}
                   onChange={(e) => setPillSearch(e.target.value)}
                   placeholder="Search employees…"
-                  className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-colors focus:border-[var(--primary)]"
+                  className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-[11px] outline-none transition-colors focus:border-[var(--primary)]"
                   style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
                 />
         </div>
@@ -585,8 +576,8 @@ export default function AttendancePage() {
           ))}
         </div>
       ) : hasTeamAccess && filteredSummary.length === 0 ? (
-        <div data-tour="attendance-pills" className="card p-8 text-center">
-          <p className="text-callout" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
+        <div data-tour="attendance-pills" className="rounded-xl border p-8 text-center" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+          <p className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>No employees found for this period</p>
         </div>
       ) : hasTeamAccess ? (
         <div data-tour="attendance-pills">
@@ -605,7 +596,7 @@ export default function AttendancePage() {
                     >
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />
                       <div className="min-w-0">
-                  <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: !viewingUserId ? "var(--primary)" : "var(--fg)" }}>All Employees</p>
+                  <p className="whitespace-nowrap text-[11px] font-semibold leading-tight" style={{ color: !viewingUserId ? "var(--primary)" : "var(--fg)" }}>All Employees</p>
                   <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
                           {aggPresentDays}d · {fmtHours(aggTotalMins)} · <span style={{ color: aggAvgAttendance >= 90 ? "var(--green)" : aggAvgAttendance >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(aggAvgAttendance)}%</span>
                         </p>
@@ -626,7 +617,7 @@ export default function AttendancePage() {
                     >
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: selfMonthlyStats ? "var(--green)" : "var(--fg-tertiary)" }} />
                       <div className="min-w-0">
-                  <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--fg)" }}>My Attendance</p>
+                  <p className="whitespace-nowrap text-[11px] font-semibold leading-tight" style={{ color: viewingUserId === authSession?.user?.id ? "var(--primary)" : "var(--fg)" }}>My Attendance</p>
                         {selfMonthlyStats ? (
                     <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
                             {selfMonthlyStats.presentDays}d · {fmtHours(selfMonthlyStats.totalWorkingHours * 60)} · <span style={{ color: selfMonthlyStats.attendancePercentage >= 90 ? "var(--green)" : selfMonthlyStats.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)" }}>{Math.round(selfMonthlyStats.attendancePercentage)}%</span>
@@ -659,7 +650,7 @@ export default function AttendancePage() {
                       >
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusDot }} />
                         <div className="min-w-0">
-                    <p className="whitespace-nowrap text-xs font-semibold leading-tight" style={{ color: isSelected ? "var(--primary)" : "var(--fg)" }}>{emp.name}</p>
+                    <p className="whitespace-nowrap text-[11px] font-semibold leading-tight" style={{ color: isSelected ? "var(--primary)" : "var(--fg)" }}>{emp.name}</p>
                     <p className="whitespace-nowrap text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>
                             {emp.presentDays}d · {fmtHours(emp.totalMinutes)} · <span style={{ color: attendColor }}>{Math.round(emp.attendancePercentage)}%</span>
                           </p>
@@ -668,17 +659,18 @@ export default function AttendancePage() {
                     );
                   })}
             {pillSearch && searchedSummary.length === 0 && (
-              <p className="flex items-center px-2 text-xs" style={{ color: "var(--fg-tertiary)" }}>No matches for &ldquo;{pillSearch}&rdquo;</p>
+              <p className="flex items-center px-2 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No matches for &ldquo;{pillSearch}&rdquo;</p>
             )}
                 </div>
         </div>
       ) : null}
 
       {/* Calendar + Detail panel */}
-      <div data-tour="attendance-calendar" className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-7">
+      <div data-tour="attendance-calendar" className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-7 lg:max-h-[min(70vh,600px)]">
         {/* Calendar */}
-        <motion.div className="lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <motion.div className="flex min-h-0 flex-col lg:col-span-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <MiniCalendar
+            className="flex-1"
             year={year}
             month={month}
             onPrevMonth={prevMonth}
@@ -710,41 +702,25 @@ export default function AttendancePage() {
               ...(leaveDays.size > 0 ? [{ label: "Leave", color: "var(--teal)" }] : []),
             ]}
           />
-          {sessionReady && (holidayInsights.thisMonth > 0 || holidayInsights.upcoming > 0 || holidayInsights.next) && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 px-1 text-caption" style={{ color: "var(--fg-tertiary)" }}>
-              {holidayInsights.thisMonth > 0 && (
-                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>{holidayInsights.thisMonth} this month</span>
-              )}
-              {holidayInsights.upcoming > 0 && (
-                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)" }}>{holidayInsights.upcoming} upcoming</span>
-              )}
-              {holidayInsights.next && (
-                <span className="ml-auto text-[10px]" style={{ color: "var(--purple)" }}>
-                  Next: {new Date(holidayInsights.next.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                  {holidayInsights.daysUntilNext !== null && <> ({holidayInsights.daysUntilNext}d)</>}
-                  {holidayInsights.remainingThisYear > 0 && <> · {holidayInsights.remainingThisYear} left this year</>}
-                </span>
-              )}
-            </div>
-          )}
         </motion.div>
 
         {/* Right panel — context-dependent */}
-        <div className="flex flex-col lg:col-span-4">
+        <div className="flex min-h-0 flex-col lg:col-span-4">
           <AnimatePresence mode="wait">
             {/* ── Aggregate mode: team date cards ── */}
             {isAggregateMode && selectedDay !== null ? (
-              <motion.div key={`team-date-${selectedDay}`} className="card-xl flex flex-1 flex-col overflow-hidden"
+              <motion.div key={`team-date-${selectedDay}`} className="rounded-xl border flex flex-1 flex-col overflow-hidden"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                 initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 28 }}
               >
-                <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                <div className="shrink-0 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-headline" style={{ color: "var(--fg)" }}>
+                      <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>
                         {selectedDate?.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-                      </p>
-                      <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
+                      </h3>
+                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
                         {teamDatePresent} present · {teamDateLate} late · {filteredTeamDate.length - teamDatePresent} absent
                         {teamDateAvgMins > 0 && <> · avg {fmtHours(teamDateAvgMins)}</>}
                         {teamDateEarliestIn && <> · first in {fmtTime(teamDateEarliestIn)}</>}
@@ -788,11 +764,11 @@ export default function AttendancePage() {
                 ) : (
                   <div className="flex-1 space-y-2 overflow-y-auto p-4">
                     {filteredTeamDate.length === 0 ? (
-                      <p className="py-8 text-center text-callout" style={{ color: "var(--fg-secondary)" }}>No employee data for this date</p>
+                      <p className="py-8 text-center text-[10px]" style={{ color: "var(--fg-secondary)" }}>No employee data for this date</p>
                     ) : (
                       filteredTeamDate.map((emp, idx) => {
                         const statusColor = emp.isPresent ? (emp.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)";
-                        const locLabel = emp.officeMinutes > 0 && emp.remoteMinutes > 0 ? "Split" : emp.officeMinutes > 0 ? "Office" : emp.remoteMinutes > 0 ? "Remote" : "";
+                        const locLabel = emp.officeMinutes > 0 && emp.remoteMinutes > 0 ? "Office + remote" : emp.officeMinutes > 0 ? "In office" : emp.remoteMinutes > 0 ? "Remote" : "";
                         const locColor = emp.officeMinutes > 0 ? "var(--green)" : "var(--teal)";
                         return (
                           <motion.div
@@ -805,42 +781,42 @@ export default function AttendancePage() {
                             <div className="flex items-center gap-3">
                               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusColor }} />
                               <div className="min-w-0 flex-1">
-                                <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
-                                <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>
+                                <p className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                                <p className="text-[9px] truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>
                               </div>
                               <div className="text-right shrink-0">
-                                <p className="text-callout font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(emp.totalWorkingMinutes)}</p>
-                                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
+                                <p className="text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(emp.totalWorkingMinutes)}</p>
+                                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{
                                   background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
                                   color: statusColor,
                                 }}>
                                   {emp.isPresent ? (emp.isOnTime ? "On Time" : "Late") : "Absent"}
                                 </span>
                                 {emp.isLateToOffice && (
-                                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
+                                  <span className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{
                                     background: "color-mix(in srgb, var(--rose) 15%, transparent)",
                                     color: "var(--rose)",
                                   }}>
-                                    Office +{fmtHours(emp.lateToOfficeBy ?? 0)}
+                                    Late to office +{fmtHours(emp.lateToOfficeBy ?? 0)}
                                   </span>
                                 )}
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                               <div className="flex justify-between">
-                                <span className="font-semibold">Clock In</span>
+                                <span className="font-semibold">Clock in</span>
                                 <span style={{ color: emp.firstStart ? "var(--fg-secondary)" : "var(--fg-tertiary)" }}>{fmtTime(emp.firstStart)}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="font-semibold">Clock Out</span>
+                                <span className="font-semibold">Clock out</span>
                                 <span style={{ color: emp.lastEnd ? "var(--fg-secondary)" : "var(--fg-tertiary)" }}>{fmtTime(emp.lastEnd)}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="font-semibold">Office In</span>
+                                <span className="font-semibold">Office entry</span>
                                 <span style={{ color: emp.firstOfficeEntry ? "var(--green)" : "var(--fg-tertiary)" }}>{fmtTime(emp.firstOfficeEntry)}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="font-semibold">Office Out</span>
+                                <span className="font-semibold">Office exit</span>
                                 <span style={{ color: emp.lastOfficeExit ? "var(--green)" : "var(--fg-tertiary)" }}>{fmtTime(emp.lastOfficeExit)}</span>
                               </div>
                             </div>
@@ -860,16 +836,17 @@ export default function AttendancePage() {
 
             ) : !isAggregateMode && selectedDay !== null ? (
               /* ── Individual mode: day stats (no timeline — that goes below) ── */
-              <motion.div key={`detail-${selectedDay}`} className="card-xl flex flex-1 flex-col overflow-hidden"
+              <motion.div key={`detail-${selectedDay}`} className="rounded-xl border flex flex-1 flex-col overflow-hidden"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                 initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 28 }}
               >
-                <div className="border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                <div className="shrink-0 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-headline" style={{ color: "var(--fg)" }}>
+                      <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>
                         {selectedDate?.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-                      </p>
+                      </h3>
                       {isSelectedToday && <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--primary)" }}>Today</span>}
                     </div>
                     <button type="button" onClick={() => setSelectedDay(null)} className="rounded-lg p-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-tertiary)" }}>
@@ -879,7 +856,7 @@ export default function AttendancePage() {
                 </div>
 
                 {detailLoading ? (
-                  <div className="flex-1 space-y-4 overflow-y-auto p-5">
+                  <div className="flex-1 space-y-4 overflow-y-auto p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="shimmer h-6 w-20 rounded-full" />
                       <div className="shimmer h-6 w-24 rounded-full" />
@@ -909,32 +886,32 @@ export default function AttendancePage() {
                     const lastSess = sorted[sorted.length - 1];
                     const clockOut = lastSess?.sessionTime.end ?? lastSess?.lastActivity ?? detailData.lastEnd;
                     return (
-                  <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-3 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <Pill color={detailData.isPresent ? (detailData.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)"} label={detailData.isPresent ? (detailData.isOnTime ? "On Time" : "Late") : "Absent"} />
                       {(detailData.lateBy ?? 0) > 0 && <Pill color="var(--amber)" label={`Late by ${fmtHours(detailData.lateBy!)}`} variant="outline" />}
-                      {detailData.isLateToOffice && (detailData.lateToOfficeBy ?? 0) > 0 && <Pill color="var(--rose)" label={`Office +${fmtHours(detailData.lateToOfficeBy!)}`} variant="outline" />}
+                      {detailData.isLateToOffice && (detailData.lateToOfficeBy ?? 0) > 0 && <Pill color="var(--rose)" label={`Late to office by ${fmtHours(detailData.lateToOfficeBy!)}`} variant="outline" />}
                       {(detailData.breakMinutes ?? 0) > 0 && <Pill color="var(--fg-tertiary)" label={`${fmtHours(detailData.breakMinutes!)} break`} variant="outline" />}
                       <Pill color="var(--fg-tertiary)" label={`${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}`} variant="outline" />
                     </div>
 
-                    <p className="text-caption" style={{ color: "var(--fg-secondary)" }}>
+                    <p className="text-[9px]" style={{ color: "var(--fg-secondary)" }}>
                       {detailData.isPresent
                         ? `Worked ${fmtHours(detailData.totalWorkingMinutes)} across ${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}${detailData.officeMinutes > 0 && detailData.remoteMinutes > 0 ? " — split between office and remote" : detailData.officeMinutes > 0 ? " — from office" : " — remotely"}`
                         : "No work sessions recorded for this day"}
                     </p>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <StatChip label="Clock In" value={fmtTime(clockIn)} color="var(--primary)" />
-                      <StatChip label="Clock Out" value={fmtTime(clockOut)} color="var(--primary)" />
-                      <StatChip label="Office In" value={fmtTime(detailData.firstOfficeEntry)} color="var(--green)" />
-                      <StatChip label="Office Out" value={fmtTime(detailData.lastOfficeExit)} color="var(--green)" />
+                    <div className="grid grid-cols-4 gap-1.5">
+                      <StatChip label="Clock in" value={fmtTime(clockIn)} color="var(--primary)" />
+                      <StatChip label="Clock out" value={fmtTime(clockOut)} color="var(--primary)" />
+                      <StatChip label="Office entry" value={fmtTime(detailData.firstOfficeEntry)} color="var(--green)" />
+                      <StatChip label="Office exit" value={fmtTime(detailData.lastOfficeExit)} color="var(--green)" />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <StatChip label="Total" value={fmtHours(detailData.totalWorkingMinutes)} color="var(--primary)" />
-                      <StatChip label="Office" value={fmtHours(detailData.officeMinutes)} color="var(--green)" />
-                      <StatChip label="Remote" value={fmtHours(detailData.remoteMinutes)} color="var(--teal)" />
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <StatChip label="Total hours" value={fmtHours(detailData.totalWorkingMinutes)} color="var(--primary)" />
+                      <StatChip label="Office hours" value={fmtHours(detailData.officeMinutes)} color="var(--green)" />
+                      <StatChip label="Remote hours" value={fmtHours(detailData.remoteMinutes)} color="var(--teal)" />
                     </div>
 
                     {detailData.totalWorkingMinutes > 0 && (
@@ -957,11 +934,11 @@ export default function AttendancePage() {
                     );
                   })()
                 ) : (
-                  <div className="flex flex-1 flex-col items-center justify-center p-5 text-center">
+                  <div className="flex flex-1 flex-col items-center justify-center p-3 text-center">
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "var(--bg-grouped)" }}>
                       <svg className="h-6 w-6" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </div>
-                    <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>
+                    <p className="text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>
                       {isSelectedToday ? "No data yet — session in progress" : "No attendance recorded"}
                     </p>
                   </div>
@@ -969,98 +946,86 @@ export default function AttendancePage() {
               </motion.div>
             ) : (
               /* ── Summary card (aggregate or individual, no date selected) ── */
-              <motion.div key={isAggregateMode ? "agg-summary" : "ind-summary"} className="card-xl flex flex-1 flex-col overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="px-5 py-4">
-                  <p className="text-headline" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1]} Summary</p>
+              <motion.div key={isAggregateMode ? "agg-summary" : "ind-summary"} className="rounded-xl border flex flex-1 flex-col overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="shrink-0 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                  <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{MONTH_NAMES[month - 1]} Summary</h3>
                   {pillsLoading ? (
                     <span className="shimmer mt-1 block h-3 w-40 rounded" />
                   ) : isAggregateMode ? (
-                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>{filteredSummary.length} employees · select a date for details</p>
+                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{filteredSummary.length} employees · select a date for details</p>
                   ) : (
-                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>
+                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
                       {viewingMember ? viewingMember.name : "Your attendance"} · select a date for details
                     </p>
                   )}
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                   {pillsLoading || (!isAggregateMode && loading) ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="rounded-xl p-2.5 text-center space-y-1.5" style={{ background: "var(--bg-grouped)" }}>
-                          <span className="shimmer block mx-auto h-2 w-14 rounded" />
-                          <span className="shimmer block mx-auto h-4 w-10 rounded" />
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                        <div key={i} className="rounded-xl p-1.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
+                          <span className="shimmer block mx-auto h-2 w-12 rounded" />
+                          <span className="shimmer block mx-auto h-3.5 w-8 rounded" />
                         </div>
                       ))}
                     </div>
                   ) : isAggregateMode ? (
                     <>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-4 gap-1.5">
                         <StatChip label="Working Days" value={`${aggPresentDays}`} color="var(--green)" />
                         <StatChip label="Total Hours" value={fmtHours(aggTotalMins)} color="var(--teal)" />
-                        <StatChip label="Avg Daily" value={`${aggAvgDaily.toFixed(1)}h`} color="var(--primary)" />
-                        <StatChip label="Avg On-Time" value={`${Math.round(aggAvgOnTime)}%`} color={aggAvgOnTime >= 80 ? "var(--green)" : "var(--amber)"} />
+                        <StatChip label="Avg hrs/day" value={`${aggAvgDaily.toFixed(1)}h`} color="var(--primary)" />
+                        <StatChip label="On-time rate" value={`${Math.round(aggAvgOnTime)}%`} color={aggAvgOnTime >= 80 ? "var(--green)" : "var(--amber)"} />
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-1.5">
                         <StatChip label="Attendance" value={`${Math.round(aggAvgAttendance)}%`} color={aggAvgAttendance >= 90 ? "var(--green)" : "var(--rose)"} />
-                        <StatChip label="On-Time Days" value={`${aggOnTimeDays}`} color="var(--primary)" />
-                        <StatChip label="Late Days" value={`${aggLateDays}`} color={aggLateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
+                        <StatChip label="On-time days" value={`${aggOnTimeDays}`} color="var(--primary)" />
+                        <StatChip label="Late days" value={`${aggLateDays}`} color={aggLateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
                       </div>
                       {aggLateToOfficeDays > 0 && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <StatChip label="Late to Office" value={`${aggLateToOfficeDays}d`} color="var(--rose)" />
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <StatChip label="Late to office" value={`${aggLateToOfficeDays}d`} color="var(--rose)" />
                         </div>
                       )}
                     </>
                   ) : monthlyStats ? (
                     <>
-                      <div className="grid grid-cols-2 gap-2">
-                        <StatChip label="Working Days" value={`${monthlyStats.presentDays} / ${monthlyStats.totalWorkingDays}`} color="var(--green)" />
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <StatChip label="Working Days" value={`${monthlyStats.presentDays}/${monthlyStats.totalWorkingDays}`} color="var(--green)" />
                         <StatChip label="Total Hours" value={`${Math.round(monthlyStats.totalWorkingHours)}h`} color="var(--teal)" />
-                        <StatChip label="Avg Daily" value={`${monthlyStats.averageDailyHours.toFixed(1)}h`} color="var(--primary)" />
-                        <StatChip label="On-Time %" value={`${Math.round(monthlyStats.onTimePercentage)}%`} color={monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)"} />
+                        <StatChip label="Avg hrs/day" value={`${monthlyStats.averageDailyHours.toFixed(1)}h`} color="var(--primary)" />
+                        <StatChip label="On-time rate" value={`${Math.round(monthlyStats.onTimePercentage)}%`} color={monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)"} />
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-1.5">
                         <StatChip label="Attendance" value={`${Math.round(monthlyStats.attendancePercentage)}%`} color={monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)"} />
-                        <StatChip label="Absent" value={`${monthlyStats.absentDays}d`} color={monthlyStats.absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)"} />
-                        <StatChip label="Office / Remote" value={`${Math.round(monthlyStats.totalOfficeHours)}h / ${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--teal)" />
+                        <StatChip label="Absent days" value={`${monthlyStats.absentDays}d`} color={monthlyStats.absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)"} />
+                        <StatChip label="On-time" value={`${monthlyStats.onTimeArrivals}`} color="var(--green)" />
+                        <StatChip label="Late" value={`${monthlyStats.lateArrivals}`} color={monthlyStats.lateArrivals > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <StatChip label="On-Time Arrivals" value={`${monthlyStats.onTimeArrivals}`} color="var(--green)" />
-                        <StatChip label="Late Arrivals" value={`${monthlyStats.lateArrivals}`} color={monthlyStats.lateArrivals > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <StatChip label="Office hrs" value={`${Math.round(monthlyStats.totalOfficeHours)}h`} color="var(--green)" />
+                        <StatChip label="Remote hrs" value={`${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--teal)" />
+                        {leaveBalance ? (
+                          <div className="rounded-xl p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leaves</p>
+                            <p className="text-[11px] font-bold tabular-nums" style={{ color: leaveBalance.remaining > 0 ? "var(--teal)" : "var(--rose)" }}>
+                              {leaveBalance.used}/{leaveBalance.total}
+                            </p>
+                          </div>
+                        ) : (
+                          monthlyStats.averageOfficeInTime && <StatChip label="Avg entry" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--green)" />
+                        )}
                       </div>
                       {(monthlyStats.averageOfficeInTime || monthlyStats.averageOfficeOutTime) && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {monthlyStats.averageOfficeInTime && <StatChip label="Avg Office In" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--green)" />}
-                          {monthlyStats.averageOfficeOutTime && <StatChip label="Avg Office Out" value={fmtTime(monthlyStats.averageOfficeOutTime)} color="var(--green)" />}
-                        </div>
-                      )}
-                      {leaveBalance && (
-                        <div className="rounded-xl p-3 space-y-2" style={{ background: "var(--bg-grouped)" }}>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leaves</span>
-                            <span className="text-xs font-bold" style={{ color: leaveBalance.remaining > 0 ? "var(--teal)" : "var(--rose)" }}>
-                              {leaveBalance.remaining} / {leaveBalance.total} left
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                            <motion.div
-                              className="h-full rounded-full"
-                              style={{ background: leaveBalance.total > 0 && (leaveBalance.used / leaveBalance.total) > 0.8 ? "var(--rose)" : "var(--teal)" }}
-                              initial={{ width: 0 }}
-                              animate={{ width: leaveBalance.total > 0 ? `${Math.round((leaveBalance.used / leaveBalance.total) * 100)}%` : "0%" }}
-                              transition={{ duration: 0.6 }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                            <span>{leaveBalance.used} used</span>
-                            <span>{leaveBalance.remaining} remaining</span>
-                          </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {leaveBalance && monthlyStats.averageOfficeInTime && <StatChip label="Avg entry" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--green)" />}
+                          {monthlyStats.averageOfficeOutTime && <StatChip label="Avg exit" value={fmtTime(monthlyStats.averageOfficeOutTime)} color="var(--green)" />}
                         </div>
                       )}
                     </>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <p className="text-callout font-medium" style={{ color: "var(--fg-secondary)" }}>No data for this month</p>
+                      <p className="text-[10px] font-medium" style={{ color: "var(--fg-secondary)" }}>No attendance records for this month</p>
                     </div>
                   )}
                 </div>
@@ -1072,7 +1037,7 @@ export default function AttendancePage() {
 
       {/* Session timeline — individual mode, date selected (moved from right panel) */}
       {sessionReady && !isAggregateMode && selectedDay !== null && detailData?.activitySessions && detailData.activitySessions.length > 0 && (
-        <motion.div className="card-static p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <motion.div className="rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           {(() => {
             const sessions = detailData.activitySessions;
             const uniqueDevices = new Set(sessions.map((s) => s.deviceId).filter(Boolean)).size;
@@ -1081,25 +1046,25 @@ export default function AttendancePage() {
             for (const s of sessions) if (s.officeSegments) for (const seg of s.officeSegments) if (seg.durationMinutes > longestSeg) longestSeg = seg.durationMinutes;
             const totalSessionMins = sessions.reduce((a, s) => a + s.durationMinutes, 0);
             return (
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Session Timeline</p>
+              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Session Timeline</h3>
                 <div className="flex items-center gap-2">
                   {sessions.length > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(totalSessionMins)} total</span>}
-                  {longestSeg > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>longest seg {fmtHours(longestSeg)}</span>}
+                  {longestSeg > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>longest session {fmtHours(longestSeg)}</span>}
                   {uniqueDevices > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: uniqueDevices > 1 ? "color-mix(in srgb, var(--amber) 12%, transparent)" : "var(--bg-grouped)", color: uniqueDevices > 1 ? "var(--amber)" : "var(--fg-tertiary)" }}>{uniqueDevices} device{uniqueDevices !== 1 ? "s" : ""}</span>}
                   {uniqueIPs > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{uniqueIPs} IP{uniqueIPs !== 1 ? "s" : ""}</span>}
                 </div>
               </div>
             );
           })()}
-                        <div className="relative pl-5">
-                          <div className="absolute left-[7px] top-1 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
+                        <div className="relative p-3 pl-8">
+                          <div className="absolute left-[18px] top-1 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
                           <motion.div className="space-y-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } } }}>
                             {detailData.activitySessions
                               .sort((a, b) => new Date(a.sessionTime.start).getTime() - new Date(b.sessionTime.start).getTime())
                               .map((sess) => {
                                 const device = detectDevice(sess.platform);
-                                const statusConf = sess.status === "active" ? { color: "var(--green)", label: "Active" } : sess.status === "timeout" ? { color: "var(--amber)", label: "Timed Out" } : { color: "var(--fg-tertiary)", label: "Ended" };
+                                const statusConf = sess.status === "active" ? { color: "var(--green)", label: "Session open" } : sess.status === "timeout" ? { color: "var(--amber)", label: "Timed out" } : { color: "var(--fg-tertiary)", label: "Session ended" };
                                 return (
                                   <motion.div key={sess._id} className="relative" variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                                     <div className="absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${sess.location.inOffice ? "var(--green)" : "var(--teal)"}` }}>
@@ -1107,21 +1072,21 @@ export default function AttendancePage() {
                                     </div>
                                     <div className="rounded-xl p-3 transition-colors" style={{ background: "var(--bg-grouped)" }}>
                                       <div className="flex items-center justify-between gap-2">
-                                        <span className="text-callout font-semibold" style={{ color: "var(--fg)" }}>
+                                        <span className="text-[11px] font-semibold" style={{ color: "var(--fg)" }}>
                                           {fmtTime(sess.sessionTime.start)}
                                           <span style={{ color: "var(--fg-tertiary)" }}> → </span>
                                           {sess.sessionTime.end ? fmtTime(sess.sessionTime.end) : "now"}
                                         </span>
-                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
                                           {fmtHours(sess.durationMinutes)}
                                         </span>
                                       </div>
                                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                        <Pill color={sess.location.inOffice ? "var(--green)" : "var(--teal)"} label={sess.location.inOffice ? "Office" : "Remote"} size="sm" />
+                                        <Pill color={sess.location.inOffice ? "var(--green)" : "var(--teal)"} label={sess.location.inOffice ? "In office" : "Remote"} size="sm" />
                                         <Pill color={statusConf.color} label={statusConf.label} size="sm" variant="outline" />
                                         <Pill color="var(--fg-tertiary)" label={device.label} size="sm" variant="outline" icon={device.icon} />
-                                        {sess.isFirstOfficeEntry && <Pill color="var(--primary)" label="First In" size="sm" />}
-                                        {sess.isLastOfficeExit && <Pill color="var(--amber)" label="Last Out" size="sm" />}
+                                        {sess.isFirstOfficeEntry && <Pill color="var(--primary)" label="First office entry" size="sm" />}
+                                        {sess.isLastOfficeExit && <Pill color="var(--amber)" label="Last office exit" size="sm" />}
                                       </div>
                                       {sess.status === "active" && sess.lastActivity && (
                                         <p className="mt-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Last heartbeat {timeAgo(sess.lastActivity)}</p>
@@ -1146,7 +1111,7 @@ export default function AttendancePage() {
                                       )}
                                       {sess.officeSegments && sess.officeSegments.length > 0 && (
                                         <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "color-mix(in srgb, var(--border) 60%, transparent)" }}>
-                                          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>Office Segments</p>
+                                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Office Segments</p>
                                           <motion.div className="space-y-1" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}>
                                             {sess.officeSegments.map((seg, si) => (
                                               <motion.div key={si} className="flex items-center justify-between text-[10px]" variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
@@ -1172,12 +1137,12 @@ export default function AttendancePage() {
       {/* Employee monthly stats cards — aggregate mode */}
       {pillsLoading && (
         <div data-tour="attendance-overview">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
             Employee Overview
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card overflow-hidden">
+              <div key={i} className="rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
                 <div className="p-4 space-y-3">
                   <div className="flex items-center gap-3">
                     <span className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
@@ -1210,7 +1175,7 @@ export default function AttendancePage() {
       )}
       {isAggregateMode && !teamLoading && filteredSummary.length > 0 && (
         <div data-tour="attendance-overview">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
             Employee Overview · {filteredSummary.length}
           </p>
           <motion.div
@@ -1225,7 +1190,8 @@ export default function AttendancePage() {
               return (
                 <motion.div
                   key={emp._id}
-                  className="card-static group relative cursor-pointer overflow-visible transition-all hover:shadow-md"
+                  className="rounded-xl border group relative cursor-pointer overflow-visible transition-all hover:shadow-md"
+                  style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                   onClick={() => { setViewingUserId(emp._id); setSelectedDay(null); }}
                   variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { duration: 0.25 } } }}
                   whileHover={{ y: -2 }}
@@ -1234,7 +1200,7 @@ export default function AttendancePage() {
                   {/* Absolute attendance pill */}
                   <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -10 }}>
                     <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${attendColor} 30%, var(--border))`, color: attendColor }}>
-                      {Math.round(emp.attendancePercentage)}% attend.
+                      {Math.round(emp.attendancePercentage)}% attendance
                     </span>
                     {emp.lateDays > 0 && (
                       <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: "color-mix(in srgb, var(--amber) 30%, var(--border))", color: "var(--amber)" }}>
@@ -1246,22 +1212,22 @@ export default function AttendancePage() {
                   <div className="flex flex-col gap-1.5 p-2 sm:p-2.5">
                     {/* Name + department */}
                     <div className="pr-1 pt-0.5">
-                        <p className="text-callout font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
-                      <p className="text-caption truncate" style={{ color: "var(--fg-secondary)" }}>{emp.department}{emp.role ? ` · ${emp.role}` : ""}</p>
+                        <p className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
+                      <p className="text-[9px] truncate" style={{ color: "var(--fg-secondary)" }}>{emp.department}{emp.role ? ` · ${emp.role}` : ""}</p>
                       </div>
 
                     {/* Days · Hours · Avg/Day */}
                     <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
                       <div>
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Present</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Days present</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--green)" }}>{emp.presentDays}d</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Total hours</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--teal)" }}>{fmtHours(emp.totalMinutes)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Avg/Day</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Avg hours/day</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{emp.averageDailyHours.toFixed(1)}h</p>
                       </div>
                     </div>
@@ -1269,15 +1235,15 @@ export default function AttendancePage() {
                     {/* On-Time · Late · Absent */}
                     <div className="grid grid-cols-3 gap-1 text-[11px]">
                       <div>
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>On-Time</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>On-time rate</p>
                         <p className="font-semibold tabular-nums" style={{ color: onTimeColor }}>{Math.round(emp.onTimePercentage)}%</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Late</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Late days</p>
                         <p className="font-semibold tabular-nums" style={{ color: emp.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Absent</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Absent</p>
                         <p className="font-semibold tabular-nums" style={{ color: absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{absentDays}d</p>
                       </div>
                     </div>
@@ -1300,9 +1266,9 @@ export default function AttendancePage() {
 
       {/* Leave list for selected employee */}
       {sessionReady && !isAggregateMode && calendarLeaves.length > 0 && (
-        <motion.div className="card-static overflow-hidden" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
-            <h3 className="text-headline text-sm">Leaves · {calendarLeaves.length}</h3>
+        <motion.div className="rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+            <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Leaves · {calendarLeaves.length}</h3>
             <button
               type="button"
               onClick={() => openLeavesModal(viewingUserId || undefined)}
@@ -1320,7 +1286,7 @@ export default function AttendancePage() {
                   <div className="flex items-center gap-3">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor }} />
                     <div>
-                      <p className="text-xs font-medium" style={{ color: "var(--fg)" }}>
+                      <p className="text-[11px] font-medium" style={{ color: "var(--fg)" }}>
                         {new Date(l.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                         {l.startDate !== l.endDate && ` – ${new Date(l.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
                       </p>
@@ -1335,7 +1301,7 @@ export default function AttendancePage() {
                       background: `color-mix(in srgb, ${statusColor} 12%, transparent)`,
                       color: statusColor,
                     }}>
-                      {l.status}
+                      {{ pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}
                     </span>
                   </div>
                 </div>
@@ -1349,10 +1315,10 @@ export default function AttendancePage() {
       {sessionReady && !isAggregateMode && selectedDay === null && (
         loading ? (
           <div>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records</p>
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="card overflow-hidden p-3 space-y-2">
+                <div key={i} className="rounded-xl border overflow-hidden p-3 space-y-2" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                     <span className="shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
@@ -1374,7 +1340,7 @@ export default function AttendancePage() {
           </div>
         ) : records.length > 0 ? (
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records · {records.length}</p>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records · {records.length}</p>
             {/* Personal insight pills — descriptive */}
             <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
               {personalInsights.perfectDays > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} on-time days (perfect attendance)</span>}
@@ -1405,13 +1371,14 @@ export default function AttendancePage() {
                     key={rec._id}
                     type="button"
                     onClick={() => setSelectedDay(recDay)}
-                    className="card-static group relative cursor-pointer overflow-visible p-2 sm:p-2.5 text-left transition-all hover:shadow-md space-y-1.5"
+                    className="rounded-xl border group relative cursor-pointer overflow-visible p-2 sm:p-2.5 text-left transition-all hover:shadow-md space-y-1.5"
+                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                     variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.2 } } }}
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     {/* Absolute status pill */}
-                    <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -8 }}>
+                    <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -10 }}>
                       <span className="rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${statusColor} 30%, var(--border))`, color: statusColor }}>
                         {statusLabel}
                       </span>
@@ -1423,39 +1390,39 @@ export default function AttendancePage() {
                     </div>
 
                     {/* Date */}
-                    <p className="text-xs font-semibold truncate pr-16" style={{ color: "var(--fg)" }}>
+                    <p className="text-[11px] font-semibold truncate pr-16" style={{ color: "var(--fg)" }}>
                       {new Date(rec.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                     </p>
 
-                    {/* Clock In · Hours · Clock Out */}
+                    {/* Clock in · Hours worked · Clock out */}
                     <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
                       <div>
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock In</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{fmtTime(rec.firstStart ?? rec.firstOfficeEntry)}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Hours worked</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock Out</p>
+                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{fmtTime(rec.lastEnd ?? rec.lastOfficeExit)}</p>
                       </div>
                     </div>
 
-                    {/* Office In · Office · Office Out */}
+                    {/* Office entry · Office hours · Office exit */}
                     {rec.isPresent && (rec.firstOfficeEntry || rec.officeMinutes > 0) && (
                       <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
                         <div>
-                          <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office In</p>
+                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
                           <p className="font-semibold tabular-nums">{fmtTime(rec.firstOfficeEntry)}</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office</p>
+                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
                           <p className="font-semibold tabular-nums" style={{ color: "var(--green)" }}>{fmtHours(rec.officeMinutes)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office Out</p>
+                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
                           <p className="font-semibold tabular-nums">{fmtTime(rec.lastOfficeExit)}</p>
                         </div>
                       </div>
