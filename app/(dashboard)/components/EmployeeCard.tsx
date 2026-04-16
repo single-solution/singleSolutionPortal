@@ -131,28 +131,28 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
 
   const styles: Record<PulseVariant, { bg: string; color: string; border: string; label: string; sub?: string }> = {
     office: {
-      bg: "color-mix(in srgb, var(--green) 18%, transparent)",
+      bg: "color-mix(in srgb, var(--green) 28%, transparent)",
       color: "var(--green)",
-      border: "color-mix(in srgb, var(--green) 35%, transparent)",
+      border: "color-mix(in srgb, var(--green) 55%, transparent)",
       label: "In Office",
     },
     remote: {
-      bg: "color-mix(in srgb, var(--teal) 16%, transparent)",
-      color: "var(--teal)",
-      border: "color-mix(in srgb, var(--teal) 30%, transparent)",
+      bg: "color-mix(in srgb, #6366f1 22%, transparent)",
+      color: "#6366f1",
+      border: "color-mix(in srgb, #6366f1 45%, transparent)",
       label: "Remote",
     },
     lastSeen: {
-      bg: "var(--bg-elevated)",
+      bg: "color-mix(in srgb, var(--fg-tertiary) 12%, transparent)",
       color: "var(--fg-secondary)",
-      border: "var(--border)",
+      border: "color-mix(in srgb, var(--fg-tertiary) 30%, transparent)",
       label: "Last seen",
       sub: emp.lastExit ? formatTimeStr(emp.lastExit) : "—",
     },
     absent: {
-      bg: "rgba(245,158,11,0.18)",
-      color: "#d97706",
-      border: "rgba(245,158,11,0.35)",
+      bg: "color-mix(in srgb, var(--rose) 22%, transparent)",
+      color: "var(--rose)",
+      border: "color-mix(in srgb, var(--rose) 45%, transparent)",
       label: "Absent",
     },
   };
@@ -195,7 +195,7 @@ function ActivityChips({ emp }: { emp: EmployeeCardEmp }) {
   return (
     <div className="flex flex-wrap items-center gap-1 text-[9px]">
       {remoteMins > 0 && (
-        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>
+        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, #6366f1 10%, transparent)", color: "#6366f1" }}>
           {formatMinutesShort(remoteMins)} remote
         </span>
       )}

@@ -118,37 +118,17 @@ export async function GET() {
     const daily = dailyMap.get(id);
 
     let status: string = "absent";
-    let todayMinutes = 0;
+    let todayMinutes = daily?.totalWorkingMinutes ?? 0;
     let isLive = false;
-    let staleLastActivity: string | null = null;
 
     if (active) {
-      const lastActivityMs = active.lastActivity ? new Date(active.lastActivity).getTime() : 0;
-      const stale = (nowMs - lastActivityMs) > STALE_MS;
-
-      if (!stale) {
-        const elapsed = Math.floor((nowMs - active.sessionTime.start.getTime()) / 60000);
-        todayMinutes = (daily?.totalWorkingMinutes ?? 0) + elapsed;
-        status = active.location.inOffice ? "office" : "remote";
-        if (todayMinutes > 9 * 60) status = "overtime";
-        isLive = true;
-      } else {
-        staleLastActivity = active.lastActivity ? new Date(active.lastActivity).toISOString() : null;
-        const staleElapsed = active.lastActivity && active.sessionTime?.start
-          ? Math.floor((new Date(active.lastActivity).getTime() - new Date(active.sessionTime.start).getTime()) / 60000)
-          : 0;
-        todayMinutes = (daily?.totalWorkingMinutes ?? 0) + staleElapsed;
-        if (daily?.isPresent) {
-          const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
-          status = wasRemote ? "remote" : "office";
-          if (todayMinutes > 9 * 60) status = "overtime";
-        }
-      }
+      status = active.location.inOffice ? "office" : "remote";
+      const lastMs = active.lastActivity ? new Date(active.lastActivity).getTime() : 0;
+      isLive = (nowMs - lastMs) <= STALE_MS;
+      const elapsed = Math.floor((nowMs - active.sessionTime.start.getTime()) / 60000);
+      todayMinutes = (daily?.totalWorkingMinutes ?? 0) + elapsed;
     } else if (daily?.isPresent) {
-      todayMinutes = daily.totalWorkingMinutes;
-      const wasRemote = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0);
-      status = wasRemote ? "remote" : "office";
-      if (todayMinutes > 9 * 60) status = "overtime";
+      status = (daily.remoteMinutes ?? 0) > (daily.officeMinutes ?? 0) ? "remote" : "office";
     }
 
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -185,7 +165,7 @@ export async function GET() {
       })(),
       firstOfficeEntry: daily?.firstOfficeEntry ? new Date(daily.firstOfficeEntry as unknown as string).toISOString() : null,
       lastOfficeExit: daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null,
-      lastExit: staleLastActivity
+      lastExit: (active?.lastActivity ? new Date(active.lastActivity).toISOString() : null)
         ?? (daily?.lastSessionEnd ? new Date(daily.lastSessionEnd as unknown as string).toISOString() : null)
         ?? (lastEndMap.get(id) ? new Date(lastEndMap.get(id)!).toISOString() : null)
         ?? (daily?.lastOfficeExit ? new Date(daily.lastOfficeExit as unknown as string).toISOString() : null),

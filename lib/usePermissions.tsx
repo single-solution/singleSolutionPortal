@@ -6,6 +6,7 @@ import type { IPermissions } from "@/lib/permissions.shared";
 interface PermissionsState {
   isSuperAdmin: boolean;
   hasSubordinates: boolean;
+  subordinateIds: string[];
   permissions: Partial<Record<keyof IPermissions, boolean>>;
   loading: boolean;
   can: (key: keyof IPermissions) => boolean;
@@ -17,11 +18,13 @@ interface PermissionsInitialData {
   isSuperAdmin: boolean;
   permissions: Partial<Record<keyof IPermissions, boolean>>;
   hasSubordinates: boolean;
+  subordinateIds: string[];
 }
 
 const PermissionsContext = createContext<PermissionsState>({
   isSuperAdmin: false,
   hasSubordinates: false,
+  subordinateIds: [],
   permissions: {},
   loading: true,
   can: () => false,
@@ -38,6 +41,7 @@ export function PermissionsProvider({ children, initialData }: ProviderProps) {
   const hasInitial = !!initialData;
   const [isSuperAdmin, setIsSuperAdmin] = useState(initialData?.isSuperAdmin ?? false);
   const [hasSubordinates, setHasSubordinates] = useState(initialData?.hasSubordinates ?? false);
+  const [subordinateIds, setSubordinateIds] = useState<string[]>(initialData?.subordinateIds ?? []);
   const [permissions, setPermissions] = useState<Partial<Record<keyof IPermissions, boolean>>>(initialData?.permissions ?? {});
   const [loading, setLoading] = useState(!hasInitial);
   const mounted = useRef(true);
@@ -50,6 +54,7 @@ export function PermissionsProvider({ children, initialData }: ProviderProps) {
       if (!mounted.current) return;
       setIsSuperAdmin(data.isSuperAdmin === true);
       setHasSubordinates(data.hasSubordinates === true);
+      setSubordinateIds(data.subordinateIds ?? []);
       setPermissions(data.permissions ?? {});
     } catch { /* silent */ }
     if (mounted.current) setLoading(false);
@@ -72,7 +77,7 @@ export function PermissionsProvider({ children, initialData }: ProviderProps) {
   );
 
   return (
-    <PermissionsContext.Provider value={{ isSuperAdmin, hasSubordinates, permissions, loading, can, canAny, refresh: fetchPermissions }}>
+    <PermissionsContext.Provider value={{ isSuperAdmin, hasSubordinates, subordinateIds, permissions, loading, can, canAny, refresh: fetchPermissions }}>
       {children}
     </PermissionsContext.Provider>
   );

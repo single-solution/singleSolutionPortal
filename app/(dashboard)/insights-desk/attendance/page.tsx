@@ -678,17 +678,17 @@ export default function AttendancePage() {
             selectedDay={selectedDay}
             onSelectDay={setSelectedDay}
             getDayMeta={(day) => {
-              const rec = recordMap.get(day);
+                  const rec = recordMap.get(day);
               const dateObj = new Date(year, month - 1, day);
               const dayOfWeek = dateObj.getDay();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
               const isHoliday = holidayDays.has(day);
               const isLeave = leaveDays.has(day);
-              let dotColor = "transparent";
-              if (!isAggregateMode) {
-                if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
-                else if (rec) dotColor = "var(--rose)";
-              }
+                  let dotColor = "transparent";
+                  if (!isAggregateMode) {
+                    if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
+                    else if (rec) dotColor = "var(--rose)";
+                  }
               return { dotColor, isHoliday, isLeave };
             }}
             showLegend={sessionReady}
@@ -1403,11 +1403,11 @@ export default function AttendancePage() {
                       <div className="text-center">
                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Hours worked</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
-                      </div>
-                      <div className="text-right">
+                    </div>
+                    <div className="text-right">
                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{fmtTime(rec.lastEnd ?? rec.lastOfficeExit)}</p>
-                      </div>
+                    </div>
                     </div>
 
                     {/* Office entry · Office hours · Office exit */}

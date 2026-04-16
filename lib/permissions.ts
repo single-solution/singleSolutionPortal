@@ -74,6 +74,7 @@ export interface PermissionsPayload {
   isSuperAdmin: boolean;
   permissions: Partial<Record<keyof IPermissions, boolean>>;
   hasSubordinates: boolean;
+  subordinateIds: string[];
 }
 
 /**
@@ -86,7 +87,7 @@ export async function getPermissionsPayload(userId: string): Promise<Permissions
 
   const dbUser = await User.findById(userId).select("isSuperAdmin isActive").lean();
   if (!dbUser || !dbUser.isActive) {
-    return { isSuperAdmin: false, permissions: {}, hasSubordinates: false };
+    return { isSuperAdmin: false, permissions: {}, hasSubordinates: false, subordinateIds: [] };
   }
 
   const userIsSuperAdmin = (dbUser as any).isSuperAdmin === true; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -111,6 +112,7 @@ export async function getPermissionsPayload(userId: string): Promise<Permissions
     isSuperAdmin: userIsSuperAdmin,
     permissions: merged,
     hasSubordinates: userIsSuperAdmin || subordinateIds.length > 0,
+    subordinateIds,
   };
 }
 

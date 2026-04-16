@@ -65,7 +65,6 @@ interface ApiTask {
   _id: string;
   title: string;
   description?: string;
-  priority: string;
   status: string;
   deadline?: string;
   createdAt?: string;
@@ -680,7 +679,7 @@ function NeedsAttentionItems({ tasks, canViewTasks, emps, hasTeamAccess, flagSta
   emps: PresenceEmployee[];
   hasTeamAccess: boolean;
   flagStats: { total: number; warnings: number; violations: number } | null;
-  taskQuickStats: { total: number; pending: number; inProg: number; completed: number; dueSoon: number; dueThisWeek: number; overdue: number; overdueHU: number; overdue7d: number } | null;
+  taskQuickStats: { total: number; pending: number; inProg: number; completed: number; dueSoon: number; dueThisWeek: number; overdue: number; overdue7d: number } | null;
   campaignStats?: { active: number; total: number } | null;
   isEmployee?: boolean;
   pa?: PersonalAttendance | null;
@@ -703,14 +702,13 @@ function NeedsAttentionItems({ tasks, canViewTasks, emps, hasTeamAccess, flagSta
     taskChips.push({ key: "inprog", value: taskQuickStats.inProg, label: "in progress", color: "var(--primary)" });
     if (taskQuickStats.dueSoon > 0) taskChips.push({ key: "duesoon", value: taskQuickStats.dueSoon, label: "due soon", color: "var(--amber)" });
     if (taskQuickStats.dueThisWeek > 0) taskChips.push({ key: "dueweek", value: taskQuickStats.dueThisWeek, label: "due this week", color: "var(--fg-secondary)" });
-    if (taskQuickStats.overdueHU > 0) taskChips.push({ key: "overduehu", value: taskQuickStats.overdueHU, label: "overdue (high/urgent)", color: "var(--rose)" });
     if (taskQuickStats.overdue7d > 0) taskChips.push({ key: "overdue7d", value: taskQuickStats.overdue7d, label: "overdue 7+ days", color: "var(--rose)" });
   }
 
   const items: { key: string; icon: React.ReactNode; label: string; detail: string; color: string }[] = [];
 
   if (canViewTasks && taskQuickStats) {
-    if (taskQuickStats.overdue > 0) items.push({ key: "overdue", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>, label: `${taskQuickStats.overdue} overdue task${taskQuickStats.overdue !== 1 ? "s" : ""}`, detail: taskQuickStats.overdueHU > 0 ? `${taskQuickStats.overdueHU} high or urgent priority` : "", color: "var(--rose)" });
+    if (taskQuickStats.overdue > 0) items.push({ key: "overdue", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>, label: `${taskQuickStats.overdue} overdue task${taskQuickStats.overdue !== 1 ? "s" : ""}`, detail: "", color: "var(--rose)" });
     if (taskQuickStats.dueSoon > 0) items.push({ key: "duesoon", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, label: `${taskQuickStats.dueSoon} task${taskQuickStats.dueSoon !== 1 ? "s" : ""} due within 48 hours`, detail: "", color: "var(--amber)" });
   }
 
@@ -957,10 +955,9 @@ function AdminDashboard({
       return dl > now && dl <= end;
     }).length;
     const overdue = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() < now).length;
-    const overdueHU = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() < now && (t.priority === "high" || t.priority === "urgent")).length;
     const completed = tasks.filter((t) => t.status === "completed").length;
     const overdue7d = tasks.filter((t) => t.deadline && t.status !== "completed" && (now - new Date(t.deadline).getTime()) > 7 * 86400_000).length;
-    return { total, pending, inProg, completed, dueSoon, dueThisWeek, overdue, overdueHU, overdue7d };
+    return { total, pending, inProg, completed, dueSoon, dueThisWeek, overdue, overdue7d };
   }, [tasks]);
 
   const flagStats = useMemo(() => {
@@ -997,7 +994,7 @@ function AdminDashboard({
   const dashStatusLabels: Record<string, string> = { pending: "Pending", inProgress: "Working", completed: "Done" };
   const dashNextStatusMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
 
-  const [dashStatusConfirm, setDashStatusConfirm] = useState<{ type: "task"; task: ApiTask; next: string; label: string } | { type: "checklist"; campaignId: string; taskId: string; title: string; currentDone: boolean } | null>(null);
+  const [dashStatusConfirm, setDashStatusConfirm] = useState<{ type: "task"; task: ApiTask; next: string; label: string } | { type: "checklist"; campaignId: string; taskId: string; title: string; currentDone: boolean } | { type: "subtask"; subtask: ApiTask; parentTask: ApiTask; next: string } | null>(null);
   const [dashStatusUpdating, setDashStatusUpdating] = useState(false);
 
   const requestCycleTask = useCallback((task: ApiTask) => {
@@ -1009,6 +1006,12 @@ function AdminDashboard({
     setDashStatusConfirm({ type: "checklist", campaignId, taskId, title, currentDone });
   }, []);
 
+  const requestToggleSubtask = useCallback((subtask: ApiTask, parentTask: ApiTask) => {
+    const current = myTaskStatus(subtask, user.id);
+    const next = current === "completed" ? "pending" : "completed";
+    setDashStatusConfirm({ type: "subtask", subtask, parentTask, next });
+  }, [user.id]);
+
   const handleDashStatusConfirm = useCallback(async () => {
     if (!dashStatusConfirm) return;
     setDashStatusUpdating(true);
@@ -1018,12 +1021,36 @@ function AdminDashboard({
         const res = await fetch(`/api/tasks/${dashStatusConfirm.task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: dashStatusConfirm.next }) });
         if (res.ok) onRefreshFull();
         setCyclingTask(null);
+      } else if (dashStatusConfirm.type === "subtask") {
+        const { subtask, parentTask, next } = dashStatusConfirm;
+        const res = await fetch(`/api/tasks/${subtask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+        if (res.ok) {
+          if (next === "completed") {
+            const siblings = parentTask.subtasks ?? [];
+            const allDone = siblings.every((s) => s._id === subtask._id ? true : myTaskStatus(s, user.id) === "completed");
+            if (allDone) {
+              await fetch(`/api/tasks/${parentTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
+            }
+          }
+          onRefreshFull();
+        }
       } else {
-        setChecklistOverrides((prev) => new Map(prev).set(dashStatusConfirm.taskId, !dashStatusConfirm.currentDone));
+        const newDone = !dashStatusConfirm.currentDone;
+        setChecklistOverrides((prev) => new Map(prev).set(dashStatusConfirm.taskId, newDone));
+        const parentItem = myChecklists.find((cl) => cl.subtasks.some((s) => s.taskId === dashStatusConfirm.taskId));
+        if (parentItem && newDone) {
+          const allSibsDone = parentItem.subtasks.every((s) =>
+            s.taskId === dashStatusConfirm.taskId ? true : (checklistOverrides.has(s.taskId) ? checklistOverrides.get(s.taskId)! : s.done)
+          );
+          if (allSibsDone) setChecklistOverrides((prev) => new Map(prev).set(parentItem.taskId, true));
+        }
+        if (parentItem && !newDone) {
+          setChecklistOverrides((prev) => new Map(prev).set(parentItem.taskId, false));
+        }
         try {
           await fetch(`/api/campaigns/${dashStatusConfirm.campaignId}/checklist`, {
-            method: "PUT", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ taskId: dashStatusConfirm.taskId, done: !dashStatusConfirm.currentDone }),
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: dashStatusConfirm.taskId }),
           });
           onRefreshFull();
         } catch {
@@ -1033,7 +1060,7 @@ function AdminDashboard({
     } catch { /* ignore */ }
     setDashStatusConfirm(null);
     setDashStatusUpdating(false);
-  }, [dashStatusConfirm, onRefreshFull]);
+  }, [dashStatusConfirm, onRefreshFull, user.id, myChecklists, checklistOverrides]);
 
   const liveCount = otherEmps.filter((e) => e.isLive).length;
 
@@ -1185,57 +1212,67 @@ function AdminDashboard({
                     return (
                       <motion.div className="space-y-2.5" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.04 } } }}>
                         {ordered.map((item, idx) => {
-                          const prevDone = idx === 0 || ordered[idx - 1].isDone;
-                          const isLocked = !prevDone && !item.isDone;
-                          const dotColor = item.isDone ? "var(--teal)" : "var(--amber)";
+                          const hasSubs = item.subs.length > 0;
+                          const allSubsDone = hasSubs && item.subs.every((s) => s.isDone);
+                          const effectiveDone = hasSubs ? allSubsDone : item.isDone;
+                          const prevDone = idx === 0 || (() => { const p = ordered[idx - 1]; const pH = p.subs.length > 0; return pH ? p.subs.every((s) => s.isDone) : p.isDone; })();
+                          const isLocked = !prevDone && !effectiveDone;
+                          const dotColor = effectiveDone ? "var(--teal)" : "var(--amber)";
+                          const subsDoneCount = item.subs.filter((s) => s.isDone).length;
                           return (
                             <motion.div key={`cl-${item.taskId}`} className="relative" variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                               <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${dotColor}` }}>
-                                {item.isDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />}
+                                {effectiveDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />}
                               </div>
-                              <div className="relative rounded-xl border transition-all" style={{ background: item.isDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : item.isDone ? 0.65 : 1 }}>
-                                {item.isDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
+                              <div className="relative rounded-xl border transition-all" style={{ background: effectiveDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : effectiveDone ? 0.65 : 1 }}>
+                                {effectiveDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
                                 <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
                                 <div className="flex items-center gap-1.5 px-2.5 py-2">
                                   <div className="flex-1 min-w-0">
-                                    <span className="text-[11px] font-semibold truncate block" style={{ color: item.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
+                                    <span className="text-[11px] font-semibold truncate block" style={{ color: effectiveDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
                                     <div className="flex items-center gap-1 flex-wrap mt-0.5">
                                       {item.campaignName && (
                                         <span className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{item.campaignName}</span>
                                       )}
-                                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{item.isDone ? "✓ Done" : "Pending"}</span>
+                                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{effectiveDone ? "✓ Done" : hasSubs ? `${subsDoneCount}/${item.subs.length} subtasks` : "Pending"}</span>
                                     </div>
                                   </div>
-                                  <button type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, item.isDone)}
-                                    disabled={isLocked}
-                                    className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
-                                    style={{ background: item.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: item.isDone ? "var(--amber)" : "var(--teal)" }}>
-                                    {item.isDone ? "Undo" : "Mark complete"}
-                                  </button>
+                                  {!hasSubs && (
+                                    <button type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, item.isDone)}
+                                      disabled={isLocked}
+                                      className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                      style={{ background: item.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: item.isDone ? "var(--amber)" : "var(--teal)" }}>
+                                      {item.isDone ? "Undo" : "Mark complete"}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
-                              {/* Subtasks */}
-                              {item.subs.length > 0 && (
-                                <div className="relative ml-3 mt-1.5 pl-4 space-y-1.5">
-                                  <div className="absolute left-[5px] top-0 bottom-0 w-[1.5px] rounded-full" style={{ background: "color-mix(in srgb, var(--border) 70%, transparent)" }} />
+                              {hasSubs && (
+                                <div className="relative ml-3 mt-1.5 pl-7 space-y-2.5">
+                                  <div className="absolute left-[14px] top-0 bottom-0 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
                                   {item.subs.map((sub, si) => {
-                                    const subPrevDone = si === 0 ? item.isDone : item.subs[si - 1].isDone;
-                                    const subLocked = !subPrevDone && !sub.isDone;
+                                    const subPrevDone = si === 0 || item.subs[si - 1].isDone;
+                                    const subLocked = isLocked || (!subPrevDone && !sub.isDone);
                                     const subDotColor = sub.isDone ? "var(--teal)" : "var(--amber)";
                                     return (
                                       <div key={`sub-${sub.taskId}`} className="relative">
-                                        <div className="absolute -left-4 top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `1.5px solid ${subDotColor}` }}>
-                                          {sub.isDone && <span className="h-1 w-1 rounded-full" style={{ background: subDotColor }} />}
+                                        <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${subDotColor}` }}>
+                                          {sub.isDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: subDotColor }} />}
                                         </div>
-                                        <div className="relative rounded-lg border transition-all" style={{ background: sub.isDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : sub.isDone ? 0.6 : 1 }}>
-                                          {sub.isDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-lg" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                          <div className="flex items-center gap-1.5 px-2 py-1.5">
-                                            <span className="text-[10px] font-medium truncate flex-1" style={{ color: sub.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                        <div className="relative rounded-xl border transition-all" style={{ background: sub.isDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : sub.isDone ? 0.6 : 1 }}>
+                                          {sub.isDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
+                                          <div className="flex items-center gap-1.5 px-2.5 py-2">
+                                            <div className="flex-1 min-w-0">
+                                              <span className="text-[11px] font-semibold truncate block" style={{ color: sub.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                                <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 12%, transparent)`, color: subDotColor }}>{sub.isDone ? "✓ Done" : "Pending"}</span>
+                                              </div>
+                                            </div>
                                             <button type="button" onClick={() => requestToggleChecklist(item.campaignId, sub.taskId, sub.title, sub.isDone)}
                                               disabled={subLocked}
-                                              className="shrink-0 rounded px-1.5 py-0.5 text-[7px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
-                                              style={{ background: sub.isDone ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "color-mix(in srgb, var(--teal) 8%, transparent)", color: sub.isDone ? "var(--amber)" : "var(--teal)" }}>
-                                              {sub.isDone ? "Undo" : "Done"}
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              style={{ background: sub.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: sub.isDone ? "var(--amber)" : "var(--teal)" }}>
+                                              {sub.isDone ? "Undo" : "Mark complete"}
                                             </button>
                                           </div>
                                         </div>
@@ -1282,7 +1319,9 @@ function AdminDashboard({
                         const statusLabel = isCompleted ? "Done" : myStatus === "inProgress" ? "In Progress" : "Pending";
                         const campaignName = task.campaign && typeof task.campaign === "object" ? (task.campaign as { name: string }).name : undefined;
                         const subtasks = task.subtasks ?? [];
-                        const subtasksDone = subtasks.filter((s) => s.status === "completed").length;
+                        const hasSubtasks = subtasks.length > 0;
+                        const subtaskStatuses = subtasks.map((s) => myTaskStatus(s, user.id));
+                        const subtasksDone = subtaskStatuses.filter((st) => st === "completed").length;
 
                         return (
                           <motion.div key={`tk-${task._id}`} variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
@@ -1301,9 +1340,14 @@ function AdminDashboard({
                                         Due {new Date(task.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                                       </span>
                                     )}
+                                    {hasSubtasks && (
+                                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: subtasksDone === subtasks.length ? "color-mix(in srgb, var(--teal) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)", color: subtasksDone === subtasks.length ? "var(--teal)" : "var(--amber)" }}>
+                                        {subtasksDone}/{subtasks.length} subtasks
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-                                {(() => {
+                                {!hasSubtasks && (() => {
                                   const nextStatus = isCompleted ? "pending" : myStatus === "inProgress" ? "completed" : "inProgress";
                                   const nextLabel = isCompleted ? "Mark as pending" : myStatus === "inProgress" ? "Mark as done" : "Mark as working";
                                   const btnColor = isCompleted ? "var(--amber)" : nextStatus === "completed" ? "var(--teal)" : "var(--primary)";
@@ -1316,23 +1360,40 @@ function AdminDashboard({
                                   );
                                 })()}
                               </div>
-                              {subtasks.length > 0 && (
-                                <div className="border-t px-2.5 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                  <p className="mb-1 text-[8px] font-bold uppercase tracking-widest" style={{ color: "var(--fg-tertiary)" }}>
-                                    Subtasks · {subtasksDone}/{subtasks.length}
-                                  </p>
-                                  <div className="space-y-0.5">
-                                    {subtasks.map((sub) => {
-                                      const subDone = sub.status === "completed";
-                                      const subColor = subDone ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
-                                      return (
-                                        <div key={sub._id} className="flex items-center gap-1.5 rounded-lg px-1.5 py-0.5" style={{ borderLeft: `2px solid ${subColor}`, background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
-                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
-                                          <span className="text-[9px] flex-1 truncate" style={{ color: subDone ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: subDone ? "line-through" : undefined }}>{sub.title}</span>
+                              {hasSubtasks && (
+                                <div className="mt-1.5 ml-3 pl-7 relative space-y-2.5">
+                                  <div className="absolute left-[14px] top-0 bottom-0 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
+                                  {subtasks.map((sub, si) => {
+                                    const subStatus = myTaskStatus(sub, user.id);
+                                    const subDone = subStatus === "completed";
+                                    const subPrevDone = si === 0 || myTaskStatus(subtasks[si - 1], user.id) === "completed";
+                                    const subLocked = !subPrevDone && !subDone;
+                                    const subDotColor = subDone ? "var(--teal)" : "var(--amber)";
+                                    const subStatusLabel = subDone ? "Done" : subStatus === "inProgress" ? "In Progress" : "Pending";
+                                    return (
+                                      <div key={sub._id} className="relative">
+                                        <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${subDotColor}` }}>
+                                          {subDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: subDotColor }} />}
                                         </div>
-                                      );
-                                    })}
-                                  </div>
+                                        <div className="relative rounded-xl border transition-all" style={{ background: subDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : subDone ? 0.6 : 1 }}>
+                                          {subDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
+                                          <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 18%, transparent)`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
+                                          <div className="flex items-center gap-1.5 px-2.5 py-2">
+                                            <div className="flex-1 min-w-0">
+                                              <span className="text-[11px] font-semibold truncate block" style={{ color: subDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                              {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                            </div>
+                                            <button type="button" onClick={() => requestToggleSubtask(sub, task)}
+                                              disabled={subLocked}
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              style={{ background: subDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: subDone ? "var(--amber)" : "var(--teal)" }}>
+                                              {subDone ? "Undo" : "Mark complete"}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1496,16 +1557,12 @@ function AdminDashboard({
                           <div className="flex w-full shrink-0 items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
                             <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
-                              <span className="text-[12px] font-semibold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
+                              <span className="text-[12px] font-semibold" style={{ color: "var(--fg)" }}>{label}</span>
                               {group.unread > 0 && (
                                 <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
                                   {group.unread}
                                 </span>
                               )}
-                              <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{group.logs.length}</span>
-                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                              </motion.svg>
                             </button>
                             {group.unread > 0 && (
                               <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markEntityRead(entity)}
@@ -1514,6 +1571,11 @@ function AdminDashboard({
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
                               </motion.button>
                             )}
+                            <button type="button" onClick={() => toggleActivityGroup(entity)} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
+                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </motion.svg>
+                            </button>
               </div>
                           <AnimatePresence initial={false}>
                           {isOpen && (
@@ -1544,25 +1606,21 @@ function AdminDashboard({
                                         {log.details && log.entity !== "security" && (
                                           <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
-                                        <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex items-center justify-between mt-1">
                                           <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                                           {log.entity === "task" && log.entityId && (() => {
                                             const linkedTask = tasks.find((t) => t._id === log.entityId);
                                             if (!linkedTask) return null;
                                             const sc = linkedTask.status === "completed" ? "var(--teal)" : linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
                                             const sl = linkedTask.status === "completed" ? "Done" : linkedTask.status === "inProgress" ? "Working" : "Pending";
-                                            const canAct = linkedTask.status !== "completed";
                                             return (
-                                              <motion.button type="button" onClick={canAct ? () => requestCycleTask(linkedTask) : undefined} disabled={!canAct}
-                                                whileHover={canAct ? { scale: 1.06 } : undefined} whileTap={canAct ? { scale: 0.94 } : undefined}
-                                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all disabled:cursor-default"
-                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc, cursor: canAct ? "pointer" : "default" }}>
+                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold"
+                                                style={{ background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc }}>
                                                 <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: sc }}>
                                                   {linkedTask.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: sc }} />}
                                                 </span>
                                                 {sl}
-                                                {canAct && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>}
-                                              </motion.button>
+                                              </span>
                                             );
                                           })()}
                                         </div>
@@ -1603,14 +1661,20 @@ function AdminDashboard({
         open={!!dashStatusConfirm}
         title={dashStatusConfirm?.type === "task"
           ? `Mark as ${dashStatusConfirm.label}?`
-          : dashStatusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
+          : dashStatusConfirm?.type === "subtask"
+            ? (dashStatusConfirm.next === "completed" ? "Mark subtask as done?" : "Undo subtask?")
+            : dashStatusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
         description={dashStatusConfirm?.type === "task"
           ? `Change "${dashStatusConfirm.task.title}" status to ${dashStatusConfirm.label}.`
-          : dashStatusConfirm?.currentDone
-            ? `Unmark "${dashStatusConfirm?.title}" as completed for today.`
-            : `Mark "${dashStatusConfirm?.title}" as completed for today.`}
-        confirmLabel={dashStatusConfirm?.type === "task" ? dashStatusConfirm.label : dashStatusConfirm?.currentDone ? "Undo" : "Done"}
-        variant={dashStatusConfirm?.type === "task" && dashStatusConfirm.next === "pending" ? "warning" : "default"}
+          : dashStatusConfirm?.type === "subtask"
+            ? (dashStatusConfirm.next === "completed"
+              ? `Mark "${dashStatusConfirm.subtask.title}" as completed.`
+              : `Revert "${dashStatusConfirm.subtask.title}" to pending.`)
+            : dashStatusConfirm?.currentDone
+              ? `Unmark "${dashStatusConfirm?.title}" as completed for today.`
+              : `Mark "${dashStatusConfirm?.title}" as completed for today.`}
+        confirmLabel={dashStatusConfirm?.type === "task" ? dashStatusConfirm.label : dashStatusConfirm?.type === "subtask" ? (dashStatusConfirm.next === "completed" ? "Mark complete" : "Undo") : dashStatusConfirm?.currentDone ? "Undo" : "Mark complete"}
+        variant={dashStatusConfirm?.type === "task" && dashStatusConfirm.next === "pending" ? "warning" : dashStatusConfirm?.type === "subtask" && dashStatusConfirm.next === "pending" ? "warning" : "default"}
         loading={dashStatusUpdating}
         onConfirm={handleDashStatusConfirm}
         onCancel={() => setDashStatusConfirm(null)}
@@ -1647,6 +1711,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
   const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
   const [dashChecklistConfirm, setDashChecklistConfirm] = useState<{ campaignId: string; taskId: string; title: string; currentDone: boolean } | null>(null);
   const [dashStatusConfirm, setDashStatusConfirm] = useState<{ task: ApiTask; next: string } | null>(null);
+  const [subtaskConfirm, setSubtaskConfirm] = useState<{ subtask: ApiTask; parentTask: ApiTask; next: string } | null>(null);
   const [cyclingTask, setCyclingTask] = useState<string | null>(null);
 
   function requestToggleChecklist(cid: string, tid: string, title: string, currentDone: boolean) {
@@ -1655,10 +1720,21 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
   async function confirmToggleChecklist() {
     if (!dashChecklistConfirm) return;
     const { campaignId, taskId, currentDone } = dashChecklistConfirm;
+    const newDone = !currentDone;
     setDashChecklistConfirm(null);
-    setChecklistOverrides((prev) => new Map(prev).set(taskId, !currentDone));
+    setChecklistOverrides((prev) => new Map(prev).set(taskId, newDone));
+    const parentItem = myChecklists.find((cl) => cl.subtasks.some((s) => s.taskId === taskId));
+    if (parentItem && newDone) {
+      const allSibsDone = parentItem.subtasks.every((s) =>
+        s.taskId === taskId ? true : (checklistOverrides.has(s.taskId) ? checklistOverrides.get(s.taskId)! : s.done)
+      );
+      if (allSibsDone) setChecklistOverrides((prev) => new Map(prev).set(parentItem.taskId, true));
+    }
+    if (parentItem && !newDone) {
+      setChecklistOverrides((prev) => new Map(prev).set(parentItem.taskId, false));
+    }
     try {
-      await fetch(`/api/campaigns/${campaignId}/checklist`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId }) });
+      await fetch(`/api/campaigns/${campaignId}/checklist`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId }) });
       onRefreshFull();
     } catch { /* silent */ }
   }
@@ -1677,6 +1753,29 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
       if (res.ok) onRefreshFull();
       setCyclingTask(null);
     } catch { setCyclingTask(null); }
+  }
+  function requestToggleSubtask(subtask: ApiTask, parentTask: ApiTask) {
+    const current = myTaskStatus(subtask, user.id);
+    const next = current === "completed" ? "pending" : "completed";
+    setSubtaskConfirm({ subtask, parentTask, next });
+  }
+  async function confirmToggleSubtask() {
+    if (!subtaskConfirm) return;
+    const { subtask, parentTask, next } = subtaskConfirm;
+    setSubtaskConfirm(null);
+    try {
+      const res = await fetch(`/api/tasks/${subtask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+      if (res.ok) {
+        if (next === "completed") {
+          const siblings = parentTask.subtasks ?? [];
+          const allDone = siblings.every((s) => s._id === subtask._id ? true : myTaskStatus(s, user.id) === "completed");
+          if (allDone) {
+            await fetch(`/api/tasks/${parentTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
+          }
+        }
+        onRefreshFull();
+      }
+    } catch { /* silent */ }
   }
 
   const weeklyInsights = useMemo(() => {
@@ -1722,8 +1821,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
     const now = Date.now();
     const dueSoon = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() - now < 48 * 3600_000 && new Date(t.deadline).getTime() > now).length;
     const overdue7d = tasks.filter((t) => t.deadline && t.status !== "completed" && (now - new Date(t.deadline).getTime()) > 7 * 86400_000).length;
-    const overdueHU = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() < now && (t.priority === "high" || t.priority === "urgent")).length;
-    return { total, pending, inProg, dueSoon, overdue7d, overdueHU };
+    return { total, pending, inProg, dueSoon, overdue7d };
   }, [tasks]);
 
   const [now, setNow] = useState(() => new Date());
@@ -1755,7 +1853,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
             <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.pending} pending</span>
             <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{taskStats.inProg} in progress</span>
             {taskStats.dueSoon > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.dueSoon} due soon</span>}
-            {taskStats.overdueHU > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskStats.overdueHU} overdue high/urgent</span>}
             {taskStats.overdue7d > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskStats.overdue7d} overdue 7d+</span>}
           </div>
         )}
@@ -1790,56 +1887,67 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                     return (
                       <motion.div className="space-y-2.5" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }}>
                         {ordered.map((item, idx) => {
-                          const prevDone = idx === 0 || ordered[idx - 1].isDone;
-                          const isLocked = !prevDone && !item.isDone;
-                          const dotColor = item.isDone ? "var(--teal)" : "var(--amber)";
+                          const hasSubs = item.subs.length > 0;
+                          const allSubsDone = hasSubs && item.subs.every((s) => s.isDone);
+                          const effectiveDone = hasSubs ? allSubsDone : item.isDone;
+                          const prevDone = idx === 0 || (() => { const p = ordered[idx - 1]; const pH = p.subs.length > 0; return pH ? p.subs.every((s) => s.isDone) : p.isDone; })();
+                          const isLocked = !prevDone && !effectiveDone;
+                          const dotColor = effectiveDone ? "var(--teal)" : "var(--amber)";
+                          const subsDoneCount = item.subs.filter((s) => s.isDone).length;
                           return (
                             <motion.div key={`cl-${item.taskId}`} className="relative" variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                               <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${dotColor}` }}>
-                                {item.isDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />}
+                                {effectiveDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />}
                               </div>
-                              <div className="relative rounded-xl border transition-all" style={{ background: item.isDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : item.isDone ? 0.65 : 1 }}>
-                                {item.isDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
+                              <div className="relative rounded-xl border transition-all" style={{ background: effectiveDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : effectiveDone ? 0.65 : 1 }}>
+                                {effectiveDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
                                 <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
                                 <div className="flex items-center gap-1.5 px-2.5 py-2">
                                   <div className="flex-1 min-w-0">
-                                    <span className="text-[11px] font-semibold truncate block" style={{ color: item.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
+                                    <span className="text-[11px] font-semibold truncate block" style={{ color: effectiveDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
                                     <div className="flex items-center gap-1 flex-wrap mt-0.5">
                                       {item.campaignName && (
                                         <span className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{item.campaignName}</span>
                                       )}
-                                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{item.isDone ? "✓ Done" : "Pending"}</span>
+                                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{effectiveDone ? "✓ Done" : hasSubs ? `${subsDoneCount}/${item.subs.length} subtasks` : "Pending"}</span>
                                     </div>
                                   </div>
-                                  <button type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, item.isDone)}
-                                    disabled={isLocked}
-                                    className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
-                                    style={{ background: item.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: item.isDone ? "var(--amber)" : "var(--teal)" }}>
-                                    {item.isDone ? "Undo" : "Mark complete"}
-                                  </button>
+                                  {!hasSubs && (
+                                    <button type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, item.isDone)}
+                                      disabled={isLocked}
+                                      className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                      style={{ background: item.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: item.isDone ? "var(--amber)" : "var(--teal)" }}>
+                                      {item.isDone ? "Undo" : "Mark complete"}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
-                              {item.subs.length > 0 && (
-                                <div className="relative ml-3 mt-1.5 pl-4 space-y-1.5">
-                                  <div className="absolute left-[5px] top-0 bottom-0 w-[1.5px] rounded-full" style={{ background: "color-mix(in srgb, var(--border) 70%, transparent)" }} />
+                              {hasSubs && (
+                                <div className="relative ml-3 mt-1.5 pl-7 space-y-2.5">
+                                  <div className="absolute left-[14px] top-0 bottom-0 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
                                   {item.subs.map((sub, si) => {
-                                    const subPrevDone = si === 0 ? item.isDone : item.subs[si - 1].isDone;
-                                    const subLocked = !subPrevDone && !sub.isDone;
+                                    const subPrevDone = si === 0 || item.subs[si - 1].isDone;
+                                    const subLocked = isLocked || (!subPrevDone && !sub.isDone);
                                     const subDotColor = sub.isDone ? "var(--teal)" : "var(--amber)";
                                     return (
                                       <div key={`sub-${sub.taskId}`} className="relative">
-                                        <div className="absolute -left-4 top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `1.5px solid ${subDotColor}` }}>
-                                          {sub.isDone && <span className="h-1 w-1 rounded-full" style={{ background: subDotColor }} />}
+                                        <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${subDotColor}` }}>
+                                          {sub.isDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: subDotColor }} />}
                                         </div>
-                                        <div className="relative rounded-lg border transition-all" style={{ background: sub.isDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : sub.isDone ? 0.6 : 1 }}>
-                                          {sub.isDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-lg" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                          <div className="flex items-center gap-1.5 px-2 py-1.5">
-                                            <span className="text-[10px] font-medium truncate flex-1" style={{ color: sub.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                        <div className="relative rounded-xl border transition-all" style={{ background: sub.isDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : sub.isDone ? 0.6 : 1 }}>
+                                          {sub.isDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
+                                          <div className="flex items-center gap-1.5 px-2.5 py-2">
+                                            <div className="flex-1 min-w-0">
+                                              <span className="text-[11px] font-semibold truncate block" style={{ color: sub.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                                <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 12%, transparent)`, color: subDotColor }}>{sub.isDone ? "✓ Done" : "Pending"}</span>
+                                              </div>
+                                            </div>
                                             <button type="button" onClick={() => requestToggleChecklist(item.campaignId, sub.taskId, sub.title, sub.isDone)}
                                               disabled={subLocked}
-                                              className="shrink-0 rounded px-1.5 py-0.5 text-[7px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
-                                              style={{ background: sub.isDone ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "color-mix(in srgb, var(--teal) 8%, transparent)", color: sub.isDone ? "var(--amber)" : "var(--teal)" }}>
-                                              {sub.isDone ? "Undo" : "Done"}
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              style={{ background: sub.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: sub.isDone ? "var(--amber)" : "var(--teal)" }}>
+                                              {sub.isDone ? "Undo" : "Mark complete"}
                                             </button>
                                           </div>
                                         </div>
@@ -1878,6 +1986,10 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                         const statusColor = isCompleted ? "var(--teal)" : myStatus === "inProgress" ? "var(--primary)" : "var(--amber)";
                         const statusLabel = isCompleted ? "Done" : myStatus === "inProgress" ? "In Progress" : "Pending";
                         const campaignName = task.campaign && typeof task.campaign === "object" ? (task.campaign as { name: string }).name : undefined;
+                        const subtasks = task.subtasks ?? [];
+                        const hasSubtasks = subtasks.length > 0;
+                        const subtaskStatuses = subtasks.map((s) => myTaskStatus(s, user.id));
+                        const subtasksDone = subtaskStatuses.filter((st) => st === "completed").length;
                         return (
                           <motion.div key={`tk-${task._id}`} variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                             <div className="relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isCompleted ? 0.65 : 1 }}>
@@ -1895,9 +2007,14 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                                         Due {new Date(task.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                                       </span>
                                     )}
+                                    {hasSubtasks && (
+                                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: subtasksDone === subtasks.length ? "color-mix(in srgb, var(--teal) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)", color: subtasksDone === subtasks.length ? "var(--teal)" : "var(--amber)" }}>
+                                        {subtasksDone}/{subtasks.length} subtasks
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-                                {(() => {
+                                {!hasSubtasks && (() => {
                                   const nextLabel = isCompleted ? "Mark as pending" : myStatus === "inProgress" ? "Mark as done" : "Mark as working";
                                   const btnColor = isCompleted ? "var(--amber)" : myStatus === "inProgress" ? "var(--teal)" : "var(--primary)";
                                   return (
@@ -1909,6 +2026,42 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                                   );
                                 })()}
                               </div>
+                              {hasSubtasks && (
+                                <div className="mt-1.5 ml-3 pl-7 relative space-y-2.5">
+                                  <div className="absolute left-[14px] top-0 bottom-0 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
+                                  {subtasks.map((sub, si) => {
+                                    const subStatus = myTaskStatus(sub, user.id);
+                                    const subDone = subStatus === "completed";
+                                    const subPrevDone = si === 0 || myTaskStatus(subtasks[si - 1], user.id) === "completed";
+                                    const subLocked = !subPrevDone && !subDone;
+                                    const subDotColor = subDone ? "var(--teal)" : "var(--amber)";
+                                    const subStatusLabel = subDone ? "Done" : subStatus === "inProgress" ? "In Progress" : "Pending";
+                                    return (
+                                      <div key={sub._id} className="relative">
+                                        <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${subDotColor}` }}>
+                                          {subDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: subDotColor }} />}
+                                        </div>
+                                        <div className="relative rounded-xl border transition-all" style={{ background: subDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : subDone ? 0.6 : 1 }}>
+                                          {subDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
+                                          <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 18%, transparent)`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
+                                          <div className="flex items-center gap-1.5 px-2.5 py-2">
+                                            <div className="flex-1 min-w-0">
+                                              <span className="text-[11px] font-semibold truncate block" style={{ color: subDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                              {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                            </div>
+                                            <button type="button" onClick={() => requestToggleSubtask(sub, task)}
+                                              disabled={subLocked}
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[8px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              style={{ background: subDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: subDone ? "var(--amber)" : "var(--teal)" }}>
+                                              {subDone ? "Undo" : "Mark complete"}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         );
@@ -1921,8 +2074,9 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         )}
 
         {/* Confirm dialogs */}
-        <ConfirmDialog open={!!dashChecklistConfirm} title={dashChecklistConfirm?.currentDone ? "Mark as pending?" : "Mark as done?"} description={`"${dashChecklistConfirm?.title ?? ""}" — update status?`} onConfirm={confirmToggleChecklist} onCancel={() => setDashChecklistConfirm(null)} />
+        <ConfirmDialog open={!!dashChecklistConfirm} title={dashChecklistConfirm?.currentDone ? "Undo completion?" : "Mark as done?"} description={dashChecklistConfirm?.currentDone ? `Unmark "${dashChecklistConfirm?.title ?? ""}" as completed for today.` : `Mark "${dashChecklistConfirm?.title ?? ""}" as completed for today.`} confirmLabel={dashChecklistConfirm?.currentDone ? "Undo" : "Mark complete"} onConfirm={confirmToggleChecklist} onCancel={() => setDashChecklistConfirm(null)} />
         <ConfirmDialog open={!!dashStatusConfirm} title="Change task status?" description={`"${dashStatusConfirm?.task.title ?? ""}" → ${dashStatusConfirm?.next ?? ""}`} onConfirm={confirmCycleTask} onCancel={() => setDashStatusConfirm(null)} />
+        <ConfirmDialog open={!!subtaskConfirm} title={subtaskConfirm?.next === "completed" ? "Mark subtask as done?" : "Undo subtask?"} description={subtaskConfirm?.next === "completed" ? `Mark "${subtaskConfirm?.subtask.title ?? ""}" as completed.` : `Revert "${subtaskConfirm?.subtask.title ?? ""}" to pending.`} confirmLabel={subtaskConfirm?.next === "completed" ? "Mark complete" : "Undo"} onConfirm={confirmToggleSubtask} onCancel={() => setSubtaskConfirm(null)} />
 
         {/* Weekly Overview — horizontal scroll strip */}
         <section className="space-y-3">
@@ -2255,13 +2409,13 @@ export default function OverviewPage({ user }: { user: User }) {
 
       setEmployees(Array.isArray(empRes) ? empRes as ApiEmployee[] : []);
       let parsedTasks: ApiTask[] = Array.isArray(taskRes) ? taskRes as ApiTask[] : [];
-      const recurringIds = parsedTasks.filter((t) => t.recurrence).map((t) => t._id);
-      if (recurringIds.length > 0) {
+      const parentIds = parsedTasks.map((t) => t._id);
+      if (parentIds.length > 0) {
         const subResults = await Promise.all(
-          recurringIds.map((id) => fetch(`/api/tasks/${id}/subtasks`).then((r) => r.ok ? r.json() : []).catch(() => [])),
+          parentIds.map((id) => fetch(`/api/tasks/${id}/subtasks`).then((r) => r.ok ? r.json() : []).catch(() => [])),
         );
         const subMap = new Map<string, ApiTask[]>();
-        recurringIds.forEach((id, i) => {
+        parentIds.forEach((id, i) => {
           if (Array.isArray(subResults[i]) && subResults[i].length > 0) subMap.set(id, subResults[i] as ApiTask[]);
         });
         if (subMap.size > 0) {

@@ -24,5 +24,6 @@ export async function GET() {
     isSuperAdmin: actor.isSuperAdmin,
     permissions: merged,
     hasSubordinates: actor.isSuperAdmin || subordinateIds.length > 0,
+    subordinateIds,
   });
 }

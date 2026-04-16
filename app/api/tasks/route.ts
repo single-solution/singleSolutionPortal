@@ -130,7 +130,7 @@ export async function POST(req: Request) {
     order: typeof body.order === "number" ? body.order : 0,
     recurrence,
     deadline: body.deadline || undefined,
-    priority: body.priority ?? "medium",
+    priority: "medium",
     status: initialStatus,
     userStatuses,
     isActive: true,

@@ -41,6 +41,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (existing) {
     await existing.deleteOne();
+    if (task.parentTask) {
+      await ChecklistLog.deleteOne({ task: task.parentTask, employee: actor.id, date: today });
+    }
     return ok({ done: false, taskId, date: today });
   }
 
@@ -50,6 +53,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     date: today,
     note: typeof note === "string" ? note.trim() : "",
   });
+
+  if (task.parentTask) {
+    const siblings = await ActivityTask.find({ parentTask: task.parentTask, isActive: true, recurrence: { $exists: true, $ne: null } }).select("_id").lean();
+    const siblingIds = siblings.map((s) => s._id.toString());
+    const doneLogs = await ChecklistLog.find({ task: { $in: siblingIds }, employee: actor.id, date: today }).select("task").lean();
+    const doneSet = new Set(doneLogs.map((l) => l.task.toString()));
+    const allSiblingsDone = siblingIds.every((sid) => doneSet.has(sid));
+    if (allSiblingsDone) {
+      const parentAlready = await ChecklistLog.findOne({ task: task.parentTask, employee: actor.id, date: today });
+      if (!parentAlready) {
+        await ChecklistLog.create({ task: task.parentTask, employee: actor.id, date: today, note: "Auto-completed: all subtasks done" });
+      }
+    }
+  }
 
   return ok({ done: true, taskId, date: today });
 }

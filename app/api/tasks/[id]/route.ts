@@ -47,13 +47,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const validStatuses = ["pending", "inProgress", "completed"];
-  const validPriorities = ["low", "medium", "high", "urgent"];
 
   if (body.status !== undefined && !validStatuses.includes(body.status)) {
     return badRequest(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
-  }
-  if (body.priority !== undefined && !validPriorities.includes(body.priority)) {
-    return badRequest(`Invalid priority. Must be one of: ${validPriorities.join(", ")}`);
   }
 
   if (isOwner && !isPrivileged) {
@@ -68,7 +64,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (isPrivileged) {
     if (body.title !== undefined) task.title = body.title;
     if (body.description !== undefined) task.description = body.description;
-    if (body.priority !== undefined) task.priority = body.priority;
     if (body.deadline !== undefined) task.deadline = body.deadline;
     if (body.campaign !== undefined) {
       if (body.campaign) {

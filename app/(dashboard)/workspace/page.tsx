@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { RefreshBtn, SearchField, SegmentedControl, EmptyState, ModalShell } from "../components/ui";
+import { RefreshBtn, SearchField, EmptyState, ModalShell } from "../components/ui";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { HeaderStatPill } from "../components/StatChips";
 import toast from "react-hot-toast";
@@ -19,9 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 /* ─── types ─── */
 
 type CampaignStatus = "active" | "paused" | "completed" | "cancelled";
-type TaskPriority = "low" | "medium" | "high" | "urgent";
 type TaskStatus = "pending" | "inProgress" | "completed";
-type StatusFilter = "all" | "pending" | "inProgress" | "completed";
 
 interface TaggedEmployee { _id: string; about: { firstName: string; lastName: string }; email: string }
 interface TaggedDept { _id: string; title: string }
@@ -33,7 +31,7 @@ interface Campaign {
   taskStats?: { total: number; completed: number; recurring: number; todayDue: number; todayDone: number };
   todayChecklist?: { _id: string; title: string; done: boolean }[];
   notes?: string; isActive: boolean;
-  createdBy?: { about: { firstName: string; lastName: string } };
+  createdBy?: { _id: string; about: { firstName: string; lastName: string } };
   createdAt: string; updatedAt?: string;
 }
 interface UserStatusEntry {
@@ -42,7 +40,7 @@ interface UserStatusEntry {
   updatedAt?: string;
 }
 interface Task {
-  _id: string; title: string; description?: string; priority: TaskPriority; status: TaskStatus;
+  _id: string; title: string; description?: string; status: TaskStatus;
   deadline?: string;
   parentTask?: string | null;
   recurrence?: Recurrence;
@@ -58,6 +56,33 @@ function isTaskAssigned(task: Task, userId: string): boolean {
   return Array.isArray(task.assignedTo) ? task.assignedTo.some((a) => a._id === userId) : false;
 }
 
+const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ALL_WORKING = [1, 2, 3, 4, 5];
+
+function formatRecurrence(r?: Recurrence): string {
+  if (!r) return "Recurring";
+  const freq = r.frequency === "weekly" ? "Weekly" : "Monthly";
+  const days = [...(r.days ?? [])].sort((a, b) => a - b);
+  if (r.frequency === "weekly") {
+    if (days.length === 7) return "Daily";
+    if (days.length === 5 && ALL_WORKING.every((d) => days.includes(d))) return "Weekly all working days";
+    return `${freq} ${days.map((d) => DAY_ABBR[d] ?? d).join("/")}`;
+  }
+  return `${freq} day ${days.join(", ")}`;
+}
+
+function taskSubmittedInfo(task: Task): { done: number; total: number; label: string; color: string } {
+  const total = task.assignedTo?.length ?? 0;
+  const us = task.userStatuses ?? [];
+  const done = us.filter((e) => e.status === "completed").length;
+  if (total === 0) return { done: 0, total: 0, label: "No assignees", color: "var(--fg-tertiary)" };
+  if (done === total) return { done, total, label: `${done}/${total} completed`, color: "var(--teal)" };
+  if (done > 0) return { done, total, label: `${done}/${total} submitted`, color: "var(--primary)" };
+  const inProg = us.filter((e) => e.status === "inProgress").length;
+  if (inProg > 0) return { done: 0, total, label: `${inProg}/${total} in progress`, color: "var(--primary)" };
+  return { done: 0, total, label: `0/${total} submitted`, color: "var(--amber)" };
+}
+
 interface SelectOption { _id: string; label: string; departmentId?: string }
 
 interface LogEntry {
@@ -66,8 +91,6 @@ interface LogEntry {
 }
 
 /* ─── constants ─── */
-
-const TASK_STATUS_LABELS: Record<string, string> = { pending: "Pending", inProgress: "In Progress", completed: "Completed" };
 
 const WS_ENTITIES = new Set(["task", "campaign"]);
 const WS_LOG_COLORS: Record<string, { bg: string; fg: string }> = {
@@ -108,62 +131,18 @@ function deadlineUrgency(deadline?: string): "overdue" | "soon" | "normal" | "no
   return "normal";
 }
 
-function taskStateLabel(task: Task): { label: string; color: string; bg: string } {
-  if (task.status === "completed") return { label: "Completed", color: "var(--teal)", bg: "color-mix(in srgb, var(--teal) 12%, transparent)" };
-  if (task.status === "inProgress") {
-    const urg = deadlineUrgency(task.deadline);
-    if (urg === "overdue") return { label: "Delayed", color: "var(--rose)", bg: "color-mix(in srgb, var(--rose) 12%, transparent)" };
-    return { label: "In progress", color: "var(--primary)", bg: "color-mix(in srgb, var(--primary) 12%, transparent)" };
-  }
-  const urg = deadlineUrgency(task.deadline);
-  if (urg === "overdue") return { label: "Delayed", color: "var(--rose)", bg: "color-mix(in srgb, var(--rose) 12%, transparent)" };
-  return { label: "Pending", color: "var(--amber)", bg: "color-mix(in srgb, var(--amber) 12%, transparent)" };
-}
-
-
-/* ─── sub-components ─── */
-
-function StatusDot({ status }: { status: string }) {
-  if (status === "completed") return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>;
-  if (status === "inProgress") return <span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: "var(--primary)" }} /><span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: "var(--primary)" }} /></span>;
-  return <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--fg-tertiary)" }} />;
-}
-
-function TaskStatusToggle({ task, canChange, onCycle }: { task: Task; canChange: boolean; onCycle: () => void }) {
-  const states: TaskStatus[] = ["pending", "inProgress", "completed"];
-  const idx = states.indexOf(task.status);
-  const nextLabel = { pending: "Start", inProgress: "Complete", completed: "Reopen" }[task.status] ?? "Start";
-  const labels: Record<string, { short: string; color: string }> = {
-    pending: { short: "Pending", color: "var(--amber)" },
-    inProgress: { short: "In progress", color: "var(--primary)" },
-    completed: { short: "Completed", color: "var(--teal)" },
-  };
-  const s = labels[task.status] ?? labels.pending;
-  return (
-    <motion.button type="button" disabled={!canChange} onClick={canChange ? onCycle : undefined}
-      whileHover={canChange ? { scale: 1.06 } : undefined} whileTap={canChange ? { scale: 0.94 } : undefined}
-      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-all disabled:cursor-default"
-      style={{ borderColor: `color-mix(in srgb, ${s.color} 30%, transparent)`, background: `color-mix(in srgb, ${s.color} 12%, transparent)`, color: s.color, cursor: canChange ? "pointer" : "default" }}
-      title={canChange ? `Click to ${nextLabel}` : labels[task.status]?.short ?? task.status}>
-      <span className="relative h-2 w-2 rounded-full" style={{ background: s.color }}>
-        {task.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: s.color }} />}
-      </span>
-      {s.short}
-      {canChange && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>}
-    </motion.button>
-  );
-}
-
 /* ─── sortable task row wrapper ─── */
 
-function SortableTaskRow({ id, children }: { id: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+function SortableTaskRow({ id, children, canReorder = true }: { id: string; children: React.ReactNode; canReorder?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !canReorder });
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, position: "relative", zIndex: isDragging ? 10 : undefined }} {...attributes}>
       <div className="flex items-stretch">
-        <button type="button" {...listeners} className="shrink-0 flex items-center px-0.5 cursor-grab active:cursor-grabbing touch-none" style={{ color: "var(--fg-tertiary)" }} title="Drag to reorder">
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="4" r="2" /><circle cx="16" cy="4" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="16" cy="12" r="2" /><circle cx="8" cy="20" r="2" /><circle cx="16" cy="20" r="2" /></svg>
-        </button>
+        {canReorder && (
+          <button type="button" {...listeners} className="shrink-0 flex items-center px-0.5 cursor-grab active:cursor-grabbing touch-none" style={{ color: "var(--fg-tertiary)" }} title="Drag to reorder">
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="4" r="2" /><circle cx="16" cy="4" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="16" cy="12" r="2" /><circle cx="8" cy="20" r="2" /><circle cx="16" cy="20" r="2" /></svg>
+          </button>
+        )}
         <div className="flex-1 min-w-0">{children}</div>
       </div>
     </div>
@@ -174,7 +153,7 @@ function SortableTaskRow({ id, children }: { id: string; children: React.ReactNo
 
 export default function WorkspacePage() {
   const { data: session, status: sessionStatus } = useSession();
-  const { can: canPerm } = usePermissions();
+  const { can: canPerm, isSuperAdmin, subordinateIds } = usePermissions();
 
   const canCreateTasks = canPerm("tasks_create");
   const canEditTasks = canPerm("tasks_edit");
@@ -186,6 +165,19 @@ export default function WorkspacePage() {
   const canTagEntities = canPerm("campaigns_tagEntities");
   const canViewCampaigns = canPerm("campaigns_view");
   const canViewLogs = canPerm("activityLogs_view");
+
+  const myHierarchy = useMemo(() => {
+    const set = new Set<string>();
+    if (session?.user?.id) set.add(session.user.id);
+    for (const id of subordinateIds) set.add(id);
+    return set;
+  }, [session?.user?.id, subordinateIds]);
+
+  const isInMyHierarchy = useCallback((creatorId?: string) => {
+    if (isSuperAdmin) return true;
+    if (!creatorId) return false;
+    return myHierarchy.has(creatorId);
+  }, [isSuperAdmin, myHierarchy]);
 
   /* ── data ── */
   const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "ws-tasks");
@@ -203,7 +195,6 @@ export default function WorkspacePage() {
   const allDepartments: SelectOption[] = useMemo(() => (deptsRaw ?? []).map((d) => ({ _id: d._id as string, label: d.title as string })), [deptsRaw]);
 
   /* ── state ── */
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   /* ── workspace activity sidebar state ── */
   useEffect(() => {
@@ -290,7 +281,7 @@ export default function WorkspacePage() {
 
   /* ── subtasks state ── */
   const [subtasksByParent, setSubtasksByParent] = useState<Map<string, Task[]>>(new Map());
-  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [subtaskLoading, setSubtaskLoading] = useState<string | null>(null);
   const loadSubtasks = useCallback(async (taskId: string) => {
     setSubtaskLoading(taskId);
@@ -304,6 +295,42 @@ export default function WorkspacePage() {
     setSubtaskLoading(null);
   }, []);
 
+  const toggleTaskExpanded = useCallback((taskId: string) => {
+    setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const rootTaskIds = useMemo(() => taskList.filter((t) => !t.parentTask).map((t) => t._id), [taskList]);
+  const subtasksLoadedRef = useRef(false);
+  useEffect(() => {
+    if (rootTaskIds.length === 0 || subtasksLoadedRef.current) return;
+    subtasksLoadedRef.current = true;
+    setExpandedTasks(new Set(rootTaskIds));
+    for (const id of rootTaskIds) {
+      if (!subtasksByParent.has(id)) void loadSubtasks(id);
+    }
+  }, [rootTaskIds, loadSubtasks, subtasksByParent]);
+
+  /* ── task timeline ── */
+  interface TimelineEntry { _id: string; employee: { _id: string; about?: { firstName: string; lastName: string }; email?: string }; status: string; date: string; changedAt: string; changedBy?: { _id: string; about?: { firstName: string; lastName: string }; email?: string }; note?: string }
+  const [timelineTask, setTimelineTask] = useState<Task | null>(null);
+  const [timelineData, setTimelineData] = useState<TimelineEntry[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const openTimeline = useCallback(async (task: Task) => {
+    setTimelineTask(task);
+    setTimelineLoading(true);
+    setTimelineData([]);
+    try {
+      const res = await fetch(`/api/tasks/${task._id}/status-history`);
+      if (res.ok) setTimelineData(await res.json());
+    } catch { /* ignore */ }
+    setTimelineLoading(false);
+  }, []);
+
   /* ── task modal ── */
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -311,7 +338,6 @@ export default function WorkspacePage() {
   const [fDesc, setFDesc] = useState("");
   const [fAssignees, setFAssignees] = useState<string[]>([]);
   const [fCampaign, setFCampaign] = useState("");
-  const [fPriority, setFPriority] = useState("medium");
   const [fDeadline, setFDeadline] = useState("");
   const [fRecurFreq, setFRecurFreq] = useState<string>("");
   const [fRecurDays, setFRecurDays] = useState<number[]>([]);
@@ -319,7 +345,7 @@ export default function WorkspacePage() {
   const [fParentTask, setFParentTask] = useState("");
 
   function openCreateTask(campaignId: string, parentTaskId?: string) {
-    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignees([]); setFCampaign(campaignId); setFPriority("medium"); setFDeadline(""); setFRecurDays([]);
+    setEditingTask(null); setFTitle(""); setFDesc(""); setFAssignees([]); setFCampaign(campaignId); setFDeadline(""); setFRecurDays([]);
     if (parentTaskId) {
       const parent = taskList.find((t) => t._id === parentTaskId);
       setFRecurFreq(parent?.recurrence?.frequency ? "weekly" : "");
@@ -331,7 +357,7 @@ export default function WorkspacePage() {
     setTaskModalOpen(true);
   }
   function openEditTask(t: Task) {
-    setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignees(Array.isArray(t.assignedTo) ? t.assignedTo.map((a) => a._id) : []); setFCampaign(t.campaign?._id ?? ""); setFPriority(t.priority); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : "");
+    setEditingTask(t); setFTitle(t.title); setFDesc(t.description ?? ""); setFAssignees(Array.isArray(t.assignedTo) ? t.assignedTo.map((a) => a._id) : []); setFCampaign(t.campaign?._id ?? ""); setFDeadline(t.deadline ? t.deadline.slice(0, 10) : "");
     setFRecurFreq(t.recurrence?.frequency ?? ""); setFRecurDays(t.recurrence?.days ?? []); setFParentTask(t.parentTask ?? "");
     setTaskModalOpen(true);
   }
@@ -386,6 +412,7 @@ export default function WorkspacePage() {
     setEditingCampaign(c); setCName(c.name); setCDesc(c.description ?? ""); setCTagEmployees(c.tags.employees.map((e) => e._id)); setCTagDepts(c.tags.departments.map((d) => d._id)); setCampaignModalOpen(true);
   }
   async function toggleTaskActive(taskId: string, currentlyActive: boolean) {
+    if (!canEditTasks) return;
     try {
       const res = await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !currentlyActive }) });
       if (res.ok) void refetchTasks();
@@ -394,6 +421,7 @@ export default function WorkspacePage() {
   }
 
   async function toggleCampaignActive(campaignId: string, currentStatus: string) {
+    if (!canEditCampaigns) return;
     const next = currentStatus === "active" ? "paused" : "active";
     try {
       const res = await fetch(`/api/campaigns/${campaignId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
@@ -435,36 +463,18 @@ export default function WorkspacePage() {
   }
 
   /* ── quick status update with confirmation ── */
-  const statusLabels: Record<string, string> = { pending: "Pending", inProgress: "In progress", completed: "Completed" };
-  const nextStatusMap: Record<string, string> = { pending: "inProgress", inProgress: "completed", completed: "pending" };
-
-  const [statusConfirm, setStatusConfirm] = useState<{ type: "task"; task: Task; next: string; label: string } | { type: "checklist"; campaignId: string; taskId: string; title: string; currentDone: boolean } | null>(null);
+  const [statusConfirm, setStatusConfirm] = useState<{ campaignId: string; taskId: string; title: string; currentDone: boolean } | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
-
-  function requestCycleTask(task: Task) {
-    const next = nextStatusMap[task.status] ?? "pending";
-    setStatusConfirm({ type: "task", task, next, label: statusLabels[next] ?? next });
-  }
-
-  function requestToggleChecklist(campaignId: string, taskId: string, title: string, currentDone: boolean) {
-    setStatusConfirm({ type: "checklist", campaignId, taskId, title, currentDone });
-  }
 
   async function handleStatusConfirm() {
     if (!statusConfirm) return;
     setStatusUpdating(true);
     try {
-      if (statusConfirm.type === "task") {
-        const res = await fetch(`/api/tasks/${statusConfirm.task._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: statusConfirm.next }) });
-        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to update status"); setStatusUpdating(false); return; }
-        await refetchTasks();
-      } else {
-        setChecklistOverrides((prev) => new Map(prev).set(statusConfirm.taskId, !statusConfirm.currentDone));
-        try {
-          await fetch(`/api/campaigns/${statusConfirm.campaignId}/checklist`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: statusConfirm.taskId }) });
-        } catch {
-          setChecklistOverrides((prev) => { const n = new Map(prev); n.delete(statusConfirm.taskId); return n; });
-        }
+      setChecklistOverrides((prev) => new Map(prev).set(statusConfirm.taskId, !statusConfirm.currentDone));
+      try {
+        await fetch(`/api/campaigns/${statusConfirm.campaignId}/checklist`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: statusConfirm.taskId }) });
+      } catch {
+        setChecklistOverrides((prev) => { const n = new Map(prev); n.delete(statusConfirm.taskId); return n; });
       }
     } catch { toast.error("Network error"); }
     setStatusConfirm(null);
@@ -487,7 +497,6 @@ export default function WorkspacePage() {
     const result = new Map<string, Task[]>();
     for (const [cid, tasks] of campaignTaskMap) {
       let list = tasks;
-      if (statusFilter !== "all") list = list.filter((t) => t.status === statusFilter);
       if (search.trim()) {
         const q = search.toLowerCase();
         list = list.filter((t) =>
@@ -499,7 +508,7 @@ export default function WorkspacePage() {
       result.set(cid, list);
     }
     return result;
-  }, [campaignTaskMap, statusFilter, search]);
+  }, [campaignTaskMap, search]);
 
   /* ── drag-and-drop reorder ── */
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -534,7 +543,6 @@ export default function WorkspacePage() {
     const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     const userId = session?.user?.id;
     let overdue = 0, dueSoon = 0, dueThisWeek = 0, noDeadline = 0;
-    let low = 0, medium = 0, high = 0, urgent = 0;
     let assignedToMe = 0, createdByMe = 0, unassigned = 0;
     let weeklyRecur = 0, monthlyRecur = 0, recurring = 0, oneTime = 0;
     let completedToday = 0, completedThisWeek = 0, completedThisMonth = 0;
@@ -548,10 +556,6 @@ export default function WorkspacePage() {
           if (dl <= weekEnd && dl >= todayStart.getTime()) dueThisWeek++;
         }
       } else noDeadline++;
-      if (t.priority === "low") low++;
-      else if (t.priority === "medium") medium++;
-      else if (t.priority === "high") high++;
-      else if (t.priority === "urgent") urgent++;
       if (userId && isTaskAssigned(t, userId)) assignedToMe++;
       if (userId && t.createdBy?._id === userId) createdByMe++;
       if (!t.assignedTo || t.assignedTo.length === 0) unassigned++;
@@ -567,8 +571,7 @@ export default function WorkspacePage() {
       }
     }
     const completionRate = taskList.length > 0 ? Math.round((statusCounts.completed / taskList.length) * 100) : 0;
-    const overdueHighUrgent = taskList.filter((t) => t.status !== "completed" && t.deadline && new Date(t.deadline).getTime() < now && (t.priority === "high" || t.priority === "urgent")).length;
-    return { overdue, dueSoon, dueThisWeek, noDeadline, low, medium, high, urgent, highUrgent: high + urgent, overdueHighUrgent, assignedToMe, createdByMe, unassigned, weeklyRecur, monthlyRecur, recurring, oneTime, completionRate, completedToday, completedThisWeek, completedThisMonth, createdToday, createdThisWeek, createdThisMonth };
+    return { overdue, dueSoon, dueThisWeek, noDeadline, assignedToMe, createdByMe, unassigned, weeklyRecur, monthlyRecur, recurring, oneTime, completionRate, completedToday, completedThisWeek, completedThisMonth, createdToday, createdThisWeek, createdThisMonth };
   }, [taskList, statusCounts.completed, session?.user?.id]);
 
   const campaignInsights = useMemo(() => {
@@ -664,25 +667,6 @@ export default function WorkspacePage() {
         )}
       </div>
 
-      {/* ── status filter ── */}
-      <div className="mb-4 flex shrink-0 items-center justify-end gap-2 flex-wrap">
-        {(search || statusFilter !== "all") && (
-          <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); }} className="text-xs font-medium transition-colors" style={{ color: "var(--primary)" }}>
-            Clear
-          </button>
-        )}
-        <SegmentedControl
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { value: "all" as StatusFilter, label: `All (${statusCounts.all})` },
-            { value: "pending" as StatusFilter, label: `Pending (${statusCounts.pending ?? 0})` },
-            { value: "inProgress" as StatusFilter, label: `In Progress (${statusCounts.inProgress ?? 0})` },
-            { value: "completed" as StatusFilter, label: `Completed (${statusCounts.completed ?? 0})` },
-          ]}
-        />
-      </div>
-
       {/* ── main + feed ── */}
       <div className="flex min-h-0 flex-1 gap-4" style={{ containerType: "size" }}>
         {/* ── campaign card grid ── */}
@@ -732,6 +716,7 @@ export default function WorkspacePage() {
                 const completedTasks = allTasks.filter((t) => t.status === "completed").length;
                 const empCount = c.tags.employees.length;
                 const recurCount = c.taskStats?.recurring ?? 0;
+                const isMyCampaign = isInMyHierarchy(c.createdBy?._id);
 
                 return (
                   <motion.div key={c._id} variants={cardVariants} custom={ci}
@@ -750,19 +735,19 @@ export default function WorkspacePage() {
                         </div>
                       </div>
                       <div className="flex items-center shrink-0 gap-1">
-                        {canCreateTasks && (
+                        {canCreateTasks && isMyCampaign && (
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openCreateTask(c._id)}
                             className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
                             style={{ color: "var(--primary)" }} title="Add task">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                           </motion.button>
                         )}
-                        {canEditCampaigns && (
+                        {canEditCampaigns && isMyCampaign && (
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditCampaign(c)} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                           </motion.button>
                         )}
-                        {canDeleteCampaigns && (
+                        {canDeleteCampaigns && isMyCampaign && (
                           <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setDeleteTarget({ type: "campaign", id: c._id, name: c.name })} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                           </motion.button>
@@ -774,7 +759,7 @@ export default function WorkspacePage() {
                     <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-3">
                       {todayChecklist.length > 0 && (
                         <div className="mb-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring <span className="font-normal">(drag to sequence)</span></p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring{canEditTasks && isMyCampaign && <span className="font-normal"> (drag to sequence)</span>}</p>
                           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => {
                             const { active, over } = e;
                             if (!over || active.id === over.id) return;
@@ -790,9 +775,10 @@ export default function WorkspacePage() {
                               {todayChecklist.map((item) => {
                                 const fullTask = taskList.find((t) => t._id === item._id);
                                 const taskActive = fullTask?.isActive !== false;
-                                const recurLabel = fullTask?.recurrence?.frequency === "weekly" ? "Weekly" : fullTask?.recurrence?.frequency === "monthly" ? "Monthly" : "Recurring";
+                                const recurLabel = formatRecurrence(fullTask?.recurrence);
+                                const isMyTask = isInMyHierarchy(fullTask?.createdBy?._id);
                                 return (
-                                  <SortableTaskRow key={item._id} id={item._id}>
+                                  <SortableTaskRow key={item._id} id={item._id} canReorder={canEditTasks && isMyTask}>
                                     <div className="mb-1.5">
                                       <div className="group relative rounded-xl border transition-all"
                                         style={{
@@ -800,18 +786,17 @@ export default function WorkspacePage() {
                                           borderColor: "var(--border)",
                                           opacity: taskActive ? 1 : 0.45,
                                         }}>
-                                        <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
+                                        <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
-                                            const next = expandedTask === item._id ? null : item._id;
-                                            setExpandedTask(next);
-                                            if (next && !subtasksByParent.has(item._id)) void loadSubtasks(item._id);
+                                            toggleTaskExpanded(item._id);
+                                            if (!subtasksByParent.has(item._id)) void loadSubtasks(item._id);
                                           }} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
-                                            <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: expandedTask === item._id ? 90 : 0 }}>
+                                            <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: expandedTasks.has(item._id) ? 90 : 0 }}>
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                             </motion.svg>
                                           </button>
-                                          <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(item._id, taskActive)} />
+                                          {canEditTasks && isMyTask && <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(item._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{item.title}</span>
                                             {fullTask?.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
@@ -822,12 +807,17 @@ export default function WorkspacePage() {
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {canEditTasks && fullTask && (
+                                            {fullTask && (
+                                              <button type="button" onClick={() => openTimeline(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
+                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                                              </button>
+                                            )}
+                                            {canEditTasks && isMyTask && fullTask && (
                                               <button type="button" onClick={() => openEditTask(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
                                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                               </button>
                                             )}
-                                            {canDeleteTasks && (
+                                            {canDeleteTasks && isMyTask && (
                                               <button type="button" onClick={() => setDeleteTarget({ type: "task", id: item._id, name: item.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
                                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                               </button>
@@ -836,7 +826,7 @@ export default function WorkspacePage() {
                                         </div>
                                       </div>
                                       <AnimatePresence initial={false}>
-                                        {expandedTask === item._id && (
+                                        {expandedTasks.has(item._id) && (
                                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                                             <div className="ml-4 border-l pl-2 pr-1 py-1 space-y-1.5" style={{ borderColor: "color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }}>
                                               {subtaskLoading === item._id ? (
@@ -858,12 +848,40 @@ export default function WorkspacePage() {
                                                 }}>
                                                   <SortableContext items={(subtasksByParent.get(item._id) ?? []).map((s) => s._id)} strategy={verticalListSortingStrategy}>
                                                     {(subtasksByParent.get(item._id) ?? []).map((sub) => {
-                                                      const subColor = sub.status === "completed" ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
+                                                      const subInfo = taskSubmittedInfo(sub);
+                                                      const isSubMyTask = isInMyHierarchy(sub.createdBy?._id);
                                                       return (
-                                                        <SortableTaskRow key={sub._id} id={sub._id}>
-                                                          <div className="flex items-center gap-1.5 rounded-lg px-1.5 py-1" style={{ borderLeft: `2px solid ${subColor}`, background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
-                                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
-                                                            <span className="text-[10px] flex-1 truncate" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
+                                                        <SortableTaskRow key={sub._id} id={sub._id} canReorder={canEditTasks && isSubMyTask}>
+                                                          <div className="mb-1.5">
+                                                            <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
+                                                              <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 18%, transparent)`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <div className="flex items-center gap-1.5 px-2 py-1.5">
+                                                                <div className="flex-1 min-w-0">
+                                                                  <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                                                  {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                                                  <div className="flex items-center gap-1 flex-wrap">
+                                                                    {sub.assignedTo?.map((a) => (
+                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                                    ))}
+                                                                  </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                  <button type="button" onClick={() => openTimeline(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
+                                                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                                                                  </button>
+                                                                  {canEditTasks && isSubMyTask && (
+                                                                    <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                                    </button>
+                                                                  )}
+                                                                  {canDeleteTasks && isSubMyTask && (
+                                                                    <button type="button" onClick={() => setDeleteTarget({ type: "task", id: sub._id, name: sub.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
+                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                                    </button>
+                                                                  )}
+                                                                </div>
+                                                              </div>
+                                                            </div>
                                                           </div>
                                                         </SortableTaskRow>
                                                       );
@@ -871,7 +889,7 @@ export default function WorkspacePage() {
                                                   </SortableContext>
                                                 </DndContext>
                                               )}
-                                              {canCreateTasks && (
+                                              {canCreateTasks && isMyTask && (
                                                 <button type="button" onClick={() => openCreateTask(c._id, item._id)}
                                                   className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
                                                   style={{ color: "var(--primary)" }}>
@@ -894,15 +912,16 @@ export default function WorkspacePage() {
 
                       {oneTimeTasks.length > 0 && (
                         <div>
-                          {todayChecklist.length > 0 && <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks <span className="font-normal" style={{ color: "var(--fg-tertiary)" }}>(drag to prioritize)</span></p>}
+                          {todayChecklist.length > 0 && <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks{canEditTasks && isMyCampaign && <span className="font-normal"> (drag to prioritize)</span>}</p>}
                           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(c._id, e)}>
                             <SortableContext items={oneTimeTasks.map((t) => t._id)} strategy={verticalListSortingStrategy}>
                               {oneTimeTasks.map((task) => {
-                                const isTaskExpanded = expandedTask === task._id;
+                                const isTaskExpanded = expandedTasks.has(task._id);
                                 const subs = subtasksByParent.get(task._id) ?? [];
                                 const taskActive = task.isActive !== false;
+                                const isMyTask = isInMyHierarchy(task.createdBy?._id);
                                 return (
-                                  <SortableTaskRow key={task._id} id={task._id}>
+                                  <SortableTaskRow key={task._id} id={task._id} canReorder={canEditTasks && isMyTask}>
                                     <div className="mb-1.5">
                                       <div className="group relative rounded-xl border transition-all"
                                         style={{
@@ -911,21 +930,19 @@ export default function WorkspacePage() {
                                           opacity: taskActive ? 1 : 0.45,
                                         }}>
                                         {(() => {
-                                          const sc = task.status === "completed" ? "var(--teal)" : task.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                                          const sl = task.status === "completed" ? "Done" : task.status === "inProgress" ? "In Progress" : "Pending";
-                                          return <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${sc} 18%, transparent)`, color: sc, border: `1px solid color-mix(in srgb, ${sc} 30%, var(--border))` }}>{sl}</span>;
+                                          const info = taskSubmittedInfo(task);
+                                          return <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${info.color} 18%, transparent)`, color: info.color, border: `1px solid color-mix(in srgb, ${info.color} 30%, var(--border))` }}>{info.label}</span>;
                                         })()}
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
-                                            const next = isTaskExpanded ? null : task._id;
-                                            setExpandedTask(next);
-                                            if (next && !subtasksByParent.has(task._id)) void loadSubtasks(task._id);
+                                            toggleTaskExpanded(task._id);
+                                            if (!subtasksByParent.has(task._id)) void loadSubtasks(task._id);
                                           }} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
                                             <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: isTaskExpanded ? 90 : 0 }}>
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                             </motion.svg>
                                           </button>
-                                          <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(task._id, taskActive)} />
+                                          {canEditTasks && isMyTask && <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(task._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{task.title}</span>
                                             {task.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
@@ -937,12 +954,15 @@ export default function WorkspacePage() {
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {canEditTasks && (
+                                            <button type="button" onClick={() => openTimeline(task)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
+                                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                                            </button>
+                                            {canEditTasks && isMyTask && (
                                               <button type="button" onClick={() => openEditTask(task)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
                                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                               </button>
                                             )}
-                                            {canDeleteTasks && (
+                                            {canDeleteTasks && isMyTask && (
                                               <button type="button" onClick={() => setDeleteTarget({ type: "task", id: task._id, name: task.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
                                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                               </button>
@@ -972,12 +992,41 @@ export default function WorkspacePage() {
                                                 }}>
                                                   <SortableContext items={subs.map((s) => s._id)} strategy={verticalListSortingStrategy}>
                                                     {subs.map((sub) => {
-                                                      const subColor = sub.status === "completed" ? "var(--teal)" : sub.status === "inProgress" ? "var(--primary)" : "var(--fg-tertiary)";
+                                                      const subInfo = taskSubmittedInfo(sub);
+                                                      const isSubMyTask = isInMyHierarchy(sub.createdBy?._id);
                                                       return (
-                                                        <SortableTaskRow key={sub._id} id={sub._id}>
-                                                          <div className="flex items-center gap-1.5 rounded-lg px-1.5 py-1" style={{ borderLeft: `2px solid ${subColor}`, background: "color-mix(in srgb, var(--fg) 1.5%, var(--bg-elevated))" }}>
-                                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: subColor }} />
-                                                            <span className="text-[10px] flex-1 truncate" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: sub.status === "completed" ? "line-through" : undefined }}>{sub.title}</span>
+                                                        <SortableTaskRow key={sub._id} id={sub._id} canReorder={canEditTasks && isSubMyTask}>
+                                                          <div className="mb-1.5">
+                                                            <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
+                                                              <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 18%, transparent)`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <div className="flex items-center gap-1.5 px-2 py-1.5">
+                                                                <div className="flex-1 min-w-0">
+                                                                  <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                                                  {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                                                  <div className="flex items-center gap-1 flex-wrap">
+                                                                    {sub.assignedTo?.map((a) => (
+                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                                    ))}
+                                                                    {sub.deadline && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: deadlineUrgency(sub.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(sub.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(sub.deadline)}</span>}
+                                                                  </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                  <button type="button" onClick={() => openTimeline(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
+                                                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                                                                  </button>
+                                                                  {canEditTasks && isSubMyTask && (
+                                                                    <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                                    </button>
+                                                                  )}
+                                                                  {canDeleteTasks && isSubMyTask && (
+                                                                    <button type="button" onClick={() => setDeleteTarget({ type: "task", id: sub._id, name: sub.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
+                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                                    </button>
+                                                                  )}
+                                                                </div>
+                                                              </div>
+                                                            </div>
                                                           </div>
                                                         </SortableTaskRow>
                                                       );
@@ -985,7 +1034,7 @@ export default function WorkspacePage() {
                                                   </SortableContext>
                                                 </DndContext>
                                               )}
-                                              {canCreateTasks && (
+                                              {canCreateTasks && isMyTask && (
                                                 <button type="button" onClick={() => openCreateTask(c._id, task._id)}
                                                   className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
                                                   style={{ color: "var(--primary)" }}>
@@ -1015,7 +1064,7 @@ export default function WorkspacePage() {
 
                     {/* ── card footer: stat pills ── */}
                     <div className="border-t px-2 py-1.5 flex items-center gap-1 flex-wrap" style={{ borderColor: "var(--border)" }}>
-                      {canEditCampaigns && <ToggleSwitch size="sm" checked={c.status === "active"} onChange={() => toggleCampaignActive(c._id, c.status)} />}
+                      {canEditCampaigns && isMyCampaign && <ToggleSwitch size="sm" checked={c.status === "active"} onChange={() => toggleCampaignActive(c._id, c.status)} />}
                       {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
                       {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
                       {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}
@@ -1074,16 +1123,12 @@ export default function WorkspacePage() {
                           <div className="flex w-full shrink-0 items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
                             <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
-                              <span className="text-[12px] font-bold flex-1" style={{ color: "var(--fg)" }}>{label}</span>
+                              <span className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{label}</span>
                               {group.unread > 0 && (
                                 <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
                                   {group.unread}
                                 </span>
                               )}
-                              <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{group.logs.length}</span>
-                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                              </motion.svg>
                             </button>
                             {group.unread > 0 && (
                               <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markWsEntityRead(entity)}
@@ -1092,6 +1137,11 @@ export default function WorkspacePage() {
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
                               </motion.button>
                             )}
+                            <button type="button" onClick={() => toggleActivityGroup(entity)} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
+                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </motion.svg>
+                            </button>
                           </div>
                           <AnimatePresence initial={false}>
                           {isOpen && (
@@ -1122,25 +1172,20 @@ export default function WorkspacePage() {
                                         {log.details && (
                                           <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
-                                        <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex items-center justify-between mt-1">
                                           <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                                           {log.entity === "task" && log.entityId && (() => {
                                             const linkedTask = taskList.find((t) => t._id === log.entityId);
                                             if (!linkedTask) return null;
-                                            const sc = linkedTask.status === "completed" ? "var(--teal)" : linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                                            const sl = linkedTask.status === "completed" ? "Completed" : linkedTask.status === "inProgress" ? "In progress" : "Pending";
-                                            const canAct = linkedTask.status !== "completed";
+                                            const info = taskSubmittedInfo(linkedTask);
                                             return (
-                                              <motion.button type="button" onClick={canAct ? () => requestCycleTask(linkedTask) : undefined} disabled={!canAct}
-                                                whileHover={canAct ? { scale: 1.06 } : undefined} whileTap={canAct ? { scale: 0.94 } : undefined}
-                                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all disabled:cursor-default"
-                                                style={{ borderColor: `color-mix(in srgb, ${sc} 30%, transparent)`, background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc, cursor: canAct ? "pointer" : "default" }}>
-                                                <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: sc }}>
-                                                  {linkedTask.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: sc }} />}
+                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold"
+                                                style={{ background: `color-mix(in srgb, ${info.color} 12%, transparent)`, color: info.color }}>
+                                                <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: info.color }}>
+                                                  {info.done > 0 && info.done < info.total && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: info.color }} />}
                                                 </span>
-                                                {sl}
-                                                {canAct && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>}
-                                              </motion.button>
+                                                {info.label}
+                                              </span>
                                             );
                                           })()}
                                         </div>
@@ -1177,7 +1222,7 @@ export default function WorkspacePage() {
       >
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Title</label><input type="text" value={fTitle} onChange={(e) => setFTitle(e.target.value)} className="input" autoFocus required /></div>
         <div><label className="block text-xs font-medium text-[var(--fg-secondary)] mb-1">Brief description</label><input type="text" value={fDesc} onChange={(e) => setFDesc(e.target.value)} className="input" placeholder="Brief summary" maxLength={120} /></div>
-        {canReassignTasks && allEmployees.length > 0 && (() => {
+        {(editingTask ? canReassignTasks : (canCreateTasks || canReassignTasks)) && allEmployees.length > 0 && (() => {
           let assignable: SelectOption[];
           if (fParentTask) {
             const parent = taskList.find((t) => t._id === fParentTask);
@@ -1290,20 +1335,136 @@ export default function WorkspacePage() {
       {/* ── status change confirm ── */}
       <ConfirmDialog
         open={!!statusConfirm}
-        title={statusConfirm?.type === "task"
-          ? `Mark as ${statusConfirm.label}?`
-          : statusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
-        description={statusConfirm?.type === "task"
-          ? `Change "${statusConfirm.task.title}" status to ${statusConfirm.label}.`
-          : statusConfirm?.currentDone
-            ? `Unmark "${statusConfirm?.title}" as completed for today.`
-            : `Mark "${statusConfirm?.title}" as completed for today.`}
-        confirmLabel={statusConfirm?.type === "task" ? statusConfirm.label : statusConfirm?.currentDone ? "Undo" : "Done"}
-        variant={statusConfirm?.type === "task" && statusConfirm.next === "pending" ? "warning" : "default"}
+        title={statusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
+        description={statusConfirm?.currentDone
+          ? `Unmark "${statusConfirm?.title}" as completed for today.`
+          : `Mark "${statusConfirm?.title}" as completed for today.`}
+        confirmLabel={statusConfirm?.currentDone ? "Undo" : "Mark complete"}
         loading={statusUpdating}
         onConfirm={handleStatusConfirm}
         onCancel={() => setStatusConfirm(null)}
       />
+
+      {/* ── task timeline panel ── */}
+      <AnimatePresence>
+        {timelineTask && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex justify-end"
+            onClick={() => setTimelineTask(null)}
+          >
+            <div className="absolute inset-0" style={{ background: "color-mix(in srgb, var(--fg) 25%, transparent)" }} />
+            <motion.aside
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="relative z-[41] w-full max-w-md h-full overflow-y-auto"
+              style={{ background: "var(--bg-elevated)", borderLeft: "1px solid var(--border)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 z-[1] flex items-center justify-between px-4 py-3 border-b" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+                <div className="min-w-0">
+                  <h2 className="text-[13px] font-bold truncate" style={{ color: "var(--fg)" }}>Timeline</h2>
+                  <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{timelineTask.title}</p>
+                </div>
+                <button type="button" onClick={() => setTimelineTask(null)} className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* Assignees summary */}
+              {timelineTask.assignedTo && timelineTask.assignedTo.length > 0 && (
+                <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Assignees ({timelineTask.assignedTo.length})</p>
+                  <div className="space-y-1.5">
+                    {timelineTask.assignedTo.map((a) => {
+                      const us = timelineTask.userStatuses?.find((u) => (typeof u.user === "string" ? u.user : u.user._id) === a._id);
+                      const st = us?.status ?? "pending";
+                      const sc = st === "completed" ? "var(--teal)" : st === "inProgress" ? "var(--primary)" : "var(--amber)";
+                      const sl = st === "completed" ? "Completed" : st === "inProgress" ? "In Progress" : "Pending";
+                      const name = a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown";
+                      return (
+                        <div key={a._id} className="flex items-center gap-2 rounded-lg p-2" style={{ background: "var(--bg)" }}>
+                          <div className="h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-[9px] font-bold" style={{ background: `color-mix(in srgb, ${sc} 15%, var(--bg-elevated))`, color: sc }}>
+                            {(a.about?.firstName?.[0] ?? "?").toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[11px] font-semibold block truncate" style={{ color: "var(--fg)" }}>{name}</span>
+                          </div>
+                          <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc }}>{sl}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Recurrence info */}
+              {timelineTask.recurrence && (
+                <div className="px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{formatRecurrence(timelineTask.recurrence)}</span>
+                </div>
+              )}
+
+              {/* Status change history */}
+              <div className="px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Status History</p>
+                {timelineLoading ? (
+                  <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-12 rounded-lg" />)}</div>
+                ) : timelineData.length === 0 ? (
+                  <p className="py-6 text-center text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No status changes recorded yet</p>
+                ) : (
+                  <div className="relative pl-5">
+                    <div className="absolute left-[7px] top-2 bottom-2 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
+                    <div className="space-y-3">
+                      {timelineData.map((entry) => {
+                        const sc = entry.status === "completed" ? "var(--teal)" : entry.status === "inProgress" ? "var(--primary)" : "var(--amber)";
+                        const sl = entry.status === "completed" ? "Completed" : entry.status === "inProgress" ? "In Progress" : "Reverted to Pending";
+                        const empName = entry.employee?.about ? `${entry.employee.about.firstName} ${entry.employee.about.lastName}` : entry.employee?.email ?? "Unknown";
+                        const byName = entry.changedBy?.about ? `${entry.changedBy.about.firstName} ${entry.changedBy.about.lastName}` : entry.changedBy?.email ?? null;
+                        const isSelfAction = entry.employee?._id === entry.changedBy?._id;
+                        const dt = new Date(entry.changedAt);
+                        return (
+                          <div key={entry._id} className="relative">
+                            <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg-elevated)", border: `2px solid ${sc}` }}>
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: sc }} />
+                            </div>
+                            <div className="rounded-lg p-2.5" style={{ background: "var(--bg)" }}>
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
+                                    <span className="font-semibold">{empName}</span>
+                                    <span style={{ color: "var(--fg-secondary)" }}>{" → "}</span>
+                                    <span className="font-semibold" style={{ color: sc }}>{sl}</span>
+                                  </p>
+                                  {byName && !isSelfAction && (
+                                    <p className="text-[9px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Changed by {byName}</p>
+                                  )}
+                                  {entry.note && (
+                                    <p className="text-[9px] mt-0.5 italic" style={{ color: "var(--fg-tertiary)" }}>{entry.note}</p>
+                                  )}
+                                </div>
+                                <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc }}>{sl.split(" ").pop()}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                                <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{dt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
