@@ -46,7 +46,8 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
     for (const k of PERMISSION_KEYS) p[k] = false;
     return p;
   });
-  const [permsOpen, setPermsOpen] = useState(false);
+  const [permsOpen, setPermsOpen] = useState(true);
+  const [permSearch, setPermSearch] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<Designation | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -61,7 +62,8 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
     const p: Record<string, boolean> = {};
     for (const k of PERMISSION_KEYS) p[k] = false;
     setFormPerms(p);
-    setPermsOpen(false);
+    setPermsOpen(true);
+    setPermSearch("");
     setModalOpen(true);
   }, []);
 
@@ -74,7 +76,8 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
     const p: Record<string, boolean> = {};
     for (const k of PERMISSION_KEYS) p[k] = Boolean(d.defaultPermissions?.[k]);
     setFormPerms(p);
-    setPermsOpen(false);
+    setPermsOpen(true);
+    setPermSearch("");
     setModalOpen(true);
   }, []);
 
@@ -356,26 +359,22 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                     <label className="mb-1 block text-xs font-medium" style={{ color: "var(--fg-secondary)" }}>
                       Color
                     </label>
-                    <div className="flex flex-wrap gap-2">
-                      {PRESET_COLORS.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setFormColor(c)}
-                          className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
-                          style={{
-                            background: c,
-                            borderColor: formColor === c ? "var(--fg)" : "transparent",
-                          }}
-                        />
-                      ))}
-                      <input
-                        type="color"
-                        value={formColor}
-                        onChange={(e) => setFormColor(e.target.value)}
-                        className="h-6 w-6 cursor-pointer rounded-full border-0 p-0"
-                        title="Custom color"
-                      />
+                    <div className="flex flex-wrap gap-2.5">
+                      {PRESET_COLORS.map((c) => {
+                        const selected = formColor === c;
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setFormColor(c)}
+                            className="h-6 w-6 rounded-full transition-transform hover:scale-110"
+                            style={{
+                              background: selected ? "transparent" : c,
+                              boxShadow: selected ? `inset 0 0 0 4px ${c}, inset 0 0 0 6px var(--bg-elevated), 0 0 0 2px ${c}` : "none",
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -416,11 +415,21 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                           className="overflow-hidden"
                         >
                           <div className="mt-3 space-y-4">
-                            <div className="flex gap-2">
-                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors" style={{ color: "var(--green)", background: "color-mix(in srgb, var(--green) 10%, transparent)" }}>All On</button>
-                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors" style={{ color: "var(--rose)", background: "color-mix(in srgb, var(--rose) 10%, transparent)" }}>All Off</button>
+                            <div className="flex items-center gap-2">
+                              <div className="flex flex-1 items-center gap-2 rounded-xl border px-3 py-2" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+                                <svg className="pointer-events-none h-3.5 w-3.5 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                </svg>
+                                <input type="text" value={permSearch} onChange={(e) => setPermSearch(e.target.value)} placeholder="Search privileges…" className="flex-1 min-w-0 bg-transparent text-[11px] outline-none" style={{ color: "var(--fg)", border: "none" }} />
+                              </div>
+                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors shrink-0" style={{ color: "var(--green)", background: "color-mix(in srgb, var(--green) 10%, transparent)" }}>All On</button>
+                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors shrink-0" style={{ color: "var(--rose)", background: "color-mix(in srgb, var(--rose) 10%, transparent)" }}>All Off</button>
                             </div>
-                            {PERMISSION_CATEGORIES.map((cat) => (
+                            {PERMISSION_CATEGORIES.map((cat) => {
+                              const q = permSearch.trim().toLowerCase();
+                              const filteredKeys = q ? cat.keys.filter((k) => { const m = PERMISSION_META[k]; return m.label.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q) || k.toLowerCase().includes(q); }) : cat.keys;
+                              if (filteredKeys.length === 0) return null;
+                              return (
                               <div key={cat.label}>
                                 <div className="flex items-center gap-1.5 mb-2">
                                   <svg className="h-3.5 w-3.5" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -429,7 +438,7 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                                   <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{cat.label}</span>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                                  {cat.keys.map((k) => {
+                                  {filteredKeys.map((k) => {
                                     const meta = PERMISSION_META[k];
                                     return (
                                       <label key={k} className="flex items-start gap-2 cursor-pointer py-0.5">
@@ -448,7 +457,8 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                                   })}
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </motion.div>
                       )}

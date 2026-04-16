@@ -721,7 +721,7 @@ export default function WorkspacePage() {
                 return (
                   <motion.div key={c._id} variants={cardVariants} custom={ci}
                     className="rounded-xl border overflow-hidden flex flex-col transition-opacity"
-                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isInactive ? 0.4 : 1, height: "50cqh", minHeight: 180 }}>
+                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isInactive ? 0.4 : 1, height: "60cqh", minHeight: 216 }}>
                     {/* ── card header ── */}
                     <div className="flex items-center gap-1.5 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                       <div className="min-w-0 flex-1">
