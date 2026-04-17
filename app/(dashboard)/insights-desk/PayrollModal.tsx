@@ -121,9 +121,9 @@ function avatarColor(id: string): string {
 }
 
 const SC: Record<string, { label: string; color: string }> = {
-  present: { label: "Present", color: "var(--green)" },
-  late: { label: "Late", color: "var(--amber)" },
-  absent: { label: "Absent", color: "var(--rose)" },
+  present: { label: "Present", color: "var(--status-present)" },
+  late: { label: "Late", color: "var(--status-late)" },
+  absent: { label: "Absent", color: "var(--status-absent)" },
   leave: { label: "Leave", color: "var(--teal)" },
   holiday: { label: "Holiday", color: "var(--purple)" },
   weekend: { label: "Weekend", color: "var(--fg-quaternary)" },
@@ -606,7 +606,7 @@ ${yearTotals ? `<div class="hero"><div class="label">Annual Net Pay</div><div cl
     } else if (estimate) {
       const dailyRows = (estimate.dailyBreakdown ?? []).map((r) => {
         const s = SC[r.status] ?? SC.off;
-        const cls = r.status === "absent" ? "color:#dc2626" : r.status === "late" ? "color:#d97706" : r.status === "present" ? "color:#16a34a" : "color:#888";
+        const cls = r.status === "absent" ? "color:var(--status-absent)" : r.status === "late" ? "color:var(--status-late)" : r.status === "present" ? "color:var(--status-present)" : "color:#888";
         return `<tr><td>${r.day}</td><td>${r.dayOfWeek}</td><td style="${cls};font-weight:600">${s.label}</td><td>${r.workingMinutes > 0 ? (r.workingMinutes / 60).toFixed(1) + "h" : "—"}</td><td>${r.lateMinutes > 0 ? r.lateMinutes + "m" : "—"}</td><td style="color:#dc2626">${r.deduction > 0 ? r.deduction.toFixed(0) : "—"}</td><td>${r.firstStart ? fmtTime(r.firstStart) : "—"}</td><td>${r.lastEnd ? fmtTime(r.lastEnd) : "—"}</td></tr>`;
       }).join("");
       body = `<h1>Payroll Report — ${MN[estimate.month - 1]} ${estimate.year}</h1><h2>${emp}${dept ? ` · ${dept}` : ""}</h2>
@@ -623,7 +623,8 @@ ${dailyRows ? `<div class="section"><div class="st">Daily Breakdown</div><table>
     }
 
     const html = `<!DOCTYPE html><html><head><title>Payroll Report</title>
-<style>body{font-family:system-ui,sans-serif;padding:32px;max-width:900px;margin:0 auto;color:#1a1a1a;font-size:12px}
+<style>:root{--status-present:#00C853;--status-late:#FFAB00;--status-absent:#FF1744;--status-office:#00B8D4;--status-remote:#2979FF;--status-ontime:#00B8D4}
+body{font-family:system-ui,sans-serif;padding:32px;max-width:900px;margin:0 auto;color:#1a1a1a;font-size:12px}
 h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#666;margin:0 0 20px;font-weight:normal}
 .section{margin-bottom:20px}.st{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px;font-weight:600}
 table{width:100%;border-collapse:collapse}th,td{padding:5px 8px;text-align:left;border-bottom:1px solid #eee;font-size:11px}
@@ -888,9 +889,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Attendance & Work</p>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {[
-                                  { label: "Days present", value: `${estimate.presentDays}`, sub: `of ${estimate.workingDays} work days`, color: "var(--green)" },
-                                  { label: "Days absent", value: `${estimate.absentDays}`, sub: `${100 - attendancePct}% absence rate`, color: estimate.absentDays > 0 ? "var(--rose)" : "var(--fg)" },
-                                  { label: "Late days", value: `${estimate.lateDays}`, sub: "late arrivals", color: estimate.lateDays > 0 ? "var(--amber)" : "var(--fg)" },
+                                  { label: "Days present", value: `${estimate.presentDays}`, sub: `of ${estimate.workingDays} work days`, color: "var(--status-present)" },
+                                  { label: "Days absent", value: `${estimate.absentDays}`, sub: `${100 - attendancePct}% absence rate`, color: estimate.absentDays > 0 ? "var(--status-absent)" : "var(--fg)" },
+                                  { label: "Late days", value: `${estimate.lateDays}`, sub: "late arrivals", color: estimate.lateDays > 0 ? "var(--status-late)" : "var(--fg)" },
                                   { label: "Leave days", value: `${estimate.leaveDays}`, sub: `+ ${estimate.holidays} holidays`, color: "var(--teal)" },
                                 ].map((s) => (
                                   <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
@@ -950,7 +951,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   {summaryRateStats.payPerPresentDay != null && (
                                     <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                       <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Pay Per Present Day</p>
-                                      <p className="text-[11px] font-bold" style={{ color: "var(--teal)" }}>
+                                      <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>
                                         {summaryRateStats.payPerPresentDay.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                       </p>
                                       <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>net pay per present day</p>
@@ -1019,7 +1020,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     <span className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{row.dayOfWeek}</span>
                                     <div className="flex items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} /><span className="text-[11px] font-semibold" style={{ color: s.color }}>{s.label}</span></div>
                                     <span className="text-right text-[11px] font-semibold" style={{ color: row.workingMinutes > 0 ? "var(--fg)" : "var(--fg-quaternary)" }}>{row.workingMinutes > 0 ? fmtMins(row.workingMinutes) : "—"}</span>
-                                    <span className="text-right text-[11px] font-semibold" style={{ color: row.lateMinutes > 0 ? "var(--amber)" : "var(--fg-quaternary)" }}>{row.lateMinutes > 0 ? `${row.lateMinutes}m` : "—"}</span>
+                                    <span className="text-right text-[11px] font-semibold" style={{ color: row.lateMinutes > 0 ? "var(--status-late)" : "var(--fg-quaternary)" }}>{row.lateMinutes > 0 ? `${row.lateMinutes}m` : "—"}</span>
                                     <span className="text-right text-[11px] font-semibold" style={{ color: row.deduction > 0 ? "var(--rose)" : "var(--fg-quaternary)" }}>{row.deduction > 0 ? fmt(row.deduction) : "—"}</span>
                                     <span className="text-right text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(row.firstStart)}</span>
                                     <span className="text-right text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(row.lastEnd)}</span>
@@ -1063,7 +1064,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                           </div>
                                           <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                             <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero deduction days</p>
-                                            <p className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{daysZeroDedPresent}</p>
+                                            <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{daysZeroDedPresent}</p>
                                             <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>present only</p>
                                           </div>
                                           <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
@@ -1079,13 +1080,17 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                           {totalLateMins > 0 && (
                                             <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                               <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Late</p>
-                                              <p className="text-[11px] font-bold" style={{ color: "var(--amber)" }}>{Math.floor(totalLateMins / 60)}h {totalLateMins % 60}m</p>
+                                              <p className="text-[11px] font-bold" style={{ color: "var(--status-late)" }}>{Math.floor(totalLateMins / 60)}h {totalLateMins % 60}m</p>
                                             </div>
                                           )}
                                           {(totalOfficeMins > 0 || totalRemoteMins > 0) && (
                                             <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                               <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Office / Remote</p>
-                                              <p className="text-[11px] font-bold" style={{ color: "var(--teal)" }}>{Math.round(totalOfficeMins / 60)}h / {Math.round(totalRemoteMins / 60)}h</p>
+                                              <p className="text-[11px] font-bold">
+                                                <span style={{ color: "var(--status-office)" }}>{Math.round(totalOfficeMins / 60)}h</span>
+                                                <span style={{ color: "var(--fg-tertiary)" }}> / </span>
+                                                <span style={{ color: "var(--status-remote)" }}>{Math.round(totalRemoteMins / 60)}h</span>
+                                              </p>
                                             </div>
                                           )}
                                         </>
@@ -1164,7 +1169,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Attendance</p>
-                                        <p className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{teamSheetStats.teamAvgAttendancePct}%</p>
+                                        <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{teamSheetStats.teamAvgAttendancePct}%</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Overtime</p>
@@ -1188,11 +1193,11 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Late Days</p>
-                                        <p className="text-[11px] font-bold" style={{ color: teamSheetStats.avgLateDays > 0 ? "var(--amber)" : "var(--fg)" }}>{teamSheetStats.avgLateDays}</p>
+                                        <p className="text-[11px] font-bold" style={{ color: teamSheetStats.avgLateDays > 0 ? "var(--status-late)" : "var(--fg)" }}>{teamSheetStats.avgLateDays}</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Absence Days</p>
-                                        <p className="text-[11px] font-bold" style={{ color: teamSheetStats.avgAbsenceDays > 0 ? "var(--rose)" : "var(--fg)" }}>{teamSheetStats.avgAbsenceDays}</p>
+                                        <p className="text-[11px] font-bold" style={{ color: teamSheetStats.avgAbsenceDays > 0 ? "var(--status-absent)" : "var(--fg)" }}>{teamSheetStats.avgAbsenceDays}</p>
                                       </div>
                                       {teamSheetStats.avgSalary != null && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
@@ -1238,17 +1243,17 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                       )}
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Attendance</p>
-                                        <p className="text-[11px] font-bold truncate" style={{ color: "var(--green)" }}>{teamSheetStats.bestAttendanceName}</p>
+                                        <p className="text-[11px] font-bold truncate" style={{ color: "var(--status-present)" }}>{teamSheetStats.bestAttendanceName}</p>
                                         <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.bestAttendancePct}%</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Attendance</p>
-                                        <p className="text-[11px] font-bold truncate" style={{ color: "var(--rose)" }}>{teamSheetStats.worstAttendanceName}</p>
+                                        <p className="text-[11px] font-bold truncate" style={{ color: "var(--status-absent)" }}>{teamSheetStats.worstAttendanceName}</p>
                                         <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.worstAttendancePct}%</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
                                         <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Most Late Days</p>
-                                        <p className="text-[11px] font-bold truncate" style={{ color: teamSheetStats.mostLateDays > 0 ? "var(--amber)" : "var(--fg)" }}>{teamSheetStats.mostLateName}</p>
+                                        <p className="text-[11px] font-bold truncate" style={{ color: teamSheetStats.mostLateDays > 0 ? "var(--status-late)" : "var(--fg)" }}>{teamSheetStats.mostLateName}</p>
                                         <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.mostLateDays} days</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
@@ -1293,11 +1298,11 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                         <p className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{e.name}</p>
                                         {e.department && <p className="text-[8px] truncate" style={{ color: "var(--fg-tertiary)" }}>{e.department}</p>}
                                       </div>
-                                      <span className="text-right text-[10px] font-semibold" style={{ color: "var(--green)" }}>{e.presentDays}</span>
-                                      <span className="text-right text-[10px] font-semibold" style={{ color: e.absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{e.absentDays}</span>
-                                      <span className="text-right text-[10px] font-semibold" style={{ color: e.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{e.lateDays}</span>
+                                      <span className="text-right text-[10px] font-semibold" style={{ color: "var(--status-present)" }}>{e.presentDays}</span>
+                                      <span className="text-right text-[10px] font-semibold" style={{ color: e.absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{e.absentDays}</span>
+                                      <span className="text-right text-[10px] font-semibold" style={{ color: e.lateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>{e.lateDays}</span>
                                       <span className="text-right text-[10px] font-semibold" style={{ color: e.leaveDays > 0 ? "var(--teal)" : "var(--fg-tertiary)" }}>{e.leaveDays}</span>
-                                      <span className="text-right text-[10px] font-semibold" style={{ color: e.attendancePct >= 90 ? "var(--green)" : e.attendancePct >= 70 ? "var(--amber)" : "var(--rose)" }}>{e.attendancePct}%</span>
+                                      <span className="text-right text-[10px] font-semibold" style={{ color: e.attendancePct >= 90 ? "var(--status-present)" : e.attendancePct >= 70 ? "var(--status-ontime)" : "var(--status-absent)" }}>{e.attendancePct}%</span>
                                       <span className="text-right text-[10px] font-medium" style={{ color: "var(--fg)" }}>{fmt(e.grossPay)}</span>
                                       <span className="text-right text-[10px] font-medium" style={{ color: e.totalDeductions > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{e.totalDeductions > 0 ? `−${fmt(e.totalDeductions)}` : "—"}</span>
                                       <span className="text-right text-[11px] font-bold" style={{ color: "var(--primary)" }}>{fmt(e.netPay)}</span>
@@ -1342,9 +1347,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     {[
                                       { label: "Work days", value: yearTotals.workingDays, color: "var(--fg)" },
-                                      { label: "Days present", value: yearTotals.presentDays, color: "var(--green)" },
-                                      { label: "Days absent", value: yearTotals.absentDays, color: yearTotals.absentDays > 0 ? "var(--rose)" : "var(--fg)" },
-                                      { label: "Late days", value: yearTotals.lateDays, color: yearTotals.lateDays > 0 ? "var(--amber)" : "var(--fg)" },
+                                      { label: "Days present", value: yearTotals.presentDays, color: "var(--status-present)" },
+                                      { label: "Days absent", value: yearTotals.absentDays, color: yearTotals.absentDays > 0 ? "var(--status-absent)" : "var(--fg)" },
+                                      { label: "Late days", value: yearTotals.lateDays, color: yearTotals.lateDays > 0 ? "var(--status-late)" : "var(--fg)" },
                                       { label: "Leave days", value: yearTotals.leaveDays, color: "var(--teal)" },
                                     ].map((s) => (
                                       <div key={s.label} className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
@@ -1369,7 +1374,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                       {yearInsightStats.ytdAttendancePct != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
                                           <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Attendance %</p>
-                                          <p className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{yearInsightStats.ytdAttendancePct}%</p>
+                                          <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{yearInsightStats.ytdAttendancePct}%</p>
                                         </div>
                                       )}
                                       {yearInsightStats.ytdDeductionPct != null && (
@@ -1449,9 +1454,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                           </span>
                                           {e ? (
                                             <>
-                                              <span className="text-right text-[11px] font-medium" style={{ color: "var(--green)" }}>{e.presentDays}<span className="text-[9px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{e.workingDays}</span></span>
-                                              <span className="text-right text-[11px] font-medium" style={{ color: e.absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{e.absentDays}</span>
-                                              <span className="text-right text-[11px] font-medium" style={{ color: e.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{e.lateDays}</span>
+                                              <span className="text-right text-[11px] font-medium" style={{ color: "var(--status-present)" }}>{e.presentDays}<span className="text-[9px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{e.workingDays}</span></span>
+                                              <span className="text-right text-[11px] font-medium" style={{ color: e.absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{e.absentDays}</span>
+                                              <span className="text-right text-[11px] font-medium" style={{ color: e.lateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>{e.lateDays}</span>
                                               <span className="text-right text-[11px] font-medium" style={{ color: "var(--fg)" }}>{fmt(e.grossPay)}</span>
                                               <span className="text-right text-[11px] font-medium" style={{ color: e.totalDeductions > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{e.totalDeductions > 0 ? `−${fmt(e.totalDeductions)}` : "—"}</span>
                                               <span className="text-right text-[11px] font-bold" style={{ color: "var(--primary)" }}>{fmt(e.netPay)}</span>
@@ -1466,9 +1471,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     {yearTotals && (
                                       <div className="grid grid-cols-[5rem_1fr_1fr_1fr_1fr_1fr_1fr] gap-x-1 px-3 py-2" style={{ background: "var(--bg-grouped)" }}>
                                         <span className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>Total</span>
-                                        <span className="text-right text-[11px] font-bold" style={{ color: "var(--green)" }}>{yearTotals.presentDays}<span className="text-[9px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{yearTotals.workingDays}</span></span>
-                                        <span className="text-right text-[11px] font-bold" style={{ color: yearTotals.absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{yearTotals.absentDays}</span>
-                                        <span className="text-right text-[11px] font-bold" style={{ color: yearTotals.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{yearTotals.lateDays}</span>
+                                        <span className="text-right text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{yearTotals.presentDays}<span className="text-[9px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{yearTotals.workingDays}</span></span>
+                                        <span className="text-right text-[11px] font-bold" style={{ color: yearTotals.absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{yearTotals.absentDays}</span>
+                                        <span className="text-right text-[11px] font-bold" style={{ color: yearTotals.lateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>{yearTotals.lateDays}</span>
                                         <span className="text-right text-[11px] font-bold" style={{ color: "var(--fg)" }}>{fmt(yearTotals.grossPay)}</span>
                                         <span className="text-right text-[11px] font-bold" style={{ color: "var(--rose)" }}>{yearTotals.totalDeductions > 0 ? `−${fmt(yearTotals.totalDeductions)}` : "—"}</span>
                                         <span className="text-right text-[11px] font-bold" style={{ color: "var(--primary)" }}>{fmt(yearTotals.netPay)}</span>

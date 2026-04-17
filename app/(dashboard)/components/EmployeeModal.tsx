@@ -414,7 +414,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
         sublabel: s.totalMinutes != null ? `${Math.round(s.totalMinutes)}m` : undefined,
         lat: s.location?.latitude,
         lng: s.location?.longitude,
-        color: inOff2 ? "var(--green)" : "var(--teal)",
+        color: inOff2 ? "var(--status-office)" : "var(--status-remote)",
         icon: inOff2 ? "office" : "remote",
       });
       if (s.sessionTime.end) {
@@ -506,7 +506,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     : "Off shift";
   const stCol =
     employee && !employee.isActive ? "var(--fg-tertiary)"
-    : hasAct ? "var(--green)"
+    : hasAct ? (inOff ? "var(--status-office)" : "var(--status-remote)")
     : tm > 0 ? "var(--primary)"
     : "var(--fg-secondary)";
   const empRec = employee as unknown as Record<string, unknown> | undefined;
@@ -626,7 +626,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     const sorted = [...dailyList].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return sorted.slice(0, 5).reverse().map((r) => ({
       date: new Date(r.date).toLocaleDateString(undefined, { weekday: "short" }),
-      color: !r.isPresent ? "var(--rose)" : r.isOnTime ? "var(--green)" : "var(--amber)",
+      color: !r.isPresent ? "var(--status-absent)" : r.isOnTime ? "var(--status-ontime)" : "var(--status-late)",
       present: !!r.isPresent,
     }));
   }, [dailyList]);
@@ -919,22 +919,22 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="flex items-center gap-2">
                                     <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
                                       <motion.div className="flex h-full min-w-0" initial={{ width: 0 }} animate={{ width: `${cappedFill}%` }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
-                                        {ofPct > 0 && <div className="h-full shrink-0" style={{ width: `${(ofPct / cappedFill) * 100}%`, background: "var(--green)" }} />}
-                                        {rmPct > 0 && <div className="h-full shrink-0" style={{ width: `${(rmPct / cappedFill) * 100}%`, background: "var(--teal)" }} />}
+                                        {ofPct > 0 && <div className="h-full shrink-0" style={{ width: `${(ofPct / cappedFill) * 100}%`, background: "var(--status-office)" }} />}
+                                        {rmPct > 0 && <div className="h-full shrink-0" style={{ width: `${(rmPct / cappedFill) * 100}%`, background: "var(--status-remote)" }} />}
                                         {bkPct > 0 && <div className="h-full shrink-0" style={{ width: `${(bkPct / cappedFill) * 100}%`, background: "var(--purple)" }} />}
                                       </motion.div>
                                     </div>
-                                    <span className="shrink-0 text-[10px] font-bold tabular-nums" style={{ color: pctRaw >= 100 ? "var(--green)" : "var(--fg-secondary)" }}>{pctRaw}%</span>
+                                    <span className="shrink-0 text-[10px] font-bold tabular-nums" style={{ color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>{pctRaw}%</span>
                                   </div>
                                   {/* Detail chips */}
                                   <div className="flex flex-wrap items-center gap-1 text-[9px]">
                                     <span className="inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
                                       {sSessions} {sSessions === 1 ? "session" : "sessions"}
                                     </span>
-                                    {sRemoteMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>{formatMinutes(sRemoteMins)} remote</span>}
+                                    {sRemoteMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 7%, transparent)", color: "var(--status-remote)" }}>{formatMinutes(sRemoteMins)} remote</span>}
                                     {sBreakMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>{formatMinutes(sBreakMins)} break</span>}
-                                    {(sess?.lateBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--amber) 7%, transparent)", color: "var(--amber)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
-                                    {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--rose) 7%, transparent)", color: "var(--rose)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
+                                    {(sess?.lateBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-late) 7%, transparent)", color: "var(--status-late)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
+                                    {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-late) 7%, transparent)", color: "var(--status-late)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
                                     {sIdleMins > 5 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{formatMinutes(sIdleMins)} idle</span>}
                                   </div>
                                 </div>
@@ -965,11 +965,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     {monL ? <><Sh c="h-6 w-24 rounded-full" /><Sh c="h-6 w-28 rounded-full" /></> : (
                                       <>
-                                        {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--green)" : "var(--rose)" }}>Attendance {overviewAttendancePct}%</span>}
+                                        {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance {overviewAttendancePct}%</span>}
                                         {monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>Avg {monthlyRaw.averageDailyHours}h / day</span>}
-                                        {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
+                                        {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--status-ontime)" : "var(--status-late)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
                                         {tm > 0 && monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: (tm / 60) >= monthlyRaw.averageDailyHours ? "var(--green)" : "var(--amber)" }}>Today {(tm / 60).toFixed(1)}h vs avg {monthlyRaw.averageDailyHours.toFixed(1)}h</span>}
-                                        {pctRaw > 0 && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: pctRaw >= 100 ? "var(--green)" : "var(--fg-secondary)" }}>Shift {pctRaw}% done</span>}
+                                        {pctRaw > 0 && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>Shift {pctRaw}% done</span>}
                                       </>
                                     )}
                                   </div>
@@ -989,8 +989,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {/* Streaks */}
                                 {personalInsights && (personalInsights.longestPresentStreak > 1 || personalInsights.onTimeStreak > 1) && (
                                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                    {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
-                                    {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
+                                    {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
+                                    {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
                                   </div>
                                 )}
                               </>
@@ -1060,14 +1060,14 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             getDayMeta={(day) => {
                               const key = `${calYear}-${String(calMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                               const rec = dailyMap.get(key);
-                              const dot = !rec || !rec.isPresent ? "var(--rose)" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "var(--amber)" : "var(--green)";
+                              const dot = !rec || !rec.isPresent ? "var(--status-absent)" : !rec.isOnTime || (rec.lateBy ?? 0) > 0 ? "var(--status-late)" : "var(--status-ontime)";
                               return { dotColor: dot };
                             }}
                             showLegend
                             legendItems={[
-                              { label: "On Time", color: "var(--green)" },
-                              { label: "Late", color: "var(--amber)" },
-                              { label: "Absent", color: "var(--rose)" },
+                              { label: "On Time", color: "var(--status-ontime)" },
+                              { label: "Late", color: "var(--status-late)" },
+                              { label: "Absent", color: "var(--status-absent)" },
                             ]}
                           />
                           {/* Monthly stats — full StatChip grid matching insights-desk */}
@@ -1081,10 +1081,10 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                                   {(
                                     [
-                                      ["Working Days", `${ms.presentDays ?? 0} / ${ms.totalWorkingDays ?? 0}`, "var(--green)"],
+                                      ["Working Days", `${ms.presentDays ?? 0} / ${ms.totalWorkingDays ?? 0}`, "var(--status-present)"],
                                       ["Total Hours", `${Math.round(ms.totalWorkingHours ?? 0)}h`, "var(--teal)"],
                                       ["Avg Daily", `${(ms.averageDailyHours ?? 0).toFixed(1)}h`, "var(--primary)"],
-                                      ["On-Time %", `${Math.round(ms.onTimePercentage ?? 0)}%`, (ms.onTimePercentage ?? 0) >= 80 ? "var(--green)" : "var(--amber)"],
+                                      ["On-Time %", `${Math.round(ms.onTimePercentage ?? 0)}%`, (ms.onTimePercentage ?? 0) >= 80 ? "var(--status-ontime)" : "var(--status-late)"],
                                     ] as const
                                   ).map(([k, v, c]) => (
                                     <div key={k} className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
@@ -1096,26 +1096,26 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {/* Row 2: Attendance · Absent · Office / Remote */}
                                 <div className="mt-2 grid grid-cols-3 gap-2">
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.attendancePercentage ?? 0) >= 90 ? "var(--green)" : "var(--rose)" }}>Attendance</p>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.attendancePercentage ?? 0) >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{Math.round(ms.attendancePercentage ?? 0)}%</p>
                                   </div>
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.absentDays ?? 0) > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>Absent</p>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.absentDays ?? 0) > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>Absent</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.absentDays ?? 0}d</p>
                                   </div>
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--teal)" }}>Office / Remote</p>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Office / Remote</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{Math.round(ms.totalOfficeHours ?? 0)}h / {Math.round(ms.totalRemoteHours ?? 0)}h</p>
                                   </div>
                                 </div>
                                 {/* Row 3: On-Time Arrivals · Late Arrivals */}
                                 <div className="mt-2 grid grid-cols-2 gap-2">
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>On-Time Arrivals</p>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--status-ontime)" }}>On-Time Arrivals</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.onTimeArrivals ?? 0}</p>
                                   </div>
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.lateArrivals ?? 0) > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>Late Arrivals</p>
+                                    <p className="text-[9px] font-semibold uppercase" style={{ color: (ms.lateArrivals ?? 0) > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>Late Arrivals</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.lateArrivals ?? 0}</p>
                                   </div>
                                 </div>
@@ -1124,13 +1124,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="mt-2 grid grid-cols-2 gap-2">
                                     {ms.averageOfficeInTime && (
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg office entry</p>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Avg office entry</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeInTime}</p>
                                       </div>
                                     )}
                                     {ms.averageOfficeOutTime && (
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Avg office exit</p>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Avg office exit</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeOutTime}</p>
                                       </div>
                                     )}
@@ -1143,8 +1143,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <span className="tabular-nums">{Math.round(ms.totalOfficeHours ?? 0)}h · {Math.round(ms.totalRemoteHours ?? 0)}h</span>
                                   </div>
                                   <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                                    <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${offPct}%` }} transition={{ duration: 0.5, ease }} />
-                                    <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${100 - offPct}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />
+                                    <motion.div className="h-full" style={{ background: "var(--status-office)" }} initial={{ width: 0 }} animate={{ width: `${offPct}%` }} transition={{ duration: 0.5, ease }} />
+                                    <motion.div className="h-full" style={{ background: "var(--status-remote)" }} initial={{ width: 0 }} animate={{ width: `${100 - offPct}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />
                                   </div>
                                 </div>
                                 {/* Extra stat row: Break / Late / Remote % / Overtime */}
@@ -1169,18 +1169,18 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>avg {avgBreak}m/day</p>
                                       </div>
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--amber)" }}>Total Late</p>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--status-late)" }}>Total Late</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(totalLate)}</p>
                                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{lateDays.length}d · avg {avgLate}m</p>
                                       </div>
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--teal)" }}>Remote %</p>
+                                        <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--status-remote)" }}>Remote %</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{remotePct}%</p>
                                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{fmtHours(totalRem)} of {fmtHours(totalOff + totalRem)}</p>
                                       </div>
                                       {overtimeMins > 0 && (
                                         <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--green)" }}>Overtime</p>
+                                          <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--status-ontime)" }}>Overtime</p>
                                           <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(overtimeMins)}</p>
                                         </div>
                                       )}
@@ -1195,8 +1195,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal insights</p>
                               <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
-                                {personalInsights.perfectDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} perfect days</span>}
-                                {personalInsights.totalLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{fmtHours(personalInsights.totalLateMins)} total late</span>}
+                                {personalInsights.perfectDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.perfectDays} perfect days</span>}
+                                {personalInsights.totalLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--status-late) 12%, transparent)", color: "var(--status-late)" }}>{fmtHours(personalInsights.totalLateMins)} total late</span>}
                                 {personalInsights.avgLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgLateMins}m when late</span>}
                                 {personalInsights.avgBreakMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgBreakMins}m break</span>}
                                 {personalInsights.bestDay && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best: {personalInsights.bestDay} ({fmtHours(personalInsights.bestAvg)})</span>}
@@ -1206,7 +1206,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {personalInsights.minHoursDay && personalInsights.minHoursDay !== personalInsights.maxHoursDay && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>Min: {fmtHours(personalInsights.minHoursMins)} on {new Date(personalInsights.minHoursDay).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
                                 {personalInsights.remoteOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.remoteOnlyDays} remote-only</span>}
                                 {personalInsights.officeOnlyDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{personalInsights.officeOnlyDays} office-only</span>}
-                                {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
+                                {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
                                 {(() => {
                                   const present = dailyList.filter((r) => r.isPresent);
                                   if (present.length < 3) return null;
@@ -1215,7 +1215,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   const variance = hours.reduce((s, v) => s + (v - mean) ** 2, 0) / hours.length;
                                   const stdDev = Math.sqrt(variance);
                                   const consistency = Math.max(0, Math.round(100 - stdDev * 15));
-                                  return <span className="rounded-full px-2 py-0.5" style={{ background: consistency >= 80 ? "color-mix(in srgb, var(--green) 10%, transparent)" : "var(--bg-grouped)", color: consistency >= 80 ? "var(--green)" : "var(--fg-tertiary)" }}>Consistency {consistency}%</span>;
+                                  return <span className="rounded-full px-2 py-0.5" style={{ background: consistency >= 80 ? "color-mix(in srgb, var(--status-present) 10%, transparent)" : "var(--bg-grouped)", color: consistency >= 80 ? "var(--status-present)" : "var(--fg-tertiary)" }}>Consistency {consistency}%</span>;
                                 })()}
                                 {(() => {
                                   const present = dailyList.filter((r) => r.isPresent);
@@ -1776,7 +1776,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   </p>
                                   {locDetail && locDay && (
                                     <div className="mt-0.5 flex items-center justify-center gap-2">
-                                      {locDetail.isPresent && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--green) 12%, transparent)", color: "var(--green)" }}>Present</span>}
+                                      {locDetail.isPresent && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--status-present) 12%, transparent)", color: "var(--status-present)" }}>Present</span>}
                                       {locDetail.officeMinutes != null && locDetail.officeMinutes > 0 && <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.officeMinutes)}m office</span>}
                                       {locDetail.remoteMinutes != null && locDetail.remoteMinutes > 0 && <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.remoteMinutes)}m remote</span>}
                                       {locDayFlags.length > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{locDayFlags.length} flag{locDayFlags.length > 1 ? "s" : ""}</span>}

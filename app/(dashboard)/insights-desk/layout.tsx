@@ -11,6 +11,7 @@ import { HeaderStatPill } from "../components/StatChips";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { LeavesModal } from "./LeavesModal";
 import { PayrollModal } from "./PayrollModal";
+import { EmployeeTasksModal } from "./EmployeeTasksModal";
 import toast from "react-hot-toast";
 
 interface Holiday {
@@ -31,16 +32,20 @@ export interface InsightsPill {
   dotColor: string;
 }
 
-/* ── Context so child pages can open Leaves / Payroll modals with a pre-selected user ── */
+/* ── Context so child pages can open Leaves / Payroll / Tasks modals with a pre-selected user ── */
 interface InsightsContext {
   openLeavesModal: (userId?: string) => void;
   openPayrollModal: (userId?: string) => void;
+  openTasksModal: (userId?: string) => void;
   leavesOpen: boolean;
   payrollOpen: boolean;
+  tasksOpen: boolean;
   leavesUserId: string;
   payrollUserId: string;
+  tasksUserId: string;
   closeLeavesModal: () => void;
   closePayrollModal: () => void;
+  closeTasksModal: () => void;
   teamCount: number;
   setTeamCount: (n: number) => void;
   setPagePills: (pills: InsightsPill[]) => void;
@@ -49,12 +54,16 @@ interface InsightsContext {
 const InsightsCtx = createContext<InsightsContext>({
   openLeavesModal: () => {},
   openPayrollModal: () => {},
+  openTasksModal: () => {},
   leavesOpen: false,
   payrollOpen: false,
+  tasksOpen: false,
   leavesUserId: "",
   payrollUserId: "",
+  tasksUserId: "",
   closeLeavesModal: () => {},
   closePayrollModal: () => {},
+  closeTasksModal: () => {},
   teamCount: 0,
   setTeamCount: () => {},
   setPagePills: () => {},
@@ -77,11 +86,13 @@ export default function InsightsDeskLayout({ children }: { children: React.React
   /* ── Page-level pills (set by child pages) ── */
   const [pagePills, setPagePills] = useState<InsightsPill[]>([]);
 
-  /* ── Leaves / Payroll modal state ── */
+  /* ── Leaves / Payroll / Tasks modal state ── */
   const [leavesOpen, setLeavesOpen] = useState(false);
   const [payrollOpen, setPayrollOpen] = useState(false);
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [leavesUserId, setLeavesUserId] = useState("");
   const [payrollUserId, setPayrollUserId] = useState("");
+  const [tasksUserId, setTasksUserId] = useState("");
 
   const openLeavesModal = useCallback((userId?: string) => {
     setLeavesUserId(userId ?? "");
@@ -91,17 +102,22 @@ export default function InsightsDeskLayout({ children }: { children: React.React
     setPayrollUserId(userId ?? "");
     setPayrollOpen(true);
   }, []);
+  const openTasksModal = useCallback((userId?: string) => {
+    setTasksUserId(userId ?? "");
+    setTasksOpen(true);
+  }, []);
   const closeLeavesModal = useCallback(() => setLeavesOpen(false), []);
   const closePayrollModal = useCallback(() => setPayrollOpen(false), []);
+  const closeTasksModal = useCallback(() => setTasksOpen(false), []);
 
   const ctxValue = useMemo(() => ({
-    openLeavesModal, openPayrollModal,
-    leavesOpen, payrollOpen,
-    leavesUserId, payrollUserId,
-    closeLeavesModal, closePayrollModal,
+    openLeavesModal, openPayrollModal, openTasksModal,
+    leavesOpen, payrollOpen, tasksOpen,
+    leavesUserId, payrollUserId, tasksUserId,
+    closeLeavesModal, closePayrollModal, closeTasksModal,
     teamCount, setTeamCount,
     setPagePills,
-  }), [openLeavesModal, openPayrollModal, leavesOpen, payrollOpen, leavesUserId, payrollUserId, closeLeavesModal, closePayrollModal, teamCount]);
+  }), [openLeavesModal, openPayrollModal, openTasksModal, leavesOpen, payrollOpen, tasksOpen, leavesUserId, payrollUserId, tasksUserId, closeLeavesModal, closePayrollModal, closeTasksModal, teamCount]);
 
   /* ── Holidays modal state ── */
   const [holidaysOpen, setHolidaysOpen] = useState(false);
@@ -202,6 +218,14 @@ export default function InsightsDeskLayout({ children }: { children: React.React
               <HeaderStatPill key={p.key} label={p.label} value={p.value} dotColor={p.dotColor} />
             ))}
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              <motion.button type="button" onClick={() => openTasksModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
+                <svg className="h-3.5 w-3.5" style={{ color: "var(--amber)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Tasks
+              </motion.button>
               <motion.button type="button" onClick={() => openLeavesModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
@@ -379,9 +403,10 @@ export default function InsightsDeskLayout({ children }: { children: React.React
           onCancel={() => setDeleteTarget(null)}
         />
 
-        {/* Leaves / Payroll Modals */}
+        {/* Leaves / Payroll / Tasks Modals */}
         <LeavesModal open={leavesOpen} onClose={closeLeavesModal} selectedUserId={leavesUserId} />
         <PayrollModal open={payrollOpen} onClose={closePayrollModal} selectedUserId={payrollUserId} />
+        <EmployeeTasksModal open={tasksOpen} onClose={closeTasksModal} userId={tasksUserId} />
       </div>
     </InsightsCtx.Provider>
   );

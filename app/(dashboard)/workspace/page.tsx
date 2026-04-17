@@ -15,6 +15,7 @@ import { formatShortDate, timeAgo } from "@/lib/formatters";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { TaskHistoryModal } from "./TaskHistoryModal";
 
 /* ─── types ─── */
 
@@ -30,6 +31,7 @@ interface Campaign {
   tags: { employees: TaggedEmployee[]; departments: TaggedDept[] };
   taskStats?: { total: number; completed: number; recurring: number; todayDue: number; todayDone: number };
   todayChecklist?: { _id: string; title: string; done: boolean }[];
+  todayChecklistByEmployee?: Record<string, string[]>;
   notes?: string; isActive: boolean;
   createdBy?: { _id: string; about: { firstName: string; lastName: string } };
   createdAt: string; updatedAt?: string;
@@ -71,11 +73,20 @@ function formatRecurrence(r?: Recurrence): string {
   return `${freq} day ${days.join(", ")}`;
 }
 
-function taskSubmittedInfo(task: Task): { done: number; total: number; label: string; color: string } {
+function taskSubmittedInfo(task: Task, checklistByEmp?: Record<string, string[]>): { done: number; total: number; label: string; color: string } {
   const total = task.assignedTo?.length ?? 0;
+  if (total === 0) return { done: 0, total: 0, label: "No assignees", color: "var(--fg-tertiary)" };
+
+  if (task.recurrence && checklistByEmp) {
+    const completedEmps = checklistByEmp[task._id] ?? [];
+    const done = completedEmps.length;
+    if (done >= total) return { done, total, label: `${done}/${total} completed`, color: "var(--teal)" };
+    if (done > 0) return { done, total, label: `${done}/${total} completed`, color: "var(--primary)" };
+    return { done: 0, total, label: `0/${total} completed`, color: "var(--amber)" };
+  }
+
   const us = task.userStatuses ?? [];
   const done = us.filter((e) => e.status === "completed").length;
-  if (total === 0) return { done: 0, total: 0, label: "No assignees", color: "var(--fg-tertiary)" };
   if (done === total) return { done, total, label: `${done}/${total} completed`, color: "var(--teal)" };
   if (done > 0) return { done, total, label: `${done}/${total} submitted`, color: "var(--primary)" };
   const inProg = us.filter((e) => e.status === "inProgress").length;
@@ -165,6 +176,7 @@ export default function WorkspacePage() {
   const canTagEntities = canPerm("campaigns_tagEntities");
   const canViewCampaigns = canPerm("campaigns_view");
   const canViewLogs = canPerm("activityLogs_view");
+  const isPrivileged = isSuperAdmin || canPerm("tasks_view");
 
   const myHierarchy = useMemo(() => {
     const set = new Set<string>();
@@ -315,20 +327,14 @@ export default function WorkspacePage() {
     }
   }, [rootTaskIds, loadSubtasks, subtasksByParent]);
 
-  /* ── task timeline ── */
-  interface TimelineEntry { _id: string; employee: { _id: string; about?: { firstName: string; lastName: string }; email?: string }; status: string; date: string; changedAt: string; changedBy?: { _id: string; about?: { firstName: string; lastName: string }; email?: string }; note?: string }
-  const [timelineTask, setTimelineTask] = useState<Task | null>(null);
-  const [timelineData, setTimelineData] = useState<TimelineEntry[]>([]);
-  const [timelineLoading, setTimelineLoading] = useState(false);
-  const openTimeline = useCallback(async (task: Task) => {
-    setTimelineTask(task);
-    setTimelineLoading(true);
-    setTimelineData([]);
-    try {
-      const res = await fetch(`/api/tasks/${task._id}/status-history`);
-      if (res.ok) setTimelineData(await res.json());
-    } catch { /* ignore */ }
-    setTimelineLoading(false);
+  /* ── global history modal ── */
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyPreCampaignId, setHistoryPreCampaignId] = useState<string | undefined>();
+  const [historyPreTaskId, setHistoryPreTaskId] = useState<string | undefined>();
+  const openHistoryModal = useCallback((campaignId?: string, taskId?: string) => {
+    setHistoryPreCampaignId(campaignId);
+    setHistoryPreTaskId(taskId);
+    setHistoryModalOpen(true);
   }, []);
 
   /* ── task modal ── */
@@ -491,6 +497,29 @@ export default function WorkspacePage() {
     }
     return map;
   }, [taskList, campaignList]);
+
+  const historyCampaigns = useMemo(() => {
+    return campaignList.map((c) => {
+      const tasks = campaignTaskMap.get(c._id) ?? [];
+      const parentTasks = tasks.filter((t) => !t.parentTask);
+      return {
+        _id: c._id,
+        name: c.name,
+        tasks: parentTasks.map((t) => ({
+          _id: t._id,
+          title: t.title,
+          parentTask: t.parentTask,
+          recurrence: t.recurrence ?? null,
+          subtasks: (subtasksByParent.get(t._id) ?? []).map((s) => ({
+            _id: s._id,
+            title: s.title,
+            parentTask: s.parentTask,
+            recurrence: s.recurrence ?? null,
+          })),
+        })),
+      };
+    });
+  }, [campaignList, campaignTaskMap, subtasksByParent]);
 
   /* ── filtering ── */
   const filteredCampaignTasks = useMemo(() => {
@@ -659,6 +688,16 @@ export default function WorkspacePage() {
       {/* ── search + create ── */}
       <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
         <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks…" />
+        {isPrivileged && (
+          <motion.button type="button" onClick={() => openHistoryModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors shrink-0"
+            style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
+            <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Progress
+          </motion.button>
+        )}
         {ready && canCreateCampaigns && (
           <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -786,7 +825,7 @@ export default function WorkspacePage() {
                                           borderColor: "var(--border)",
                                           opacity: taskActive ? 1 : 0.45,
                                         }}>
-                                        <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
+                                        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
                                             toggleTaskExpanded(item._id);
@@ -807,11 +846,6 @@ export default function WorkspacePage() {
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {fullTask && (
-                                              <button type="button" onClick={() => openTimeline(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
-                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                                              </button>
-                                            )}
                                             {canEditTasks && isMyTask && fullTask && (
                                               <button type="button" onClick={() => openEditTask(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
                                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -848,13 +882,13 @@ export default function WorkspacePage() {
                                                 }}>
                                                   <SortableContext items={(subtasksByParent.get(item._id) ?? []).map((s) => s._id)} strategy={verticalListSortingStrategy}>
                                                     {(subtasksByParent.get(item._id) ?? []).map((sub) => {
-                                                      const subInfo = taskSubmittedInfo(sub);
+                                                      const subInfo = taskSubmittedInfo(sub, c.todayChecklistByEmployee);
                                                       const isSubMyTask = isInMyHierarchy(sub.createdBy?._id);
                                                       return (
                                                         <SortableTaskRow key={sub._id} id={sub._id} canReorder={canEditTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
                                                             <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
-                                                              <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 18%, transparent)`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
                                                                 <div className="flex-1 min-w-0">
                                                                   <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
@@ -866,9 +900,6 @@ export default function WorkspacePage() {
                                                                   </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                  <button type="button" onClick={() => openTimeline(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
-                                                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                                                                  </button>
                                                                   {canEditTasks && isSubMyTask && (
                                                                     <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
                                                                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -930,8 +961,8 @@ export default function WorkspacePage() {
                                           opacity: taskActive ? 1 : 0.45,
                                         }}>
                                         {(() => {
-                                          const info = taskSubmittedInfo(task);
-                                          return <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${info.color} 18%, transparent)`, color: info.color, border: `1px solid color-mix(in srgb, ${info.color} 30%, var(--border))` }}>{info.label}</span>;
+                                          const info = taskSubmittedInfo(task, c.todayChecklistByEmployee);
+                                          return <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${info.color} 15%, var(--dock-frosted-bg))`, color: info.color, border: `1px solid color-mix(in srgb, ${info.color} 30%, var(--border))` }}>{info.label}</span>;
                                         })()}
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
@@ -954,9 +985,6 @@ export default function WorkspacePage() {
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button type="button" onClick={() => openTimeline(task)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
-                                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                                            </button>
                                             {canEditTasks && isMyTask && (
                                               <button type="button" onClick={() => openEditTask(task)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
                                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -992,13 +1020,13 @@ export default function WorkspacePage() {
                                                 }}>
                                                   <SortableContext items={subs.map((s) => s._id)} strategy={verticalListSortingStrategy}>
                                                     {subs.map((sub) => {
-                                                      const subInfo = taskSubmittedInfo(sub);
+                                                      const subInfo = taskSubmittedInfo(sub, c.todayChecklistByEmployee);
                                                       const isSubMyTask = isInMyHierarchy(sub.createdBy?._id);
                                                       return (
                                                         <SortableTaskRow key={sub._id} id={sub._id} canReorder={canEditTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
                                                             <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
-                                                              <span className="absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 18%, transparent)`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
                                                                 <div className="flex-1 min-w-0">
                                                                   <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
@@ -1011,9 +1039,6 @@ export default function WorkspacePage() {
                                                                   </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                  <button type="button" onClick={() => openTimeline(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Timeline">
-                                                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                                                                  </button>
                                                                   {canEditTasks && isSubMyTask && (
                                                                     <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
                                                                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -1345,126 +1370,14 @@ export default function WorkspacePage() {
         onCancel={() => setStatusConfirm(null)}
       />
 
-      {/* ── task timeline panel ── */}
-      <AnimatePresence>
-        {timelineTask && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 flex justify-end"
-            onClick={() => setTimelineTask(null)}
-          >
-            <div className="absolute inset-0" style={{ background: "color-mix(in srgb, var(--fg) 25%, transparent)" }} />
-            <motion.aside
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="relative z-[41] w-full max-w-md h-full overflow-y-auto"
-              style={{ background: "var(--bg-elevated)", borderLeft: "1px solid var(--border)" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="sticky top-0 z-[1] flex items-center justify-between px-4 py-3 border-b" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-                <div className="min-w-0">
-                  <h2 className="text-[13px] font-bold truncate" style={{ color: "var(--fg)" }}>Timeline</h2>
-                  <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{timelineTask.title}</p>
-                </div>
-                <button type="button" onClick={() => setTimelineTask(null)} className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                </button>
-              </div>
-
-              {/* Assignees summary */}
-              {timelineTask.assignedTo && timelineTask.assignedTo.length > 0 && (
-                <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Assignees ({timelineTask.assignedTo.length})</p>
-                  <div className="space-y-1.5">
-                    {timelineTask.assignedTo.map((a) => {
-                      const us = timelineTask.userStatuses?.find((u) => (typeof u.user === "string" ? u.user : u.user._id) === a._id);
-                      const st = us?.status ?? "pending";
-                      const sc = st === "completed" ? "var(--teal)" : st === "inProgress" ? "var(--primary)" : "var(--amber)";
-                      const sl = st === "completed" ? "Completed" : st === "inProgress" ? "In Progress" : "Pending";
-                      const name = a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown";
-                      return (
-                        <div key={a._id} className="flex items-center gap-2 rounded-lg p-2" style={{ background: "var(--bg)" }}>
-                          <div className="h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-[9px] font-bold" style={{ background: `color-mix(in srgb, ${sc} 15%, var(--bg-elevated))`, color: sc }}>
-                            {(a.about?.firstName?.[0] ?? "?").toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[11px] font-semibold block truncate" style={{ color: "var(--fg)" }}>{name}</span>
-                          </div>
-                          <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc }}>{sl}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Recurrence info */}
-              {timelineTask.recurrence && (
-                <div className="px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
-                  <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{formatRecurrence(timelineTask.recurrence)}</span>
-                </div>
-              )}
-
-              {/* Status change history */}
-              <div className="px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Status History</p>
-                {timelineLoading ? (
-                  <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-12 rounded-lg" />)}</div>
-                ) : timelineData.length === 0 ? (
-                  <p className="py-6 text-center text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No status changes recorded yet</p>
-                ) : (
-                  <div className="relative pl-5">
-                    <div className="absolute left-[7px] top-2 bottom-2 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
-                    <div className="space-y-3">
-                      {timelineData.map((entry) => {
-                        const sc = entry.status === "completed" ? "var(--teal)" : entry.status === "inProgress" ? "var(--primary)" : "var(--amber)";
-                        const sl = entry.status === "completed" ? "Completed" : entry.status === "inProgress" ? "In Progress" : "Reverted to Pending";
-                        const empName = entry.employee?.about ? `${entry.employee.about.firstName} ${entry.employee.about.lastName}` : entry.employee?.email ?? "Unknown";
-                        const byName = entry.changedBy?.about ? `${entry.changedBy.about.firstName} ${entry.changedBy.about.lastName}` : entry.changedBy?.email ?? null;
-                        const isSelfAction = entry.employee?._id === entry.changedBy?._id;
-                        const dt = new Date(entry.changedAt);
-                        return (
-                          <div key={entry._id} className="relative">
-                            <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg-elevated)", border: `2px solid ${sc}` }}>
-                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: sc }} />
-                            </div>
-                            <div className="rounded-lg p-2.5" style={{ background: "var(--bg)" }}>
-                              <div className="flex items-start gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
-                                    <span className="font-semibold">{empName}</span>
-                                    <span style={{ color: "var(--fg-secondary)" }}>{" → "}</span>
-                                    <span className="font-semibold" style={{ color: sc }}>{sl}</span>
-                                  </p>
-                                  {byName && !isSelfAction && (
-                                    <p className="text-[9px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Changed by {byName}</p>
-                                  )}
-                                  {entry.note && (
-                                    <p className="text-[9px] mt-0.5 italic" style={{ color: "var(--fg-tertiary)" }}>{entry.note}</p>
-                                  )}
-                                </div>
-                                <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc }}>{sl.split(" ").pop()}</span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-1.5">
-                                <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
-                                <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{dt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.aside>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Task History Modal ── */}
+      <TaskHistoryModal
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        campaigns={historyCampaigns}
+        preSelectedCampaignId={historyPreCampaignId}
+        preSelectedTaskId={historyPreTaskId}
+      />
     </div>
   );
 }

@@ -131,28 +131,28 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
 
   const styles: Record<PulseVariant, { bg: string; color: string; border: string; label: string; sub?: string }> = {
     office: {
-      bg: "color-mix(in srgb, var(--green) 28%, transparent)",
-      color: "var(--green)",
-      border: "color-mix(in srgb, var(--green) 55%, transparent)",
+      bg: "color-mix(in srgb, #00E5FF 28%, var(--dock-frosted-bg))",
+      color: "#00B8D4",
+      border: "color-mix(in srgb, #00E5FF 65%, transparent)",
       label: "In Office",
     },
     remote: {
-      bg: "color-mix(in srgb, #6366f1 22%, transparent)",
-      color: "#6366f1",
-      border: "color-mix(in srgb, #6366f1 45%, transparent)",
+      bg: "color-mix(in srgb, #448AFF 22%, var(--dock-frosted-bg))",
+      color: "#2979FF",
+      border: "color-mix(in srgb, #448AFF 55%, transparent)",
       label: "Remote",
     },
     lastSeen: {
-      bg: "color-mix(in srgb, var(--fg-tertiary) 12%, transparent)",
+      bg: "color-mix(in srgb, var(--fg-tertiary) 10%, var(--dock-frosted-bg))",
       color: "var(--fg-secondary)",
       border: "color-mix(in srgb, var(--fg-tertiary) 30%, transparent)",
       label: "Last seen",
       sub: emp.lastExit ? formatTimeStr(emp.lastExit) : "—",
     },
     absent: {
-      bg: "color-mix(in srgb, var(--rose) 22%, transparent)",
-      color: "var(--rose)",
-      border: "color-mix(in srgb, var(--rose) 45%, transparent)",
+      bg: "color-mix(in srgb, #FF1744 22%, var(--dock-frosted-bg))",
+      color: "#FF1744",
+      border: "color-mix(in srgb, #FF1744 55%, transparent)",
       label: "Absent",
     },
   };
@@ -161,7 +161,7 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
 
   return (
     <span
-      className="inline-flex max-w-[min(100%,12rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums backdrop-blur-sm"
+      className="pill-glass inline-flex max-w-[min(100%,12rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums"
       style={{
         background: s.bg,
         color: s.color,
@@ -195,7 +195,7 @@ function ActivityChips({ emp }: { emp: EmployeeCardEmp }) {
   return (
     <div className="flex flex-wrap items-center gap-1 text-[9px]">
       {remoteMins > 0 && (
-        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, #6366f1 10%, transparent)", color: "#6366f1" }}>
+        <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 10%, transparent)", color: "var(--status-remote)" }}>
           {formatMinutesShort(remoteMins)} remote
         </span>
       )}
@@ -225,8 +225,8 @@ function LatePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; attendance
   const border = lateToOffice ? "rgba(244,63,94,0.35)" : "rgba(245,158,11,0.35)";
   return (
     <span
-      className="inline-flex max-w-[min(100%,10rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums backdrop-blur-sm"
-      style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color, borderColor: border, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
+      className="pill-glass inline-flex max-w-[min(100%,10rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold tabular-nums"
+      style={{ background: `color-mix(in srgb, ${color} 15%, var(--dock-frosted-bg))`, color, borderColor: border, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
     >
       <span className="truncate">{label}</span>
     </span>

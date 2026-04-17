@@ -105,7 +105,23 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
     if (typeof body.order === "number") task.order = body.order;
-    if (typeof body.isActive === "boolean") task.isActive = body.isActive;
+    if (typeof body.isActive === "boolean" && body.isActive !== task.isActive) {
+      task.isActive = body.isActive;
+      const today = todayKey();
+      const now = new Date();
+      const evType = body.isActive ? "taskEnabled" : "taskDisabled";
+      const evStatus = body.isActive ? "enabled" : "disabled";
+      for (const aid of assigneeIds) {
+        TaskStatusLog.create({
+          task: id, campaign: task.campaign ?? null, employee: aid,
+          status: evStatus, eventType: evType, date: today,
+          changedAt: now, changedBy: actor.id,
+          note: body.isActive ? "Task re-enabled" : "Task disabled",
+        }).catch(() => {});
+      }
+    } else if (typeof body.isActive === "boolean") {
+      task.isActive = body.isActive;
+    }
     if (body.recurrence !== undefined) {
       if (body.recurrence === null) {
         task.recurrence = undefined;
@@ -138,8 +154,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     TaskStatusLog.create({
       task: id,
+      campaign: task.campaign ?? null,
       employee: targetUserId,
       status: body.status,
+      eventType: "statusChange",
       date: today,
       changedAt: now,
       changedBy: actor.id,

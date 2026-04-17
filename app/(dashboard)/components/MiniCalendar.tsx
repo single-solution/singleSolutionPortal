@@ -53,21 +53,6 @@ export function MiniCalendar({
     return { daysInMonth: last.getDate(), firstDayOfWeek: first.getDay() };
   }, [year, month]);
 
-  if (loading) {
-    return (
-      <div className={`rounded-xl border p-3 ${className}`} style={{ borderColor: "var(--border)" }}>
-        <div className="mb-3 flex items-center justify-between">
-          <div className="shimmer h-5 w-5 rounded" />
-          <div className="shimmer h-5 w-32 rounded" />
-          <div className="shimmer h-5 w-5 rounded" />
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: 35 }, (_, i) => <div key={i} className="shimmer aspect-square rounded-lg" />)}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`flex flex-col rounded-xl border p-3 ${className}`} style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
       <div className="mb-3 flex items-center justify-between">
@@ -123,8 +108,8 @@ export function MiniCalendar({
               const isToday = isCurrentMonth && day === today.getDate();
               const isSelected = selectedDay === day;
               const isFuture = isCurrentMonth ? day > today.getDate() : dateObj > today;
-              let dotColor = meta?.dotColor ?? "transparent";
-              if (isOff && dotColor === "transparent") dotColor = "color-mix(in srgb, var(--fg-tertiary) 25%, transparent)";
+              let dotColor = loading ? "transparent" : (meta?.dotColor ?? "transparent");
+              if (isOff && dotColor === "transparent" && !loading) dotColor = "color-mix(in srgb, var(--fg-tertiary) 25%, transparent)";
 
               const offBg = isLeave
                 ? "color-mix(in srgb, var(--teal) 10%, transparent)"
@@ -138,8 +123,8 @@ export function MiniCalendar({
                 <motion.button
                   key={day}
                   type="button"
-                  onClick={() => !isFuture && onSelectDay?.(isSelected ? null : day)}
-                  disabled={isFuture || !onSelectDay}
+                  onClick={() => !isFuture && !loading && onSelectDay?.(isSelected ? null : day)}
+                  disabled={isFuture || !onSelectDay || loading}
                   className="flex flex-col items-center gap-0.5 rounded-lg py-1 transition-all outline-none"
                   style={{
                     ...(isSelected
@@ -159,7 +144,7 @@ export function MiniCalendar({
                   <span className={compact ? "text-[11px] font-medium" : "text-[12px] font-medium"} style={{ color: isSelected ? "white" : isToday ? "var(--primary)" : isOff ? "var(--fg-tertiary)" : "var(--fg)" }}>
                     {day}
                   </span>
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
+                  <span className={`h-1.5 w-1.5 rounded-full${loading && !isFuture ? " shimmer" : ""}`} style={{ background: loading && !isFuture ? undefined : isSelected ? (dotColor === "transparent" ? "rgba(255,255,255,0.3)" : "white") : dotColor }} />
                 </motion.button>
               );
             })}

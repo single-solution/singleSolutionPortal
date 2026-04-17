@@ -50,13 +50,28 @@ export async function GET() {
   const campaignIds = campaigns.map((c) => c._id);
   const today = todayKey();
 
-  const [allTasks, allSubtasks, myLogs] = await Promise.all([
+  const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_view");
+
+  const [allTasks, allSubtasks, myLogs, allTodayLogs] = await Promise.all([
     ActivityTask.find({ campaign: { $in: campaignIds }, isActive: true, parentTask: null }).lean(),
     ActivityTask.find({ campaign: { $in: campaignIds }, isActive: true, parentTask: { $ne: null } }).lean(),
     ChecklistLog.find({ employee: actor.id, date: today }).lean(),
+    isPrivileged
+      ? ChecklistLog.find({ date: today }).lean()
+      : Promise.resolve([]),
   ]);
 
   const doneTaskIds = new Set(myLogs.map((l) => l.task.toString()));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const checklistByEmpMap = new Map<string, string[]>();
+  if (isPrivileged) {
+    for (const log of allTodayLogs) {
+      const tid = log.task.toString();
+      if (!checklistByEmpMap.has(tid)) checklistByEmpMap.set(tid, []);
+      checklistByEmpMap.get(tid)!.push(log.employee.toString());
+    }
+  }
 
   const subtasksByParent = new Map<string, typeof allSubtasks>();
   for (const st of allSubtasks) {
@@ -83,6 +98,20 @@ export async function GET() {
     const todayRecurring = recurring.filter((t) => isDueToday(t.recurrence as { frequency: string; days?: number[] }));
     const todayDone = todayRecurring.filter((t) => doneTaskIds.has(t._id.toString())).length;
 
+    const todayChecklistByEmployee: Record<string, string[]> = {};
+    if (isPrivileged) {
+      const allRecurringIds = [...todayRecurring.map((t) => t._id.toString())];
+      for (const t of todayRecurring) {
+        const subs = (subtasksByParent.get(t._id.toString()) ?? [])
+          .filter((s) => s.recurrence && isDueToday(s.recurrence as { frequency: string; days?: number[] }));
+        for (const s of subs) allRecurringIds.push(s._id.toString());
+      }
+      for (const tid of allRecurringIds) {
+        const emps = checklistByEmpMap.get(tid);
+        if (emps) todayChecklistByEmployee[tid] = emps;
+      }
+    }
+
     return {
       ...c,
       taskStats: {
@@ -106,6 +135,7 @@ export async function GET() {
           })),
         };
       }),
+      ...(isPrivileged ? { todayChecklistByEmployee } : {}),
     };
   });
 

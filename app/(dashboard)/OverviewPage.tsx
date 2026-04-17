@@ -472,8 +472,8 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
         </div>
       </div>
       <div className="flex items-center gap-2 text-[9px]">
-        <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--green) 7%, transparent)", color: "var(--green)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
-        <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--teal) 7%, transparent)", color: "var(--teal)" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
+        <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--status-office) 10%, transparent)", color: "var(--status-office)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
+        <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 10%, transparent)", color: "var(--status-remote)" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between">
@@ -488,7 +488,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
         <div className="grid grid-cols-4 gap-1.5">
           {[
             { label: "Monthly Avg", value: pa.monthlyAvgHours > 0 ? `${pa.monthlyAvgHours.toFixed(1)}h` : "—", color: "var(--primary)" },
-            { label: "On-Time Rate", value: `${pa.monthlyOnTimePct}%`, color: pa.monthlyOnTimePct >= 80 ? "var(--green)" : pa.monthlyOnTimePct >= 60 ? "var(--amber)" : "var(--rose)" },
+            { label: "On-Time Rate", value: `${pa.monthlyOnTimePct}%`, color: pa.monthlyOnTimePct >= 80 ? "var(--status-ontime)" : pa.monthlyOnTimePct >= 60 ? "var(--status-late)" : "var(--status-absent)" },
             { label: "Avg Check-in", value: pa.avgInTime || "—", color: "var(--fg-secondary)" },
             { label: "Avg Check-out", value: pa.avgOutTime || "—", color: "var(--fg-secondary)" },
           ].map((s) => (
@@ -503,8 +503,8 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
         <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
           <div className="grid grid-cols-4 gap-1">
             {[
-              { label: "Team present", value: `${teamStats.pctPresent}%`, color: "var(--green)" },
-              { label: "Team in office", value: `${teamStats.pctInOffice}%`, color: "var(--teal)" },
+              { label: "Team present", value: `${teamStats.pctPresent}%`, color: "var(--status-present)" },
+              { label: "Team in office", value: `${teamStats.pctInOffice}%`, color: "var(--status-office)" },
               { label: "Avg hours today", value: formatMinutes(teamStats.avgMins), color: "var(--primary)" },
               { label: "Office / remote", value: `${teamStats.officePct}% / ${100 - teamStats.officePct}%`, color: "var(--fg-secondary)" },
             ].map((s) => (
@@ -610,7 +610,7 @@ function QuickHubCard({
 
 function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null; dataLoading?: boolean }) {
   const isLive = pa && (pa.todaySessions > 0 || pa.todayMinutes > 0);
-  const statusColor = isLive ? "var(--green)" : "var(--fg-tertiary)";
+  const statusColor = isLive ? "var(--status-office)" : "var(--fg-tertiary)";
   const isLoading = !pa && dataLoading;
 
   const events = useMemo(() => {
@@ -618,7 +618,7 @@ function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null;
     const checkInTime = pa?.clockIn ? formatClock(new Date(pa.clockIn)) : pa?.firstEntry;
     if (checkInTime) evs.push({ key: "login", dot: statusColor, time: checkInTime, label: `Checked in at ${checkInTime}` });
     if (pa && pa.todaySessions > 1) evs.push({ key: "sessions", dot: "var(--amber)", time: `${pa.todaySessions} sessions`, label: `${pa.todaySessions} sessions today (${formatMinutes(pa.officeMinutes)} office, ${formatMinutes(pa.remoteMinutes)} remote)` });
-    if (pa && pa.todayMinutes > 0) evs.push({ key: "active", dot: "var(--teal)", time: "Now", label: `Active now · ${formatMinutes(pa.todayMinutes)} logged` });
+    if (pa && pa.todayMinutes > 0) evs.push({ key: "active", dot: "var(--status-office)", time: "Now", label: `Active now · ${formatMinutes(pa.todayMinutes)} logged` });
     if (!isLoading && evs.length === 0) evs.push({ key: "empty", dot: "var(--fg-tertiary)", time: "—", label: "No activity yet today" });
     return evs;
   }, [pa, statusColor, isLoading]);
@@ -689,7 +689,7 @@ function NeedsAttentionItems({ tasks, canViewTasks, emps, hasTeamAccess, flagSta
   /* ── Personal stats pills (moved from QuickHubCard) ── */
   if (pa) {
     const onTimePct = pa.monthlyOnTimePct ?? 0;
-    taskChips.push({ key: "ontime", value: `${onTimePct}%`, label: "on-time rate", color: onTimePct >= 80 ? "var(--green)" : onTimePct >= 60 ? "var(--amber)" : "var(--rose)" });
+    taskChips.push({ key: "ontime", value: `${onTimePct}%`, label: "on-time rate", color: onTimePct >= 80 ? "var(--status-ontime)" : onTimePct >= 60 ? "var(--status-late)" : "var(--status-absent)" });
   }
   if (campaignStats) {
     taskChips.push({ key: "activecamps", value: campaignStats.active, label: "active campaigns", color: "var(--teal)" });
@@ -1102,25 +1102,25 @@ function AdminDashboard({
         {/* Admin Overview — general stats grid (SuperAdmin only) */}
         {isSuperAdmin && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="shrink-0 rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-            <h3 className="shrink-0 px-3 py-2 text-[12px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>Admin Overview</h3>
+            <h3 className="shrink-0 px-4 py-2.5 text-[13px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>Admin Overview</h3>
             {teamTodayStats ? (
-              <div className="p-2 space-y-2.5">
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              <div className="p-3 space-y-3">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {[
                     { label: "Total Employees", value: `${teamTodayStats.total}`, color: "var(--fg)" },
-                    { label: "Present Today", value: `${teamTodayStats.present} (${teamTodayStats.pctPresent}%)`, color: "var(--green)" },
-                    { label: "In Office", value: `${teamTodayStats.inOffice} (${teamTodayStats.pctInOffice}%)`, color: "var(--teal)" },
-                    { label: "Late Arrivals", value: `${teamTodayStats.late} (${teamTodayStats.pctLate}%)`, color: teamTodayStats.late > 0 ? "var(--amber)" : "var(--fg-tertiary)" },
+                    { label: "Present Today", value: `${teamTodayStats.present} (${teamTodayStats.pctPresent}%)`, color: "var(--status-present)" },
+                    { label: "In Office", value: `${teamTodayStats.inOffice} (${teamTodayStats.pctInOffice}%)`, color: "var(--status-office)" },
+                    { label: "Late Arrivals", value: `${teamTodayStats.late} (${teamTodayStats.pctLate}%)`, color: teamTodayStats.late > 0 ? "var(--status-late)" : "var(--fg-tertiary)" },
                     { label: "Avg Hours Today", value: formatMinutes(teamTodayStats.avgMins), color: "var(--primary)" },
                     { label: "Office / Remote", value: `${teamTodayStats.officePct}% / ${100 - teamTodayStats.officePct}%`, color: "var(--fg-secondary)" },
                   ].map((s) => (
-                    <div key={s.label} className="card-static p-1.5 text-center">
-                      <p className="text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
-                      <p className="text-[10px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
+                    <div key={s.label} className="card-static p-2 text-center">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                      <p className="text-[13px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {[
                     ...(taskQuickStats ? [
                       { label: "Total Tasks", value: `${taskQuickStats.total}`, color: "var(--fg)" },
@@ -1141,9 +1141,9 @@ function AdminDashboard({
                     ...(pendingLeaves.length > 0 ? [{ label: "Pending Leaves", value: `${pendingLeaves.length}`, color: "var(--amber)" }] : []),
                     { label: "Holidays This Year", value: `${holidays.length}`, color: "var(--purple, #8b5cf6)" },
                   ].map((s) => (
-                    <div key={s.label} className="card-static p-1.5 text-center">
-                      <p className="text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
-                      <p className="text-[10px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
+                    <div key={s.label} className="card-static p-2 text-center">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                      <p className="text-[13px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
                     </div>
                   ))}
                 </div>
@@ -1164,10 +1164,10 @@ function AdminDashboard({
         {!isSuperAdmin && hasTeamAccess && teamTodayStats && !presenceLoading && (
           <div className="scrollbar-hide flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
             <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>{teamTodayStats.pctInOffice}% in-office</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--status-office)" }}>{teamTodayStats.pctInOffice}% in-office</span>
             <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Avg per person: {formatMinutes(teamTodayStats.avgMins)}</span>
             <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.officePct}% office / {100 - teamTodayStats.officePct}% remote</span>
-            {teamTodayStats.pctLate > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.pctLate}% late</span>}
+            {teamTodayStats.pctLate > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--status-late)" }}>{teamTodayStats.pctLate}% late</span>}
             {teamTodayStats.flagged > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.flagged} location flagged</span>}
             {flagStats && flagStats.total > 0 && (
               <>
@@ -1226,7 +1226,7 @@ function AdminDashboard({
                               </div>
                               <div className="relative rounded-xl border transition-all" style={{ background: effectiveDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : effectiveDone ? 0.65 : 1 }}>
                                 {effectiveDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
+                                <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
                                 <div className="flex items-center gap-1.5 px-2.5 py-2">
                                   <div className="flex-1 min-w-0">
                                     <span className="text-[11px] font-semibold truncate block" style={{ color: effectiveDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
@@ -1326,7 +1326,7 @@ function AdminDashboard({
                         return (
                           <motion.div key={`tk-${task._id}`} variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                             <div className="relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isCompleted ? 0.65 : 1 }}>
-                              <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 18%, transparent)`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
+                              <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
                               <div className="flex items-center gap-1.5 px-2.5 py-2">
                                 <div className="flex-1 min-w-0">
                                   <span className="text-[11px] font-semibold truncate block" style={{ color: isCompleted ? "var(--fg-tertiary)" : "var(--fg)" }}>{task.title}</span>
@@ -1377,7 +1377,7 @@ function AdminDashboard({
                                         </div>
                                         <div className="relative rounded-xl border transition-all" style={{ background: subDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : subDone ? 0.6 : 1 }}>
                                           {subDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                          <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 18%, transparent)`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
+                                          <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 15%, var(--dock-frosted-bg))`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
                                           <div className="flex items-center gap-1.5 px-2.5 py-2">
                                             <div className="flex-1 min-w-0">
                                               <span className="text-[11px] font-semibold truncate block" style={{ color: subDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
@@ -1901,7 +1901,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                               </div>
                               <div className="relative rounded-xl border transition-all" style={{ background: effectiveDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : effectiveDone ? 0.65 : 1 }}>
                                 {effectiveDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 18%, transparent)", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
+                                <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
                                 <div className="flex items-center gap-1.5 px-2.5 py-2">
                                   <div className="flex-1 min-w-0">
                                     <span className="text-[11px] font-semibold truncate block" style={{ color: effectiveDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
@@ -1993,7 +1993,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                         return (
                           <motion.div key={`tk-${task._id}`} variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                             <div className="relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isCompleted ? 0.65 : 1 }}>
-                              <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 18%, transparent)`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
+                              <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
                               <div className="flex items-center gap-1.5 px-2.5 py-2">
                                 <div className="flex-1 min-w-0">
                                   <span className="text-[11px] font-semibold truncate block" style={{ color: isCompleted ? "var(--fg-tertiary)" : "var(--fg)" }}>{task.title}</span>
@@ -2043,7 +2043,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                                         </div>
                                         <div className="relative rounded-xl border transition-all" style={{ background: subDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : subDone ? 0.6 : 1 }}>
                                           {subDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                          <span className="absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 18%, transparent)`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
+                                          <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 15%, var(--dock-frosted-bg))`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
                                           <div className="flex items-center gap-1.5 px-2.5 py-2">
                                             <div className="flex-1 min-w-0">
                                               <span className="text-[11px] font-semibold truncate block" style={{ color: subDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
@@ -2097,7 +2097,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               const d = new Date(day.date + "T12:00:00");
               const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
                 const isToday = day.date === new Intl.DateTimeFormat("en-CA", { timeZone: companyTz }).format(now);
-                const dot = !day.isPresent ? "var(--rose)" : !day.isOnTime ? "var(--amber)" : "var(--green)";
+                const dot = !day.isPresent ? "var(--status-absent)" : !day.isOnTime ? "var(--status-late)" : "var(--status-ontime)";
               return (
                   <motion.div key={day.date} custom={i} variants={cardVariants} initial="hidden" animate="visible" whileHover={cardHover} className={`card-static flex min-w-[112px] shrink-0 flex-col gap-2 p-4 ${isToday ? "border-2" : ""}`} style={isToday ? { borderColor: "var(--primary)", boxShadow: "var(--shadow-sm), 0 0 24px color-mix(in srgb, var(--primary) 18%, transparent)" } : undefined}>
                   <div className="flex items-center justify-between gap-2">
@@ -2141,8 +2141,8 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                   <span className="text-caption tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ms.totalOfficeHours.toFixed(0)}h · {ms.totalRemoteHours.toFixed(0)}h</span>
                 </div>
               <div className="flex h-3 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${monthlyOfficePct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
-                <motion.div className="h-full" style={{ background: "var(--primary)" }} initial={{ width: 0 }} animate={{ width: `${monthlyRemotePct}%` }} transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} />
+                <motion.div className="h-full" style={{ background: "var(--status-office)" }} initial={{ width: 0 }} animate={{ width: `${monthlyOfficePct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
+                <motion.div className="h-full" style={{ background: "var(--status-remote)" }} initial={{ width: 0 }} animate={{ width: `${monthlyRemotePct}%` }} transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} />
               </div>
                 <div className="flex justify-between text-caption" style={{ color: "var(--fg-tertiary)" }}>
                   <span>Office {monthlyOfficePct.toFixed(0)}%</span>

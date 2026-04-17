@@ -158,7 +158,7 @@ export default function AttendancePage() {
   const hasTeamAccess = canPerm("attendance_viewTeam");
   
   const canViewTeamLeaves = canPerm("leaves_viewTeam");
-  const { setTeamCount, openLeavesModal, setPagePills } = useInsightsContext();
+  const { setTeamCount, openLeavesModal, openTasksModal, setPagePills } = useInsightsContext();
 
   /* ── Team overview state ── */
   const [teamSummary, setTeamSummary] = useCachedState<TeamMonthlySummary[]>("$att/teamSummary", []);
@@ -686,17 +686,17 @@ export default function AttendancePage() {
               const isLeave = leaveDays.has(day);
                   let dotColor = "transparent";
                   if (!isAggregateMode) {
-                    if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--green)" : "var(--amber)";
-                    else if (rec) dotColor = "var(--rose)";
+                    if (rec?.isPresent) dotColor = rec.isOnTime ? "var(--status-ontime)" : "var(--status-late)";
+                    else if (rec) dotColor = "var(--status-absent)";
                   }
               return { dotColor, isHoliday, isLeave };
             }}
             showLegend={sessionReady}
             legendItems={[
               ...(!isAggregateMode ? [
-                { label: "On Time", color: "var(--green)" },
-                { label: "Late", color: "var(--amber)" },
-                { label: "Absent", color: "var(--rose)" },
+                { label: "On Time", color: "var(--status-ontime)" },
+                { label: "Late", color: "var(--status-late)" },
+                { label: "Absent", color: "var(--status-absent)" },
               ] : []),
               ...(holidayDays.size > 0 ? [{ label: "Holiday", color: "var(--purple)" }] : []),
               ...(leaveDays.size > 0 ? [{ label: "Leave", color: "var(--teal)" }] : []),
@@ -728,12 +728,12 @@ export default function AttendancePage() {
                       </p>
                       {!teamDateLoading && filteredTeamDate.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{teamDateExtras.pctPresent}% present</span>
+                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{teamDateExtras.pctPresent}% present</span>
                           {teamDatePresent > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{teamDateExtras.onTimePct}% on-time</span>}
                           {teamDateExtras.totalMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>team {fmtHours(teamDateExtras.totalMins)} total</span>}
                           {teamDateExtras.totalOfficeMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalOfficeMins)} office</span>}
                           {teamDateExtras.totalRemoteMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalRemoteMins)} remote</span>}
-                          {teamDateExtras.avgLateBy > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>avg {teamDateExtras.avgLateBy}m late</span>}
+                          {teamDateExtras.avgLateBy > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-late) 12%, transparent)", color: "var(--status-late)" }}>avg {teamDateExtras.avgLateBy}m late</span>}
                           {teamDateExtras.lateToOffice > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{teamDateExtras.lateToOffice} late to office</span>}
                           {teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most: {teamDateExtras.mostHoursName} ({fmtHours(teamDateExtras.mostHoursMins)})</span>}
                           {teamDateExtras.leastHoursName && teamDateExtras.leastHoursName !== teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>Least: {teamDateExtras.leastHoursName} ({fmtHours(teamDateExtras.leastHoursMins)})</span>}
@@ -767,9 +767,9 @@ export default function AttendancePage() {
                       <p className="py-8 text-center text-[10px]" style={{ color: "var(--fg-secondary)" }}>No employee data for this date</p>
                     ) : (
                       filteredTeamDate.map((emp, idx) => {
-                        const statusColor = emp.isPresent ? (emp.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)";
+                        const statusColor = emp.isPresent ? (emp.isOnTime ? "var(--status-ontime)" : "var(--status-late)") : "var(--status-absent)";
                         const locLabel = emp.officeMinutes > 0 && emp.remoteMinutes > 0 ? "Office + remote" : emp.officeMinutes > 0 ? "In office" : emp.remoteMinutes > 0 ? "Remote" : "";
-                        const locColor = emp.officeMinutes > 0 ? "var(--green)" : "var(--teal)";
+                        const locColor = emp.officeMinutes > 0 ? "var(--status-office)" : "var(--status-remote)";
                         return (
                           <motion.div
                             key={emp._id}
@@ -813,11 +813,11 @@ export default function AttendancePage() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="font-semibold">Office entry</span>
-                                <span style={{ color: emp.firstOfficeEntry ? "var(--green)" : "var(--fg-tertiary)" }}>{fmtTime(emp.firstOfficeEntry)}</span>
+                                <span style={{ color: emp.firstOfficeEntry ? "var(--status-office)" : "var(--fg-tertiary)" }}>{fmtTime(emp.firstOfficeEntry)}</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="font-semibold">Office exit</span>
-                                <span style={{ color: emp.lastOfficeExit ? "var(--green)" : "var(--fg-tertiary)" }}>{fmtTime(emp.lastOfficeExit)}</span>
+                                <span style={{ color: emp.lastOfficeExit ? "var(--status-office)" : "var(--fg-tertiary)" }}>{fmtTime(emp.lastOfficeExit)}</span>
                               </div>
                             </div>
                             {locLabel && (
@@ -888,9 +888,9 @@ export default function AttendancePage() {
                     return (
                   <div className="flex-1 overflow-y-auto p-3 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Pill color={detailData.isPresent ? (detailData.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)"} label={detailData.isPresent ? (detailData.isOnTime ? "On Time" : "Late") : "Absent"} />
-                      {(detailData.lateBy ?? 0) > 0 && <Pill color="var(--amber)" label={`Late by ${fmtHours(detailData.lateBy!)}`} variant="outline" />}
-                      {detailData.isLateToOffice && (detailData.lateToOfficeBy ?? 0) > 0 && <Pill color="var(--rose)" label={`Late to office by ${fmtHours(detailData.lateToOfficeBy!)}`} variant="outline" />}
+                      <Pill color={detailData.isPresent ? (detailData.isOnTime ? "var(--status-ontime)" : "var(--status-late)") : "var(--status-absent)"} label={detailData.isPresent ? (detailData.isOnTime ? "On Time" : "Late") : "Absent"} />
+                      {(detailData.lateBy ?? 0) > 0 && <Pill color="var(--status-late)" label={`Late by ${fmtHours(detailData.lateBy!)}`} variant="outline" />}
+                      {detailData.isLateToOffice && (detailData.lateToOfficeBy ?? 0) > 0 && <Pill color="var(--status-absent)" label={`Late to office by ${fmtHours(detailData.lateToOfficeBy!)}`} variant="outline" />}
                       {(detailData.breakMinutes ?? 0) > 0 && <Pill color="var(--fg-tertiary)" label={`${fmtHours(detailData.breakMinutes!)} break`} variant="outline" />}
                       <Pill color="var(--fg-tertiary)" label={`${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}`} variant="outline" />
                     </div>
@@ -904,14 +904,14 @@ export default function AttendancePage() {
                     <div className="grid grid-cols-4 gap-1.5">
                       <StatChip label="Clock in" value={fmtTime(clockIn)} color="var(--primary)" />
                       <StatChip label="Clock out" value={fmtTime(clockOut)} color="var(--primary)" />
-                      <StatChip label="Office entry" value={fmtTime(detailData.firstOfficeEntry)} color="var(--green)" />
-                      <StatChip label="Office exit" value={fmtTime(detailData.lastOfficeExit)} color="var(--green)" />
+                      <StatChip label="Office entry" value={fmtTime(detailData.firstOfficeEntry)} color="var(--status-office)" />
+                      <StatChip label="Office exit" value={fmtTime(detailData.lastOfficeExit)} color="var(--status-office)" />
                     </div>
 
                     <div className="grid grid-cols-3 gap-1.5">
                       <StatChip label="Total hours" value={fmtHours(detailData.totalWorkingMinutes)} color="var(--primary)" />
-                      <StatChip label="Office hours" value={fmtHours(detailData.officeMinutes)} color="var(--green)" />
-                      <StatChip label="Remote hours" value={fmtHours(detailData.remoteMinutes)} color="var(--teal)" />
+                      <StatChip label="Office hours" value={fmtHours(detailData.officeMinutes)} color="var(--status-office)" />
+                      <StatChip label="Remote hours" value={fmtHours(detailData.remoteMinutes)} color="var(--status-remote)" />
                     </div>
 
                     {detailData.totalWorkingMinutes > 0 && (
@@ -921,12 +921,12 @@ export default function AttendancePage() {
                           <span>{fmtTime(clockIn)} → {fmtTime(clockOut)}</span>
                         </div>
                         <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                          {detailData.officeMinutes > 0 && <motion.div className="h-full" style={{ background: "var(--green)" }} initial={{ width: 0 }} animate={{ width: `${(detailData.officeMinutes / detailData.totalWorkingMinutes) * 100}%` }} transition={{ duration: 0.6, delay: 0.15 }} />}
-                          {detailData.remoteMinutes > 0 && <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${(detailData.remoteMinutes / detailData.totalWorkingMinutes) * 100}%` }} transition={{ duration: 0.6, delay: 0.25 }} />}
+                          {detailData.officeMinutes > 0 && <motion.div className="h-full" style={{ background: "var(--status-office)" }} initial={{ width: 0 }} animate={{ width: `${(detailData.officeMinutes / detailData.totalWorkingMinutes) * 100}%` }} transition={{ duration: 0.6, delay: 0.15 }} />}
+                          {detailData.remoteMinutes > 0 && <motion.div className="h-full" style={{ background: "var(--status-remote)" }} initial={{ width: 0 }} animate={{ width: `${(detailData.remoteMinutes / detailData.totalWorkingMinutes) * 100}%` }} transition={{ duration: 0.6, delay: 0.25 }} />}
                         </div>
                         <div className="mt-1.5 flex gap-3 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--green)" }} />Office {Math.round((detailData.officeMinutes / detailData.totalWorkingMinutes) * 100)}%</span>
-                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--teal)" }} />Remote {Math.round((detailData.remoteMinutes / detailData.totalWorkingMinutes) * 100)}%</span>
+                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--status-office)" }} />Office {Math.round((detailData.officeMinutes / detailData.totalWorkingMinutes) * 100)}%</span>
+                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--status-remote)" }} />Remote {Math.round((detailData.remoteMinutes / detailData.totalWorkingMinutes) * 100)}%</span>
                         </div>
                       </div>
                     )}
@@ -972,39 +972,39 @@ export default function AttendancePage() {
                   ) : isAggregateMode ? (
                     <>
                       <div className="grid grid-cols-4 gap-1.5">
-                        <StatChip label="Working Days" value={`${aggPresentDays}`} color="var(--green)" />
-                        <StatChip label="Total Hours" value={fmtHours(aggTotalMins)} color="var(--teal)" />
+                        <StatChip label="Working Days" value={`${aggPresentDays}`} color="var(--status-present)" />
+                        <StatChip label="Total Hours" value={fmtHours(aggTotalMins)} color="var(--status-office)" />
                         <StatChip label="Avg hrs/day" value={`${aggAvgDaily.toFixed(1)}h`} color="var(--primary)" />
-                        <StatChip label="On-time rate" value={`${Math.round(aggAvgOnTime)}%`} color={aggAvgOnTime >= 80 ? "var(--green)" : "var(--amber)"} />
+                        <StatChip label="On-time rate" value={`${Math.round(aggAvgOnTime)}%`} color={aggAvgOnTime >= 80 ? "var(--status-ontime)" : "var(--status-late)"} />
                       </div>
                       <div className="grid grid-cols-3 gap-1.5">
-                        <StatChip label="Attendance" value={`${Math.round(aggAvgAttendance)}%`} color={aggAvgAttendance >= 90 ? "var(--green)" : "var(--rose)"} />
-                        <StatChip label="On-time days" value={`${aggOnTimeDays}`} color="var(--primary)" />
-                        <StatChip label="Late days" value={`${aggLateDays}`} color={aggLateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
+                        <StatChip label="Attendance" value={`${Math.round(aggAvgAttendance)}%`} color={aggAvgAttendance >= 90 ? "var(--status-present)" : "var(--status-absent)"} />
+                        <StatChip label="On-time days" value={`${aggOnTimeDays}`} color="var(--status-ontime)" />
+                        <StatChip label="Late days" value={`${aggLateDays}`} color={aggLateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)"} />
                       </div>
                       {aggLateToOfficeDays > 0 && (
                         <div className="grid grid-cols-3 gap-1.5">
-                          <StatChip label="Late to office" value={`${aggLateToOfficeDays}d`} color="var(--rose)" />
+                          <StatChip label="Late to office" value={`${aggLateToOfficeDays}d`} color="var(--status-absent)" />
                         </div>
                       )}
                     </>
                   ) : monthlyStats ? (
                     <>
                       <div className="grid grid-cols-4 gap-1.5">
-                        <StatChip label="Working Days" value={`${monthlyStats.presentDays}/${monthlyStats.totalWorkingDays}`} color="var(--green)" />
-                        <StatChip label="Total Hours" value={`${Math.round(monthlyStats.totalWorkingHours)}h`} color="var(--teal)" />
+                        <StatChip label="Working Days" value={`${monthlyStats.presentDays}/${monthlyStats.totalWorkingDays}`} color="var(--status-present)" />
+                        <StatChip label="Total Hours" value={`${Math.round(monthlyStats.totalWorkingHours)}h`} color="var(--status-office)" />
                         <StatChip label="Avg hrs/day" value={`${monthlyStats.averageDailyHours.toFixed(1)}h`} color="var(--primary)" />
-                        <StatChip label="On-time rate" value={`${Math.round(monthlyStats.onTimePercentage)}%`} color={monthlyStats.onTimePercentage >= 80 ? "var(--green)" : "var(--amber)"} />
+                        <StatChip label="On-time rate" value={`${Math.round(monthlyStats.onTimePercentage)}%`} color={monthlyStats.onTimePercentage >= 80 ? "var(--status-ontime)" : "var(--status-late)"} />
                       </div>
                       <div className="grid grid-cols-4 gap-1.5">
-                        <StatChip label="Attendance" value={`${Math.round(monthlyStats.attendancePercentage)}%`} color={monthlyStats.attendancePercentage >= 90 ? "var(--green)" : "var(--rose)"} />
-                        <StatChip label="Absent days" value={`${monthlyStats.absentDays}d`} color={monthlyStats.absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)"} />
-                        <StatChip label="On-time" value={`${monthlyStats.onTimeArrivals}`} color="var(--green)" />
-                        <StatChip label="Late" value={`${monthlyStats.lateArrivals}`} color={monthlyStats.lateArrivals > 0 ? "var(--amber)" : "var(--fg-tertiary)"} />
+                        <StatChip label="Attendance" value={`${Math.round(monthlyStats.attendancePercentage)}%`} color={monthlyStats.attendancePercentage >= 90 ? "var(--status-present)" : "var(--status-absent)"} />
+                        <StatChip label="Absent days" value={`${monthlyStats.absentDays}d`} color={monthlyStats.absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)"} />
+                        <StatChip label="On-time" value={`${monthlyStats.onTimeArrivals}`} color="var(--status-ontime)" />
+                        <StatChip label="Late" value={`${monthlyStats.lateArrivals}`} color={monthlyStats.lateArrivals > 0 ? "var(--status-late)" : "var(--fg-tertiary)"} />
                       </div>
                       <div className="grid grid-cols-3 gap-1.5">
-                        <StatChip label="Office hrs" value={`${Math.round(monthlyStats.totalOfficeHours)}h`} color="var(--green)" />
-                        <StatChip label="Remote hrs" value={`${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--teal)" />
+                        <StatChip label="Office hrs" value={`${Math.round(monthlyStats.totalOfficeHours)}h`} color="var(--status-office)" />
+                        <StatChip label="Remote hrs" value={`${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--status-remote)" />
                         {leaveBalance ? (
                           <div className="rounded-xl p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
                             <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leaves</p>
@@ -1013,13 +1013,13 @@ export default function AttendancePage() {
                             </p>
                           </div>
                         ) : (
-                          monthlyStats.averageOfficeInTime && <StatChip label="Avg entry" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--green)" />
+                          monthlyStats.averageOfficeInTime && <StatChip label="Avg entry" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--status-office)" />
                         )}
                       </div>
                       {(monthlyStats.averageOfficeInTime || monthlyStats.averageOfficeOutTime) && (
                         <div className="grid grid-cols-3 gap-1.5">
-                          {leaveBalance && monthlyStats.averageOfficeInTime && <StatChip label="Avg entry" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--green)" />}
-                          {monthlyStats.averageOfficeOutTime && <StatChip label="Avg exit" value={fmtTime(monthlyStats.averageOfficeOutTime)} color="var(--green)" />}
+                          {leaveBalance && monthlyStats.averageOfficeInTime && <StatChip label="Avg entry" value={fmtTime(monthlyStats.averageOfficeInTime)} color="var(--status-office)" />}
+                          {monthlyStats.averageOfficeOutTime && <StatChip label="Avg exit" value={fmtTime(monthlyStats.averageOfficeOutTime)} color="var(--status-office)" />}
                         </div>
                       )}
                     </>
@@ -1064,11 +1064,11 @@ export default function AttendancePage() {
                               .sort((a, b) => new Date(a.sessionTime.start).getTime() - new Date(b.sessionTime.start).getTime())
                               .map((sess) => {
                                 const device = detectDevice(sess.platform);
-                                const statusConf = sess.status === "active" ? { color: "var(--green)", label: "Session open" } : sess.status === "timeout" ? { color: "var(--amber)", label: "Timed out" } : { color: "var(--fg-tertiary)", label: "Session ended" };
+                                const statusConf = sess.status === "active" ? { color: "var(--status-present)", label: "Session open" } : sess.status === "timeout" ? { color: "var(--status-late)", label: "Timed out" } : { color: "var(--fg-tertiary)", label: "Session ended" };
                                 return (
                                   <motion.div key={sess._id} className="relative" variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
-                                    <div className="absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${sess.location.inOffice ? "var(--green)" : "var(--teal)"}` }}>
-                                      {sess.status === "active" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--green)" }} />}
+                                    <div className="absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${sess.location.inOffice ? "var(--status-office)" : "var(--status-remote)"}` }}>
+                                      {sess.status === "active" && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--status-present)" }} />}
                                     </div>
                                     <div className="rounded-xl p-3 transition-colors" style={{ background: "var(--bg-grouped)" }}>
                                       <div className="flex items-center justify-between gap-2">
@@ -1082,7 +1082,7 @@ export default function AttendancePage() {
                                         </span>
                                       </div>
                                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                        <Pill color={sess.location.inOffice ? "var(--green)" : "var(--teal)"} label={sess.location.inOffice ? "In office" : "Remote"} size="sm" />
+                                        <Pill color={sess.location.inOffice ? "var(--status-office)" : "var(--status-remote)"} label={sess.location.inOffice ? "In office" : "Remote"} size="sm" />
                                         <Pill color={statusConf.color} label={statusConf.label} size="sm" variant="outline" />
                                         <Pill color="var(--fg-tertiary)" label={device.label} size="sm" variant="outline" icon={device.icon} />
                                         {sess.isFirstOfficeEntry && <Pill color="var(--primary)" label="First office entry" size="sm" />}
@@ -1116,10 +1116,10 @@ export default function AttendancePage() {
                                             {sess.officeSegments.map((seg, si) => (
                                               <motion.div key={si} className="flex items-center justify-between text-[10px]" variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
                                                 <div className="flex items-center gap-1.5">
-                                                  <span className="h-1 w-1 rounded-full" style={{ background: "var(--green)" }} />
+                                                  <span className="h-1 w-1 rounded-full" style={{ background: "var(--status-office)" }} />
                                                   <span style={{ color: "var(--fg-secondary)" }}>{fmtTime(seg.entryTime)} → {seg.exitTime ? fmtTime(seg.exitTime) : "now"}</span>
                                                 </div>
-                                                <span className="font-semibold" style={{ color: "var(--green)" }}>{fmtHours(seg.durationMinutes)}</span>
+                                                <span className="font-semibold" style={{ color: "var(--status-office)" }}>{fmtHours(seg.durationMinutes)}</span>
                                               </motion.div>
                                             ))}
                                           </motion.div>
@@ -1184,8 +1184,8 @@ export default function AttendancePage() {
             variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
           >
             {filteredSummary.map((emp) => {
-              const attendColor = emp.attendancePercentage >= 90 ? "var(--green)" : emp.attendancePercentage >= 70 ? "var(--amber)" : "var(--rose)";
-              const onTimeColor = emp.onTimePercentage >= 80 ? "var(--green)" : emp.onTimePercentage >= 50 ? "var(--amber)" : "var(--rose)";
+              const attendColor = emp.attendancePercentage >= 90 ? "var(--status-present)" : emp.attendancePercentage >= 70 ? "var(--status-late)" : "var(--status-absent)";
+              const onTimeColor = emp.onTimePercentage >= 80 ? "var(--status-ontime)" : emp.onTimePercentage >= 50 ? "var(--status-late)" : "var(--status-absent)";
               const absentDays = Math.max(0, Math.round((emp.presentDays / (emp.attendancePercentage / 100 || 1)) - emp.presentDays));
               return (
                 <motion.div
@@ -1199,11 +1199,11 @@ export default function AttendancePage() {
                 >
                   {/* Absolute attendance pill */}
                   <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -10 }}>
-                    <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${attendColor} 30%, var(--border))`, color: attendColor }}>
+                    <span className="pill-glass rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: `color-mix(in srgb, ${attendColor} 15%, var(--dock-frosted-bg))`, borderColor: `color-mix(in srgb, ${attendColor} 30%, var(--border))`, color: attendColor }}>
                       {Math.round(emp.attendancePercentage)}% attendance
                     </span>
                     {emp.lateDays > 0 && (
-                      <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: "color-mix(in srgb, var(--amber) 30%, var(--border))", color: "var(--amber)" }}>
+                      <span className="pill-glass rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--status-late) 15%, var(--dock-frosted-bg))", borderColor: "color-mix(in srgb, var(--status-late) 30%, var(--border))", color: "var(--status-late)" }}>
                         {emp.lateDays}d late
                       </span>
                     )}
@@ -1220,11 +1220,11 @@ export default function AttendancePage() {
                     <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
                       <div>
                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Days present</p>
-                        <p className="font-semibold tabular-nums" style={{ color: "var(--green)" }}>{emp.presentDays}d</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--status-present)" }}>{emp.presentDays}d</p>
                       </div>
                       <div className="text-center">
                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Total hours</p>
-                        <p className="font-semibold tabular-nums" style={{ color: "var(--teal)" }}>{fmtHours(emp.totalMinutes)}</p>
+                        <p className="font-semibold tabular-nums" style={{ color: "var(--status-office)" }}>{fmtHours(emp.totalMinutes)}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Avg hours/day</p>
@@ -1240,19 +1240,19 @@ export default function AttendancePage() {
                       </div>
                       <div className="text-center">
                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Late days</p>
-                        <p className="font-semibold tabular-nums" style={{ color: emp.lateDays > 0 ? "var(--amber)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</p>
+                        <p className="font-semibold tabular-nums" style={{ color: emp.lateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Absent</p>
-                        <p className="font-semibold tabular-nums" style={{ color: absentDays > 0 ? "var(--rose)" : "var(--fg-tertiary)" }}>{absentDays}d</p>
+                        <p className="font-semibold tabular-nums" style={{ color: absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{absentDays}d</p>
                       </div>
                     </div>
 
                     {/* Detail chips */}
                     <div className="flex flex-wrap gap-1 border-t pt-1.5" style={{ borderColor: "var(--border)" }}>
-                      <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--green)" }}>{emp.onTimeDays}d on-time</span>
+                      <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--status-ontime)" }}>{emp.onTimeDays}d on-time</span>
                       {emp.lateToOfficeDays > 0 && (
-                        <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>{emp.lateToOfficeDays}d late to office</span>
+                        <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-absent) 10%, transparent)", color: "var(--status-absent)" }}>{emp.lateToOfficeDays}d late to office</span>
                       )}
                       <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--primary)" }}>View →</span>
                     </div>
@@ -1262,6 +1262,23 @@ export default function AttendancePage() {
             })}
           </motion.div>
         </div>
+      )}
+
+      {/* Task activity button for selected employee */}
+      {sessionReady && !isAggregateMode && (
+        <motion.button type="button"
+          onClick={() => openTasksModal(viewingUserId || undefined)}
+          className="flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-semibold transition-colors hover:shadow-sm w-full"
+          style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg)" }}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          whileHover={{ y: -1 }} whileTap={{ scale: 0.99 }}
+        >
+          <svg className="h-4 w-4 shrink-0" style={{ color: "var(--amber)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+          <span>View Task Activity</span>
+          <svg className="ml-auto h-3.5 w-3.5" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M9 5l7 7-7 7" /></svg>
+        </motion.button>
       )}
 
       {/* Leave list for selected employee */}
@@ -1363,7 +1380,7 @@ export default function AttendancePage() {
             >
               {records.map((rec) => {
                 const recDay = new Date(rec.date).getDate();
-                const statusColor = rec.isPresent ? (rec.isOnTime ? "var(--green)" : "var(--amber)") : "var(--rose)";
+                const statusColor = rec.isPresent ? (rec.isOnTime ? "var(--status-ontime)" : "var(--status-late)") : "var(--status-absent)";
                 const statusLabel = rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent";
                 const officePct = rec.totalWorkingMinutes > 0 ? Math.round((rec.officeMinutes / rec.totalWorkingMinutes) * 100) : 0;
                 return (
@@ -1379,11 +1396,11 @@ export default function AttendancePage() {
                   >
                     {/* Absolute status pill */}
                     <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -10 }}>
-                      <span className="rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: `color-mix(in srgb, ${statusColor} 30%, var(--border))`, color: statusColor }}>
+                      <span className="pill-glass rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, borderColor: `color-mix(in srgb, ${statusColor} 30%, var(--border))`, color: statusColor }}>
                         {statusLabel}
                       </span>
                       {(rec.lateBy ?? 0) > 0 && (
-                        <span className="rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "var(--bg-elevated)", borderColor: "color-mix(in srgb, var(--amber) 30%, var(--border))", color: "var(--amber)" }}>
+                        <span className="pill-glass rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--status-late) 15%, var(--dock-frosted-bg))", borderColor: "color-mix(in srgb, var(--status-late) 30%, var(--border))", color: "var(--status-late)" }}>
                           {rec.lateBy}m late
                         </span>
                       )}
@@ -1419,7 +1436,7 @@ export default function AttendancePage() {
                         </div>
                         <div className="text-center">
                           <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
-                          <p className="font-semibold tabular-nums" style={{ color: "var(--green)" }}>{fmtHours(rec.officeMinutes)}</p>
+                          <p className="font-semibold tabular-nums" style={{ color: "var(--status-office)" }}>{fmtHours(rec.officeMinutes)}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
@@ -1431,9 +1448,9 @@ export default function AttendancePage() {
                     {/* Detail chips */}
                     {rec.isPresent && (
                       <div className="flex flex-wrap gap-1 border-t pt-1.5" style={{ borderColor: "var(--border)" }}>
-                        {rec.remoteMinutes > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--teal)" }}>{fmtHours(rec.remoteMinutes)} remote</span>}
+                        {rec.remoteMinutes > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--status-remote)" }}>{fmtHours(rec.remoteMinutes)} remote</span>}
                         {(rec.breakMinutes ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{rec.breakMinutes}m break</span>}
-                        {rec.isLateToOffice && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>late to office{(rec.lateToOfficeBy ?? 0) > 0 ? ` ${rec.lateToOfficeBy}m` : ""}</span>}
+                        {rec.isLateToOffice && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-absent) 10%, transparent)", color: "var(--status-absent)" }}>late to office{(rec.lateToOfficeBy ?? 0) > 0 ? ` ${rec.lateToOfficeBy}m` : ""}</span>}
                         {officePct > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{officePct}% office</span>}
                         <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--primary)" }}>Details →</span>
                       </div>
