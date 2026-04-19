@@ -744,7 +744,7 @@ export default function WorkspacePage() {
       <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
         <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks…" />
         <motion.button type="button" onClick={() => openHistoryModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-          className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors shrink-0"
+          className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors shrink-0"
           style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
           <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />

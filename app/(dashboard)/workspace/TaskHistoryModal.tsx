@@ -720,7 +720,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
                       <button type="button" onClick={handlePrevMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
                         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
                       </button>
-                      <span className="px-2 text-[11px] font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
+                      <span className="px-2.5 text-[12px] font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
                         {MN[month - 1]} {year}
                       </span>
                       <button type="button" onClick={handleNextMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>

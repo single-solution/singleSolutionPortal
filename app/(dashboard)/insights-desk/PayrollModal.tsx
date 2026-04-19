@@ -688,7 +688,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                       <button type="button" onClick={prevMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
                         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
                       </button>
-                      <span className="px-2 text-[11px] font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
+                      <span className="px-2.5 text-[12px] font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
                         {MN[selMonth - 1]} {selYear}
                       </span>
                       <button type="button" onClick={nextMonth} disabled={!canGoNext} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>
@@ -701,7 +701,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                   {canExport && (estimate || (detailTab === "year" && yearData.length > 0) || (allMode && payrollSheet)) && (
                     <div className="relative" ref={exportRef}>
                       <motion.button type="button" onClick={() => setShowExportMenu((p) => !p)} whileTap={{ scale: 0.95 }}
-                        className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors"
+                        className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
                         style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}
                       >
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>

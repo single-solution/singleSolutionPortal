@@ -114,7 +114,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
       <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Departments</h3>
         <div className="flex items-center gap-1.5">
-          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>
+          <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>
             {loading && list.length === 0 ? "…" : sorted.length}
           </span>
           {canCreate && (

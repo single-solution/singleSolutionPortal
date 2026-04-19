@@ -180,7 +180,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
       <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Designations</h3>
         <div className="flex items-center gap-1.5">
-          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+          <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
             {loading && !designations ? "…" : sorted.length}
           </span>
           {canCreate && (

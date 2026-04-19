@@ -221,7 +221,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
             ))}
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <motion.button type="button" onClick={() => openTasksModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
                 <svg className="h-3.5 w-3.5" style={{ color: "var(--amber)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -229,7 +229,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 Progress
               </motion.button>
               <motion.button type="button" onClick={() => openLeavesModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
                 <svg className="h-3.5 w-3.5" style={{ color: "var(--teal)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -237,7 +237,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 Leaves
               </motion.button>
               <motion.button type="button" onClick={() => openPayrollModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
                 <svg className="h-3.5 w-3.5" style={{ color: "var(--green)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -245,14 +245,14 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 Payroll
               </motion.button>
               <motion.button type="button" onClick={() => setHolidaysOpen(true)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
                 <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                 </svg>
                 Holidays
                 {upcoming.length > 0 && !holidaysOpen && (
-                  <span className="ml-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white" style={{ background: "var(--purple)" }}>
+                  <span className="ml-0.5 rounded-full px-2 py-0.5 text-[12px] font-bold text-white" style={{ background: "var(--purple)" }}>
                     {upcoming.length}
                   </span>
                 )}

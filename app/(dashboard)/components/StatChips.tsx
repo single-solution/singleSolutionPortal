@@ -7,7 +7,7 @@ export function Pill({ color, label, variant = "filled", size = "md", icon }: {
   const isOutline = variant === "outline";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full font-semibold pill-hover ${isSm ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-[11px]"}`}
+      className={`inline-flex items-center gap-1 rounded-full font-semibold pill-hover ${isSm ? "px-2.5 py-0.5 text-[12px]" : "px-3 py-1 text-[12px]"}`}
       style={{
         background: isOutline ? "transparent" : `color-mix(in srgb, ${color} 14%, transparent)`,
         color,
@@ -36,7 +36,7 @@ export function StatChip({ label, value, color, subtitle }: { label: string; val
 export function HeaderStatPill({ label, value, color, dotColor }: { label: string; value: string | number; color?: string; dotColor?: string }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold pill-hover"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] font-semibold pill-hover"
       style={{ borderColor: "var(--border)", background: "var(--bg-elevated)", color: color ?? "var(--fg-secondary)" }}
     >
       {dotColor && <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: dotColor }} />}

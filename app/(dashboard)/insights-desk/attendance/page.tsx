@@ -729,15 +729,15 @@ export default function AttendancePage() {
                       </p>
                       {!teamDateLoading && filteredTeamDate.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{teamDateExtras.pctPresent}% present</span>
-                          {teamDatePresent > 0 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{teamDateExtras.onTimePct}% on-time</span>}
-                          {teamDateExtras.totalMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>team {fmtHours(teamDateExtras.totalMins)} total</span>}
-                          {teamDateExtras.totalOfficeMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalOfficeMins)} office</span>}
-                          {teamDateExtras.totalRemoteMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalRemoteMins)} remote</span>}
-                          {teamDateExtras.avgLateBy > 0 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-late) 12%, transparent)", color: "var(--status-late)" }}>avg {teamDateExtras.avgLateBy}m late</span>}
-                          {teamDateExtras.lateToOffice > 0 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{teamDateExtras.lateToOffice} late to office</span>}
-                          {teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most: {teamDateExtras.mostHoursName} ({fmtHours(teamDateExtras.mostHoursMins)})</span>}
-                          {teamDateExtras.leastHoursName && teamDateExtras.leastHoursName !== teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>Least: {teamDateExtras.leastHoursName} ({fmtHours(teamDateExtras.leastHoursMins)})</span>}
+                          <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{teamDateExtras.pctPresent}% present</span>
+                          {teamDatePresent > 0 && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{teamDateExtras.onTimePct}% on-time</span>}
+                          {teamDateExtras.totalMins > 0 && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>team {fmtHours(teamDateExtras.totalMins)} total</span>}
+                          {teamDateExtras.totalOfficeMins > 0 && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalOfficeMins)} office</span>}
+                          {teamDateExtras.totalRemoteMins > 0 && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalRemoteMins)} remote</span>}
+                          {teamDateExtras.avgLateBy > 0 && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-late) 12%, transparent)", color: "var(--status-late)" }}>avg {teamDateExtras.avgLateBy}m late</span>}
+                          {teamDateExtras.lateToOffice > 0 && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{teamDateExtras.lateToOffice} late to office</span>}
+                          {teamDateExtras.mostHoursName && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most: {teamDateExtras.mostHoursName} ({fmtHours(teamDateExtras.mostHoursMins)})</span>}
+                          {teamDateExtras.leastHoursName && teamDateExtras.leastHoursName !== teamDateExtras.mostHoursName && <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>Least: {teamDateExtras.leastHoursName} ({fmtHours(teamDateExtras.leastHoursMins)})</span>}
                         </div>
                       )}
                     </div>
@@ -1315,7 +1315,7 @@ export default function AttendancePage() {
                     <span className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                       {l.isHalfDay ? "Half day" : `${l.days}d`}
                     </span>
-                    <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold capitalize" style={{
+                    <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold capitalize" style={{
                       background: `color-mix(in srgb, ${statusColor} 12%, transparent)`,
                       color: statusColor,
                     }}>
