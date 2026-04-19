@@ -135,7 +135,7 @@ export function SettingsPayroll() {
             {(draft.latePenaltyTiers ?? defaultTiers).map((tier, idx) => (
               <div key={idx} className="flex items-center gap-3 rounded-xl p-3 text-xs" style={{ background: "var(--bg-grouped)" }}>
                 <label className="flex flex-col gap-0.5 flex-1" style={{ color: "var(--fg-tertiary)" }}>
-                  <span className="text-[10px] font-medium">Late by (minutes)</span>
+                  <span className="text-[11px] font-medium">Late by (minutes)</span>
                   <input
                     type="number"
                     min={0}
@@ -151,7 +151,7 @@ export function SettingsPayroll() {
                   />
                 </label>
                 <label className="flex flex-col gap-0.5 flex-1" style={{ color: "var(--fg-tertiary)" }}>
-                  <span className="text-[10px] font-medium">Penalty %</span>
+                  <span className="text-[11px] font-medium">Penalty %</span>
                   <input
                     type="number"
                     min={0}

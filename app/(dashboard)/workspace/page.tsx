@@ -820,7 +820,7 @@ export default function WorkspacePage() {
                         <div className="flex items-center gap-1.5">
                           <span className="text-[12px] font-bold truncate" style={{ color: "var(--fg)" }}>{c.name}</span>
                           {todayChecklist.length > 0 && (
-                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: todayDone === todayChecklist.length ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "color-mix(in srgb, var(--amber) 10%, transparent)", color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
+                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: todayDone === todayChecklist.length ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "color-mix(in srgb, var(--amber) 10%, transparent)", color: todayDone === todayChecklist.length ? "var(--teal)" : "var(--amber)" }}>
                               {todayDone}/{todayChecklist.length}
                             </span>
                           )}
@@ -851,7 +851,7 @@ export default function WorkspacePage() {
                     <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-3">
                       {todayChecklist.length > 0 && (
                         <div className="mb-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring{canEditTasks && isMyCampaign && <span className="font-normal"> (drag to sequence)</span>}</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Recurring{canEditTasks && isMyCampaign && <span className="font-normal"> (drag to sequence)</span>}</p>
                           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => {
                             const { active, over } = e;
                             if (!over || active.id === over.id) return;
@@ -878,7 +878,7 @@ export default function WorkspacePage() {
                                           borderColor: "var(--border)",
                                           opacity: taskActive ? 1 : 0.45,
                                         }}>
-                                        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
+                                        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
                                             toggleTaskExpanded(item._id);
@@ -891,10 +891,10 @@ export default function WorkspacePage() {
                                           {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === item._id} onChange={() => toggleTaskActive(item._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{item.title}</span>
-                                            {fullTask?.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
+                                            {fullTask?.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
                                             <div className="flex items-center gap-1 flex-wrap">
                                               {fullTask?.assignedTo?.map((a) => (
-                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                               ))}
                                             </div>
                                           </div>
@@ -919,7 +919,7 @@ export default function WorkspacePage() {
                                               {subtaskLoading === item._id ? (
                                                 <div className="space-y-1">{[1, 2].map((i) => <div key={i} className="shimmer h-4 w-full rounded" />)}</div>
                                               ) : (subtasksByParent.get(item._id) ?? []).length === 0 ? (
-                                                <p className="text-[10px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
+                                                <p className="text-[11px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
                                               ) : (
                                                 <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(ev) => {
                                                   const { active, over } = ev;
@@ -943,15 +943,15 @@ export default function WorkspacePage() {
                                                         <SortableTaskRow key={sub._id} id={sub._id} canReorder={canReorderTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
                                                             <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: parentOff ? 0.35 : !subActive ? 0.45 : subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
-                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
                                                                 {canToggleActive && isSubMyTask && <ToggleSwitch size="sm" checked={subActive} disabled={parentOff || togglingId === sub._id} onChange={() => toggleSubtaskActive(item._id, sub._id, subActive)} />}
                                                                 <div className="flex-1 min-w-0">
                                                                   <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" || !subActive ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
-                                                                  {sub.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                                                  {sub.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                                                   <div className="flex items-center gap-1 flex-wrap">
                                                                     {sub.assignedTo?.map((a) => (
-                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                                                     ))}
                                                                   </div>
                                                                 </div>
@@ -978,7 +978,7 @@ export default function WorkspacePage() {
                                               )}
                                               {canCreateTasks && isMyTask && (
                                                 <button type="button" onClick={() => openCreateTask(c._id, item._id)}
-                                                  className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
+                                                  className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
                                                   style={{ color: "var(--primary)" }}>
                                                   <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                                                   Subtask
@@ -999,7 +999,7 @@ export default function WorkspacePage() {
 
                       {oneTimeTasks.length > 0 && (
                         <div>
-                          {todayChecklist.length > 0 && <p className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks{canEditTasks && isMyCampaign && <span className="font-normal"> (drag to prioritize)</span>}</p>}
+                          {todayChecklist.length > 0 && <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-0.5 mt-1" style={{ color: "var(--fg-tertiary)" }}>Tasks{canEditTasks && isMyCampaign && <span className="font-normal"> (drag to prioritize)</span>}</p>}
                           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(c._id, e)}>
                             <SortableContext items={oneTimeTasks.map((t) => t._id)} strategy={verticalListSortingStrategy}>
                               {oneTimeTasks.map((task) => {
@@ -1018,7 +1018,7 @@ export default function WorkspacePage() {
                                         }}>
                                         {(() => {
                                           const info = taskSubmittedInfo(task, c.todayChecklistByEmployee);
-                                          return <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${info.color} 15%, var(--dock-frosted-bg))`, color: info.color, border: `1px solid color-mix(in srgb, ${info.color} 30%, var(--border))` }}>{info.label}</span>;
+                                          return <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${info.color} 15%, var(--dock-frosted-bg))`, color: info.color, border: `1px solid color-mix(in srgb, ${info.color} 30%, var(--border))` }}>{info.label}</span>;
                                         })()}
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
@@ -1032,12 +1032,12 @@ export default function WorkspacePage() {
                                           {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === task._id} onChange={() => toggleTaskActive(task._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{task.title}</span>
-                                            {task.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
+                                            {task.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
                                             <div className="flex items-center gap-1 flex-wrap">
                                               {task.assignedTo?.map((a) => (
-                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                               ))}
-                                              {task.deadline && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: deadlineUrgency(task.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
+                                              {task.deadline && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: deadlineUrgency(task.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1061,7 +1061,7 @@ export default function WorkspacePage() {
                                               {subtaskLoading === task._id ? (
                                                 <div className="space-y-1">{[1, 2].map((i) => <div key={i} className="shimmer h-4 w-full rounded" />)}</div>
                                               ) : subs.length === 0 ? (
-                                                <p className="text-[10px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
+                                                <p className="text-[11px] py-0.5 px-1" style={{ color: "var(--fg-tertiary)" }}>No subtasks</p>
                                               ) : (
                                                 <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(ev) => {
                                                   const { active, over } = ev;
@@ -1084,17 +1084,17 @@ export default function WorkspacePage() {
                                                         <SortableTaskRow key={sub._id} id={sub._id} canReorder={canReorderTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
                                                             <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: parentOff ? 0.35 : !subActive ? 0.45 : subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
-                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
                                                                 {canToggleActive && isSubMyTask && <ToggleSwitch size="sm" checked={subActive} disabled={parentOff || togglingId === sub._id} onChange={() => toggleSubtaskActive(task._id, sub._id, subActive)} />}
                                                                 <div className="flex-1 min-w-0">
                                                                   <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" || !subActive ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
-                                                                  {sub.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                                                  {sub.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                                                   <div className="flex items-center gap-1 flex-wrap">
                                                                     {sub.assignedTo?.map((a) => (
-                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                                                     ))}
-                                                                    {sub.deadline && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: deadlineUrgency(sub.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(sub.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(sub.deadline)}</span>}
+                                                                    {sub.deadline && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: deadlineUrgency(sub.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(sub.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(sub.deadline)}</span>}
                                                                   </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1120,7 +1120,7 @@ export default function WorkspacePage() {
                                               )}
                                               {canCreateTasks && isMyTask && (
                                                 <button type="button" onClick={() => openCreateTask(c._id, task._id)}
-                                                  className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
+                                                  className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80 px-1 py-0.5 rounded"
                                                   style={{ color: "var(--primary)" }}>
                                                   <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                                                   Subtask
@@ -1140,7 +1140,7 @@ export default function WorkspacePage() {
                       )}
 
                       {visibleTasks.length === 0 && todayChecklist.length === 0 && (
-                        <p className="text-[10px] py-2 text-center" style={{ color: "var(--fg-tertiary)" }}>No tasks yet</p>
+                        <p className="text-[11px] py-2 text-center" style={{ color: "var(--fg-tertiary)" }}>No tasks yet</p>
                       )}
                     </div>
 
@@ -1149,12 +1149,12 @@ export default function WorkspacePage() {
                     {/* ── card footer: stat pills ── */}
                     <div className="border-t px-2 py-1.5 flex items-center gap-1 flex-wrap" style={{ borderColor: "var(--border)" }}>
                       {canToggleCampaign && isMyCampaign && <ToggleSwitch size="sm" checked={c.status === "active"} disabled={togglingId === c._id} onChange={() => toggleCampaignActive(c._id, c.status)} />}
-                      {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
-                      {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
-                      {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}
-                      {recurCount > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{recurCount} recurring</span>}
-                      {empCount > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{empCount} team member{empCount !== 1 ? "s" : ""}</span>}
-                      {c.startDate && <span className="text-[10px] tabular-nums ml-auto" style={{ color: "var(--fg-tertiary)" }}>{formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : " · ongoing"}</span>}
+                      {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
+                      {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
+                      {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}
+                      {recurCount > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{recurCount} recurring</span>}
+                      {empCount > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{empCount} team member{empCount !== 1 ? "s" : ""}</span>}
+                      {c.startDate && <span className="text-[11px] tabular-nums ml-auto" style={{ color: "var(--fg-tertiary)" }}>{formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : " · ongoing"}</span>}
                     </div>
                   </motion.div>
                 );
@@ -1172,7 +1172,7 @@ export default function WorkspacePage() {
                   <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Workspace activity</h3>
                   <RefreshBtn onRefresh={() => void refetchLogs()} />
                   {wsTotalUnread > 0 && (
-                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
+                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
                       {wsTotalUnread > 99 ? "99+" : wsTotalUnread}
                     </span>
                   )}
@@ -1186,7 +1186,7 @@ export default function WorkspacePage() {
                 )}
               </div>
               {wsLogs.length === 0 ? (
-                <p className="text-center text-[10px] py-8 flex-1" style={{ color: "var(--fg-tertiary)" }}>No workspace activity yet</p>
+                <p className="text-center text-[11px] py-8 flex-1" style={{ color: "var(--fg-tertiary)" }}>No workspace activity yet</p>
               ) : (
                 <div className="flex flex-1 min-h-0 flex-col gap-1 p-2">
                   {Array.from(wsLogGroups.entries())
@@ -1209,7 +1209,7 @@ export default function WorkspacePage() {
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
                               <span className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{label}</span>
                               {group.unread > 0 && (
-                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white" style={{ background: "var(--rose)" }}>
                                   {group.unread}
                                 </span>
                               )}
@@ -1244,7 +1244,7 @@ export default function WorkspacePage() {
                                 return (
                                   <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
                                     <div className="flex items-start gap-2">
-                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
+                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold"
                                         style={{ background: lc.bg, color: lc.fg }}>
                                         {logAvatarLabel(log)}
                                       </div>
@@ -1254,16 +1254,16 @@ export default function WorkspacePage() {
                                           <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
                                         </p>
                                         {log.details && (
-                                          <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                          <p className="text-[11px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
                                         <div className="flex items-center justify-between mt-1">
-                                          <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                          <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                                           {log.entity === "task" && log.entityId && (() => {
                                             const linkedTask = taskList.find((t) => t._id === log.entityId);
                                             if (!linkedTask) return null;
                                             const info = taskSubmittedInfo(linkedTask);
                                             return (
-                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
                                                 style={{ background: `color-mix(in srgb, ${info.color} 12%, transparent)`, color: info.color }}>
                                                 <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: info.color }}>
                                                   {info.done > 0 && info.done < info.total && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: info.color }} />}
@@ -1365,7 +1365,7 @@ export default function WorkspacePage() {
                   {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                     <button key={d} type="button"
                       onClick={() => setFRecurDays((prev) => prev.includes(d) ? prev.filter((v) => v !== d) : [...prev, d])}
-                      className="h-7 w-7 rounded-lg text-[10px] font-semibold border transition-all flex items-center justify-center"
+                      className="h-7 w-7 rounded-lg text-[11px] font-semibold border transition-all flex items-center justify-center"
                       style={{ background: fRecurDays.includes(d) ? "var(--primary)" : "var(--bg-grouped)", color: fRecurDays.includes(d) ? "white" : "var(--fg-secondary)", borderColor: fRecurDays.includes(d) ? "var(--primary)" : "var(--border)" }}>{d}</button>
                   ))}
                 </div>

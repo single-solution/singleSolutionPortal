@@ -136,15 +136,15 @@ export function SettingsProfile({
           <p className="text-caption truncate" style={{ color: "var(--fg-tertiary)" }}>{profile?.email}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {profile?.username && (
-              <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>@{profile.username}</span>
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>@{profile.username}</span>
             )}
             {designationLabel && (
-              <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
                 {designationLabel}
               </span>
             )}
             {profile?.department?.title && (
-              <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{profile.department.title}</span>
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{profile.department.title}</span>
             )}
           </div>
         </div>

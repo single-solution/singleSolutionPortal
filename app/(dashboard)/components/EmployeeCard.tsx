@@ -121,7 +121,7 @@ function pulseVariant(emp: EmployeeCardEmp): PulseVariant {
 function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; attendanceLoading?: boolean }) {
   if (attendanceLoading) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
         <span className="h-1.5 w-8 shimmer rounded-full inline-block" />
       </span>
     );
@@ -162,7 +162,7 @@ function StatusPulsePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; att
 
   return (
     <span
-      className="pill-glass inline-flex max-w-[min(100%,12rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums"
+      className="pill-glass inline-flex max-w-[min(100%,12rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums"
       style={{
         background: s.bg,
         color: s.color,
@@ -194,7 +194,7 @@ function ActivityChips({ emp }: { emp: EmployeeCardEmp }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1 text-[10px]">
+    <div className="flex flex-wrap items-center gap-1 text-[11px]">
       {remoteMins > 0 && (
         <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 10%, transparent)", color: "var(--status-remote)" }}>
           {formatMinutesShort(remoteMins)} remote
@@ -226,7 +226,7 @@ function LatePill({ emp, attendanceLoading }: { emp: EmployeeCardEmp; attendance
   const border = lateToOffice ? "rgba(244,63,94,0.35)" : "rgba(245,158,11,0.35)";
   return (
     <span
-      className="pill-glass inline-flex max-w-[min(100%,10rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums"
+      className="pill-glass inline-flex max-w-[min(100%,10rem)] items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums"
       style={{ background: `color-mix(in srgb, ${color} 15%, var(--dock-frosted-bg))`, color, borderColor: border, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
     >
       <span className="truncate">{label}</span>
@@ -337,7 +337,7 @@ export const EmployeeCard = memo(function EmployeeCard({
               )}
               {emp.isVerified === false && (
                 <span
-                  className="pointer-events-none shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                  className="pointer-events-none shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase"
                   style={{ background: "color-mix(in srgb, var(--amber) 15%, transparent)", color: "var(--amber)" }}
                 >
                   Invite pending
@@ -446,7 +446,7 @@ export const EmployeeCard = memo(function EmployeeCard({
             <ActivityChips emp={emp} />
 
             {showLocationFlags && emp.locationFlagged && (
-              <div className="rounded-lg border p-2 text-[10px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
+              <div className="rounded-lg border p-2 text-[11px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
                 <div className="flex items-center gap-1">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <span className="font-bold" style={{ color: "var(--rose)" }}>Location Flagged</span>
@@ -480,7 +480,7 @@ export const EmployeeCard = memo(function EmployeeCard({
 
         {/* Tasks & Campaigns */}
         {!attendanceLoading && (showTasks || showCampaigns) && (
-          <div className="flex flex-wrap gap-1 border-t pt-2 text-[10px]" style={{ borderColor: "var(--border)" }}>
+          <div className="flex flex-wrap gap-1 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
             {showTasks && (
               <>
                 <span
@@ -530,7 +530,7 @@ export const EmployeeCard = memo(function EmployeeCard({
                     type="button"
                     whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.92 }}
-                    className="flex h-7 items-center justify-center gap-1 rounded-lg px-1.5 text-[10px] font-semibold transition-colors"
+                    className="flex h-7 items-center justify-center gap-1 rounded-lg px-1.5 text-[11px] font-semibold transition-colors"
                     style={{ color: "var(--teal)" }}
                     title="Manage assignment"
                     onClick={(e) => {

@@ -368,7 +368,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasT
       <motion.div className="min-w-0" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
         <p className="text-caption mb-0.5">Single Solution Sync</p>
         <h1 className="text-title"><span style={{ color: "var(--primary)" }}>{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {profileName}!</span></h1>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 [&_.badge]:!gap-1 [&_.badge]:!px-2 [&_.badge]:!py-0.5 [&_.badge]:!text-[10px] sm:[&_.badge]:!px-2.5 sm:[&_.badge]:!py-1 sm:[&_.badge]:!text-[11px] [&_.badge::before]:!h-[5px] [&_.badge::before]:!w-[5px]">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 [&_.badge]:!gap-1 [&_.badge]:!px-2 [&_.badge]:!py-0.5 [&_.badge]:!text-[11px] sm:[&_.badge]:!px-2.5 sm:[&_.badge]:!py-1 sm:[&_.badge]:!text-[12px] [&_.badge::before]:!h-[5px] [&_.badge::before]:!w-[5px]">
           {hasTeamAccess && canViewPresence ? (
             <>
               <span className="badge badge-office">{liveOfficeCount} In Office</span>
@@ -447,40 +447,40 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
       <div className="p-2 space-y-2">
       <div className="grid grid-cols-3 gap-1.5">
         <div className="card-static p-1.5">
-          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
+          <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
         </div>
         <div className="card-static p-1.5 text-center">
-          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Hours today</p>
+          <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Hours today</p>
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
         </div>
         <div className="card-static p-1.5 text-right">
-          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
+          <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         <div className="card-static p-1.5">
-          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
-          <p className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
+          <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
+          <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
         </div>
         <div className="card-static p-1.5 text-center">
-          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
-          <p className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{formatMinutes(pa.officeMinutes)}</p>
+          <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
+          <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{formatMinutes(pa.officeMinutes)}</p>
         </div>
         <div className="card-static p-1.5 text-right">
-          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
-          <p className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
+          <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
+          <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2 text-[10px]">
+      <div className="flex items-center gap-2 text-[11px]">
         <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--status-office) 10%, transparent)", color: "var(--status-office)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
         <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 10%, transparent)", color: "var(--status-remote)" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-[10px]" style={{ color: "var(--fg-secondary)" }}>Progress</span>
-          <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes}/{shiftTarget}m ({shiftPct}%)</span>
+          <span className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>Progress</span>
+          <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes}/{shiftTarget}m ({shiftPct}%)</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
           <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
@@ -495,7 +495,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
             { label: "Avg Check-out", value: pa.avgOutTime || "—", color: "var(--fg-secondary)" },
           ].map((s) => (
             <div key={s.label} className="card-static p-1.5 text-center">
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
               <p className="text-[11px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
             </div>
           ))}
@@ -511,8 +511,8 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
               { label: "Office / remote", value: `${teamStats.officePct}% / ${100 - teamStats.officePct}%`, color: "var(--fg-secondary)" },
             ].map((s) => (
               <div key={s.label} className="rounded-md p-1 text-center" style={{ background: "var(--bg-grouped)" }}>
-                <p className="text-[9px] font-semibold uppercase" style={{ color: s.color }}>{s.label}</p>
-                <p className="text-[10px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{s.value}</p>
+                <p className="text-[10px] font-semibold uppercase" style={{ color: s.color }}>{s.label}</p>
+                <p className="text-[11px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{s.value}</p>
               </div>
             ))}
           </div>
@@ -545,9 +545,9 @@ function QuickHubCard({
 
   const SC = ({ label, value, color, subtitle }: { label: string; value: string; color: string; subtitle?: string }) => (
     <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
       <p className="text-[11px] font-bold" style={{ color }}>{value}</p>
-      {subtitle && <p className="mt-0.5 truncate px-0.5 text-[10px] font-medium leading-tight" style={{ color: "var(--fg-secondary)" }}>{subtitle}</p>}
+      {subtitle && <p className="mt-0.5 truncate px-0.5 text-[11px] font-medium leading-tight" style={{ color: "var(--fg-secondary)" }}>{subtitle}</p>}
     </div>
   );
 
@@ -573,7 +573,7 @@ function QuickHubCard({
               key={a.label}
               type="button"
               onClick={a.onClick}
-              className="rounded-xl p-2.5 text-center text-[10px] font-semibold uppercase tracking-wider transition-all hover:shadow-sm active:scale-[0.98]"
+              className="rounded-xl p-2.5 text-center text-[11px] font-semibold uppercase tracking-wider transition-all hover:shadow-sm active:scale-[0.98]"
               style={{ background: "var(--bg-grouped)", color: a.color }}
             >
               {a.label}
@@ -583,7 +583,7 @@ function QuickHubCard({
 
         {/* ── On the Radar ── */}
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>On the Radar</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>On the Radar</p>
           <div className="grid grid-cols-2 gap-2">
             <SC
               label="Next Holiday"
@@ -645,8 +645,8 @@ function TodayTimelineCard({ pa, dataLoading }: { pa: PersonalAttendance | null;
             <motion.li key={ev.key} initial={{ x: -8, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.15 + i * 0.07 }} className="relative flex gap-2 pb-3 last:pb-0">
               <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ev.dot, boxShadow: "0 0 0 2px var(--bg)" }} />
               <div className="min-w-0 flex-1">
-                <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
-                <p className="text-[10px] mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
+                <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{ev.time}</span>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--fg)" }}>{ev.label}</p>
         </div>
             </motion.li>
           ))}
@@ -740,7 +740,7 @@ function NeedsAttentionItems({ tasks, canViewTasks, emps, hasTeamAccess, flagSta
         <div className="grid grid-cols-3 gap-1.5 pb-1">
           {taskChips.map((chip) => (
             <div key={chip.key} className="rounded-xl p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{chip.label}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{chip.label}</p>
               <p className="text-xs font-bold tabular-nums" style={{ color: chip.color }}>{chip.value}</p>
             </div>
           ))}
@@ -751,7 +751,7 @@ function NeedsAttentionItems({ tasks, canViewTasks, emps, hasTeamAccess, flagSta
           <span className="shrink-0" style={{ color: item.color }}>{item.icon}</span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold" style={{ color: item.color }}>{item.label}</p>
-            {item.detail && <p className="text-[10px]" style={{ color: item.color, opacity: 0.7 }}>{item.detail}</p>}
+            {item.detail && <p className="text-[11px]" style={{ color: item.color, opacity: 0.7 }}>{item.detail}</p>}
           </div>
         </div>
       ))}
@@ -1121,7 +1121,7 @@ function AdminDashboard({
                     { label: "Office / Remote", value: `${teamTodayStats.officePct}% / ${100 - teamTodayStats.officePct}%`, color: "var(--fg-secondary)" },
                   ].map((s) => (
                     <div key={s.label} className="card-static p-2 text-center">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
                       <p className="text-[13px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
                     </div>
                   ))}
@@ -1148,7 +1148,7 @@ function AdminDashboard({
                     { label: "Holidays This Year", value: `${holidays.length}`, color: "var(--purple, #8b5cf6)" },
                   ].map((s) => (
                     <div key={s.label} className="card-static p-2 text-center">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
                       <p className="text-[13px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
                     </div>
                   ))}
@@ -1161,7 +1161,7 @@ function AdminDashboard({
                 </div>
               </div>
             ) : (
-              <p className="py-3 text-center text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Loading team data...</p>
+              <p className="py-3 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Loading team data...</p>
             )}
           </motion.div>
         )}
@@ -1169,17 +1169,17 @@ function AdminDashboard({
         {/* Quick stat pills — team/attendance (non-superadmin) */}
         {!isSuperAdmin && hasTeamAccess && canViewPresence && teamTodayStats && !presenceLoading && (
           <div className="scrollbar-hide flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
-            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--status-office)" }}>{teamTodayStats.pctInOffice}% in-office</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Avg per person: {formatMinutes(teamTodayStats.avgMins)}</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.officePct}% office / {100 - teamTodayStats.officePct}% remote</span>
-            {teamTodayStats.pctLate > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--status-late)" }}>{teamTodayStats.pctLate}% late</span>}
-            {teamTodayStats.flagged > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.flagged} location flagged</span>}
+            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--status-office)" }}>{teamTodayStats.pctInOffice}% in-office</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Avg per person: {formatMinutes(teamTodayStats.avgMins)}</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.officePct}% office / {100 - teamTodayStats.officePct}% remote</span>
+            {teamTodayStats.pctLate > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--status-late)" }}>{teamTodayStats.pctLate}% late</span>}
+            {teamTodayStats.flagged > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{teamTodayStats.flagged} location flagged</span>}
             {flagStats && flagStats.total > 0 && (
               <>
-                <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.total} location flags</span>
-                {flagStats.warnings > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{flagStats.warnings} security warnings</span>}
-                {flagStats.violations > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.violations} security violations</span>}
+                <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.total} location flags</span>
+                {flagStats.warnings > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{flagStats.warnings} security warnings</span>}
+                {flagStats.violations > 0 && <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{flagStats.violations} security violations</span>}
               </>
             )}
           </div>
@@ -1194,12 +1194,12 @@ function AdminDashboard({
                 <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Checklist</h3>
                 <div className="flex items-center gap-1.5">
                   {myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length > 0 && (
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
+                    <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
                       {myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length} pending
                     </span>
                   )}
                   {myChecklists.filter((cl) => checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done).length > 0 && (
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
+                    <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
                       {myChecklists.filter((cl) => checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done).length} done
                     </span>
                   )}
@@ -1208,7 +1208,7 @@ function AdminDashboard({
               <div className="relative min-h-0 flex-1 overflow-y-auto p-2 pl-7 pt-4">
                 <div className="absolute left-[14px] top-2 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
                 {myChecklists.length === 0
-                  ? <p className="py-6 text-center text-[10px]" style={{ color: "var(--fg-tertiary)" }}>No recurring tasks today</p>
+                  ? <p className="py-6 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No recurring tasks today</p>
                   : (() => {
                     const ordered = myChecklists.map((item) => ({
                       ...item,
@@ -1232,21 +1232,21 @@ function AdminDashboard({
                               </div>
                               <div className="relative rounded-xl border transition-all" style={{ background: effectiveDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : effectiveDone ? 0.65 : 1 }}>
                                 {effectiveDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
+                                <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
                                 <div className="flex items-center gap-1.5 px-2.5 py-2">
                                   <div className="flex-1 min-w-0">
                                     <span className="text-[11px] font-semibold truncate block" style={{ color: effectiveDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
                                     <div className="flex items-center gap-1 flex-wrap mt-0.5">
                                       {item.campaignName && (
-                                        <span className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{item.campaignName}</span>
+                                        <span className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{item.campaignName}</span>
                                       )}
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{effectiveDone ? "✓ Done" : hasSubs ? `${subsDoneCount}/${item.subs.length} subtasks` : "Pending"}</span>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{effectiveDone ? "✓ Done" : hasSubs ? `${subsDoneCount}/${item.subs.length} subtasks` : "Pending"}</span>
                                     </div>
                                   </div>
                                   {!hasSubs && (
                                     <button type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, item.isDone)}
                                       disabled={isLocked}
-                                      className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                      className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
                                       style={{ background: item.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: item.isDone ? "var(--amber)" : "var(--teal)" }}>
                                       {item.isDone ? "Undo" : "Mark complete"}
                                     </button>
@@ -1271,12 +1271,12 @@ function AdminDashboard({
                                             <div className="flex-1 min-w-0">
                                               <span className="text-[11px] font-semibold truncate block" style={{ color: sub.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
                                               <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                                <span className="rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 12%, transparent)`, color: subDotColor }}>{sub.isDone ? "✓ Done" : "Pending"}</span>
+                                                <span className="rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 12%, transparent)`, color: subDotColor }}>{sub.isDone ? "✓ Done" : "Pending"}</span>
                                               </div>
                                             </div>
                                             <button type="button" onClick={() => requestToggleChecklist(item.campaignId, sub.taskId, sub.title, sub.isDone)}
                                               disabled={subLocked}
-                                              className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
                                               style={{ background: sub.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: sub.isDone ? "var(--amber)" : "var(--teal)" }}>
                                               {sub.isDone ? "Undo" : "Mark complete"}
                                             </button>
@@ -1303,12 +1303,12 @@ function AdminDashboard({
                   <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Tasks</h3>
                   <div className="flex items-center gap-1.5">
                     {myTasks.length > 0 && (
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
+                      <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
                         {myTasks.length} pending
                       </span>
                     )}
                     {myCompleted > 0 && (
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
+                      <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
                         {myCompleted} done
                       </span>
                     )}
@@ -1332,22 +1332,22 @@ function AdminDashboard({
                         return (
                           <motion.div key={`tk-${task._id}`} variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                             <div className="relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isCompleted ? 0.65 : 1 }}>
-                              <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
+                              <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
                               <div className="flex items-center gap-1.5 px-2.5 py-2">
                                 <div className="flex-1 min-w-0">
                                   <span className="text-[11px] font-semibold truncate block" style={{ color: isCompleted ? "var(--fg-tertiary)" : "var(--fg)" }}>{task.title}</span>
-                                  {task.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
+                                  {task.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
                                   <div className="flex items-center gap-1 flex-wrap mt-0.5">
                                     {campaignName && (
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{campaignName}</span>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{campaignName}</span>
                                     )}
                                     {task.deadline && (
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "var(--rose)" : "var(--fg-tertiary)" }}>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "var(--rose)" : "var(--fg-tertiary)" }}>
                                         Due {new Date(task.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                                       </span>
                                     )}
                                     {hasSubtasks && (
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: subtasksDone === subtasks.length ? "color-mix(in srgb, var(--teal) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)", color: subtasksDone === subtasks.length ? "var(--teal)" : "var(--amber)" }}>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: subtasksDone === subtasks.length ? "color-mix(in srgb, var(--teal) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)", color: subtasksDone === subtasks.length ? "var(--teal)" : "var(--amber)" }}>
                                         {subtasksDone}/{subtasks.length} subtasks
                                       </span>
                                     )}
@@ -1359,7 +1359,7 @@ function AdminDashboard({
                                   const btnColor = isCompleted ? "var(--amber)" : nextStatus === "completed" ? "var(--teal)" : "var(--primary)";
                                   return (
                                     <button type="button" onClick={() => requestCycleTask(task)}
-                                      className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80"
+                                      className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80"
                                       style={{ background: `color-mix(in srgb, ${btnColor} 10%, transparent)`, color: btnColor }}>
                                       {nextLabel}
                                     </button>
@@ -1383,15 +1383,15 @@ function AdminDashboard({
                                         </div>
                                         <div className="relative rounded-xl border transition-all" style={{ background: subDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : subDone ? 0.6 : 1 }}>
                                           {subDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                          <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 15%, var(--dock-frosted-bg))`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
+                                          <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 15%, var(--dock-frosted-bg))`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
                                           <div className="flex items-center gap-1.5 px-2.5 py-2">
                                             <div className="flex-1 min-w-0">
                                               <span className="text-[11px] font-semibold truncate block" style={{ color: subDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
-                                              {sub.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                              {sub.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                             </div>
                                             <button type="button" onClick={() => requestToggleSubtask(sub, task)}
                                               disabled={subLocked}
-                                              className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
                                               style={{ background: subDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: subDone ? "var(--amber)" : "var(--teal)" }}>
                                               {subDone ? "Undo" : "Mark complete"}
                                             </button>
@@ -1532,7 +1532,7 @@ function AdminDashboard({
                   <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Activity</h3>
                   <RefreshBtn onRefresh={() => void refetchLogs()} />
                   {totalUnread > 0 && (
-                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
+                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white ml-2" style={{ background: "var(--rose)" }}>
                       {totalUnread > 99 ? "99+" : totalUnread}
                     </span>
                   )}
@@ -1568,7 +1568,7 @@ function AdminDashboard({
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
                               <span className="text-[12px] font-semibold" style={{ color: "var(--fg)" }}>{label}</span>
                               {group.unread > 0 && (
-                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white" style={{ background: "var(--rose)" }}>
                                   {group.unread}
                                 </span>
                               )}
@@ -1603,7 +1603,7 @@ function AdminDashboard({
                 return (
                                   <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
                                     <div className="flex items-start gap-2">
-                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
+                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold"
                                         style={{ background: lc.bg, color: lc.fg }}>
                                         {logAvatarLabel(log)}
                     </div>
@@ -1613,17 +1613,17 @@ function AdminDashboard({
                                           <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
                                         </p>
                                         {log.details && log.entity !== "security" && (
-                                          <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                          <p className="text-[11px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
                                         <div className="flex items-center justify-between mt-1">
-                                          <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                          <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                                           {log.entity === "task" && log.entityId && (() => {
                                             const linkedTask = tasks.find((t) => t._id === log.entityId);
                                             if (!linkedTask) return null;
                                             const sc = linkedTask.status === "completed" ? "var(--teal)" : linkedTask.status === "inProgress" ? "var(--primary)" : "var(--amber)";
                                             const sl = linkedTask.status === "completed" ? "Done" : linkedTask.status === "inProgress" ? "Working" : "Pending";
                                             return (
-                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
                                                 style={{ background: `color-mix(in srgb, ${sc} 12%, transparent)`, color: sc }}>
                                                 <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: sc }}>
                                                   {linkedTask.status === "inProgress" && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: sc }} />}
@@ -1858,11 +1858,11 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
 
         {taskStats && (
           <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskStats.total} tasks</span>
-            <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.pending} pending</span>
-            <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{taskStats.inProg} in progress</span>
-            {taskStats.dueSoon > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.dueSoon} due soon</span>}
-            {taskStats.overdue7d > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskStats.overdue7d} overdue 7d+</span>}
+            <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{taskStats.total} tasks</span>
+            <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.pending} pending</span>
+            <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{taskStats.inProg} in progress</span>
+            {taskStats.dueSoon > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{taskStats.dueSoon} due soon</span>}
+            {taskStats.overdue7d > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--rose)" }}>{taskStats.overdue7d} overdue 7d+</span>}
           </div>
         )}
 
@@ -1879,7 +1879,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                   <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Checklist</h3>
                   <div className="flex items-center gap-1.5">
                     {myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length > 0 && (
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
+                      <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
                         {myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length} pending
                       </span>
                     )}
@@ -1910,21 +1910,21 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                               </div>
                               <div className="relative rounded-xl border transition-all" style={{ background: effectiveDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: isLocked ? 0.4 : effectiveDone ? 0.65 : 1 }}>
                                 {effectiveDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
+                                <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>Recurring</span>
                                 <div className="flex items-center gap-1.5 px-2.5 py-2">
                                   <div className="flex-1 min-w-0">
                                     <span className="text-[11px] font-semibold truncate block" style={{ color: effectiveDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{item.title}</span>
                                     <div className="flex items-center gap-1 flex-wrap mt-0.5">
                                       {item.campaignName && (
-                                        <span className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{item.campaignName}</span>
+                                        <span className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{item.campaignName}</span>
                                       )}
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{effectiveDone ? "✓ Done" : hasSubs ? `${subsDoneCount}/${item.subs.length} subtasks` : "Pending"}</span>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${dotColor} 12%, transparent)`, color: dotColor }}>{effectiveDone ? "✓ Done" : hasSubs ? `${subsDoneCount}/${item.subs.length} subtasks` : "Pending"}</span>
                                     </div>
                                   </div>
                                   {!hasSubs && (
                                     <button type="button" onClick={() => requestToggleChecklist(item.campaignId, item.taskId, item.title, item.isDone)}
                                       disabled={isLocked}
-                                      className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                      className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
                                       style={{ background: item.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: item.isDone ? "var(--amber)" : "var(--teal)" }}>
                                       {item.isDone ? "Undo" : "Mark complete"}
                                     </button>
@@ -1949,12 +1949,12 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                                             <div className="flex-1 min-w-0">
                                               <span className="text-[11px] font-semibold truncate block" style={{ color: sub.isDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
                                               <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                                <span className="rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 12%, transparent)`, color: subDotColor }}>{sub.isDone ? "✓ Done" : "Pending"}</span>
+                                                <span className="rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 12%, transparent)`, color: subDotColor }}>{sub.isDone ? "✓ Done" : "Pending"}</span>
                                               </div>
                                             </div>
                                             <button type="button" onClick={() => requestToggleChecklist(item.campaignId, sub.taskId, sub.title, sub.isDone)}
                                               disabled={subLocked}
-                                              className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
                                               style={{ background: sub.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: sub.isDone ? "var(--amber)" : "var(--teal)" }}>
                                               {sub.isDone ? "Undo" : "Mark complete"}
                                             </button>
@@ -1981,8 +1981,8 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                 <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                   <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Tasks</h3>
                   <div className="flex items-center gap-1.5">
-                    {myOnceTasks.length > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>{myOnceTasks.length} pending</span>}
-                    {myOnceCompleted > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>{myOnceCompleted} done</span>}
+                    {myOnceTasks.length > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>{myOnceTasks.length} pending</span>}
+                    {myOnceCompleted > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>{myOnceCompleted} done</span>}
                   </div>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto p-2 pt-4">
@@ -2002,22 +2002,22 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                         return (
                           <motion.div key={`tk-${task._id}`} variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                             <div className="relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isCompleted ? 0.65 : 1 }}>
-                              <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
+                              <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
                               <div className="flex items-center gap-1.5 px-2.5 py-2">
                                 <div className="flex-1 min-w-0">
                                   <span className="text-[11px] font-semibold truncate block" style={{ color: isCompleted ? "var(--fg-tertiary)" : "var(--fg)" }}>{task.title}</span>
-                                  {task.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
+                                  {task.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
                                   <div className="flex items-center gap-1 flex-wrap mt-0.5">
                                     {campaignName && (
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{campaignName}</span>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{campaignName}</span>
                                     )}
                                     {task.deadline && (
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "var(--rose)" : "var(--fg-tertiary)" }}>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "var(--rose)" : "var(--fg-tertiary)" }}>
                                         Due {new Date(task.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                                       </span>
                                     )}
                                     {hasSubtasks && (
-                                      <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: subtasksDone === subtasks.length ? "color-mix(in srgb, var(--teal) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)", color: subtasksDone === subtasks.length ? "var(--teal)" : "var(--amber)" }}>
+                                      <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: subtasksDone === subtasks.length ? "color-mix(in srgb, var(--teal) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)", color: subtasksDone === subtasks.length ? "var(--teal)" : "var(--amber)" }}>
                                         {subtasksDone}/{subtasks.length} subtasks
                                       </span>
                                     )}
@@ -2028,7 +2028,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                                   const btnColor = isCompleted ? "var(--amber)" : myStatus === "inProgress" ? "var(--teal)" : "var(--primary)";
                                   return (
                                     <button type="button" onClick={() => requestCycleTask(task)}
-                                      className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80"
+                                      className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80"
                                       style={{ background: `color-mix(in srgb, ${btnColor} 10%, transparent)`, color: btnColor }}>
                                       {nextLabel}
                                     </button>
@@ -2052,15 +2052,15 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                                         </div>
                                         <div className="relative rounded-xl border transition-all" style={{ background: subDone ? "color-mix(in srgb, var(--teal) 5%, var(--bg-elevated))" : "var(--bg-elevated)", borderColor: "var(--border)", opacity: subLocked ? 0.35 : subDone ? 0.6 : 1 }}>
                                           {subDone && <div className="absolute inset-0 z-[1] pointer-events-none rounded-xl" style={{ background: "repeating-linear-gradient(135deg, transparent, transparent 4px, var(--fg-tertiary) 4px, var(--fg-tertiary) 4.5px)", opacity: 0.08 }} />}
-                                          <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 15%, var(--dock-frosted-bg))`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
+                                          <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${subDotColor} 15%, var(--dock-frosted-bg))`, color: subDotColor, border: `1px solid color-mix(in srgb, ${subDotColor} 30%, var(--border))` }}>{subStatusLabel}</span>
                                           <div className="flex items-center gap-1.5 px-2.5 py-2">
                                             <div className="flex-1 min-w-0">
                                               <span className="text-[11px] font-semibold truncate block" style={{ color: subDone ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
-                                              {sub.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                              {sub.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                             </div>
                                             <button type="button" onClick={() => requestToggleSubtask(sub, task)}
                                               disabled={subLocked}
-                                              className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
+                                              className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
                                               style={{ background: subDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: subDone ? "var(--amber)" : "var(--teal)" }}>
                                               {subDone ? "Undo" : "Mark complete"}
                                             </button>
@@ -2092,11 +2092,11 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
           <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-section-header">Weekly Overview</motion.h3>
           {weeklyInsights && (
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>Best: {weeklyInsights.bestDay} ({formatMinutes(weeklyInsights.bestMins)})</span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-tertiary)" }}>Least: {weeklyInsights.worstDay} ({formatMinutes(weeklyInsights.worstMins)})</span>
-              {weeklyInsights.onTimeStreak > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>{weeklyInsights.onTimeStreak}d on-time streak</span>}
-              {weeklyInsights.presentStreak > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{weeklyInsights.presentStreak}d present streak</span>}
-              {isDayOff && <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>Day off today</span>}
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>Best: {weeklyInsights.bestDay} ({formatMinutes(weeklyInsights.bestMins)})</span>
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-tertiary)" }}>Least: {weeklyInsights.worstDay} ({formatMinutes(weeklyInsights.worstMins)})</span>
+              {weeklyInsights.onTimeStreak > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>{weeklyInsights.onTimeStreak}d on-time streak</span>}
+              {weeklyInsights.presentStreak > 0 && <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>{weeklyInsights.presentStreak}d present streak</span>}
+              {isDayOff && <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>Day off today</span>}
             </div>
           )}
           <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">

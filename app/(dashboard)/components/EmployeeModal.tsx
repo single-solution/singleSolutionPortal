@@ -778,7 +778,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                         )}
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <span className="badge inline-flex items-center gap-1 text-[10px]" style={{ background: `color-mix(in srgb, ${stCol} 9%, transparent)`, color: stCol, border: `1px solid color-mix(in srgb, ${stCol} 35%, transparent)` }}>
+                        <span className="badge inline-flex items-center gap-1 text-[11px]" style={{ background: `color-mix(in srgb, ${stCol} 9%, transparent)`, color: stCol, border: `1px solid color-mix(in srgb, ${stCol} 35%, transparent)` }}>
                           {hasAct && (
                             <span className="relative flex h-1.5 w-1.5">
                               <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: stCol }} />
@@ -787,8 +787,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           )}
                           {stLabel}
                         </span>
-                        {deptTitle ? <span className="badge text-[10px]" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{deptTitle}</span> : null}
-                        <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{memL ? "…" : designation}</span>
+                        {deptTitle ? <span className="badge text-[11px]" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{deptTitle}</span> : null}
+                        <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{memL ? "…" : designation}</span>
                       </div>
                     </div>
                   </div>
@@ -881,7 +881,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                         <div className="space-y-3">
                           {/* Today's attendance — EmployeeCard style */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Today&apos;s attendance</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Today&apos;s attendance</p>
                             {sessL ? (
                               <div className="space-y-2"><Sh c="h-12 rounded-lg" /><Sh c="h-12 rounded-lg" /><Sh c="h-8 rounded-lg" /></div>
                             ) : (
@@ -926,10 +926,10 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                         {bkPct > 0 && <div className="h-full shrink-0" style={{ width: `${(bkPct / cappedFill) * 100}%`, background: "var(--purple)" }} />}
                                       </motion.div>
                                     </div>
-                                    <span className="shrink-0 text-[10px] font-bold tabular-nums" style={{ color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>{pctRaw}%</span>
+                                    <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>{pctRaw}%</span>
                                   </div>
                                   {/* Detail chips */}
-                                  <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                                  <div className="flex flex-wrap items-center gap-1 text-[11px]">
                                     <span className="inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
                                       {sSessions} {sSessions === 1 ? "session" : "sessions"}
                                     </span>
@@ -942,7 +942,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 </div>
                                 {/* Location flag alert */}
                                 {sess?.locationFlagged && (
-                                  <div className="mt-2 rounded-lg border p-2 text-[10px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
+                                  <div className="mt-2 rounded-lg border p-2 text-[11px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
                                     <div className="flex items-center gap-1">
                                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                                       <span className="font-bold" style={{ color: "var(--rose)" }}>Location Flagged</span>
@@ -967,11 +967,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     {monL ? <><Sh c="h-6 w-24 rounded-full" /><Sh c="h-6 w-28 rounded-full" /></> : (
                                       <>
-                                        {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance {overviewAttendancePct}%</span>}
-                                        {monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>Avg {monthlyRaw.averageDailyHours}h / day</span>}
-                                        {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--status-ontime)" : "var(--status-late)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
-                                        {tm > 0 && monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: (tm / 60) >= monthlyRaw.averageDailyHours ? "var(--green)" : "var(--amber)" }}>Today {(tm / 60).toFixed(1)}h vs avg {monthlyRaw.averageDailyHours.toFixed(1)}h</span>}
-                                        {pctRaw > 0 && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>Shift {pctRaw}% done</span>}
+                                        {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance {overviewAttendancePct}%</span>}
+                                        {monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>Avg {monthlyRaw.averageDailyHours}h / day</span>}
+                                        {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--status-ontime)" : "var(--status-late)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
+                                        {tm > 0 && monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: (tm / 60) >= monthlyRaw.averageDailyHours ? "var(--green)" : "var(--amber)" }}>Today {(tm / 60).toFixed(1)}h vs avg {monthlyRaw.averageDailyHours.toFixed(1)}h</span>}
+                                        {pctRaw > 0 && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>Shift {pctRaw}% done</span>}
                                       </>
                                     )}
                                   </div>
@@ -979,11 +979,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {/* Weekly snapshot — last 5 days */}
                                 {weeklyDots.length > 0 && (
                                   <div className="mt-2 flex items-center gap-1.5">
-                                    <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Week</span>
+                                    <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Week</span>
                                     {weeklyDots.map((d, i) => (
                                       <div key={i} className="flex flex-col items-center gap-0.5">
                                         <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
-                                        <span className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{d.date}</span>
+                                        <span className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{d.date}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -991,8 +991,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {/* Streaks */}
                                 {personalInsights && (personalInsights.longestPresentStreak > 1 || personalInsights.onTimeStreak > 1) && (
                                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                    {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
-                                    {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
+                                    {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
+                                    {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
                                   </div>
                                 )}
                               </>
@@ -1000,12 +1000,12 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           </div>
                           {/* Tasks & Campaigns — EmployeeCard style */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Workload</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Workload</p>
                             {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (() => {
                               const overdueT = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) !== "completed").length;
                               const completedT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "completed").length;
                               return (
-                              <div className="flex flex-wrap gap-1.5 text-[10px]">
+                              <div className="flex flex-wrap gap-1.5 text-[11px]">
                                 <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} tasks pending</span>
                                 <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)" }}>{inProgT} in progress</span>
                                 {completedT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 20%, transparent)" }}>{completedT} completed</span>}
@@ -1017,16 +1017,16 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             {canViewLeaves && (
                               <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
                                 {balL ? <Sh c="h-7 w-full max-w-xs rounded-lg" /> : !leaveBalance ? (
-                                  <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Leave balance unavailable.</p>
+                                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Leave balance unavailable.</p>
                                 ) : (
                                   <>
-                                    <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Leave balance</span>
-                                    <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>{leaveBalance.remaining} remaining</span>
-                                    <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>of {leaveBalance.total} · used {leaveBalance.used}</span>
-                                    {leaveExtras.onLeaveToday && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>On Leave Today</span>}
-                                    {leaveExtras.nextLeave && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Next: {new Date(leaveExtras.nextLeave).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
-                                    {leaveExtras.daysSinceLast != null && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{leaveExtras.daysSinceLast}d since last</span>}
-                                    {leaveExtras.runoutDays != null && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>~{leaveExtras.runoutDays}d until runout</span>}
+                                    <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Leave balance</span>
+                                    <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-bold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>{leaveBalance.remaining} remaining</span>
+                                    <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>of {leaveBalance.total} · used {leaveBalance.used}</span>
+                                    {leaveExtras.onLeaveToday && <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>On Leave Today</span>}
+                                    {leaveExtras.nextLeave && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Next: {new Date(leaveExtras.nextLeave).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                                    {leaveExtras.daysSinceLast != null && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{leaveExtras.daysSinceLast}d since last</span>}
+                                    {leaveExtras.runoutDays != null && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>~{leaveExtras.runoutDays}d until runout</span>}
                                   </>
                                 )}
                               </div>
@@ -1034,13 +1034,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           </div>
                           {/* Memberships */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
                             {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
                             : memActive.length === 0 ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No active memberships.</p>
                             : (
                               <div className="flex flex-wrap gap-1.5">
                                 {memActive.map((m) => (
-                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
+                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
                                     {m.department?.title ?? "Dept"}{m.designation?.name ? ` · ${m.designation.name}` : ""}
                                   </span>
                                 ))}
@@ -1074,7 +1074,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           />
                           {/* Monthly stats — full StatChip grid matching insights-desk */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly stats</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly stats</p>
                             {monL ? <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
                             : !ms ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No stats for this month.</p>
                             : (
@@ -1090,7 +1090,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     ] as const
                                   ).map(([k, v, c]) => (
                                     <div key={k} className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[10px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                      <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
                                       <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                     </div>
                                   ))}
@@ -1098,26 +1098,26 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 {/* Row 2: Attendance · Absent · Office / Remote */}
                                 <div className="mt-2 grid grid-cols-3 gap-2">
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[10px] font-semibold uppercase" style={{ color: (ms.attendancePercentage ?? 0) >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance</p>
+                                    <p className="text-[11px] font-semibold uppercase" style={{ color: (ms.attendancePercentage ?? 0) >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{Math.round(ms.attendancePercentage ?? 0)}%</p>
                                   </div>
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[10px] font-semibold uppercase" style={{ color: (ms.absentDays ?? 0) > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>Absent</p>
+                                    <p className="text-[11px] font-semibold uppercase" style={{ color: (ms.absentDays ?? 0) > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>Absent</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.absentDays ?? 0}d</p>
                                   </div>
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Office / Remote</p>
+                                    <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Office / Remote</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{Math.round(ms.totalOfficeHours ?? 0)}h / {Math.round(ms.totalRemoteHours ?? 0)}h</p>
                                   </div>
                                 </div>
                                 {/* Row 3: On-Time Arrivals · Late Arrivals */}
                                 <div className="mt-2 grid grid-cols-2 gap-2">
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--status-ontime)" }}>On-Time Arrivals</p>
+                                    <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--status-ontime)" }}>On-Time Arrivals</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.onTimeArrivals ?? 0}</p>
                                   </div>
                                   <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[10px] font-semibold uppercase" style={{ color: (ms.lateArrivals ?? 0) > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>Late Arrivals</p>
+                                    <p className="text-[11px] font-semibold uppercase" style={{ color: (ms.lateArrivals ?? 0) > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>Late Arrivals</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.lateArrivals ?? 0}</p>
                                   </div>
                                 </div>
@@ -1126,13 +1126,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="mt-2 grid grid-cols-2 gap-2">
                                     {ms.averageOfficeInTime && (
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Avg office entry</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Avg office entry</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeInTime}</p>
                                       </div>
                                     )}
                                     {ms.averageOfficeOutTime && (
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Avg office exit</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--status-office)" }}>Avg office exit</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{ms.averageOfficeOutTime}</p>
                                       </div>
                                     )}
@@ -1140,7 +1140,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 )}
                                 {/* Office / Remote bar */}
                                 <div className="mt-3 space-y-1">
-                                  <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-secondary)" }}>
+                                  <div className="flex justify-between text-[11px]" style={{ color: "var(--fg-secondary)" }}>
                                     <span>Office / remote split</span>
                                     <span className="tabular-nums">{Math.round(ms.totalOfficeHours ?? 0)}h · {Math.round(ms.totalRemoteHours ?? 0)}h</span>
                                   </div>
@@ -1166,23 +1166,23 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   return present.length > 0 ? (
                                     <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-3">
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--purple)" }}>Total Break</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--purple)" }}>Total Break</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(totalBreak)}</p>
-                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>avg {avgBreak}m/day</p>
+                                        <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>avg {avgBreak}m/day</p>
                                       </div>
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--status-late)" }}>Total Late</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--status-late)" }}>Total Late</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(totalLate)}</p>
-                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{lateDays.length}d · avg {avgLate}m</p>
+                                        <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{lateDays.length}d · avg {avgLate}m</p>
                                       </div>
                                       <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--status-remote)" }}>Remote %</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--status-remote)" }}>Remote %</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{remotePct}%</p>
-                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmtHours(totalRem)} of {fmtHours(totalOff + totalRem)}</p>
+                                        <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{fmtHours(totalRem)} of {fmtHours(totalOff + totalRem)}</p>
                                       </div>
                                       {overtimeMins > 0 && (
                                         <div className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--status-ontime)" }}>Overtime</p>
+                                          <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--status-ontime)" }}>Overtime</p>
                                           <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(overtimeMins)}</p>
                                         </div>
                                       )}
@@ -1195,8 +1195,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Personal insights */}
                           {!dayL && personalInsights && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal insights</p>
-                              <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal insights</p>
+                              <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                                 {personalInsights.perfectDays > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.perfectDays} perfect days</span>}
                                 {personalInsights.totalLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--status-late) 12%, transparent)", color: "var(--status-late)" }}>{fmtHours(personalInsights.totalLateMins)} total late</span>}
                                 {personalInsights.avgLateMins > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {personalInsights.avgLateMins}m when late</span>}
@@ -1230,7 +1230,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Leave balance — matching insights-desk */}
                           {canViewLeaves && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leave balance</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leave balance</p>
                               {balL ? <Sh c="h-10 rounded-lg" />
                               : !leaveBalance ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Leave balance unavailable.</p>
                               : (
@@ -1243,7 +1243,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
                                     <motion.div className="h-full rounded-full" style={{ background: leaveBalance.total > 0 && (leaveBalance.used / leaveBalance.total) > 0.8 ? "var(--rose)" : "var(--teal)" }} initial={{ width: 0 }} animate={{ width: leaveBalance.total > 0 ? `${Math.round((leaveBalance.used / leaveBalance.total) * 100)}%` : "0%" }} transition={{ duration: 0.6 }} />
                                   </div>
-                                  <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                                  <div className="flex justify-between text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
                                     <span>{leaveBalance.used} used</span>
                                     <span>{leaveBalance.remaining} remaining</span>
                                   </div>
@@ -1257,7 +1257,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                       {tab === "payroll" && (
                         <div className="space-y-3">
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                               Current month estimate
                             </p>
                             {payL ? (
@@ -1280,15 +1280,15 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     ["Net Pay", `${(payEstimate.netPay ?? 0).toLocaleString()}`],
                                   ].map(([k, v]) => (
                                     <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                      <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
+                                      <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
                                       <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                     </div>
                                   ))}
                                 </div>
                                 {(payEstimate.overtimeHours ?? 0) > 0 && (
                                   <div className="mt-2 flex flex-wrap gap-1.5">
-                                    <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>OT: {payEstimate.overtimeHours}h</span>
-                                    <span className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>OT Pay: {(payEstimate.overtimePay ?? 0).toLocaleString()}</span>
+                                    <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>OT: {payEstimate.overtimeHours}h</span>
+                                    <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--teal)" }}>OT Pay: {(payEstimate.overtimePay ?? 0).toLocaleString()}</span>
                                   </div>
                                 )}
                                 {/* Pay composition bar */}
@@ -1303,7 +1303,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   const dedPct = total > 0 ? Math.round((ded / total) * 100) : 0;
                                   return (
                                     <div className="mt-3 space-y-1">
-                                      <div className="flex justify-between text-[10px]" style={{ color: "var(--fg-secondary)" }}>
+                                      <div className="flex justify-between text-[11px]" style={{ color: "var(--fg-secondary)" }}>
                                         <span>Pay composition</span>
                                         <span className="tabular-nums">Base {basePct}%{ot > 0 ? ` · OT ${otPct}%` : ""} · Ded {dedPct}%</span>
                                       </div>
@@ -1312,7 +1312,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                         {ot > 0 && <motion.div className="h-full" style={{ background: "var(--teal)" }} initial={{ width: 0 }} animate={{ width: `${otPct}%` }} transition={{ duration: 0.5, delay: 0.04, ease }} />}
                                         {ded > 0 && <motion.div className="h-full" style={{ background: "var(--rose)" }} initial={{ width: 0 }} animate={{ width: `${dedPct}%` }} transition={{ duration: 0.5, delay: 0.08, ease }} />}
                                       </div>
-                                      <div className="flex gap-3 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                                      <div className="flex gap-3 text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                                         <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--green)" }} />Base</span>
                                         {ot > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--teal)" }} />Overtime</span>}
                                         {ded > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--rose)" }} />Deductions</span>}
@@ -1326,7 +1326,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Rate Insights */}
                           {!payL && payEstimate && !payEstimate.exempt && (payEstimate.presentDays ?? 0) > 0 && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Rate insights</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Rate insights</p>
                               {(() => {
                                 const netPay = payEstimate.netPay ?? 0;
                                 const base = payEstimate.baseSalary ?? 0;
@@ -1351,7 +1351,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                                     {tiles.map(([k, v, c]) => (
                                       <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                       </div>
                                     ))}
@@ -1363,7 +1363,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Deduction Analysis */}
                           {!payL && payEstimate && !payEstimate.exempt && payEstimate.dailyBreakdown && payEstimate.dailyBreakdown.length > 0 && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Deduction analysis</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Deduction analysis</p>
                               {(() => {
                                 const bd = payEstimate.dailyBreakdown!;
                                 const withDed = bd.filter((d) => d.deduction > 0);
@@ -1386,7 +1386,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                                     {tiles.map(([k, v, c]) => (
                                       <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                       </div>
                                     ))}
@@ -1398,7 +1398,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Deduction Breakdown */}
                           {!payL && payEstimate && !payEstimate.exempt && Array.isArray(payEstimate.deductions) && payEstimate.deductions.length > 0 && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Deduction breakdown</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Deduction breakdown</p>
                               <div className="space-y-1">
                                 {(payEstimate.deductions as { name: string; amount: number }[]).map((d, i) => (
                                   <div key={i} className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)" }}>
@@ -1412,7 +1412,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Year to Date — upgraded */}
                           {!payL && payEstimate && !payEstimate.exempt && payEstimate.ytd && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Year to date</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Year to date</p>
                               <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                                 {(() => {
                                   const y = payEstimate.ytd!;
@@ -1428,7 +1428,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   ];
                                   return tiles.map(([k, v, c]) => (
                                     <div key={k} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                      <p className="text-[10px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                      <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
                                       <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                     </div>
                                   ));
@@ -1438,9 +1438,9 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           )}
                           {!payL && payEstimate && !payEstimate.exempt && payEstimate.dailyBreakdown && payEstimate.dailyBreakdown.length > 0 && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Daily breakdown</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Daily breakdown</p>
                               <div className="max-h-[200px] overflow-y-auto">
-                                <table className="w-full text-[10px]">
+                                <table className="w-full text-[11px]">
                                   <thead>
                                     <tr style={{ color: "var(--fg-tertiary)" }}>
                                       <th className="py-1 text-left font-semibold">Day</th>
@@ -1467,14 +1467,14 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           )}
                           {employee?.salary != null && canPerm("payroll_manageSalary") && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
                               <p className="text-lg font-bold tabular-nums" style={{ color: "var(--fg)" }}>{employee.salary.toLocaleString()}</p>
                               {employee.salaryHistory?.length ? (
                                 <div className="mt-2 space-y-1">
                                   {employee.salaryHistory.slice().reverse().slice(0, 5).map((h, i) => (
                                     <div key={i} className="flex items-center justify-between rounded-lg px-2 py-1" style={{ background: "var(--bg-grouped)" }}>
-                                      <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{new Date(h.effectiveDate).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
-                                      <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{h.previousSalary.toLocaleString()} → {h.newSalary.toLocaleString()}</span>
+                                      <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{new Date(h.effectiveDate).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
+                                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{h.previousSalary.toLocaleString()} → {h.newSalary.toLocaleString()}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -1488,7 +1488,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                         <div className="space-y-3">
                           {/* Balance + progress bar */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Balance</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Balance</p>
                             {balL ? (
                               <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <Sh key={i} c="h-14 rounded-lg" />)}</div>
                             ) : !leaveBalance ? (
@@ -1504,7 +1504,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     ] as [string, string, string][]
                                   ).map(([k, v, c]) => (
                                     <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                      <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
+                                      <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>{k}</p>
                                       <p className="text-sm font-bold tabular-nums" style={{ color: c }}>{v}</p>
                                     </div>
                                   ))}
@@ -1515,7 +1515,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
                                       <motion.div className="h-full rounded-full" style={{ background: (leaveBalance.used / leaveBalance.total) > 0.8 ? "var(--rose)" : (leaveBalance.used / leaveBalance.total) > 0.5 ? "var(--amber)" : "var(--green)" }} initial={{ width: 0 }} animate={{ width: `${Math.round((leaveBalance.used / leaveBalance.total) * 100)}%` }} transition={{ duration: 0.6 }} />
                                     </div>
-                                    <p className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round((leaveBalance.used / leaveBalance.total) * 100)}% used</p>
+                                    <p className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round((leaveBalance.used / leaveBalance.total) * 100)}% used</p>
                                   </div>
                                 )}
                               </>
@@ -1523,12 +1523,12 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             {!balL && leaveBalance && leaveInsights && leavesList.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-1.5 border-t pt-2" style={{ borderColor: "var(--border)" }}>
                                 {leaveInsights.approvalRate != null && (
-                                  <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Approval {leaveInsights.approvalRate}%</span>
+                                  <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Approval {leaveInsights.approvalRate}%</span>
                                 )}
-                                <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Avg duration {leaveInsights.avgDur.toFixed(1)} days</span>
-                                <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{leaveInsights.halfDays} half-day leaves</span>
+                                <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg)" }}>Avg duration {leaveInsights.avgDur.toFixed(1)} days</span>
+                                <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--amber)" }}>{leaveInsights.halfDays} half-day leaves</span>
                                 {Object.entries(leaveInsights.byType).map(([typ, n2]) => (
-                                  <span key={typ} className="rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{typ}: {n2}</span>
+                                  <span key={typ} className="rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{typ}: {n2}</span>
                                 ))}
                               </div>
                             )}
@@ -1536,22 +1536,22 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Quick Insights */}
                           {!balL && leaveBalance && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Quick insights</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Quick insights</p>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                  <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>On Leave Today</p>
+                                  <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>On Leave Today</p>
                                   <p className="text-sm font-bold" style={{ color: leaveExtras.onLeaveToday ? "var(--teal)" : "var(--fg-secondary)" }}>{leaveExtras.onLeaveToday ? "Yes" : "No"}</p>
                                 </div>
                                 <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                  <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Next Leave</p>
+                                  <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Next Leave</p>
                                   <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{leaveExtras.nextLeave ? new Date(leaveExtras.nextLeave).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}</p>
                                 </div>
                                 <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                  <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Since Last Leave</p>
+                                  <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Since Last Leave</p>
                                   <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{leaveExtras.daysSinceLast != null ? `${leaveExtras.daysSinceLast}d` : "—"}</p>
                                 </div>
                                 <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                  <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Est. Balance Runout</p>
+                                  <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Est. Balance Runout</p>
                                   <p className="text-sm font-bold tabular-nums" style={{ color: leaveExtras.runoutDays != null && leaveExtras.runoutDays < 60 ? "var(--amber)" : "var(--fg)" }}>{leaveExtras.runoutDays != null ? `~${leaveExtras.runoutDays}d` : "—"}</p>
                                 </div>
                               </div>
@@ -1560,7 +1560,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Monthly distribution */}
                           {!leaveL && leavesList.length > 0 && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly distribution</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly distribution</p>
                               {(() => {
                                 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                                 const byMonth = Array(12).fill(0) as number[];
@@ -1577,8 +1577,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     {MONTHS.map((m, i) => (
                                       <div key={m} className="flex flex-1 flex-col items-center gap-0.5">
                                         <div className="w-full rounded-sm" style={{ height: `${Math.max(byMonth[i] / maxVal * 32, 2)}px`, background: i === curMonth ? "var(--primary)" : byMonth[i] > 0 ? "var(--teal)" : "var(--border)" }} />
-                                        <span className="text-[9px] font-medium" style={{ color: i === curMonth ? "var(--primary)" : "var(--fg-tertiary)" }}>{m}</span>
-                                        {byMonth[i] > 0 && <span className="text-[9px] font-bold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{byMonth[i]}</span>}
+                                        <span className="text-[10px] font-medium" style={{ color: i === curMonth ? "var(--primary)" : "var(--fg-tertiary)" }}>{m}</span>
+                                        {byMonth[i] > 0 && <span className="text-[10px] font-bold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{byMonth[i]}</span>}
                                       </div>
                                     ))}
                                   </div>
@@ -1589,13 +1589,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* Leave type breakdown */}
                           {!leaveL && leaveInsights && Object.keys(leaveInsights.byType).length > 0 && (
                             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>By type</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>By type</p>
                               <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                                 {Object.entries(leaveInsights.byType).map(([typ, cnt]) => {
                                   const typeColors: Record<string, string> = { Sick: "var(--rose)", Casual: "var(--amber)", Annual: "var(--teal)", Unpaid: "var(--fg-tertiary)", General: "var(--primary)" };
                                   return (
                                     <div key={typ} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                      <p className="text-[10px] font-semibold uppercase" style={{ color: typeColors[typ] ?? "var(--fg-secondary)" }}>{typ}</p>
+                                      <p className="text-[11px] font-semibold uppercase" style={{ color: typeColors[typ] ?? "var(--fg-secondary)" }}>{typ}</p>
                                       <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{cnt}d</p>
                                     </div>
                                   );
@@ -1605,7 +1605,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           )}
                           {/* History — show all with "show more" */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>History</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>History</p>
                             {leaveL ? (
                               <div className="space-y-2">{[1, 2, 3].map((i) => <Sh key={i} c="h-10 w-full rounded-lg" />)}</div>
                             ) : leavesList.length === 0 ? (
@@ -1625,11 +1625,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                         <div className="flex items-center gap-1.5">
                                           <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
                                           <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{l.type || "Leave"}{l.isHalfDay ? " (½)" : ""}</span>
-                                          <span className="shrink-0 text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{days}d</span>
+                                          <span className="shrink-0 text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{days}d</span>
                                         </div>
-                                        <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{same ? start : `${start} – ${end}`}{l.reason ? ` · ${l.reason}` : ""}</p>
+                                        <p className="mt-0.5 truncate text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{same ? start : `${start} – ${end}`}{l.reason ? ` · ${l.reason}` : ""}</p>
                                       </div>
-                                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{{ pending: "Pending approval", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}</span>
+                                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{{ pending: "Pending approval", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}</span>
                                     </div>
                                   );
                                 })}
@@ -1660,11 +1660,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             ];
                             return (
                               <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Summary</p>
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Summary</p>
                                 <div className="grid grid-cols-3 gap-2">
                                   {tiles.map(([k, v, c]) => (
                                     <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                      <p className="text-[10px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                      <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
                                       <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                     </div>
                                   ))}
@@ -1674,7 +1674,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   {(["urgent", "high", "medium", "low"] as const).map((p) => {
                                     const cnt = empTasks.filter((t) => t.priority === p).length;
                                     if (cnt === 0) return null;
-                                    return <span key={p} className="rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize tabular-nums" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[p]} 12%, transparent)`, color: PRIORITY_COLORS[p] }}>{cnt} {p}</span>;
+                                    return <span key={p} className="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize tabular-nums" style={{ background: `color-mix(in srgb, ${PRIORITY_COLORS[p]} 12%, transparent)`, color: PRIORITY_COLORS[p] }}>{cnt} {p}</span>;
                                   })}
                                 </div>
                               </div>
@@ -1682,7 +1682,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           })()}
                           {/* Task list */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Tasks</p>
                             {taskL ? (
                               <div className="space-y-1.5">{[1, 2, 3, 4].map((i) => <Sh key={i} c="h-12 w-full rounded-lg" />)}</div>
                             ) : empTasks.length === 0 ? (
@@ -1699,17 +1699,17 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                       <div className="min-w-0 flex-1">
                                         <p className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{t.title || "Untitled"}</p>
                                         <div className="mt-0.5 flex flex-wrap gap-1.5">
-                                          {t.campaign?.name && <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{t.campaign.name}</span>}
+                                          {t.campaign?.name && <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{t.campaign.name}</span>}
                                           {t.deadline && (
-                                            <span className="text-[10px] tabular-nums" style={{ color: overdue2 ? "var(--rose)" : "var(--fg-tertiary)" }}>
+                                            <span className="text-[11px] tabular-nums" style={{ color: overdue2 ? "var(--rose)" : "var(--fg-tertiary)" }}>
                                               Due {new Date(t.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                                             </span>
                                           )}
                                         </div>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-1.5">
-                                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${prCol2} 14%, transparent)`, color: prCol2 }}>{t.priority || "—"}</span>
-                                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${stCol2} 14%, transparent)`, color: stCol2 }}>{{ pending: "Pending", inProgress: "In progress", completed: "Completed" }[empSt] ?? empSt}</span>
+                                        <span className="rounded-full px-2 py-0.5 text-[11px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${prCol2} 14%, transparent)`, color: prCol2 }}>{t.priority || "—"}</span>
+                                        <span className="rounded-full px-2 py-0.5 text-[11px] font-bold capitalize" style={{ background: `color-mix(in srgb, ${stCol2} 14%, transparent)`, color: stCol2 }}>{{ pending: "Pending", inProgress: "In progress", completed: "Completed" }[empSt] ?? empSt}</span>
                                       </div>
                                     </div>
                                   );
@@ -1719,7 +1719,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           </div>
                           {/* Campaigns with task progress */}
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Campaigns</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Campaigns</p>
                             {campL ? (
                               <div className="space-y-1.5">{[1, 2, 3].map((i) => <Sh key={i} c="h-10 w-full rounded-lg" />)}</div>
                             ) : empCampaigns.length === 0 ? (
@@ -1733,9 +1733,9 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <div key={c._id} className="rounded-lg px-2.5 py-2" style={{ background: "var(--bg-grouped)" }}>
                                       <div className="flex items-center justify-between gap-2">
                                         <p className="min-w-0 flex-1 truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{c.name}</p>
-                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{{ active: "Active", paused: "Paused", completed: "Completed", cancelled: "Cancelled" }[c.status] ?? c.status}</span>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold capitalize" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{{ active: "Active", paused: "Paused", completed: "Completed", cancelled: "Cancelled" }[c.status] ?? c.status}</span>
                                       </div>
-                                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                                         {c.startDate && <span>Start {new Date(c.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
                                         {c.endDate && <span>End {new Date(c.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
                                         {campTasks.length > 0 && (
@@ -1778,10 +1778,10 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   </p>
                                   {locDetail && locDay && (
                                     <div className="mt-0.5 flex items-center justify-center gap-2">
-                                      {locDetail.isPresent && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--status-present) 12%, transparent)", color: "var(--status-present)" }}>Present</span>}
-                                      {locDetail.officeMinutes != null && locDetail.officeMinutes > 0 && <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.officeMinutes)}m office</span>}
-                                      {locDetail.remoteMinutes != null && locDetail.remoteMinutes > 0 && <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.remoteMinutes)}m remote</span>}
-                                      {locDayFlags.length > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{locDayFlags.length} flag{locDayFlags.length > 1 ? "s" : ""}</span>}
+                                      {locDetail.isPresent && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--status-present) 12%, transparent)", color: "var(--status-present)" }}>Present</span>}
+                                      {locDetail.officeMinutes != null && locDetail.officeMinutes > 0 && <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.officeMinutes)}m office</span>}
+                                      {locDetail.remoteMinutes != null && locDetail.remoteMinutes > 0 && <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{Math.round(locDetail.remoteMinutes)}m remote</span>}
+                                      {locDayFlags.length > 0 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--rose) 12%, transparent)", color: "var(--rose)" }}>{locDayFlags.length} flag{locDayFlags.length > 1 ? "s" : ""}</span>}
                                     </div>
                                   )}
                                 </div>
@@ -1795,7 +1795,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                               {/* Timeline */}
                               <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Timeline</p>
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Timeline</p>
                                 {locDetailL ? (
                                   <div className="space-y-3">{[1, 2, 3].map((i) => <Sh key={i} c="h-14 w-full rounded-lg" />)}</div>
                                 ) : locTimeline.length === 0 ? (
@@ -1819,16 +1819,16 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                             <div className="flex items-center gap-2">
                                               <span className="text-[11px] font-bold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{item.time}</span>
                                               <span className="text-[11px] font-semibold" style={{ color: item.color }}>{item.label}</span>
-                                              {item.sublabel && <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{item.sublabel}</span>}
+                                              {item.sublabel && <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{item.sublabel}</span>}
                                             </div>
                                             {item.lat != null && item.lng != null && (
                                               <div className="mt-1 flex items-center gap-2">
-                                                <span className="text-[10px] tabular-nums font-mono" style={{ color: "var(--fg-tertiary)" }}>{item.lat.toFixed(5)}, {item.lng.toFixed(5)}</span>
+                                                <span className="text-[11px] tabular-nums font-mono" style={{ color: "var(--fg-tertiary)" }}>{item.lat.toFixed(5)}, {item.lng.toFixed(5)}</span>
                                                 <a
                                                   href={`https://www.google.com/maps?q=${item.lat},${item.lng}`}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
-                                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors hover:opacity-80"
+                                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold transition-colors hover:opacity-80"
                                                   style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}
                                                   onClick={(e) => e.stopPropagation()}
                                                 >
@@ -1848,7 +1848,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               {/* Overall flag summary */}
                               {!flagsL && flags.length > 0 && (
                                 <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>All-time summary</p>
+                                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>All-time summary</p>
                                   {(() => {
                                     const total = flagsPayload?.total ?? flags.length;
                                     const warns = flags.filter((f) => f.severity === "warning").length;
@@ -1863,7 +1863,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                           ["Ack Rate", `${ackRate}%`, ackRate >= 80 ? "var(--green)" : "var(--amber)"],
                                         ] as const).map(([k, v, c]) => (
                                           <div key={k} className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                            <p className="text-[10px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                            <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
                                             <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                           </div>
                                         ))}
@@ -1905,7 +1905,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                       {tab === "schedule" && (
                         <div className="space-y-3">
                           <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Shift & Schedule</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Shift & Schedule</p>
                             {empL || !employee ? (
                               <div className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <Sh key={i} c="h-10 w-full rounded-lg" />)}</div>
                             ) : editing && editForm ? (
@@ -1927,8 +1927,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 </div>
                                 {/* Editable weekly schedule */}
                                 <div className="flex items-center justify-between mb-2">
-                                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly Schedule</p>
-                                  <button type="button" onClick={copyMondayToAll} className="text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ color: "var(--primary)", background: "var(--bg-grouped)" }}>Copy Mon → All</button>
+                                  <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly Schedule</p>
+                                  <button type="button" onClick={copyMondayToAll} className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ color: "var(--primary)", background: "var(--bg-grouped)" }}>Copy Mon → All</button>
                                 </div>
                                 <div className="space-y-1.5">
                                   {ALL_WEEKDAYS.map((day) => {
@@ -1942,15 +1942,15 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                         {ds.isWorking && (
                                           <div className="grid grid-cols-3 gap-2">
                                             <div>
-                                              <label className="block text-[10px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Start</label>
+                                              <label className="block text-[11px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Start</label>
                                               <input className="input text-xs py-1" type="time" value={ds.start} onChange={(e) => updateEditDay(day, { start: e.target.value })} />
                                             </div>
                                             <div>
-                                              <label className="block text-[10px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>End</label>
+                                              <label className="block text-[11px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>End</label>
                                               <input className="input text-xs py-1" type="time" value={ds.end} onChange={(e) => updateEditDay(day, { end: e.target.value })} />
                                             </div>
                                             <div>
-                                              <label className="block text-[10px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Break</label>
+                                              <label className="block text-[11px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Break</label>
                                               <input className="input text-xs py-1" type="number" min={0} value={ds.breakMinutes} onChange={(e) => updateEditDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
                                             </div>
                                           </div>
@@ -1964,16 +1964,16 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               <>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                    <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Shift Type</p>
+                                    <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Shift Type</p>
                                     <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{(SHIFT_LABELS[shiftK] ?? shiftK) || "—"}</p>
                                   </div>
                                   <div className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                    <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Grace Minutes</p>
+                                    <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Grace Minutes</p>
                                     <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{employee.graceMinutes ?? 0}m</p>
                                   </div>
                                 </div>
                                 <div className="mt-3 rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                  <p className="mb-1 text-[10px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Today</p>
+                                  <p className="mb-1 text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Today</p>
                                   <p className="text-sm font-bold" style={{ color: todayS.isWorking ? "var(--fg)" : "var(--amber)" }}>{todayS.isWorking ? `${todayS.start} – ${todayS.end} (${todayS.breakMinutes}m break)` : "Day off"}</p>
                                 </div>
                                 {week && (() => {
@@ -1996,20 +1996,20 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                   return (
                                     <div className="mt-3 grid grid-cols-2 gap-2">
                                       <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--primary)" }}>Weekly Hours</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--primary)" }}>Weekly Hours</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(netWeeklyMins)}</p>
                                       </div>
                                       <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--fg-secondary)" }}>Working Days</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-secondary)" }}>Working Days</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{workDayCount}/wk</p>
                                       </div>
                                       <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--purple)" }}>Weekly Break</p>
+                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--purple)" }}>Weekly Break</p>
                                         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(weeklyBreakMins)}</p>
                                       </div>
                                       {adherence != null && (
                                         <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                          <p className="text-[10px] font-semibold uppercase" style={{ color: adherence >= 90 ? "var(--green)" : "var(--amber)" }}>Adherence</p>
+                                          <p className="text-[11px] font-semibold uppercase" style={{ color: adherence >= 90 ? "var(--green)" : "var(--amber)" }}>Adherence</p>
                                           <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{adherence}%</p>
                                         </div>
                                       )}
@@ -2018,7 +2018,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 })()}
                                 {week && (
                                   <div className="mt-3">
-                                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly schedule</p>
+                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly schedule</p>
                                     <div className="space-y-1">
                                       {ALL_WEEKDAYS.map((d) => {
                                         const wd3 = week[d];
@@ -2055,7 +2055,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* ── Editable Personal Info ── */}
                           {editing && editForm ? (
                             <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal Information</p>
+                              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal Information</p>
                               <div className="space-y-3">
                                 <div>
                                   <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Full Name</label>
@@ -2069,7 +2069,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             </section>
                           ) : (
                             <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Identity & Account</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Identity & Account</p>
                               {empL || !employee ? (
                                 <div className="space-y-2">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-4 w-full" />)}</div>
                               ) : (
@@ -2081,9 +2081,9 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                     <dt style={{ color: "var(--fg-tertiary)" }}>Role</dt>
                                     <dd className="flex flex-wrap items-center justify-end gap-1 sm:mt-0.5">
                                       <span className="font-medium" style={{ color: "var(--fg)" }}>{designation}</span>
-                                      {employee.isSuperAdmin && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase" style={{ background: "var(--rose)", color: "#fff" }}>Super Admin</span>}
-                                      {employee.isVerified === true && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--green) 18%, transparent)", color: "var(--green)" }}>Verified</span>}
-                                      {employee.isVerified === false && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 18%, transparent)", color: "var(--amber)" }}>Unverified</span>}
+                                      {employee.isSuperAdmin && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: "var(--rose)", color: "#fff" }}>Super Admin</span>}
+                                      {employee.isVerified === true && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--green) 18%, transparent)", color: "var(--green)" }}>Verified</span>}
+                                      {employee.isVerified === false && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 18%, transparent)", color: "var(--amber)" }}>Unverified</span>}
                                     </dd>
                                   </div>
                                   <ProfRow k="Department" v={employee.department?.title ?? "—"} />
@@ -2117,7 +2117,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* ── Editable Department Assignment ── */}
                           {editing && editForm && departments.length > 0 ? (
                             <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                                 {multiDeptUi ? "Managed Departments" : "Department"}
                               </p>
                               <div className="flex flex-wrap gap-1.5">
@@ -2141,12 +2141,12 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               </div>
                               <div className="mt-2">
                                 {!multiDeptUi ? (
-                                  <button type="button" className="text-[10px] font-medium hover:underline" style={{ color: "var(--primary)" }} onClick={() => {
+                                  <button type="button" className="text-[11px] font-medium hover:underline" style={{ color: "var(--primary)" }} onClick={() => {
                                     setMultiDeptUi(true);
                                     setEditForm((f) => f ? { ...f, managedDepartments: f.department ? [f.department] : f.managedDepartments } : f);
                                   }}>Manage multiple departments</button>
                                 ) : (
-                                  <button type="button" className="text-[10px] font-medium hover:underline" style={{ color: "var(--fg-secondary)" }} onClick={() => {
+                                  <button type="button" className="text-[11px] font-medium hover:underline" style={{ color: "var(--fg-secondary)" }} onClick={() => {
                                     setMultiDeptUi(false);
                                     setEditForm((f) => f ? { ...f, department: f.department || f.managedDepartments[0] || "", managedDepartments: [] } : f);
                                   }}>Use single department</button>
@@ -2158,7 +2158,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                           {/* ── Editable Salary ── */}
                           {editing && editForm && canPerm("payroll_manageSalary") ? (
                             <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
                               <div>
                                 <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Base Salary (Monthly)</label>
                                 <input className="input text-xs" type="number" min={0} placeholder="e.g. 50000" value={editForm.salary} onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })} />
@@ -2166,14 +2166,14 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                             </section>
                           ) : !editing && employee?.salary != null && canPerm("payroll_manageSalary") ? (
                             <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
                               <p className="text-lg font-bold tabular-nums" style={{ color: "var(--fg)" }}>{employee.salary.toLocaleString()}</p>
                               {employee.salaryHistory?.length ? (
                                 <div className="mt-2 space-y-1">
                                   {employee.salaryHistory.slice().reverse().slice(0, 5).map((h, i) => (
                                     <div key={i} className="flex items-center justify-between rounded-lg px-2 py-1" style={{ background: "var(--bg-grouped)" }}>
-                                      <span className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{new Date(h.effectiveDate).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
-                                      <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{h.previousSalary.toLocaleString()} → {h.newSalary.toLocaleString()}</span>
+                                      <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{new Date(h.effectiveDate).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
+                                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{h.previousSalary.toLocaleString()} → {h.newSalary.toLocaleString()}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -2183,13 +2183,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
                           {/* Memberships (read-only) */}
                           <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
                             {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
                             : memActive.length === 0 ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No active memberships.</p>
                             : (
                               <div className="flex flex-wrap gap-1.5">
                                 {memActive.map((m) => (
-                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
+                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
                                     {m.department?.title ?? "Dept"}{m.designation?.name ? ` · ${m.designation.name}` : ""}
                                   </span>
                                 ))}

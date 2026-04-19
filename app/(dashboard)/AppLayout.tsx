@@ -335,7 +335,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
             </motion.button>
             <motion.button
               type="button"
-              className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+              className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
               style={{ background: "rgba(0,0,0,0.35)", color: "white" }}
               whileTap={{ scale: 0.8 }}
               title="Dismiss"
@@ -427,7 +427,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 18.364a9 9 0 010-12.728" /><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" /><path strokeLinecap="round" strokeLinejoin="round" d="M8.464 15.536a5 5 0 010-7.072" /><path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" /><circle cx="12" cy="12" r="1.5" fill="currentColor" />
                 </svg>
                 {pingUnread > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white notif-badge-pulse" style={{ background: "var(--primary)" }}>
+                  <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white notif-badge-pulse" style={{ background: "var(--primary)" }}>
                     {pingUnread > 9 ? "9+" : pingUnread}
                   </span>
                 )}
@@ -487,7 +487,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                   <span className="font-semibold">{senderName}</span> pinged you
                                 </p>
                                 {ping.message && <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "var(--fg-secondary)" }}>{ping.message}</p>}
-                                <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(ping.createdAt)}</p>
+                                <p className="text-[11px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(ping.createdAt)}</p>
                               </div>
                               {!ping.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
                             </div>
@@ -530,7 +530,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                   </svg>
                 {unseenCount > 0 && (
                     <span
-                      className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white notif-badge-pulse"
+                      className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white notif-badge-pulse"
                       style={{ background: "var(--rose)" }}
                     >
                     {unseenCount > 9 ? "9+" : unseenCount}
@@ -634,7 +634,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                             {displayName}
                                           </p>
                                           <span
-                                            className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                                            className="rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase"
                                             style={{
                                               background: isViolation ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
                                               color: isViolation ? "var(--rose)" : "var(--amber)",
@@ -642,14 +642,14 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                           >
                                             {isViolation ? "Security violation" : "Security warning"}
                                           </span>
-                                          <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                                          <span className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                                             #{secMeta.totalCount ?? "?"} in {secMeta.windowDays ?? 30}d
                                           </span>
                                         </div>
                                         {secMeta.reasons && secMeta.reasons.length > 0 && (
                                           <div className="mt-1 space-y-0.5">
                                             {secMeta.reasons.map((r, ri) => (
-                                              <p key={ri} className="text-[10px] leading-snug" style={{ color: isViolation ? "var(--rose)" : "var(--amber)" }}>
+                                              <p key={ri} className="text-[11px] leading-snug" style={{ color: isViolation ? "var(--rose)" : "var(--amber)" }}>
                                                 {r}
                                               </p>
                                             ))}
@@ -660,7 +660,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                             href={mapsUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="mt-1 inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+                                            className="mt-1 inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-medium transition-colors"
                                             style={{ background: "var(--primary-light)", color: "var(--primary)" }}
                                             onClick={(e) => e.stopPropagation()}
                                           >
@@ -672,7 +672,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                             {secMeta.accuracy != null && <span className="opacity-60">(±{Math.round(secMeta.accuracy)}m)</span>}
                                           </a>
                                         )}
-                                        <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                                        <p className="text-[11px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
                                           {isSelf ? "you" : displayName.toLowerCase()} · {timeAgo(log.createdAt)}
                                         </p>
                                       </>
@@ -702,9 +702,9 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                         )}
                                       </p>
                                       {log.details && (
-                                        <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
+                                        <p className="text-[11px] truncate mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                       )}
-                                      <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                                      <p className="text-[11px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                                         {isSelf ? "you" : displayName.toLowerCase()} · {timeAgo(log.createdAt)}
                                       </p>
                                     </>
@@ -747,7 +747,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                     style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                   >
                     <div className="px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Guides</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Guides</p>
                     </div>
                     <button
                       type="button"
@@ -859,20 +859,20 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-semibold truncate" style={{ color: "var(--fg)" }}>{user.firstName} {user.lastName}</p>
-                  <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{user.email}</p>
+                  <p className="text-[11px] truncate" style={{ color: "var(--fg-tertiary)" }}>{user.email}</p>
                 </div>
               </Link>
 
               {/* Theme */}
               <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Theme</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Theme</p>
                 <div className="flex gap-1.5">
                   {THEME_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => applyTheme(opt.value)}
-                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors ${
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors ${
                         theme === opt.value
                           ? "bg-[var(--primary)] text-white"
                           : "text-[var(--fg-secondary)]"
@@ -902,7 +902,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                   </svg>
                   Pings
                   {pingUnread > 0 && (
-                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--primary)" }}>
+                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white" style={{ background: "var(--primary)" }}>
                       {pingUnread > 9 ? "9+" : pingUnread}
                     </span>
                   )}
@@ -921,7 +921,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                   </svg>
                   Notifications
                   {unseenCount > 0 && (
-                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white" style={{ background: "var(--rose)" }}>
                       {unseenCount > 9 ? "9+" : unseenCount}
                     </span>
                   )}

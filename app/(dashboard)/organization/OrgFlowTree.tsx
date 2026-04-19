@@ -66,7 +66,7 @@ function DeptNode({ data }: NodeProps) {
         </div>
         <div className="min-w-0 text-left">
           <p className="text-sm font-bold truncate max-w-[140px]" style={{ color: "var(--fg)" }}>{String(data.label ?? "")}</p>
-          {data.sub ? <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
+          {data.sub ? <p className="text-[11px] truncate" style={{ color: "var(--fg-tertiary)" }}>{String(data.sub)}</p> : null}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[var(--purple)] !w-3 !h-3 !border-2 !border-white" />
@@ -86,10 +86,10 @@ function EmpNode({ data }: NodeProps) {
     >
       <Handle type="source" position={Position.Top} id="top" className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: isActive ? "var(--teal)" : "var(--fg-tertiary)" }}>{initials}</span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: isActive ? "var(--teal)" : "var(--fg-tertiary)" }}>{initials}</span>
         <div className="min-w-0 text-left">
           <p className="text-xs font-semibold truncate max-w-[100px]" style={{ color: "var(--fg)" }}>{String(data.label ?? "")}</p>
-          <p className="text-[10px] truncate max-w-[100px]" style={{ color: "var(--fg-tertiary)" }}>{String(data.email ?? "")}</p>
+          <p className="text-[11px] truncate max-w-[100px]" style={{ color: "var(--fg-tertiary)" }}>{String(data.email ?? "")}</p>
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
@@ -166,7 +166,7 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
             className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm transition-all hover:shadow-md"
             style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)", cursor: canInteract ? "pointer" : "default" }}>
             {desig?.name ?? "Assign"}
-            {data?.isCustomPermissions && desig && <span className="rounded-sm px-1 py-px text-[10px] font-bold uppercase leading-none" style={{ background: "rgba(255,255,255,0.25)" }}>Custom</span>}
+            {data?.isCustomPermissions && desig && <span className="rounded-sm px-1 py-px text-[11px] font-bold uppercase leading-none" style={{ background: "rgba(255,255,255,0.25)" }}>Custom</span>}
             {canInteract && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
           </button>
           <AnimatePresence>
@@ -176,7 +176,7 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
                 style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
                 {showDesigList && (
                 <div className="p-1.5 max-h-44 overflow-y-auto border-b" style={{ borderColor: "var(--border)" }}>
-                  <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
+                  <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
                   {(data.designations ?? []).map((d) => (
                     <button key={d._id} type="button"
                       disabled={data.changingDesigId === data.membershipId}
@@ -749,7 +749,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                   <select value={connDesig} onChange={(e) => setConnDesig(e.target.value)} className="input w-full">
                     {designations.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
                   </select>
-                  <p className="text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
+                  <p className="text-[11px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
                     Privileges from this designation will be applied. You can fine-tune them later via the pill.
                   </p>
                 </div>
@@ -811,7 +811,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                         </svg>
                         <span className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>{cat.label}</span>
                         <button type="button" onClick={() => { const val = !allOn; setPrivPerms((p) => { const next = { ...p }; for (const k of cat.keys) next[k] = val; return next; }); }}
-                          className="ml-auto rounded-lg px-2.5 py-1 text-[10px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                          className="ml-auto rounded-lg px-2.5 py-1 text-[11px] font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
                           style={{ color: allOn ? "var(--rose)" : "var(--primary)", borderColor: "var(--border)" }}>
                           {allOn ? "Disable all" : someOn ? "Enable rest" : "Enable all"}
                         </button>
@@ -825,7 +825,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]" />
                               <div className="min-w-0">
                                 <span className="text-xs font-medium leading-tight block" style={{ color: privPerms[k] ? "var(--fg)" : "var(--fg-secondary)" }}>{meta.label}</span>
-                                <span className="text-[10px] leading-snug block mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</span>
+                                <span className="text-[11px] leading-snug block mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</span>
                               </div>
                             </label>
                           );

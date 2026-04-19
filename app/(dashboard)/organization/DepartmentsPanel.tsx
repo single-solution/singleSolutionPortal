@@ -114,7 +114,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
       <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Departments</h3>
         <div className="flex items-center gap-1.5">
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>
+          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--purple) 10%, transparent)", color: "var(--purple)" }}>
             {loading && list.length === 0 ? "…" : sorted.length}
           </span>
           {canCreate && (
@@ -137,7 +137,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
                 <motion.div key={`skel-${i}`} variants={cardVariants} custom={i}><div className="flex items-center gap-2 rounded-lg p-2"><div className="shimmer h-3 w-3 rounded-full" /><div className="shimmer h-3 w-24 rounded" /></div></motion.div>
               ))
             ) : sorted.length === 0 ? (
-              <p className="text-[10px] p-2" style={{ color: "var(--fg-tertiary)" }}>No departments yet.</p>
+              <p className="text-[11px] p-2" style={{ color: "var(--fg-tertiary)" }}>No departments yet.</p>
             ) : (
               sorted.map((d, i) => (
                 <motion.div key={d._id} variants={cardVariants} custom={i} layout layoutId={`dept-panel-${d._id}`} exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }} className="group">
@@ -147,7 +147,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{d.title}</p>
-                      <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                      <p className="truncate text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
                         {d.employeeCount} people
                       </p>
                     </div>

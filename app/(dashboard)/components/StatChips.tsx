@@ -7,7 +7,7 @@ export function Pill({ color, label, variant = "filled", size = "md", icon }: {
   const isOutline = variant === "outline";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full font-semibold pill-hover ${isSm ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-[11px]"}`}
+      className={`inline-flex items-center gap-1 rounded-full font-semibold pill-hover ${isSm ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-[11px]"}`}
       style={{
         background: isOutline ? "transparent" : `color-mix(in srgb, ${color} 14%, transparent)`,
         color,
@@ -26,9 +26,9 @@ export function Pill({ color, label, variant = "filled", size = "md", icon }: {
 export function StatChip({ label, value, color, subtitle }: { label: string; value: string; color: string; subtitle?: string }) {
   return (
     <div className="rounded-xl p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</p>
       <p className="text-[11px] font-bold tabular-nums" style={{ color }}>{value}</p>
-      {subtitle ? <p className="mt-0.5 truncate px-0.5 text-[10px] font-medium leading-tight" style={{ color: "var(--fg-secondary)" }}>{subtitle}</p> : null}
+      {subtitle ? <p className="mt-0.5 truncate px-0.5 text-[11px] font-medium leading-tight" style={{ color: "var(--fg-secondary)" }}>{subtitle}</p> : null}
     </div>
   );
 }

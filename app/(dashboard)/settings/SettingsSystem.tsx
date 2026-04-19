@@ -142,7 +142,7 @@ export function OfficeConfigCard({ sys, defaultSysSettings }: { sys: SystemSetti
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-medium" style={{ color: "var(--fg)" }}>Live Updates</p>
-              <p className="text-[10px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Real-time push via Socket.IO.</p>
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--fg-tertiary)" }}>Real-time push via Socket.IO.</p>
             </div>
             <ToggleSwitch checked={settings.liveUpdates} onChange={(v) => setSettings({ ...settings, liveUpdates: v })} size="lg" />
           </div>

@@ -180,7 +180,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
       <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Designations</h3>
         <div className="flex items-center gap-1.5">
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
             {loading && !designations ? "…" : sorted.length}
           </span>
           {canCreate && (
@@ -214,7 +214,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                 </motion.div>
               ))
             ) : sorted.length === 0 ? (
-              <p className="text-[10px] p-2" style={{ color: "var(--fg-tertiary)" }}>
+              <p className="text-[11px] p-2" style={{ color: "var(--fg-tertiary)" }}>
                 No designations yet.
               </p>
             ) : (
@@ -243,7 +243,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                         {d.name}
                       </p>
                       {d.description && (
-                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                        <p className="truncate text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
                           {d.description}
                         </p>
                       )}
@@ -410,7 +410,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                         </svg>
                         <span className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
                           Default Privileges
-                          <span className="ml-1.5 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                          <span className="ml-1.5 text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                             · {enabledPermsCount} of {PERMISSION_KEYS.length} enabled
                           </span>
                         </span>
@@ -441,8 +441,8 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                                 </svg>
                                 <input type="text" value={permSearch} onChange={(e) => setPermSearch(e.target.value)} placeholder="Search privileges…" className="flex-1 min-w-0 bg-transparent text-[11px] outline-none" style={{ color: "var(--fg)", border: "none" }} />
                               </div>
-                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors shrink-0" style={{ color: "var(--green)", background: "color-mix(in srgb, var(--green) 10%, transparent)" }}>All On</button>
-                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setFormPerms(p); }} className="text-[10px] font-semibold rounded-lg px-2 py-1 transition-colors shrink-0" style={{ color: "var(--rose)", background: "color-mix(in srgb, var(--rose) 10%, transparent)" }}>All Off</button>
+                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setFormPerms(p); }} className="text-[11px] font-semibold rounded-lg px-2 py-1 transition-colors shrink-0" style={{ color: "var(--green)", background: "color-mix(in srgb, var(--green) 10%, transparent)" }}>All On</button>
+                              <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = false; setFormPerms(p); }} className="text-[11px] font-semibold rounded-lg px-2 py-1 transition-colors shrink-0" style={{ color: "var(--rose)", background: "color-mix(in srgb, var(--rose) 10%, transparent)" }}>All Off</button>
                             </div>
                             {PERMISSION_CATEGORIES.map((cat) => {
                               const q = permSearch.trim().toLowerCase();
@@ -469,7 +469,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                                         />
                                         <div className="min-w-0">
                                           <p className="text-[11px] font-medium leading-tight" style={{ color: "var(--fg)" }}>{meta.label}</p>
-                                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</p>
+                                          <p className="text-[11px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</p>
                                         </div>
                                       </label>
                                     );

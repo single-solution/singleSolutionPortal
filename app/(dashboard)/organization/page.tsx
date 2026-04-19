@@ -444,7 +444,7 @@ export default function OrganizationPage() {
                       footerSlot={
                         <div className="flex flex-wrap items-center gap-2">
                           {canToggleStatus && notSA && <ToggleSwitch size="sm" checked={emp.isActive} disabled={empTogglingId === emp._id} onChange={() => toggleEmployeeActive(emp)} />}
-                          <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                          <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                             Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                           </span>
                           {canResendInvite && emp.isVerified === false && (
@@ -503,23 +503,23 @@ export default function OrganizationPage() {
                       {ALL_WEEKDAYS.map((day) => {
                         const ds = empForm.weeklySchedule[day];
                         return (
-                          <div key={day} className="flex items-center gap-2 text-[10px]">
+                          <div key={day} className="flex items-center gap-2 text-[11px]">
                             <span className="w-8 font-semibold shrink-0" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{FULL_DAY_LABELS[day].slice(0, 3)}</span>
                             <ToggleSwitch checked={ds.isWorking} onChange={() => updateEmpDay(day, { isWorking: !ds.isWorking })} />
-                            <input type="time" value={ds.start} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { start: e.target.value })} className="input text-[10px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
+                            <input type="time" value={ds.start} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { start: e.target.value })} className="input text-[11px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
                             <span style={{ color: "var(--fg-tertiary)" }}>–</span>
-                            <input type="time" value={ds.end} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { end: e.target.value })} className="input text-[10px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
-                            <input type="number" min={0} value={ds.breakMinutes} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { breakMinutes: Number(e.target.value) || 0 })} className="input text-[10px] py-0.5 w-12 text-center" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
+                            <input type="time" value={ds.end} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { end: e.target.value })} className="input text-[11px] py-0.5 w-20" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
+                            <input type="number" min={0} value={ds.breakMinutes} disabled={!ds.isWorking} onChange={(e) => updateEmpDay(day, { breakMinutes: Number(e.target.value) || 0 })} className="input text-[11px] py-0.5 w-12 text-center" style={{ opacity: ds.isWorking ? 1 : 0.35 }} />
                             <span style={{ color: "var(--fg-tertiary)" }}>break (min)</span>
                           </div>
                         );
                       })}
                     </div>
                     <div className={`mt-2 grid gap-2 ${canManageSalary ? "grid-cols-3" : "grid-cols-2"}`}>
-                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Employment type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option></select></div>
-                      <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Clock-in grace (minutes)</label><input type="number" min={0} value={empForm.graceMinutes} onChange={(e) => setEmpForm((f) => ({ ...f, graceMinutes: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
+                      <div><label className="text-[11px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Employment type</label><select value={empForm.shiftType} onChange={(e) => setEmpForm((f) => ({ ...f, shiftType: e.target.value }))} className="input w-full text-xs"><option value="fullTime">Full-time</option><option value="partTime">Part-time</option><option value="contract">Contract</option></select></div>
+                      <div><label className="text-[11px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Clock-in grace (minutes)</label><input type="number" min={0} value={empForm.graceMinutes} onChange={(e) => setEmpForm((f) => ({ ...f, graceMinutes: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
                       {canManageSalary && (
-                        <div><label className="text-[10px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Salary</label><input type="number" min={0} step="any" value={empForm.salary} onChange={(e) => setEmpForm((f) => ({ ...f, salary: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
+                        <div><label className="text-[11px] mb-0.5 block" style={{ color: "var(--fg-tertiary)" }}>Salary</label><input type="number" min={0} step="any" value={empForm.salary} onChange={(e) => setEmpForm((f) => ({ ...f, salary: Number(e.target.value) || 0 }))} className="input w-full text-xs" /></div>
                       )}
                     </div>
                   </div>
