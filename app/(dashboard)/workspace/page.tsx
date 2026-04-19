@@ -878,7 +878,7 @@ export default function WorkspacePage() {
                                           borderColor: "var(--border)",
                                           opacity: taskActive ? 1 : 0.45,
                                         }}>
-                                        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
+                                        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: "color-mix(in srgb, #8b5cf6 15%, var(--dock-frosted-bg))", color: "#8b5cf6", border: "1px solid color-mix(in srgb, #8b5cf6 30%, var(--border))" }}>{recurLabel}</span>
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
                                             toggleTaskExpanded(item._id);
@@ -891,10 +891,10 @@ export default function WorkspacePage() {
                                           {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === item._id} onChange={() => toggleTaskActive(item._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{item.title}</span>
-                                            {fullTask?.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
+                                            {fullTask?.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
                                             <div className="flex items-center gap-1 flex-wrap">
                                               {fullTask?.assignedTo?.map((a) => (
-                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                               ))}
                                             </div>
                                           </div>
@@ -943,15 +943,15 @@ export default function WorkspacePage() {
                                                         <SortableTaskRow key={sub._id} id={sub._id} canReorder={canReorderTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
                                                             <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: parentOff ? 0.35 : !subActive ? 0.45 : subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
-                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
                                                                 {canToggleActive && isSubMyTask && <ToggleSwitch size="sm" checked={subActive} disabled={parentOff || togglingId === sub._id} onChange={() => toggleSubtaskActive(item._id, sub._id, subActive)} />}
                                                                 <div className="flex-1 min-w-0">
                                                                   <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" || !subActive ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
-                                                                  {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                                                  {sub.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                                                   <div className="flex items-center gap-1 flex-wrap">
                                                                     {sub.assignedTo?.map((a) => (
-                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                                                     ))}
                                                                   </div>
                                                                 </div>
@@ -1018,7 +1018,7 @@ export default function WorkspacePage() {
                                         }}>
                                         {(() => {
                                           const info = taskSubmittedInfo(task, c.todayChecklistByEmployee);
-                                          return <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${info.color} 15%, var(--dock-frosted-bg))`, color: info.color, border: `1px solid color-mix(in srgb, ${info.color} 30%, var(--border))` }}>{info.label}</span>;
+                                          return <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${info.color} 15%, var(--dock-frosted-bg))`, color: info.color, border: `1px solid color-mix(in srgb, ${info.color} 30%, var(--border))` }}>{info.label}</span>;
                                         })()}
                                         <div className="flex items-center gap-1.5 px-2 py-1.5">
                                           <button type="button" onClick={() => {
@@ -1032,12 +1032,12 @@ export default function WorkspacePage() {
                                           {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === task._id} onChange={() => toggleTaskActive(task._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{task.title}</span>
-                                            {task.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
+                                            {task.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
                                             <div className="flex items-center gap-1 flex-wrap">
                                               {task.assignedTo?.map((a) => (
-                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                               ))}
-                                              {task.deadline && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: deadlineUrgency(task.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
+                                              {task.deadline && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: deadlineUrgency(task.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1084,17 +1084,17 @@ export default function WorkspacePage() {
                                                         <SortableTaskRow key={sub._id} id={sub._id} canReorder={canReorderTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
                                                             <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: parentOff ? 0.35 : !subActive ? 0.45 : subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
-                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
+                                                              <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
                                                                 {canToggleActive && isSubMyTask && <ToggleSwitch size="sm" checked={subActive} disabled={parentOff || togglingId === sub._id} onChange={() => toggleSubtaskActive(task._id, sub._id, subActive)} />}
                                                                 <div className="flex-1 min-w-0">
                                                                   <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" || !subActive ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
-                                                                  {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
+                                                                  {sub.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                                                   <div className="flex items-center gap-1 flex-wrap">
                                                                     {sub.assignedTo?.map((a) => (
-                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[9px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
+                                                                      <span key={a._id} className="rounded-full px-1.5 py-px text-[10px] font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown"}</span>
                                                                     ))}
-                                                                    {sub.deadline && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: deadlineUrgency(sub.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(sub.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(sub.deadline)}</span>}
+                                                                    {sub.deadline && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: deadlineUrgency(sub.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(sub.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(sub.deadline)}</span>}
                                                                   </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1149,12 +1149,12 @@ export default function WorkspacePage() {
                     {/* ── card footer: stat pills ── */}
                     <div className="border-t px-2 py-1.5 flex items-center gap-1 flex-wrap" style={{ borderColor: "var(--border)" }}>
                       {canToggleCampaign && isMyCampaign && <ToggleSwitch size="sm" checked={c.status === "active"} disabled={togglingId === c._id} onChange={() => toggleCampaignActive(c._id, c.status)} />}
-                      {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
-                      {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
-                      {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}
-                      {recurCount > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{recurCount} recurring</span>}
-                      {empCount > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{empCount} team member{empCount !== 1 ? "s" : ""}</span>}
-                      {c.startDate && <span className="text-[9px] tabular-nums ml-auto" style={{ color: "var(--fg-tertiary)" }}>{formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : " · ongoing"}</span>}
+                      {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
+                      {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
+                      {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}
+                      {recurCount > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, #8b5cf6 12%, transparent)", color: "#8b5cf6" }}>{recurCount} recurring</span>}
+                      {empCount > 0 && <span className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{empCount} team member{empCount !== 1 ? "s" : ""}</span>}
+                      {c.startDate && <span className="text-[10px] tabular-nums ml-auto" style={{ color: "var(--fg-tertiary)" }}>{formatDate(c.startDate)}{c.endDate ? ` — ${formatDate(c.endDate)}` : " · ongoing"}</span>}
                     </div>
                   </motion.div>
                 );
@@ -1209,7 +1209,7 @@ export default function WorkspacePage() {
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
                               <span className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{label}</span>
                               {group.unread > 0 && (
-                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
                                   {group.unread}
                                 </span>
                               )}
@@ -1244,7 +1244,7 @@ export default function WorkspacePage() {
                                 return (
                                   <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
                                     <div className="flex items-start gap-2">
-                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[8px] font-bold"
+                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
                                         style={{ background: lc.bg, color: lc.fg }}>
                                         {logAvatarLabel(log)}
                                       </div>
@@ -1257,13 +1257,13 @@ export default function WorkspacePage() {
                                           <p className="text-[10px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
                                         )}
                                         <div className="flex items-center justify-between mt-1">
-                                          <span className="text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                          <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
                                           {log.entity === "task" && log.entityId && (() => {
                                             const linkedTask = taskList.find((t) => t._id === log.entityId);
                                             if (!linkedTask) return null;
                                             const info = taskSubmittedInfo(linkedTask);
                                             return (
-                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold"
+                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                                 style={{ background: `color-mix(in srgb, ${info.color} 12%, transparent)`, color: info.color }}>
                                                 <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: info.color }}>
                                                   {info.done > 0 && info.done < info.total && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: info.color }} />}

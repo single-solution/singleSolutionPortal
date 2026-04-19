@@ -721,7 +721,7 @@ export default function AttendancePage() {
                       <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>
                         {selectedDate?.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
                       </h3>
-                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
+                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                         {teamDatePresent} present · {teamDateLate} late · {filteredTeamDate.length - teamDatePresent} absent
                         {teamDateAvgMins > 0 && <> · avg {fmtHours(teamDateAvgMins)}</>}
                         {teamDateEarliestIn && <> · first in {fmtTime(teamDateEarliestIn)}</>}
@@ -729,15 +729,15 @@ export default function AttendancePage() {
                       </p>
                       {!teamDateLoading && filteredTeamDate.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{teamDateExtras.pctPresent}% present</span>
-                          {teamDatePresent > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{teamDateExtras.onTimePct}% on-time</span>}
-                          {teamDateExtras.totalMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>team {fmtHours(teamDateExtras.totalMins)} total</span>}
-                          {teamDateExtras.totalOfficeMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalOfficeMins)} office</span>}
-                          {teamDateExtras.totalRemoteMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalRemoteMins)} remote</span>}
-                          {teamDateExtras.avgLateBy > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-late) 12%, transparent)", color: "var(--status-late)" }}>avg {teamDateExtras.avgLateBy}m late</span>}
-                          {teamDateExtras.lateToOffice > 0 && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{teamDateExtras.lateToOffice} late to office</span>}
-                          {teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most: {teamDateExtras.mostHoursName} ({fmtHours(teamDateExtras.mostHoursMins)})</span>}
-                          {teamDateExtras.leastHoursName && teamDateExtras.leastHoursName !== teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>Least: {teamDateExtras.leastHoursName} ({fmtHours(teamDateExtras.leastHoursMins)})</span>}
+                          <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{teamDateExtras.pctPresent}% present</span>
+                          {teamDatePresent > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{teamDateExtras.onTimePct}% on-time</span>}
+                          {teamDateExtras.totalMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>team {fmtHours(teamDateExtras.totalMins)} total</span>}
+                          {teamDateExtras.totalOfficeMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalOfficeMins)} office</span>}
+                          {teamDateExtras.totalRemoteMins > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(teamDateExtras.totalRemoteMins)} remote</span>}
+                          {teamDateExtras.avgLateBy > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-late) 12%, transparent)", color: "var(--status-late)" }}>avg {teamDateExtras.avgLateBy}m late</span>}
+                          {teamDateExtras.lateToOffice > 0 && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{teamDateExtras.lateToOffice} late to office</span>}
+                          {teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Most: {teamDateExtras.mostHoursName} ({fmtHours(teamDateExtras.mostHoursMins)})</span>}
+                          {teamDateExtras.leastHoursName && teamDateExtras.leastHoursName !== teamDateExtras.mostHoursName && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>Least: {teamDateExtras.leastHoursName} ({fmtHours(teamDateExtras.leastHoursMins)})</span>}
                         </div>
                       )}
                     </div>
@@ -783,18 +783,18 @@ export default function AttendancePage() {
                               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: statusColor }} />
                               <div className="min-w-0 flex-1">
                                 <p className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
-                                <p className="text-[9px] truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>
+                                <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{emp.department}</p>
                               </div>
                               <div className="text-right shrink-0">
                                 <p className="text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{fmtHours(emp.totalWorkingMinutes)}</p>
-                                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{
+                                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
                                   background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
                                   color: statusColor,
                                 }}>
                                   {emp.isPresent ? (emp.isOnTime ? "On Time" : "Late") : "Absent"}
                                 </span>
                                 {emp.isLateToOffice && (
-                                  <span className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{
+                                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{
                                     background: "color-mix(in srgb, var(--rose) 15%, transparent)",
                                     color: "var(--rose)",
                                   }}>
@@ -896,7 +896,7 @@ export default function AttendancePage() {
                       <Pill color="var(--fg-tertiary)" label={`${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}`} variant="outline" />
                     </div>
 
-                    <p className="text-[9px]" style={{ color: "var(--fg-secondary)" }}>
+                    <p className="text-[10px]" style={{ color: "var(--fg-secondary)" }}>
                       {detailData.isPresent
                         ? `Worked ${fmtHours(detailData.totalWorkingMinutes)} across ${detailData.activitySessions?.length ?? 0} session${(detailData.activitySessions?.length ?? 0) !== 1 ? "s" : ""}${detailData.officeMinutes > 0 && detailData.remoteMinutes > 0 ? " — split between office and remote" : detailData.officeMinutes > 0 ? " — from office" : " — remotely"}`
                         : "No work sessions recorded for this day"}
@@ -953,9 +953,9 @@ export default function AttendancePage() {
                   {pillsLoading ? (
                     <span className="shimmer mt-1 block h-3 w-40 rounded" />
                   ) : isAggregateMode ? (
-                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{filteredSummary.length} employees · select a date for details</p>
+                    <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{filteredSummary.length} employees · select a date for details</p>
                   ) : (
-                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
+                    <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                       {viewingMember ? viewingMember.name : "Your attendance"} · select a date for details
                     </p>
                   )}
@@ -1008,7 +1008,7 @@ export default function AttendancePage() {
                         <StatChip label="Remote hrs" value={`${Math.round(monthlyStats.totalRemoteHours)}h`} color="var(--status-remote)" />
                         {leaveBalance ? (
                           <div className="rounded-xl p-1.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leaves</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leaves</p>
                             <p className="text-[11px] font-bold tabular-nums" style={{ color: leaveBalance.remaining > 0 ? "var(--teal)" : "var(--rose)" }}>
                               {leaveBalance.used}/{leaveBalance.total}
                             </p>
@@ -1050,10 +1050,10 @@ export default function AttendancePage() {
               <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                 <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Session Timeline</h3>
                 <div className="flex items-center gap-2">
-                  {sessions.length > 1 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(totalSessionMins)} total</span>}
-                  {longestSeg > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>longest session {fmtHours(longestSeg)}</span>}
-                  {uniqueDevices > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: uniqueDevices > 1 ? "color-mix(in srgb, var(--amber) 12%, transparent)" : "var(--bg-grouped)", color: uniqueDevices > 1 ? "var(--amber)" : "var(--fg-tertiary)" }}>{uniqueDevices} device{uniqueDevices !== 1 ? "s" : ""}</span>}
-                  {uniqueIPs > 0 && <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{uniqueIPs} IP{uniqueIPs !== 1 ? "s" : ""}</span>}
+                  {sessions.length > 1 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{fmtHours(totalSessionMins)} total</span>}
+                  {longestSeg > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>longest session {fmtHours(longestSeg)}</span>}
+                  {uniqueDevices > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: uniqueDevices > 1 ? "color-mix(in srgb, var(--amber) 12%, transparent)" : "var(--bg-grouped)", color: uniqueDevices > 1 ? "var(--amber)" : "var(--fg-tertiary)" }}>{uniqueDevices} device{uniqueDevices !== 1 ? "s" : ""}</span>}
+                  {uniqueIPs > 0 && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{uniqueIPs} IP{uniqueIPs !== 1 ? "s" : ""}</span>}
                 </div>
               </div>
             );
@@ -1078,7 +1078,7 @@ export default function AttendancePage() {
                                           <span style={{ color: "var(--fg-tertiary)" }}> → </span>
                                           {sess.sessionTime.end ? fmtTime(sess.sessionTime.end) : "now"}
                                         </span>
-                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
                                           {fmtHours(sess.durationMinutes)}
                                         </span>
                                       </div>
@@ -1200,11 +1200,11 @@ export default function AttendancePage() {
                 >
                   {/* Absolute attendance pill */}
                   <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -10 }}>
-                    <span className="pill-glass rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: `color-mix(in srgb, ${attendColor} 15%, var(--dock-frosted-bg))`, borderColor: `color-mix(in srgb, ${attendColor} 30%, var(--border))`, color: attendColor }}>
+                    <span className="pill-glass rounded-full border px-2 py-0.5 text-[10px] font-bold" style={{ background: `color-mix(in srgb, ${attendColor} 15%, var(--dock-frosted-bg))`, borderColor: `color-mix(in srgb, ${attendColor} 30%, var(--border))`, color: attendColor }}>
                       {Math.round(emp.attendancePercentage)}% attendance
                     </span>
                     {emp.lateDays > 0 && (
-                      <span className="pill-glass rounded-full border px-2 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--status-late) 15%, var(--dock-frosted-bg))", borderColor: "color-mix(in srgb, var(--status-late) 30%, var(--border))", color: "var(--status-late)" }}>
+                      <span className="pill-glass rounded-full border px-2 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--status-late) 15%, var(--dock-frosted-bg))", borderColor: "color-mix(in srgb, var(--status-late) 30%, var(--border))", color: "var(--status-late)" }}>
                         {emp.lateDays}d late
                       </span>
                     )}
@@ -1214,21 +1214,21 @@ export default function AttendancePage() {
                     {/* Name + department */}
                     <div className="pr-1 pt-0.5">
                         <p className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</p>
-                      <p className="text-[9px] truncate" style={{ color: "var(--fg-secondary)" }}>{emp.department}{emp.role ? ` · ${emp.role}` : ""}</p>
+                      <p className="text-[10px] truncate" style={{ color: "var(--fg-secondary)" }}>{emp.department}{emp.role ? ` · ${emp.role}` : ""}</p>
                       </div>
 
                     {/* Days · Hours · Avg/Day */}
                     <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
                       <div>
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Days present</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Days present</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--status-present)" }}>{emp.presentDays}d</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Total hours</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Total hours</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--status-office)" }}>{fmtHours(emp.totalMinutes)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Avg hours/day</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Avg hours/day</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{emp.averageDailyHours.toFixed(1)}h</p>
                       </div>
                     </div>
@@ -1236,26 +1236,26 @@ export default function AttendancePage() {
                     {/* On-Time · Late · Absent */}
                     <div className="grid grid-cols-3 gap-1 text-[11px]">
                       <div>
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>On-time rate</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>On-time rate</p>
                         <p className="font-semibold tabular-nums" style={{ color: onTimeColor }}>{Math.round(emp.onTimePercentage)}%</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Late days</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Late days</p>
                         <p className="font-semibold tabular-nums" style={{ color: emp.lateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>{emp.lateDays}d</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Absent</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Absent</p>
                         <p className="font-semibold tabular-nums" style={{ color: absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{absentDays}d</p>
                       </div>
                     </div>
 
                     {/* Detail chips */}
                     <div className="flex flex-wrap gap-1 border-t pt-1.5" style={{ borderColor: "var(--border)" }}>
-                      <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--status-ontime)" }}>{emp.onTimeDays}d on-time</span>
+                      <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--status-ontime)" }}>{emp.onTimeDays}d on-time</span>
                       {emp.lateToOfficeDays > 0 && (
-                        <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-absent) 10%, transparent)", color: "var(--status-absent)" }}>{emp.lateToOfficeDays}d late to office</span>
+                        <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-absent) 10%, transparent)", color: "var(--status-absent)" }}>{emp.lateToOfficeDays}d late to office</span>
                       )}
-                      <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--primary)" }}>View →</span>
+                      <span className="ml-auto text-[10px] font-medium" style={{ color: "var(--primary)" }}>View →</span>
                     </div>
                   </div>
                 </motion.div>
@@ -1315,7 +1315,7 @@ export default function AttendancePage() {
                     <span className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                       {l.isHalfDay ? "Half day" : `${l.days}d`}
                     </span>
-                    <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold capitalize" style={{
+                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold capitalize" style={{
                       background: `color-mix(in srgb, ${statusColor} 12%, transparent)`,
                       color: statusColor,
                     }}>
@@ -1397,11 +1397,11 @@ export default function AttendancePage() {
                   >
                     {/* Absolute status pill */}
                     <div className="pointer-events-none absolute right-1 z-20 flex items-center gap-1" style={{ top: -10 }}>
-                      <span className="pill-glass rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, borderColor: `color-mix(in srgb, ${statusColor} 30%, var(--border))`, color: statusColor }}>
+                      <span className="pill-glass rounded-full border px-1.5 py-0.5 text-[10px] font-bold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, borderColor: `color-mix(in srgb, ${statusColor} 30%, var(--border))`, color: statusColor }}>
                         {statusLabel}
                       </span>
                       {(rec.lateBy ?? 0) > 0 && (
-                        <span className="pill-glass rounded-full border px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--status-late) 15%, var(--dock-frosted-bg))", borderColor: "color-mix(in srgb, var(--status-late) 30%, var(--border))", color: "var(--status-late)" }}>
+                        <span className="pill-glass rounded-full border px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--status-late) 15%, var(--dock-frosted-bg))", borderColor: "color-mix(in srgb, var(--status-late) 30%, var(--border))", color: "var(--status-late)" }}>
                           {rec.lateBy}m late
                         </span>
                       )}
@@ -1415,15 +1415,15 @@ export default function AttendancePage() {
                     {/* Clock in · Hours worked · Clock out */}
                     <div className="grid grid-cols-3 gap-1 border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
                       <div>
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{fmtTime(rec.firstStart ?? rec.firstOfficeEntry)}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Hours worked</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Hours worked</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{fmtHours(rec.totalWorkingMinutes)}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
+                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
                         <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{fmtTime(rec.lastEnd ?? rec.lastOfficeExit)}</p>
                     </div>
                     </div>
@@ -1432,15 +1432,15 @@ export default function AttendancePage() {
                     {rec.isPresent && (rec.firstOfficeEntry || rec.officeMinutes > 0) && (
                       <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
                         <div>
-                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
+                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
                           <p className="font-semibold tabular-nums">{fmtTime(rec.firstOfficeEntry)}</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
+                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
                           <p className="font-semibold tabular-nums" style={{ color: "var(--status-office)" }}>{fmtHours(rec.officeMinutes)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
+                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
                           <p className="font-semibold tabular-nums">{fmtTime(rec.lastOfficeExit)}</p>
                         </div>
                       </div>
@@ -1449,17 +1449,17 @@ export default function AttendancePage() {
                     {/* Detail chips */}
                     {rec.isPresent && (
                       <div className="flex flex-wrap gap-1 border-t pt-1.5" style={{ borderColor: "var(--border)" }}>
-                        {rec.remoteMinutes > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--status-remote)" }}>{fmtHours(rec.remoteMinutes)} remote</span>}
-                        {(rec.breakMinutes ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{rec.breakMinutes}m break</span>}
-                        {rec.isLateToOffice && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-absent) 10%, transparent)", color: "var(--status-absent)" }}>late to office{(rec.lateToOfficeBy ?? 0) > 0 ? ` ${rec.lateToOfficeBy}m` : ""}</span>}
-                        {officePct > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{officePct}% office</span>}
-                        <span className="ml-auto text-[9px] font-medium" style={{ color: "var(--primary)" }}>Details →</span>
+                        {rec.remoteMinutes > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--status-remote)" }}>{fmtHours(rec.remoteMinutes)} remote</span>}
+                        {(rec.breakMinutes ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{rec.breakMinutes}m break</span>}
+                        {rec.isLateToOffice && <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-absent) 10%, transparent)", color: "var(--status-absent)" }}>late to office{(rec.lateToOfficeBy ?? 0) > 0 ? ` ${rec.lateToOfficeBy}m` : ""}</span>}
+                        {officePct > 0 && <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{officePct}% office</span>}
+                        <span className="ml-auto text-[10px] font-medium" style={{ color: "var(--primary)" }}>Details →</span>
                       </div>
                     )}
 
                     {!rec.isPresent && (
                       <div className="flex items-center justify-end pt-1">
-                        <span className="text-[9px] font-medium" style={{ color: "var(--primary)" }}>Details →</span>
+                        <span className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>Details →</span>
                       </div>
                     )}
                   </motion.button>

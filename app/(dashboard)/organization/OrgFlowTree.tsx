@@ -89,7 +89,7 @@ function EmpNode({ data }: NodeProps) {
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: isActive ? "var(--teal)" : "var(--fg-tertiary)" }}>{initials}</span>
         <div className="min-w-0 text-left">
           <p className="text-xs font-semibold truncate max-w-[100px]" style={{ color: "var(--fg)" }}>{String(data.label ?? "")}</p>
-          <p className="text-[9px] truncate max-w-[100px]" style={{ color: "var(--fg-tertiary)" }}>{String(data.email ?? "")}</p>
+          <p className="text-[10px] truncate max-w-[100px]" style={{ color: "var(--fg-tertiary)" }}>{String(data.email ?? "")}</p>
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
@@ -166,7 +166,7 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
             className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold shadow-sm transition-all hover:shadow-md"
             style={{ background: desig?.color ?? "var(--bg-grouped)", color: desig ? "white" : "var(--fg-tertiary)", borderColor: desig?.color ?? "var(--border)", cursor: canInteract ? "pointer" : "default" }}>
             {desig?.name ?? "Assign"}
-            {data?.isCustomPermissions && desig && <span className="rounded-sm px-1 py-px text-[8px] font-bold uppercase leading-none" style={{ background: "rgba(255,255,255,0.25)" }}>Custom</span>}
+            {data?.isCustomPermissions && desig && <span className="rounded-sm px-1 py-px text-[10px] font-bold uppercase leading-none" style={{ background: "rgba(255,255,255,0.25)" }}>Custom</span>}
             {canInteract && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
           </button>
           <AnimatePresence>

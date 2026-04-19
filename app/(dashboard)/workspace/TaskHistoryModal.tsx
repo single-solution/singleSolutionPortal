@@ -191,7 +191,7 @@ function EmployeeCardGrid({ employees, onEmployeeClick, loading }: {
             whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{emp.name}</span>
-              <span className="shrink-0 text-[9px] font-bold tabular-nums" style={{ color: barColor }}>
+              <span className="shrink-0 text-[10px] font-bold tabular-nums" style={{ color: barColor }}>
                 {emp.todayDone}/{emp.todayTotal}
               </span>
             </div>
@@ -213,7 +213,7 @@ function EmployeeCardGrid({ employees, onEmployeeClick, loading }: {
                         <svg className="h-2 w-2" style={{ color: "var(--fg-quaternary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       )}
                     </span>
-                    <span className="text-[9px] truncate" style={{ color: t.done ? "var(--fg-secondary)" : "var(--fg-tertiary)", textDecoration: t.done ? "line-through" : "none" }}>
+                    <span className="text-[10px] truncate" style={{ color: t.done ? "var(--fg-secondary)" : "var(--fg-tertiary)", textDecoration: t.done ? "line-through" : "none" }}>
                       {t.title}
                     </span>
                   </div>
@@ -245,7 +245,7 @@ function ProgressTaskCard({ task, onTaskClick, onEmployeeClick, isSubtask }: {
     <div className={isSubtask ? "mb-1" : "mb-1.5"}>
       <div className="group relative rounded-xl border transition-all"
         style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold"
+        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold"
           style={{
             background: `color-mix(in srgb, ${pillColor} 15%, var(--dock-frosted-bg))`,
             color: pillColor,
@@ -263,12 +263,12 @@ function ProgressTaskCard({ task, onTaskClick, onEmployeeClick, isSubtask }: {
           )}
           <div className="flex-1 min-w-0">
             <span className="text-[11px] font-semibold truncate block" style={{ color: "var(--fg)" }}>{task.title}</span>
-            {task.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
+            {task.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
             {/* employee completion pills */}
             <div className="flex items-center gap-1 flex-wrap mt-0.5">
               {task.employees.map((emp) => (
                 <button key={emp._id} type="button" onClick={(e) => { e.stopPropagation(); onEmployeeClick(emp._id); }}
-                  className="rounded-full px-1.5 py-px text-[9px] font-medium transition-colors hover:opacity-80"
+                  className="rounded-full px-1.5 py-px text-[10px] font-medium transition-colors hover:opacity-80"
                   style={{
                     background: emp.done ? "color-mix(in srgb, var(--green) 12%, transparent)" : "var(--bg-grouped)",
                     color: emp.done ? "var(--green)" : "var(--fg-secondary)",
@@ -326,7 +326,7 @@ function EmpTaskCard({ task, onTaskClick, isSubtask }: {
     <div className={isSubtask ? "mb-1" : "mb-1.5"}>
       <div className="group relative rounded-xl border transition-all"
         style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: task.done ? 0.65 : 1 }}>
-        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold"
+        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[10px] font-semibold"
           style={{
             background: `color-mix(in srgb, ${pillColor} 15%, var(--dock-frosted-bg))`,
             color: pillColor,
@@ -355,7 +355,7 @@ function EmpTaskCard({ task, onTaskClick, isSubtask }: {
             <span className="text-[11px] font-semibold truncate block" style={{ color: task.done ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.done ? "line-through" : "none" }}>
               {task.title}
             </span>
-            {task.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
+            {task.description && <span className="text-[10px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
           </div>
           <button type="button" onClick={() => onTaskClick(task._id)}
             className="h-5 w-5 flex items-center justify-center rounded-md shrink-0 transition-colors opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-grouped)]"
@@ -902,7 +902,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1.5 shrink-0">
-                                        <span className="text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                                        <span className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                                           {cg.employeeCount} member{cg.employeeCount !== 1 ? "s" : ""}
                                         </span>
                                         <svg className="h-3 w-3" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -979,7 +979,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
                                         </div>
                                       </div>
                                       <button type="button" onClick={() => handleEmployeeClick(emp._id)}
-                                        className="text-[9px] font-semibold shrink-0 transition-colors hover:opacity-80" style={{ color: "var(--primary)" }}>
+                                        className="text-[10px] font-semibold shrink-0 transition-colors hover:opacity-80" style={{ color: "var(--primary)" }}>
                                         Timeline
                                       </button>
                                     </div>
@@ -1091,7 +1091,7 @@ function TimelinePanel({ events, loading, selectedDay, month, year, onClearDay }
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName(ev.employee)}</span>
-                    <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-semibold"
+                    <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-semibold"
                       style={{ background: `color-mix(in srgb, ${meta.color} 14%, transparent)`, color: meta.color }}>
                       <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={meta.icon} /></svg>
                       {meta.label}
@@ -1099,7 +1099,7 @@ function TimelinePanel({ events, loading, selectedDay, month, year, onClearDay }
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {ev.campaign && (
-                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+                      <span className="rounded-full px-1.5 py-px text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
                         {ev.campaign.name}
                       </span>
                     )}
@@ -1108,10 +1108,10 @@ function TimelinePanel({ events, loading, selectedDay, month, year, onClearDay }
                     )}
                   </div>
                   {ev.note && (
-                    <p className="mt-0.5 text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{ev.note}</p>
+                    <p className="mt-0.5 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{ev.note}</p>
                   )}
                 </div>
-                <span className="shrink-0 text-[9px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                <span className="shrink-0 text-[10px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                   {fmtTime(ev.changedAt)}
                 </span>
               </motion.div>

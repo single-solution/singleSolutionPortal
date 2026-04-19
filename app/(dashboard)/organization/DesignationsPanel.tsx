@@ -243,7 +243,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                         {d.name}
                       </p>
                       {d.description && (
-                        <p className="truncate text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
+                        <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                           {d.description}
                         </p>
                       )}
@@ -469,7 +469,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                                         />
                                         <div className="min-w-0">
                                           <p className="text-[11px] font-medium leading-tight" style={{ color: "var(--fg)" }}>{meta.label}</p>
-                                          <p className="text-[9px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</p>
+                                          <p className="text-[10px] leading-tight" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</p>
                                         </div>
                                       </label>
                                     );

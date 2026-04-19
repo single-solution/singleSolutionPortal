@@ -282,7 +282,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                   <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                     <div>
                       <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Company Holidays</h3>
-                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
+                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                         {holidays.length} holiday{holidays.length !== 1 ? "s" : ""} in {displayYear}
                         {upcoming.length > 0 && <> · {upcoming.length} upcoming</>}
                       </p>
@@ -357,7 +357,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                           return (
                             <div key={h._id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors" style={{ background: "var(--bg-grouped)", opacity: isPast ? 0.55 : 1 }}>
                               <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg text-white" style={{ background: h.isRecurring ? "var(--purple)" : "var(--primary)" }}>
-                                <span className="text-[8px] font-semibold leading-none uppercase">{SHORT_MONTHS[d.getUTCMonth()]}</span>
+                                <span className="text-[10px] font-semibold leading-none uppercase">{SHORT_MONTHS[d.getUTCMonth()]}</span>
                                 <span className="text-[11px] font-bold leading-tight">{d.getUTCDate()}</span>
                               </div>
                               <div className="flex-1 min-w-0">
@@ -374,7 +374,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                                     title={h.isRecurring ? "Recurring — click to make one-time" : "One-time — click to make recurring"}
                                   />
                                 ) : h.isRecurring ? (
-                                  <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ color: "var(--purple)", background: "color-mix(in srgb, var(--purple) 12%, transparent)" }}>Recurring</span>
+                                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: "var(--purple)", background: "color-mix(in srgb, var(--purple) 12%, transparent)" }}>Recurring</span>
                                 ) : null}
                                 {canDeleteHoliday && (
                                   <button type="button" onClick={() => setDeleteTarget(h)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-tertiary)" }} title="Remove holiday">

@@ -760,7 +760,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                           onClick={() => { setUserId(""); setDeptFilter(null); if (canViewTeam) setDetailTab("overview"); }}
                           className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId && !deptFilter ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                         >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
                           <span className="text-[11px] font-semibold" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg-secondary)" }}>All Employees</span>
                         </button>
                       )}
@@ -781,7 +781,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                             <button
                               type="button"
                               onClick={() => { setUserId(""); setDeptFilter(g.id); if (canViewTeam) setDetailTab("overview"); }}
-                              className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
+                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                               style={{ color: deptFilter === g.id && !userId ? "var(--primary)" : "var(--fg-tertiary)" }}
                             >
                               {g.title} ({g.employees.length})
@@ -794,7 +794,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                 className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-8 text-left transition-colors"
                                 style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
                               >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
                                 <span className="flex-1 min-w-0 text-[11px] font-medium truncate" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>{nameOf(emp)}</span>
                                 {isSel && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
                               </button>
@@ -896,9 +896,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   { label: "Leave days", value: `${estimate.leaveDays}`, sub: `+ ${estimate.holidays} holidays`, color: "var(--teal)" },
                                 ].map((s) => (
                                   <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
                                     <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.value}</p>
-                                    <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{s.sub}</p>
+                                    <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{s.sub}</p>
                                   </div>
                                 ))}
                               </div>
@@ -933,54 +933,54 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                   {summaryRateStats.effectiveHourly != null && (
                                     <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Effective Hourly Rate</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Effective Hourly Rate</p>
                                       <p className="text-[11px] font-bold" style={{ color: "var(--primary)" }}>
                                         {summaryRateStats.effectiveHourly.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                       </p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>per hour (net)</p>
+                                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>per hour (net)</p>
                                     </div>
                                   )}
                                   {summaryRateStats.dailyRate != null && (
                                     <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Daily Rate</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Daily Rate</p>
                                       <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>
                                         {summaryRateStats.dailyRate.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                       </p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>base salary per work day</p>
+                                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>base salary per work day</p>
                                     </div>
                                   )}
                                   {summaryRateStats.payPerPresentDay != null && (
                                     <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Pay Per Present Day</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Pay Per Present Day</p>
                                       <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>
                                         {summaryRateStats.payPerPresentDay.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                       </p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>net pay per present day</p>
+                                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>net pay per present day</p>
                                     </div>
                                   )}
                                   {estimate.overtimeHours > 0 && (
                                     <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Overtime Pay</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Overtime Pay</p>
                                       <p className="text-[11px] font-bold" style={{ color: "var(--teal)" }}>{fmt(estimate.grossPay - estimate.baseSalary)}</p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{estimate.overtimeHours.toFixed(1)}h overtime</p>
+                                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{estimate.overtimeHours.toFixed(1)}h overtime</p>
                                     </div>
                                   )}
                                   {summaryRateStats.overtimeRate != null && (
                                     <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>OT Hourly Rate</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>OT Hourly Rate</p>
                                       <p className="text-[11px] font-bold" style={{ color: "var(--amber)" }}>
                                         {summaryRateStats.overtimeRate.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                       </p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>per OT hour</p>
+                                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>per OT hour</p>
                                     </div>
                                   )}
                                   {summaryRateStats.netDailyRate != null && (
                                     <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Net Daily Rate</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Net Daily Rate</p>
                                       <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>
                                         {summaryRateStats.netDailyRate.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                       </p>
-                                      <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>net pay per work day</p>
+                                      <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>net pay per work day</p>
                                     </div>
                                   )}
                                 </div>
@@ -1003,7 +1003,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                               Daily Breakdown · {MN[selMonth - 1]} {selYear}
                             </p>
-                            <div className="grid grid-cols-[2rem_2.5rem_1fr_4rem_3.5rem_3.5rem_3.5rem_3.5rem] gap-x-2 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                            <div className="grid grid-cols-[2rem_2.5rem_1fr_4rem_3.5rem_3.5rem_3.5rem_3.5rem] gap-x-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                               <span>Day</span><span>Wkday</span><span>Status</span><span className="text-right">Hours</span><span className="text-right">Late</span><span className="text-right">Deduct.</span><span className="text-right">Clock in</span><span className="text-right">Clock out</span>
                             </div>
                             <div className="space-y-0.5">
@@ -1060,33 +1060,33 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                       return (
                                         <>
                                           <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days with Deductions</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days with Deductions</p>
                                             <p className="text-[11px] font-bold" style={{ color: "var(--rose)" }}>{daysWithDeductions}</p>
                                           </div>
                                           <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero deduction days</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero deduction days</p>
                                             <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{daysZeroDedPresent}</p>
-                                            <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>present only</p>
+                                            <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>present only</p>
                                           </div>
                                           <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Largest daily deduction</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Largest daily deduction</p>
                                             <p className="text-[11px] font-bold" style={{ color: maxDed > 0 ? "var(--rose)" : "var(--fg-quaternary)" }}>{maxDed > 0 ? fmt(maxDed) : "—"}</p>
                                           </div>
                                           {medianDed > 0 && (
                                             <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Median Deduction</p>
+                                              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Median Deduction</p>
                                               <p className="text-[11px] font-bold" style={{ color: "var(--amber)" }}>{fmt(Math.round(medianDed))}</p>
                                             </div>
                                           )}
                                           {totalLateMins > 0 && (
                                             <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Late</p>
+                                              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Late</p>
                                               <p className="text-[11px] font-bold" style={{ color: "var(--status-late)" }}>{Math.floor(totalLateMins / 60)}h {totalLateMins % 60}m</p>
                                             </div>
                                           )}
                                           {(totalOfficeMins > 0 || totalRemoteMins > 0) && (
                                             <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Office / Remote</p>
+                                              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Office / Remote</p>
                                               <p className="text-[11px] font-bold">
                                                 <span style={{ color: "var(--status-office)" }}>{Math.round(totalOfficeMins / 60)}h</span>
                                                 <span style={{ color: "var(--fg-tertiary)" }}> / </span>
@@ -1135,7 +1135,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     { label: "Net Pay", value: fmt(reportSheetTotals.totalNetPay), color: "var(--primary)" },
                                   ].map((s) => (
                                     <div key={s.label} className="rounded-xl p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
                                       <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.value}</p>
                                     </div>
                                   ))}
@@ -1169,52 +1169,52 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Attendance</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Attendance</p>
                                         <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{teamSheetStats.teamAvgAttendancePct}%</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Overtime</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Overtime</p>
                                         <p className="text-[11px] font-bold" style={{ color: teamSheetStats.teamTotalOvertimeHours > 0 ? "var(--teal)" : "var(--fg)" }}>{teamSheetStats.teamTotalOvertimeHours.toFixed(1)}h</p>
                                       </div>
                                       {teamSheetStats.teamAvgNetPay != null && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Net Pay</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Net Pay</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--primary)" }}>{fmt(Math.round(teamSheetStats.teamAvgNetPay))}</p>
                                         </div>
                                       )}
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero Deduction</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero Deduction</p>
                                         <p className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{teamSheetStats.zeroDeductionEmployees}</p>
-                                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
+                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>With Overtime</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>With Overtime</p>
                                         <p className="text-[11px] font-bold" style={{ color: teamSheetStats.overtimeEmployees > 0 ? "var(--teal)" : "var(--fg-tertiary)" }}>{teamSheetStats.overtimeEmployees}</p>
-                                        <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
+                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Late Days</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Late Days</p>
                                         <p className="text-[11px] font-bold" style={{ color: teamSheetStats.avgLateDays > 0 ? "var(--status-late)" : "var(--fg)" }}>{teamSheetStats.avgLateDays}</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Absence Days</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Absence Days</p>
                                         <p className="text-[11px] font-bold" style={{ color: teamSheetStats.avgAbsenceDays > 0 ? "var(--status-absent)" : "var(--fg)" }}>{teamSheetStats.avgAbsenceDays}</p>
                                       </div>
                                       {teamSheetStats.avgSalary != null && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Salary</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Salary</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.avgSalary)}</p>
                                         </div>
                                       )}
                                       {teamSheetStats.medianSalary != null && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Median Salary</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Median Salary</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.medianSalary)}</p>
                                         </div>
                                       )}
                                       {teamSheetStats.salaryRange != null && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary Range</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary Range</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>{fmt(teamSheetStats.salaryRange)}</p>
                                         </div>
                                       )}
@@ -1223,44 +1223,44 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                       {teamSheetStats.highestPaid && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Paid</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Paid</p>
                                           <p className="text-[11px] font-bold truncate" style={{ color: "var(--primary)" }}>{teamSheetStats.highestPaid.name}</p>
-                                          <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestPaid.salary)}</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestPaid.salary)}</p>
                                         </div>
                                       )}
                                       {teamSheetStats.lowestPaid && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Paid</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Paid</p>
                                           <p className="text-[11px] font-bold truncate" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.lowestPaid.name}</p>
-                                          <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestPaid.salary)}</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestPaid.salary)}</p>
                                         </div>
                                       )}
                                       {teamSheetStats.highestDed && teamSheetStats.highestDed.totalDeductions > 0 && (
                                         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Deductions</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Deductions</p>
                                           <p className="text-[11px] font-bold truncate" style={{ color: "var(--rose)" }}>{teamSheetStats.highestDed.name}</p>
-                                          <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestDed.totalDeductions)}</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestDed.totalDeductions)}</p>
                                         </div>
                                       )}
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Attendance</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Attendance</p>
                                         <p className="text-[11px] font-bold truncate" style={{ color: "var(--status-present)" }}>{teamSheetStats.bestAttendanceName}</p>
-                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.bestAttendancePct}%</p>
+                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.bestAttendancePct}%</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Attendance</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Attendance</p>
                                         <p className="text-[11px] font-bold truncate" style={{ color: "var(--status-absent)" }}>{teamSheetStats.worstAttendanceName}</p>
-                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.worstAttendancePct}%</p>
+                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.worstAttendancePct}%</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Most Late Days</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Most Late Days</p>
                                         <p className="text-[11px] font-bold truncate" style={{ color: teamSheetStats.mostLateDays > 0 ? "var(--status-late)" : "var(--fg)" }}>{teamSheetStats.mostLateName}</p>
-                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.mostLateDays} days</p>
+                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.mostLateDays} days</p>
                                       </div>
                                       <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Net Pay</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Net Pay</p>
                                         <p className="text-[11px] font-bold truncate" style={{ color: "var(--primary)" }}>{teamSheetStats.lowestNetName}</p>
-                                        <p className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestNet)}</p>
+                                        <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestNet)}</p>
                                       </div>
                                     </div>
                                   </>
@@ -1281,12 +1281,12 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                               <div>
                                 <div className="flex items-center justify-between mb-2">
                                   <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Employee Payroll Details{deptFilter ? ` · ${deptGroups.find((g) => g.id === deptFilter)?.title ?? "Department"}` : ""}</p>
-                                  <span className="text-[9px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+                                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
                                     {new Date(payrollSheet.generatedAt).toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)" }}>
-                                  <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_4rem_4rem_4.5rem] gap-x-1 px-3 py-2 text-[8px] font-semibold uppercase tracking-wider" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+                                  <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_4rem_4rem_4.5rem] gap-x-1 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
                                     <span>#</span><span>Employee</span><span className="text-right">Present</span><span className="text-right">Absent</span><span className="text-right">Late</span><span className="text-right">Leave</span><span className="text-right">Attend.</span><span className="text-right">Gross</span><span className="text-right">Deduct.</span><span className="text-right">Net Pay</span>
                                   </div>
                                   {filteredTeamSheet.map((e, i) => (
@@ -1297,7 +1297,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                       <span className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{i + 1}</span>
                                       <div className="min-w-0">
                                         <p className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{e.name}</p>
-                                        {e.department && <p className="text-[8px] truncate" style={{ color: "var(--fg-tertiary)" }}>{e.department}</p>}
+                                        {e.department && <p className="text-[10px] truncate" style={{ color: "var(--fg-tertiary)" }}>{e.department}</p>}
                                       </div>
                                       <span className="text-right text-[10px] font-semibold" style={{ color: "var(--status-present)" }}>{e.presentDays}</span>
                                       <span className="text-right text-[10px] font-semibold" style={{ color: e.absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{e.absentDays}</span>
@@ -1354,7 +1354,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                       { label: "Leave days", value: yearTotals.leaveDays, color: "var(--teal)" },
                                     ].map((s) => (
                                       <div key={s.label} className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
                                         <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.value}</p>
                                       </div>
                                     ))}
@@ -1367,61 +1367,61 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                                       {yearInsightStats.ytdAvgMonthlyNet != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Avg Monthly Net Pay</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Avg Monthly Net Pay</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--primary)" }}>{fmt(Math.round(yearInsightStats.ytdAvgMonthlyNet))}</p>
-                                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>over {yearTotals.months} months</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>over {yearTotals.months} months</p>
                                         </div>
                                       )}
                                       {yearInsightStats.ytdAttendancePct != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Attendance %</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Attendance %</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{yearInsightStats.ytdAttendancePct}%</p>
                                         </div>
                                       )}
                                       {yearInsightStats.ytdDeductionPct != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Deduction %</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Deduction %</p>
                                           <p className="text-[11px] font-bold" style={{ color: yearInsightStats.ytdDeductionPct > 0 ? "var(--rose)" : "var(--fg)" }}>{yearInsightStats.ytdDeductionPct}%</p>
                                         </div>
                                       )}
                                       {yearInsightStats.bestMonth && yearInsightStats.bestNet != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Month</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Month</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--primary)" }}>{yearInsightStats.bestMonth}</p>
-                                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(yearInsightStats.bestNet)} net</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(yearInsightStats.bestNet)} net</p>
                                         </div>
                                       )}
                                       {yearInsightStats.worstMonth && yearInsightStats.worstDed != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Month</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Month</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--rose)" }}>{yearInsightStats.worstMonth}</p>
-                                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{yearInsightStats.worstDed > 0 ? `−${fmt(yearInsightStats.worstDed)}` : "—"} deductions</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{yearInsightStats.worstDed > 0 ? `−${fmt(yearInsightStats.worstDed)}` : "—"} deductions</p>
                                         </div>
                                       )}
                                       {yearInsightStats.bestGrossMonth != null && yearInsightStats.bestGross != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Gross</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Gross</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{MN_SHORT[yearInsightStats.bestGrossMonth]}</p>
-                                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(yearInsightStats.bestGross)} gross</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(yearInsightStats.bestGross)} gross</p>
                                         </div>
                                       )}
                                       {yearInsightStats.worstNetMonth != null && yearInsightStats.worstNet != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Net</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Net</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--rose)" }}>{MN_SHORT[yearInsightStats.worstNetMonth]}</p>
-                                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(yearInsightStats.worstNet)} net</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(yearInsightStats.worstNet)} net</p>
                                         </div>
                                       )}
                                       {yearInsightStats.lowestDedMonth != null && yearInsightStats.lowestDed != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest deduction</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest deduction</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>{MN_SHORT[yearInsightStats.lowestDedMonth]}</p>
-                                          <p className="text-[8px]" style={{ color: "var(--fg-tertiary)" }}>{yearInsightStats.lowestDed > 0 ? `−${fmt(yearInsightStats.lowestDed)}` : "—"}</p>
+                                          <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{yearInsightStats.lowestDed > 0 ? `−${fmt(yearInsightStats.lowestDed)}` : "—"}</p>
                                         </div>
                                       )}
                                       {yearInsightStats.totalOvertimeHours > 0 && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total overtime</p>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total overtime</p>
                                           <p className="text-[11px] font-bold" style={{ color: "var(--teal)" }}>{yearInsightStats.totalOvertimeHours.toFixed(1)}h</p>
                                         </div>
                                       )}
@@ -1434,7 +1434,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Monthly Breakdown</p>
                                   <div className="rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)" }}>
                                     {/* Header */}
-                                    <div className="grid grid-cols-[5rem_1fr_1fr_1fr_1fr_1fr_1fr] gap-x-1 px-3 py-2 text-[9px] font-semibold uppercase tracking-wider" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
+                                    <div className="grid grid-cols-[5rem_1fr_1fr_1fr_1fr_1fr_1fr] gap-x-1 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>
                                       <span>Month</span><span className="text-right">Present</span><span className="text-right">Absent</span><span className="text-right">Late</span><span className="text-right">Gross</span><span className="text-right">Deductions</span><span className="text-right">Net Pay</span>
                                     </div>
                                     {yearData.map((e, i) => {
@@ -1455,7 +1455,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                           </span>
                                           {e ? (
                                             <>
-                                              <span className="text-right text-[11px] font-medium" style={{ color: "var(--status-present)" }}>{e.presentDays}<span className="text-[9px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{e.workingDays}</span></span>
+                                              <span className="text-right text-[11px] font-medium" style={{ color: "var(--status-present)" }}>{e.presentDays}<span className="text-[10px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{e.workingDays}</span></span>
                                               <span className="text-right text-[11px] font-medium" style={{ color: e.absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{e.absentDays}</span>
                                               <span className="text-right text-[11px] font-medium" style={{ color: e.lateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>{e.lateDays}</span>
                                               <span className="text-right text-[11px] font-medium" style={{ color: "var(--fg)" }}>{fmt(e.grossPay)}</span>
@@ -1472,7 +1472,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                     {yearTotals && (
                                       <div className="grid grid-cols-[5rem_1fr_1fr_1fr_1fr_1fr_1fr] gap-x-1 px-3 py-2" style={{ background: "var(--bg-grouped)" }}>
                                         <span className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>Total</span>
-                                        <span className="text-right text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{yearTotals.presentDays}<span className="text-[9px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{yearTotals.workingDays}</span></span>
+                                        <span className="text-right text-[11px] font-bold" style={{ color: "var(--status-present)" }}>{yearTotals.presentDays}<span className="text-[10px] font-normal" style={{ color: "var(--fg-tertiary)" }}>/{yearTotals.workingDays}</span></span>
                                         <span className="text-right text-[11px] font-bold" style={{ color: yearTotals.absentDays > 0 ? "var(--status-absent)" : "var(--fg-tertiary)" }}>{yearTotals.absentDays}</span>
                                         <span className="text-right text-[11px] font-bold" style={{ color: yearTotals.lateDays > 0 ? "var(--status-late)" : "var(--fg-tertiary)" }}>{yearTotals.lateDays}</span>
                                         <span className="text-right text-[11px] font-bold" style={{ color: "var(--fg)" }}>{fmt(yearTotals.grossPay)}</span>

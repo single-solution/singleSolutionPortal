@@ -890,13 +890,13 @@ export default function SessionTracker() {
             </span>
 
         {isReadonly && isActive && (
-              <span className="text-[9px] font-semibold opacity-80 tracking-wide">
+              <span className="text-[10px] font-semibold opacity-80 tracking-wide">
                 {isMobileRef.current ? "synced" : "another device"}
           </span>
         )}
 
         {session.isStale && session.active && (
-              <span className="text-[9px] font-semibold opacity-75 tracking-wide">inactive</span>
+              <span className="text-[10px] font-semibold opacity-75 tracking-wide">inactive</span>
             )}
 
             <span className="h-3.5 w-px bg-white/40 rounded-full" />
@@ -914,7 +914,7 @@ export default function SessionTracker() {
           {showCoords && liveCoords && isActive && (
             <>
               <span className="h-3.5 w-px bg-white/40 rounded-full" />
-              <span className="text-[9px] font-semibold tabular-nums whitespace-nowrap opacity-80 tracking-wide drop-shadow-sm">
+              <span className="text-[10px] font-semibold tabular-nums whitespace-nowrap opacity-80 tracking-wide drop-shadow-sm">
                 {liveCoords.lat.toFixed(4)}, {liveCoords.lng.toFixed(4)}
               </span>
             </>

@@ -81,7 +81,7 @@ export function MiniCalendar({
         {DAY_NAMES.map((d) => {
           const isWeekendCol = d === "Sat" || d === "Sun";
           return (
-            <div key={d} className="py-0.5 text-center text-[9px] font-semibold uppercase" style={{ color: isWeekendCol ? "var(--fg-quaternary, var(--fg-tertiary))" : "var(--fg-tertiary)" }}>
+            <div key={d} className="py-0.5 text-center text-[10px] font-semibold uppercase" style={{ color: isWeekendCol ? "var(--fg-quaternary, var(--fg-tertiary))" : "var(--fg-tertiary)" }}>
               {compact ? d[0] : d}
             </div>
           );
@@ -153,7 +153,7 @@ export function MiniCalendar({
       </div>
 
       {showLegend && legendItems && legendItems.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
           {legendItems.map((item) => (
             <span key={item.label} className="flex items-center gap-1">
               <span

@@ -147,7 +147,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{d.title}</p>
-                      <p className="truncate text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
+                      <p className="truncate text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                         {d.employeeCount} people
                       </p>
                     </div>

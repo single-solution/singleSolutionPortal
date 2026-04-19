@@ -634,7 +634,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                             {displayName}
                                           </p>
                                           <span
-                                            className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase"
+                                            className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase"
                                             style={{
                                               background: isViolation ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
                                               color: isViolation ? "var(--rose)" : "var(--amber)",
@@ -642,7 +642,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                                           >
                                             {isViolation ? "Security violation" : "Security warning"}
                                           </span>
-                                          <span className="text-[9px] font-semibold tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
+                                          <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                                             #{secMeta.totalCount ?? "?"} in {secMeta.windowDays ?? 30}d
                                           </span>
                                         </div>
@@ -902,7 +902,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                   </svg>
                   Pings
                   {pingUnread > 0 && (
-                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--primary)" }}>
+                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--primary)" }}>
                       {pingUnread > 9 ? "9+" : pingUnread}
                     </span>
                   )}
@@ -921,7 +921,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                   </svg>
                   Notifications
                   {unseenCount > 0 && (
-                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
                       {unseenCount > 9 ? "9+" : unseenCount}
                     </span>
                   )}
