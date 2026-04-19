@@ -30,7 +30,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "designations_edit")) return forbidden();
+
+  const canEditDesig = hasPermission(actor, "designations_edit");
+  const canToggleDesig = hasPermission(actor, "designations_toggleStatus");
+  const canSetPerms = hasPermission(actor, "designations_setPermissions");
+  if (!canEditDesig && !canToggleDesig && !canSetPerms) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -47,35 +51,41 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return badRequest("Invalid JSON body");
   }
 
-  if (body.name !== undefined) {
-    if (typeof body.name !== "string" || !body.name.trim()) return badRequest("name must be a non-empty string");
-    designation.name = body.name.trim();
-  }
-
-  if (body.description !== undefined) {
-    if (typeof body.description !== "string") return badRequest("description must be a string");
-    designation.description = body.description;
-  }
-
-  if (body.color !== undefined) {
-    if (typeof body.color !== "string" || !body.color.trim()) return badRequest("color must be a non-empty string");
-    designation.color = body.color.trim();
-  }
-
-  if (body.isActive !== undefined) {
-    if (typeof body.isActive !== "boolean") return badRequest("isActive must be a boolean");
-    designation.isActive = body.isActive;
-  }
-
-  if (body.defaultPermissions !== undefined) {
-    if (typeof body.defaultPermissions !== "object" || body.defaultPermissions === null || Array.isArray(body.defaultPermissions)) {
-      return badRequest("defaultPermissions must be an object of permission booleans");
+  if (canEditDesig) {
+    if (body.name !== undefined) {
+      if (typeof body.name !== "string" || !body.name.trim()) return badRequest("name must be a non-empty string");
+      designation.name = body.name.trim();
     }
-    const src = body.defaultPermissions as Record<string, unknown>;
-    for (const k of PERMISSION_KEYS) {
-      if (k in src) {
-        if (typeof src[k] !== "boolean") return badRequest(`defaultPermissions.${String(k)} must be a boolean`);
-        designation.set(`defaultPermissions.${k}`, src[k]);
+
+    if (body.description !== undefined) {
+      if (typeof body.description !== "string") return badRequest("description must be a string");
+      designation.description = body.description;
+    }
+
+    if (body.color !== undefined) {
+      if (typeof body.color !== "string" || !body.color.trim()) return badRequest("color must be a non-empty string");
+      designation.color = body.color.trim();
+    }
+  }
+
+  if (canToggleDesig || canEditDesig) {
+    if (body.isActive !== undefined) {
+      if (typeof body.isActive !== "boolean") return badRequest("isActive must be a boolean");
+      designation.isActive = body.isActive;
+    }
+  }
+
+  if (canSetPerms || canEditDesig) {
+    if (body.defaultPermissions !== undefined) {
+      if (typeof body.defaultPermissions !== "object" || body.defaultPermissions === null || Array.isArray(body.defaultPermissions)) {
+        return badRequest("defaultPermissions must be an object of permission booleans");
+      }
+      const src = body.defaultPermissions as Record<string, unknown>;
+      for (const k of PERMISSION_KEYS) {
+        if (k in src) {
+          if (typeof src[k] !== "boolean") return badRequest(`defaultPermissions.${String(k)} must be a boolean`);
+          designation.set(`defaultPermissions.${k}`, src[k]);
+        }
       }
     }
   }

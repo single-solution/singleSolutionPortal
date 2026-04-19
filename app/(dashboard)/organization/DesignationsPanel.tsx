@@ -107,12 +107,12 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
     if (!formName.trim()) return;
     setSaveLoading(true);
     try {
-      const body = {
+      const body: Record<string, unknown> = {
         name: formName.trim(),
         description: formDescription,
         color: formColor.trim(),
-        defaultPermissions: formPerms,
       };
+      if (canSetPermissions) body.defaultPermissions = formPerms;
       if (modalMode === "create") {
         const res = await fetch("/api/designations", {
           method: "POST",

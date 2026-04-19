@@ -35,7 +35,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const assigneeIds: string[] = (task.assignedTo ?? []).map((a: unknown) => String(a));
   const isOwner = assigneeIds.includes(actor.id);
-  const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_edit");
+  const canEditTask = isSuperAdmin(actor) || hasPermission(actor, "tasks_edit");
+  const canToggleTask = isSuperAdmin(actor) || hasPermission(actor, "tasks_toggleActive");
+  const isPrivileged = canEditTask || canToggleTask;
   if (!isPrivileged && !isOwner) return forbidden();
 
   if (isPrivileged && !isSuperAdmin(actor) && !isOwner) {
@@ -61,7 +63,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  if (isPrivileged) {
+  if (canEditTask) {
     if (body.title !== undefined) task.title = body.title;
     if (body.description !== undefined) task.description = body.description;
     if (body.deadline !== undefined) task.deadline = body.deadline;
@@ -105,6 +107,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
     if (typeof body.order === "number") task.order = body.order;
+    if (body.recurrence !== undefined) {
+      if (body.recurrence === null) {
+        task.recurrence = undefined;
+      } else if (body.recurrence.frequency) {
+        const validFreqs = ["weekly", "monthly"];
+        if (validFreqs.includes(body.recurrence.frequency) && Array.isArray(body.recurrence.days) && body.recurrence.days.length > 0) {
+          const maxVal = body.recurrence.frequency === "weekly" ? 6 : 31;
+          const minVal = body.recurrence.frequency === "weekly" ? 0 : 1;
+          const days = body.recurrence.days.filter((d: number) => typeof d === "number" && d >= minVal && d <= maxVal);
+          if (days.length > 0) {
+            task.recurrence = { frequency: body.recurrence.frequency, days } as typeof task.recurrence;
+          }
+        }
+      }
+    }
+  }
+
+  if (canToggleTask || canEditTask) {
     if (typeof body.isActive === "boolean" && body.isActive !== task.isActive) {
       task.isActive = body.isActive;
       const today = todayKey();
@@ -124,21 +144,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     } else if (typeof body.isActive === "boolean") {
       task.isActive = body.isActive;
-    }
-    if (body.recurrence !== undefined) {
-      if (body.recurrence === null) {
-        task.recurrence = undefined;
-      } else if (body.recurrence.frequency) {
-        const validFreqs = ["weekly", "monthly"];
-        if (validFreqs.includes(body.recurrence.frequency) && Array.isArray(body.recurrence.days) && body.recurrence.days.length > 0) {
-          const maxVal = body.recurrence.frequency === "weekly" ? 6 : 31;
-          const minVal = body.recurrence.frequency === "weekly" ? 0 : 1;
-          const days = body.recurrence.days.filter((d: number) => typeof d === "number" && d >= minVal && d <= maxVal);
-          if (days.length > 0) {
-            task.recurrence = { frequency: body.recurrence.frequency, days } as typeof task.recurrence;
-          }
-        }
-      }
     }
   }
 

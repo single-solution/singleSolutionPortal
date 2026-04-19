@@ -5,7 +5,6 @@ import Membership from "@/lib/models/Membership";
 import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
-  canManageDepartments,
   hasPermission,
   isSuperAdmin,
   getHierarchyDepartmentIds,
@@ -57,7 +56,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!canManageDepartments(actor)) return forbidden();
+  if (!hasPermission(actor, "departments_create")) return forbidden();
 
   await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

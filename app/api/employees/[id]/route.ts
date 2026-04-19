@@ -47,7 +47,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   if (actor.id === id) return forbidden("Use the Profile page to edit your own details");
 
-  if (!isSuperAdmin(actor) && !hasPermission(actor, "employees_edit")) return forbidden();
+  const canEditEmp = isSuperAdmin(actor) || hasPermission(actor, "employees_edit");
+  const canToggleEmp = isSuperAdmin(actor) || hasPermission(actor, "employees_toggleStatus");
+  if (!canEditEmp && !canToggleEmp) return forbidden();
 
   if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
@@ -66,18 +68,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
 
-  if (body.fullName !== undefined) {
-    const parts = body.fullName.trim().split(/\s+/);
-    update["about.firstName"] = parts[0] || "";
-    update["about.lastName"] = parts.slice(1).join(" ");
+  if (canEditEmp) {
+    if (body.fullName !== undefined) {
+      const parts = body.fullName.trim().split(/\s+/);
+      update["about.firstName"] = parts[0] || "";
+      update["about.lastName"] = parts.slice(1).join(" ");
+    }
+    if (body.phone !== undefined) update["about.phone"] = body.phone;
+    if (body.weeklySchedule) update.weeklySchedule = body.weeklySchedule;
+    if (typeof body.graceMinutes === "number") update.graceMinutes = body.graceMinutes;
+    if (body.shiftType) update.shiftType = body.shiftType;
   }
-  if (body.phone !== undefined) update["about.phone"] = body.phone;
-  if (body.weeklySchedule) update.weeklySchedule = body.weeklySchedule;
-  if (typeof body.graceMinutes === "number") update.graceMinutes = body.graceMinutes;
-  if (body.shiftType) update.shiftType = body.shiftType;
 
   let salaryHistoryEntry: Record<string, unknown> | null = null;
-  if (typeof body.salary === "number" && Number.isFinite(body.salary) && hasPermission(actor, "payroll_manageSalary")) {
+  if (canEditEmp && typeof body.salary === "number" && Number.isFinite(body.salary) && hasPermission(actor, "payroll_manageSalary")) {
     const currentEmp = await User.findById(id).select("salary").lean();
     const oldSalary = currentEmp?.salary ?? 0;
     const newSalary = body.salary;
@@ -96,7 +100,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  if (body.isActive !== undefined && (isSuperAdmin(actor) || hasPermission(actor, "employees_toggleStatus"))) {
+  if (canToggleEmp && body.isActive !== undefined) {
     update.isActive = body.isActive;
   }
 

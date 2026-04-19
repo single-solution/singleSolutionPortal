@@ -144,14 +144,6 @@ export function hasPermission(
   return relevantMemberships.some((m) => m.permissions[permission] === true);
 }
 
-/**
- * Check if user has ANY of the given permissions across any membership.
- */
-function hasAnyPermission(actor: VerifiedUser, permissions: (keyof IPermissions)[]): boolean {
-  if (actor.isSuperAdmin) return true;
-  return permissions.some((p) => hasPermission(actor, p));
-}
-
 /* ================================================================ */
 /* HIERARCHY TRAVERSAL  (with request-level memoization)             */
 /* ================================================================ */
@@ -289,28 +281,8 @@ export async function getHierarchyDepartmentIds(userId: string): Promise<string[
 }
 
 /* ================================================================ */
-/* CONVENIENCE PERMISSION WRAPPERS                                   */
+/* CAMPAIGN SCOPE                                                    */
 /* ================================================================ */
-
-export function canManageDepartments(actor: VerifiedUser): boolean {
-  return hasAnyPermission(actor, ["departments_create", "departments_edit"]);
-}
-
-export function canManageTasks(actor: VerifiedUser): boolean {
-  return hasAnyPermission(actor, ["tasks_create", "tasks_edit"]);
-}
-
-export function canManageCampaigns(actor: VerifiedUser): boolean {
-  return hasAnyPermission(actor, ["campaigns_create", "campaigns_edit"]);
-}
-
-export function canDeleteCampaign(actor: VerifiedUser): boolean {
-  return hasPermission(actor, "campaigns_delete");
-}
-
-export function canManageSettings(actor: VerifiedUser): boolean {
-  return hasAnyPermission(actor, ["settings_manageCompany", "settings_manageOffice", "settings_toggleLiveUpdates", "settings_sendTestEmail"]);
-}
 
 export async function getCampaignScopeFilter(actor: VerifiedUser): Promise<Record<string, unknown>> {
   if (actor.isSuperAdmin) return {};

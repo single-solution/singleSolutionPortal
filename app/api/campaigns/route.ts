@@ -9,7 +9,6 @@ import {
   getVerifiedSession,
   isSuperAdmin,
   hasPermission,
-  canManageCampaigns,
   getCampaignScopeFilter,
   getSubordinateUserIds,
   getHierarchyDepartmentIds,
@@ -145,7 +144,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!canManageCampaigns(actor)) return forbidden();
+  if (!hasPermission(actor, "campaigns_create")) return forbidden();
 
   await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

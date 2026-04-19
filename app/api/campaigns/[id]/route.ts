@@ -7,8 +7,6 @@ import {
   getVerifiedSession,
   isSuperAdmin,
   hasPermission,
-  canManageCampaigns,
-  canDeleteCampaign,
   getCampaignScopeFilter,
   getSubordinateUserIds,
   getHierarchyDepartmentIds,
@@ -44,7 +42,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!canManageCampaigns(actor)) return forbidden();
+
+  const canEdit = hasPermission(actor, "campaigns_edit");
+  const canToggle = hasPermission(actor, "campaigns_toggleStatus");
+  if (!canEdit && !canToggle) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -64,39 +65,43 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return badRequest(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
   }
 
-  const tagEmployees: string[] | undefined = body.tagEmployees;
-  const tagDepartments: string[] | undefined = body.tagDepartments;
+  if (canEdit) {
+    const tagEmployees: string[] | undefined = body.tagEmployees;
+    const tagDepartments: string[] | undefined = body.tagDepartments;
 
-  if ((tagEmployees?.length || tagDepartments?.length) && !hasPermission(actor, "campaigns_tagEntities")) {
-    return forbidden("You don't have permission to tag employees or departments to campaigns");
+    if ((tagEmployees?.length || tagDepartments?.length) && !hasPermission(actor, "campaigns_tagEntities")) {
+      return forbidden("You don't have permission to tag employees or departments to campaigns");
+    }
+
+    if (!isSuperAdmin(actor)) {
+      const subordinateIds = await getSubordinateUserIds(actor.id);
+      const visibleUsers = new Set([actor.id, ...subordinateIds]);
+      const visibleDepts = new Set(await getHierarchyDepartmentIds(actor.id));
+
+      if (tagEmployees !== undefined && tagEmployees.length > 0) {
+        const allValid = tagEmployees.every((e) => visibleUsers.has(e));
+        if (!allValid) return badRequest("Can only tag employees within your hierarchy");
+      }
+      if (tagDepartments !== undefined && tagDepartments.length > 0) {
+        const allValid = tagDepartments.every((d) => visibleDepts.has(d));
+        if (!allValid) return badRequest("Can only tag departments within your hierarchy");
+      }
+    }
+
+    if (body.name !== undefined) campaign.name = body.name.trim();
+    if (body.description !== undefined) campaign.description = body.description;
+    if (body.startDate !== undefined) campaign.startDate = body.startDate || undefined;
+    if (body.endDate !== undefined) campaign.endDate = body.endDate || undefined;
+    if (body.budget !== undefined) campaign.budget = body.budget;
+    if (body.notes !== undefined) campaign.notes = body.notes;
+    if (tagEmployees !== undefined) campaign.tags.employees = tagEmployees as typeof campaign.tags.employees;
+    if (tagDepartments !== undefined) campaign.tags.departments = tagDepartments as typeof campaign.tags.departments;
   }
 
-  if (!isSuperAdmin(actor)) {
-    const subordinateIds = await getSubordinateUserIds(actor.id);
-    const visibleUsers = new Set([actor.id, ...subordinateIds]);
-    const visibleDepts = new Set(await getHierarchyDepartmentIds(actor.id));
-
-    if (tagEmployees !== undefined && tagEmployees.length > 0) {
-      const allValid = tagEmployees.every((e) => visibleUsers.has(e));
-      if (!allValid) return badRequest("Can only tag employees within your hierarchy");
-    }
-    if (tagDepartments !== undefined && tagDepartments.length > 0) {
-      const allValid = tagDepartments.every((d) => visibleDepts.has(d));
-      if (!allValid) return badRequest("Can only tag departments within your hierarchy");
-    }
+  if (canToggle || canEdit) {
+    if (body.status !== undefined) campaign.status = body.status;
+    if (typeof body.isActive === "boolean") campaign.isActive = body.isActive;
   }
-
-  if (body.name !== undefined) campaign.name = body.name.trim();
-  if (body.description !== undefined) campaign.description = body.description;
-  if (body.status !== undefined) campaign.status = body.status;
-  if (body.startDate !== undefined) campaign.startDate = body.startDate || undefined;
-  if (body.endDate !== undefined) campaign.endDate = body.endDate || undefined;
-  if (body.budget !== undefined) campaign.budget = body.budget;
-  if (body.notes !== undefined) campaign.notes = body.notes;
-  if (typeof body.isActive === "boolean") campaign.isActive = body.isActive;
-
-  if (tagEmployees !== undefined) campaign.tags.employees = tagEmployees as typeof campaign.tags.employees;
-  if (tagDepartments !== undefined) campaign.tags.departments = tagDepartments as typeof campaign.tags.departments;
 
   campaign.updatedBy = actor.id as unknown as typeof campaign.updatedBy;
   await campaign.save();
@@ -127,7 +132,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!canDeleteCampaign(actor)) return forbidden();
+  if (!hasPermission(actor, "campaigns_delete")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");

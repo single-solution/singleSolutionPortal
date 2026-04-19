@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
 import SystemSettings from "@/lib/models/SystemSettings";
 import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
-import { getVerifiedSession, canManageSettings, hasPermission } from "@/lib/permissions";
+import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
 async function getOrCreateSettings() {
@@ -26,7 +26,11 @@ export async function GET() {
 export async function PUT(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!canManageSettings(actor)) return forbidden();
+
+  const canCompany = hasPermission(actor, "settings_manageCompany");
+  const canOffice = hasPermission(actor, "settings_manageOffice");
+  const canLive = hasPermission(actor, "settings_toggleLiveUpdates");
+  if (!canCompany && !canOffice && !canLive) return forbidden();
 
   await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,18 +39,18 @@ export async function PUT(req: Request) {
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
 
-  if (body.office) {
+  if (canOffice && body.office) {
     if (body.office.latitude !== undefined) update["office.latitude"] = body.office.latitude;
     if (body.office.longitude !== undefined) update["office.longitude"] = body.office.longitude;
     if (body.office.radiusMeters !== undefined) update["office.radiusMeters"] = body.office.radiusMeters;
   }
 
-  if (body.company) {
+  if (canCompany && body.company) {
     if (body.company.name !== undefined) update["company.name"] = body.company.name;
     if (body.company.timezone !== undefined) update["company.timezone"] = body.company.timezone;
   }
 
-  if (body.liveUpdates !== undefined) update.liveUpdates = !!body.liveUpdates;
+  if (canLive && body.liveUpdates !== undefined) update.liveUpdates = !!body.liveUpdates;
 
   const settings = await SystemSettings.findOneAndUpdate(
     { key: "global" },

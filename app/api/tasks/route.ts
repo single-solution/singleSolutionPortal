@@ -7,7 +7,6 @@ import {
   getVerifiedSession,
   isSuperAdmin,
   hasPermission,
-  canManageTasks,
   getSubordinateUserIds,
   getCampaignScopeFilter,
 } from "@/lib/permissions";
@@ -58,7 +57,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!canManageTasks(actor)) return forbidden();
+  if (!hasPermission(actor, "tasks_create")) return forbidden();
 
   await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
