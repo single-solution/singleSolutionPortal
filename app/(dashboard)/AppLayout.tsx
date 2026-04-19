@@ -167,6 +167,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
   const notifRef = useRef<HTMLDivElement>(null);
 
   const { can: canPerm } = usePermissions();
+  const canViewLogs = canPerm("activityLogs_view");
 
   /* ── Ping inbox state ── */
   const [pingsOpen, setPingsOpen] = useState(false);
@@ -452,9 +453,14 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                           className="text-footnote font-medium"
                           style={{ color: "var(--primary)" }}
                           onClick={async () => {
-                            await fetch("/api/ping", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) }).catch(() => {});
+                            const prevUnread = pingUnread;
+                            const prevPings = pings;
                             setPingUnread(0);
                             setPings((prev) => prev.map((p) => ({ ...p, read: true })));
+                            try {
+                              const res = await fetch("/api/ping", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) });
+                              if (!res.ok) { setPingUnread(prevUnread); setPings(prevPings); }
+                            } catch { setPingUnread(prevUnread); setPings(prevPings); }
                           }}
                         >
                           Mark all as read
@@ -496,6 +502,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
             )}
 
             {/* Notification bell */}
+            {canViewLogs && (
               <div className="relative" ref={notifRef}>
                 <button
                   type="button"
@@ -714,6 +721,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                   )}
                 </AnimatePresence>
               </div>
+            )}
 
             {/* Help / Guide */}
             <div className="relative" ref={helpRef}>
@@ -901,6 +909,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                 </button>
                 )}
 
+                {canViewLogs && (
                 <button
                   type="button"
                   onClick={() => { setMobileMenuOpen(false); setNotificationsOpen(true); }}
@@ -917,6 +926,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
                     </span>
                   )}
                 </button>
+                )}
 
                 <button
                   type="button"

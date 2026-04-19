@@ -51,6 +51,7 @@ export interface EmployeeCardProps {
   idx?: number;
   attendanceLoading?: boolean;
   onPing?: (id: string, name: string) => void;
+  pingSending?: boolean;
   showActions?: boolean;
   onEdit?: (id: string) => void;
   onManage?: (id: string) => void;
@@ -238,6 +239,7 @@ export const EmployeeCard = memo(function EmployeeCard({
   idx = 0,
   attendanceLoading,
   onPing,
+  pingSending,
   showActions,
   onEdit,
   onManage,
@@ -316,11 +318,12 @@ export const EmployeeCard = memo(function EmployeeCard({
               {onPing && (
                 <motion.button
                   type="button"
-                  whileHover={{ scale: 1.12 }}
-                  whileTap={{ scale: 0.92 }}
-                  className="pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors"
+                  whileHover={pingSending ? undefined : { scale: 1.12 }}
+                  whileTap={pingSending ? undefined : { scale: 0.92 }}
+                  className={`pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors${pingSending ? " animate-pulse opacity-50" : ""}`}
                   style={{ color: "var(--primary)" }}
-                  title={`Ping ${emp.firstName}`}
+                  disabled={pingSending}
+                  title={pingSending ? "Sending…" : `Ping ${emp.firstName}`}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

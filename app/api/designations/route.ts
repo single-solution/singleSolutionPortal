@@ -38,7 +38,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "designations_manage")) return forbidden();
+  if (!hasPermission(actor, "designations_create")) return forbidden();
 
   await connectDB();
 

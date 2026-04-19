@@ -110,6 +110,7 @@ interface DesigEdgeData {
   canCustomize?: boolean;
   canRemove?: boolean;
   isCustomPermissions?: boolean;
+  changingDesigId?: string | null;
 }
 
 function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
@@ -178,8 +179,9 @@ function DesignationEdge(props: EdgeProps & { data?: DesigEdgeData }) {
                   <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
                   {(data.designations ?? []).map((d) => (
                     <button key={d._id} type="button"
+                      disabled={data.changingDesigId === data.membershipId}
                       onClick={() => { data.onChangeDesignation?.(data.membershipId!, d._id); setOpen(false); }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[var(--bg-grouped)]"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[var(--bg-grouped)] disabled:opacity-50"
                       style={{ color: desig?._id === d._id ? d.color : "var(--fg-secondary)" }}>
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
                       {d.name}
@@ -284,12 +286,15 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
   }, []);
 
   const saveEmpLinks = useCallback(async (newLinks: EmpLink[]) => {
+    const prevLinks = empLinks;
     setEmpLinks(newLinks);
-    const res = await fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", links: newLinks }) });
-    if (!res.ok) { toast.error("Failed to save layout"); return; }
-    await syncHierarchy();
-    refetchMemberships();
-  }, [syncHierarchy, refetchMemberships]);
+    try {
+      const res = await fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", links: newLinks }) });
+      if (!res.ok) { setEmpLinks(prevLinks); toast.error("Failed to save layout"); return; }
+      await syncHierarchy();
+      refetchMemberships();
+    } catch { setEmpLinks(prevLinks); toast.error("Something went wrong"); }
+  }, [empLinks, syncHierarchy, refetchMemberships]);
 
   useEffect(() => {
     Promise.all([
@@ -419,7 +424,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user: userId, department: deptId, designation: designations[0]?._id, direction: "below" }),
-      }).then(() => { syncHierarchy(); refetchMemberships(); });
+      }).then((res) => { if (res.ok) { syncHierarchy(); refetchMemberships(); } else toast.error("Failed to add employee"); }).catch(() => toast.error("Something went wrong"));
       return;
     }
 
@@ -453,14 +458,17 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
   }, [connEmpId, connDeptId, connDesig, connAbove, refetchMemberships, syncHierarchy]);
 
   /* ── Edge actions (membership) ── */
+  const [changingDesigId, setChangingDesigId] = useState<string | null>(null);
   const handleChangeDesignation = useCallback(async (membershipId: string, designationId: string) => {
+    setChangingDesigId(membershipId);
     try {
       const res = await fetch(`/api/memberships/${membershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ designation: designationId }) });
       if (res.ok) {
         const updated = await res.json();
         setMemberships((prev) => prev.map((m) => m._id === membershipId ? updated : m));
-      }
-    } catch { /* ignore */ }
+      } else toast.error("Failed to update designation");
+    } catch { toast.error("Something went wrong"); }
+    setChangingDesigId(null);
   }, []);
 
   /* ── Edge actions (emp link) ── */
@@ -617,7 +625,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       }
       const empEditable = m.user?._id ? canEditEmp(idStr(m.user._id)) : false;
       const isAboveDirection = m.direction === "above";
-      return { designation: isAboveDirection ? (m.designation ?? null) : null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: !isAboveDirection, readOnly: !canEditCanvas || !empEditable, canAssignDesig: canAssignDesignation, canCustomize: canCustomizePermissions, canRemove: canRemoveFromDepartment, isCustomPermissions: isAboveDirection && isCustom } as DesigEdgeData as unknown as Record<string, unknown>;
+      return { designation: isAboveDirection ? (m.designation ?? null) : null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: !isAboveDirection, readOnly: !canEditCanvas || !empEditable, canAssignDesig: canAssignDesignation, canCustomize: canCustomizePermissions, canRemove: canRemoveFromDepartment, isCustomPermissions: isAboveDirection && isCustom, changingDesigId } as DesigEdgeData as unknown as Record<string, unknown>;
     };
 
     memberships.forEach((m) => {
@@ -661,7 +669,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee, canEditEmp, canEditCanvas, canAssignDesignation, canCustomizePermissions, canRemoveFromDepartment]);
+  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee, canEditEmp, canEditCanvas, canAssignDesignation, canCustomizePermissions, canRemoveFromDepartment, changingDesigId]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);

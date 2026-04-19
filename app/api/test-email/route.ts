@@ -1,12 +1,12 @@
 import { unauthorized, forbidden } from "@/lib/helpers";
-import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
+import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 import { sendMail, buildInviteHtml, buildResetHtml, buildAlertHtml } from "@/lib/mail";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor)) return forbidden();
+  if (!isSuperAdmin(actor) && !hasPermission(actor, "settings_sendTestEmail")) return forbidden();
 
   const url = new URL(request.url);
   const type = url.searchParams.get("type") ?? "invite";

@@ -307,8 +307,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     return userId || session?.user?.id || null;
   }, [viewerIsSuperAdmin, userId, session?.user?.id]);
   const isOwn = Boolean(session?.user?.id && effectiveId && session.user.id === effectiveId);
-  const canAtt = isOwn || canPerm("attendance_viewTeam");
-  const canTasksNav = isOwn || canPerm("tasks_view");
+  const canAtt = isOwn || canPerm("attendance_viewTeam") || canPerm("employees_viewAttendance");
+  const canTasksNav = isOwn || canPerm("tasks_view") || canPerm("employees_viewTasks");
   const tasksUrl =
     open && effectiveId && canTasksNav && (tab === "overview" || tab === "tasks") ? "/api/tasks" : null;
   const campUrl =
@@ -342,8 +342,10 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     enabled: tab === "overview" || tab === "tasks",
   });
 
-  const canViewPayroll = isOwn || canPerm("payroll_viewTeam");
-  const canViewLeaves = isOwn || canPerm("leaves_viewTeam");
+  const canViewPayroll = isOwn || canPerm("payroll_viewTeam") || canPerm("employees_viewPayroll");
+  const canViewLeaves = isOwn || canPerm("leaves_viewTeam") || canPerm("employees_viewLeaves");
+  const canViewSchedule = isOwn || canPerm("employees_viewSchedule");
+  const canViewLocation = isOwn || canPerm("employees_viewLocation");
 
   const now2 = new Date();
   const payMonth = now2.getMonth() + 1;
@@ -806,12 +808,12 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                     {(
                       [
                         ["overview", "Overview", "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"],
-                        ["attendance", "Attendance", "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"],
+                        ...(canAtt ? [["attendance", "Attendance", "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"]] : []),
                         ...(canViewPayroll ? [["payroll", "Payroll", "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"]] : []),
                         ...(canViewLeaves ? [["leaves", "Leaves", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"]] : []),
                         ...(canTasksNav ? [["tasks", "Tasks", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 12l2 2 4-4"]] : []),
-                        ...(canAtt ? [["location", "Location", "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"]] : []),
-                        ["schedule", "Schedule", "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"],
+                        ...(canViewLocation ? [["location", "Location", "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"]] : []),
+                        ...(canViewSchedule ? [["schedule", "Schedule", "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"]] : []),
                         ["profile", "Profile", "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"],
                       ] as [string, string, string][]
                     ).map(([tid, lab, icon]) => {
@@ -1756,7 +1758,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                         </div>
                       )}
 
-                      {tab === "location" && canAtt && (
+                      {tab === "location" && canViewLocation && (
                         <div className="space-y-3">
                           {/* ── Date navigation + summary ── */}
                           <div className="grid gap-3 lg:grid-cols-[1fr_220px]">

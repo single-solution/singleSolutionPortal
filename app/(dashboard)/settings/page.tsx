@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, useInView } from "framer-motion";
+import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { useGuide } from "@/lib/useGuide";
@@ -76,7 +77,8 @@ function useSystemSettings(enabled: boolean) {
     try {
       const res = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
       if (res.ok) { setSysMsg("Settings saved!"); setTimeout(() => setSysMsg(""), 3000); }
-    } catch { /* ignore */ }
+      else toast.error("Failed to save settings");
+    } catch { toast.error("Something went wrong"); }
     setSysSaving(false);
   }
 
@@ -87,7 +89,11 @@ export default function SettingsPage() {
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("settings", settingsTour); }, [registerTour]);
   const { can: canPerm } = usePermissions();
-  const canManageSettings = canPerm("settings_manage");
+  const canManageSettings = canPerm("settings_manageCompany") || canPerm("settings_manageOffice") || canPerm("settings_toggleLiveUpdates") || canPerm("settings_sendTestEmail");
+  const canSettingsCompany = canPerm("settings_manageCompany");
+  const canSettingsOffice = canPerm("settings_manageOffice");
+  const canSettingsLive = canPerm("settings_toggleLiveUpdates");
+  const canSettingsEmail = canPerm("settings_sendTestEmail");
   const canManagePayroll = canPerm("payroll_manageSalary");
 
   const sys = useSystemSettings(canManageSettings);
@@ -160,8 +166,8 @@ export default function SettingsPage() {
         setProfile(updated);
         setProfileImage(updated.about?.profileImage ?? "");
         setProfileMsg("Profile updated!");
-      }
-    } catch { /* ignore */ }
+      } else toast.error("Failed to save profile");
+    } catch { toast.error("Something went wrong"); }
     setProfileSaving(false);
     setTimeout(() => setProfileMsg(""), 3000);
   }
@@ -311,14 +317,14 @@ export default function SettingsPage() {
         <FadeUp delay={0.22}>
           <div data-tour="settings-system" className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             {canManagePayroll && <SettingsPayroll />}
-            {canManageSettings && <SystemCard sys={sys} />}
-            {canManageSettings && <OfficeConfigCard sys={sys} defaultSysSettings={DEFAULT_SYS_SETTINGS} />}
+            {(canSettingsCompany || canSettingsLive) && <SystemCard sys={sys} />}
+            {canSettingsOffice && <OfficeConfigCard sys={sys} defaultSysSettings={DEFAULT_SYS_SETTINGS} />}
           </div>
         </FadeUp>
       )}
 
       {/* Test Email */}
-      {canManageSettings && (
+      {canSettingsEmail && (
         <FadeUp delay={0.26}>
           <TestEmailCard
             testEmail={testEmail}

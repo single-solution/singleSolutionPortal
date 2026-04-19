@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "holidays_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "holidays_create")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await connectDB();
 
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 export async function PUT(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "holidays_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "holidays_toggleRecurring")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let body: { id?: string; isRecurring?: boolean };
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -134,7 +134,7 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "holidays_manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(actor, "holidays_delete")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Query parameter id is required" }, { status: 400 });

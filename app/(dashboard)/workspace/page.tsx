@@ -170,13 +170,15 @@ export default function WorkspacePage() {
   const canEditTasks = canPerm("tasks_edit");
   const canDeleteTasks = canPerm("tasks_delete");
   const canReassignTasks = canPerm("tasks_reassign");
+  const canToggleActive = canPerm("tasks_toggleActive");
+  const canReorderTasks = canPerm("tasks_reorder");
   const canCreateCampaigns = canPerm("campaigns_create");
   const canEditCampaigns = canPerm("campaigns_edit");
   const canDeleteCampaigns = canPerm("campaigns_delete");
+  const canToggleCampaign = canPerm("campaigns_toggleStatus");
   const canTagEntities = canPerm("campaigns_tagEntities");
   const canViewCampaigns = canPerm("campaigns_view");
   const canViewLogs = canPerm("activityLogs_view");
-  const isPrivileged = isSuperAdmin || canPerm("tasks_view");
 
   const myHierarchy = useMemo(() => {
     const set = new Set<string>();
@@ -192,8 +194,8 @@ export default function WorkspacePage() {
   }, [isSuperAdmin, myHierarchy]);
 
   /* ── data ── */
-  const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useQuery<Task[]>("/api/tasks", "ws-tasks");
-  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>("/api/campaigns", "ws-campaigns");
+  const { data: tasks, loading: tasksLoading, refetch: refetchTasks, mutate: mutateTasks } = useQuery<Task[]>("/api/tasks", "ws-tasks");
+  const { data: campaigns, loading: campaignsLoading, refetch: refetchCampaigns, mutate: mutateCampaigns } = useQuery<Campaign[]>("/api/campaigns", "ws-campaigns");
   const needsDropdown = canCreateTasks || canReassignTasks || canTagEntities;
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>(needsDropdown ? "/api/employees/dropdown" : null, "ws-emp");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>(canTagEntities ? "/api/departments" : null, "ws-dept");
@@ -410,6 +412,7 @@ export default function WorkspacePage() {
   const [cTagEmployees, setCTagEmployees] = useState<string[]>([]);
   const [cTagDepts, setCTagDepts] = useState<string[]>([]);
   const [campaignSaving, setCampaignSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   function openCreateCampaign() {
     setEditingCampaign(null); setCName(""); setCDesc(""); setCTagEmployees([]); setCTagDepts([]); setCampaignModalOpen(true);
@@ -418,22 +421,73 @@ export default function WorkspacePage() {
     setEditingCampaign(c); setCName(c.name); setCDesc(c.description ?? ""); setCTagEmployees(c.tags.employees.map((e) => e._id)); setCTagDepts(c.tags.departments.map((d) => d._id)); setCampaignModalOpen(true);
   }
   async function toggleTaskActive(taskId: string, currentlyActive: boolean) {
-    if (!canEditTasks) return;
+    if (!canToggleActive || togglingId) return;
+    setTogglingId(taskId);
+    mutateTasks((prev) => prev?.map((t) => t._id === taskId ? { ...t, isActive: !currentlyActive } : t) ?? null);
+    if (currentlyActive) {
+      setSubtasksByParent((prev) => {
+        const subs = prev.get(taskId);
+        if (!subs) return prev;
+        const next = new Map(prev);
+        next.set(taskId, subs.map((s) => ({ ...s, isActive: false })));
+        return next;
+      });
+    }
     try {
       const res = await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !currentlyActive }) });
-      if (res.ok) void refetchTasks();
-      else toast.error("Failed to update task");
-    } catch { toast.error("Network error"); }
+      if (res.ok) { void refetchTasks(); if (currentlyActive && subtasksByParent.has(taskId)) void loadSubtasks(taskId); }
+      else { mutateTasks((prev) => prev?.map((t) => t._id === taskId ? { ...t, isActive: currentlyActive } : t) ?? null); toast.error("Failed to update task"); }
+    } catch { mutateTasks((prev) => prev?.map((t) => t._id === taskId ? { ...t, isActive: currentlyActive } : t) ?? null); toast.error("Network error"); }
+    setTogglingId(null);
   }
 
-  async function toggleCampaignActive(campaignId: string, currentStatus: string) {
-    if (!canEditCampaigns) return;
-    const next = currentStatus === "active" ? "paused" : "active";
+  async function toggleSubtaskActive(parentId: string, subtaskId: string, currentlyActive: boolean) {
+    if (!canToggleActive || togglingId) return;
+    setTogglingId(subtaskId);
+    setSubtasksByParent((prev) => {
+      const subs = prev.get(parentId);
+      if (!subs) return prev;
+      const next = new Map(prev);
+      next.set(parentId, subs.map((s) => s._id === subtaskId ? { ...s, isActive: !currentlyActive } : s));
+      return next;
+    });
+    try {
+      const res = await fetch(`/api/tasks/${subtaskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !currentlyActive }) });
+      if (res.ok) void loadSubtasks(parentId);
+      else {
+        setSubtasksByParent((prev) => {
+          const subs = prev.get(parentId);
+          if (!subs) return prev;
+          const next = new Map(prev);
+          next.set(parentId, subs.map((s) => s._id === subtaskId ? { ...s, isActive: currentlyActive } : s));
+          return next;
+        });
+        toast.error("Failed to update subtask");
+      }
+    } catch {
+      setSubtasksByParent((prev) => {
+        const subs = prev.get(parentId);
+        if (!subs) return prev;
+        const next = new Map(prev);
+        next.set(parentId, subs.map((s) => s._id === subtaskId ? { ...s, isActive: currentlyActive } : s));
+        return next;
+      });
+      toast.error("Network error");
+    }
+    setTogglingId(null);
+  }
+
+  async function toggleCampaignActive(campaignId: string, currentStatus: CampaignStatus) {
+    if (!canToggleCampaign || togglingId) return;
+    const next: CampaignStatus = currentStatus === "active" ? "paused" : "active";
+    setTogglingId(campaignId);
+    mutateCampaigns((prev) => prev?.map((c) => c._id === campaignId ? { ...c, status: next } : c) ?? null);
     try {
       const res = await fetch(`/api/campaigns/${campaignId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
       if (res.ok) void refetchCampaigns();
-      else toast.error("Failed to update campaign");
-    } catch { toast.error("Network error"); }
+      else { mutateCampaigns((prev) => prev?.map((c) => c._id === campaignId ? { ...c, status: currentStatus } : c) ?? null); toast.error("Failed to update campaign"); }
+    } catch { mutateCampaigns((prev) => prev?.map((c) => c._id === campaignId ? { ...c, status: currentStatus } : c) ?? null); toast.error("Network error"); }
+    setTogglingId(null);
   }
 
   async function handleSaveCampaign() {
@@ -444,7 +498,7 @@ export default function WorkspacePage() {
       const res = editingCampaign
         ? await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save campaign"); return; }
+      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save campaign"); setCampaignSaving(false); return; }
       setCampaignModalOpen(false); await refetchCampaigns();
     } catch { toast.error("Network error"); }
     setCampaignSaving(false);
@@ -460,7 +514,7 @@ export default function WorkspacePage() {
     try {
       const endpoint = deleteTarget.type === "task" ? `/api/tasks/${deleteTarget.id}` : `/api/campaigns/${deleteTarget.id}`;
       const res = await fetch(endpoint, { method: "DELETE" });
-      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Delete failed"); return; }
+      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Delete failed"); setDeleting(false); return; }
       setDeleteTarget(null);
       if (deleteTarget.type === "task") await refetchTasks();
       else await refetchCampaigns();
@@ -552,8 +606,9 @@ export default function WorkspacePage() {
     const reordered = arrayMove(oneTime, oldIdx, newIdx);
     const orderedIds = reordered.map((t) => t._id);
     try {
-      await fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds }) });
-      await refetchTasks();
+      const res = await fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds }) });
+      if (res.ok) { toast.success("Reordered", { duration: 1500 }); await refetchTasks(); }
+      else toast.error("Reorder failed");
     } catch { toast.error("Reorder failed"); }
   }, [filteredCampaignTasks, refetchTasks]);
 
@@ -688,16 +743,14 @@ export default function WorkspacePage() {
       {/* ── search + create ── */}
       <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
         <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks…" />
-        {isPrivileged && (
-          <motion.button type="button" onClick={() => openHistoryModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors shrink-0"
-            style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
-            <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Progress
-          </motion.button>
-        )}
+        <motion.button type="button" onClick={() => openHistoryModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+          className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors shrink-0"
+          style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
+          <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Progress
+        </motion.button>
         {ready && canCreateCampaigns && (
           <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -808,7 +861,7 @@ export default function WorkspacePage() {
                             if (oldIdx < 0 || newIdx < 0) return;
                             const reordered = arrayMove(ids, oldIdx, newIdx);
                             fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds: reordered }) })
-                              .then(() => refetchTasks()).catch(() => toast.error("Reorder failed"));
+                              .then((r) => { if (r.ok) refetchTasks(); else toast.error("Reorder failed"); }).catch(() => toast.error("Reorder failed"));
                           }}>
                             <SortableContext items={todayChecklist.map((t) => t._id)} strategy={verticalListSortingStrategy}>
                               {todayChecklist.map((item) => {
@@ -817,7 +870,7 @@ export default function WorkspacePage() {
                                 const recurLabel = formatRecurrence(fullTask?.recurrence);
                                 const isMyTask = isInMyHierarchy(fullTask?.createdBy?._id);
                                 return (
-                                  <SortableTaskRow key={item._id} id={item._id} canReorder={canEditTasks && isMyTask}>
+                                  <SortableTaskRow key={item._id} id={item._id} canReorder={canReorderTasks && isMyTask}>
                                     <div className="mb-1.5">
                                       <div className="group relative rounded-xl border transition-all"
                                         style={{
@@ -835,7 +888,7 @@ export default function WorkspacePage() {
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                             </motion.svg>
                                           </button>
-                                          {canEditTasks && isMyTask && <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(item._id, taskActive)} />}
+                                          {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === item._id} onChange={() => toggleTaskActive(item._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{item.title}</span>
                                             {fullTask?.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
@@ -878,20 +931,23 @@ export default function WorkspacePage() {
                                                   if (oI < 0 || nI < 0) return;
                                                   const reordered = arrayMove(ids, oI, nI);
                                                   fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds: reordered }) })
-                                                    .then(() => loadSubtasks(item._id)).catch(() => toast.error("Reorder failed"));
+                                                    .then((r) => { if (r.ok) loadSubtasks(item._id); else toast.error("Reorder failed"); }).catch(() => toast.error("Reorder failed"));
                                                 }}>
                                                   <SortableContext items={(subtasksByParent.get(item._id) ?? []).map((s) => s._id)} strategy={verticalListSortingStrategy}>
                                                     {(subtasksByParent.get(item._id) ?? []).map((sub) => {
                                                       const subInfo = taskSubmittedInfo(sub, c.todayChecklistByEmployee);
                                                       const isSubMyTask = isInMyHierarchy(sub.createdBy?._id);
+                                                      const subActive = sub.isActive !== false;
+                                                      const parentOff = !taskActive;
                                                       return (
-                                                        <SortableTaskRow key={sub._id} id={sub._id} canReorder={canEditTasks && isSubMyTask}>
+                                                        <SortableTaskRow key={sub._id} id={sub._id} canReorder={canReorderTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
-                                                            <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
+                                                            <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: parentOff ? 0.35 : !subActive ? 0.45 : subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
                                                               <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
+                                                                {canToggleActive && isSubMyTask && <ToggleSwitch size="sm" checked={subActive} disabled={parentOff || togglingId === sub._id} onChange={() => toggleSubtaskActive(item._id, sub._id, subActive)} />}
                                                                 <div className="flex-1 min-w-0">
-                                                                  <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                                                  <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" || !subActive ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
                                                                   {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                                                   <div className="flex items-center gap-1 flex-wrap">
                                                                     {sub.assignedTo?.map((a) => (
@@ -952,7 +1008,7 @@ export default function WorkspacePage() {
                                 const taskActive = task.isActive !== false;
                                 const isMyTask = isInMyHierarchy(task.createdBy?._id);
                                 return (
-                                  <SortableTaskRow key={task._id} id={task._id} canReorder={canEditTasks && isMyTask}>
+                                  <SortableTaskRow key={task._id} id={task._id} canReorder={canReorderTasks && isMyTask}>
                                     <div className="mb-1.5">
                                       <div className="group relative rounded-xl border transition-all"
                                         style={{
@@ -973,7 +1029,7 @@ export default function WorkspacePage() {
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                             </motion.svg>
                                           </button>
-                                          {canEditTasks && isMyTask && <ToggleSwitch size="sm" checked={taskActive} onChange={() => toggleTaskActive(task._id, taskActive)} />}
+                                          {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === task._id} onChange={() => toggleTaskActive(task._id, taskActive)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{task.title}</span>
                                             {task.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
@@ -1016,20 +1072,23 @@ export default function WorkspacePage() {
                                                   if (oI < 0 || nI < 0) return;
                                                   const reordered = arrayMove(ids, oI, nI);
                                                   fetch("/api/tasks/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds: reordered }) })
-                                                    .then(() => loadSubtasks(task._id)).catch(() => toast.error("Reorder failed"));
+                                                    .then((r) => { if (r.ok) loadSubtasks(task._id); else toast.error("Reorder failed"); }).catch(() => toast.error("Reorder failed"));
                                                 }}>
                                                   <SortableContext items={subs.map((s) => s._id)} strategy={verticalListSortingStrategy}>
                                                     {subs.map((sub) => {
                                                       const subInfo = taskSubmittedInfo(sub, c.todayChecklistByEmployee);
                                                       const isSubMyTask = isInMyHierarchy(sub.createdBy?._id);
+                                                      const subActive = sub.isActive !== false;
+                                                      const parentOff = !taskActive;
                                                       return (
-                                                        <SortableTaskRow key={sub._id} id={sub._id} canReorder={canEditTasks && isSubMyTask}>
+                                                        <SortableTaskRow key={sub._id} id={sub._id} canReorder={canReorderTasks && isSubMyTask}>
                                                           <div className="mb-1.5">
-                                                            <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
+                                                            <div className="group relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: parentOff ? 0.35 : !subActive ? 0.45 : subInfo.done === subInfo.total && subInfo.total > 0 ? 0.65 : 1 }}>
                                                               <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: `color-mix(in srgb, ${subInfo.color} 15%, var(--dock-frosted-bg))`, color: subInfo.color, border: `1px solid color-mix(in srgb, ${subInfo.color} 30%, var(--border))` }}>{subInfo.label}</span>
                                                               <div className="flex items-center gap-1.5 px-2 py-1.5">
+                                                                {canToggleActive && isSubMyTask && <ToggleSwitch size="sm" checked={subActive} disabled={parentOff || togglingId === sub._id} onChange={() => toggleSubtaskActive(task._id, sub._id, subActive)} />}
                                                                 <div className="flex-1 min-w-0">
-                                                                  <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
+                                                                  <span className="text-[11px] font-semibold truncate block" style={{ color: sub.status === "completed" || !subActive ? "var(--fg-tertiary)" : "var(--fg)" }}>{sub.title}</span>
                                                                   {sub.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{sub.description}</span>}
                                                                   <div className="flex items-center gap-1 flex-wrap">
                                                                     {sub.assignedTo?.map((a) => (
@@ -1089,7 +1148,7 @@ export default function WorkspacePage() {
 
                     {/* ── card footer: stat pills ── */}
                     <div className="border-t px-2 py-1.5 flex items-center gap-1 flex-wrap" style={{ borderColor: "var(--border)" }}>
-                      {canEditCampaigns && isMyCampaign && <ToggleSwitch size="sm" checked={c.status === "active"} onChange={() => toggleCampaignActive(c._id, c.status)} />}
+                      {canToggleCampaign && isMyCampaign && <ToggleSwitch size="sm" checked={c.status === "active"} disabled={togglingId === c._id} onChange={() => toggleCampaignActive(c._id, c.status)} />}
                       {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
                       {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
                       {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[9px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}

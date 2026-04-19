@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   void User;
   void Campaign;
 
-  const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_view");
+  const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_view") || hasPermission(actor, "tasks_viewTeamProgress");
 
   const campaignId = sp.get("campaignId") || undefined;
   const taskId = sp.get("taskId") || undefined;
@@ -314,6 +314,9 @@ export async function GET(req: NextRequest) {
     }
 
     // No campaignId: return per-campaign grouped data (same sort as workspace)
+    const specificDateGrouped = sp.get("date") || null;
+    const targetDateGrouped = specificDateGrouped && /^\d{4}-\d{2}-\d{2}$/.test(specificDateGrouped) ? specificDateGrouped : today;
+
     const allCampaigns = await Campaign.find({ isActive: true })
       .populate("tags.employees", "about.firstName about.lastName email")
       .sort({ updatedAt: -1 })
@@ -334,10 +337,10 @@ export async function GET(req: NextRequest) {
     }
 
     const [allChecklistLogs, allStatusLogs] = await Promise.all([
-      ChecklistLog.find({ task: { $in: allTaskIds }, date: today }).lean(),
+      ChecklistLog.find({ task: { $in: allTaskIds }, date: targetDateGrouped }).lean(),
       TaskStatusLog.find({
         task: { $in: allTaskIds },
-        date: today,
+        date: targetDateGrouped,
         eventType: { $in: ["checklistComplete", "statusChange"] },
         status: "completed",
       }).lean(),
@@ -409,7 +412,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return ok({ grouped: true, dates: [today], campaigns: campaignsResult });
+    return ok({ grouped: true, dates: [targetDateGrouped], campaigns: campaignsResult });
   }
 
   return badRequest("Unknown type");

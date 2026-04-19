@@ -5,6 +5,7 @@ import FlowLayout from "@/lib/models/FlowLayout";
 import "@/lib/models/Department";
 import type { IPermissions } from "@/lib/models/Designation";
 import { PERMISSION_KEYS } from "@/lib/models/Designation";
+import { SELF_PERMISSIONS } from "@/lib/permissions.shared";
 import { auth } from "@/lib/auth";
 
 /* ================================================================ */
@@ -133,6 +134,7 @@ export function hasPermission(
   permission: keyof IPermissions,
   departmentId?: string,
 ): boolean {
+  if (SELF_PERMISSIONS.has(permission)) return true;
   if (actor.isSuperAdmin) return true;
 
   const relevantMemberships = departmentId
@@ -307,7 +309,7 @@ export function canDeleteCampaign(actor: VerifiedUser): boolean {
 }
 
 export function canManageSettings(actor: VerifiedUser): boolean {
-  return hasPermission(actor, "settings_manage");
+  return hasAnyPermission(actor, ["settings_manageCompany", "settings_manageOffice", "settings_toggleLiveUpdates", "settings_sendTestEmail"]);
 }
 
 export async function getCampaignScopeFilter(actor: VerifiedUser): Promise<Record<string, unknown>> {

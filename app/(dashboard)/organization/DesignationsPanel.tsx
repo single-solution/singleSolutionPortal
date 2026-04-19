@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import { staggerContainerFast, cardVariants } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ToggleSwitch } from "../components/ToggleSwitch";
@@ -25,7 +26,20 @@ const PRESET_COLORS = [
   "#10b981", "#06b6d4", "#ec4899", "#f97316", "#6b7280",
 ];
 
-export function DesignationsPanel({ canManage = false }: { canManage?: boolean }) {
+interface DesignationPerms {
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canToggleStatus?: boolean;
+  canSetPermissions?: boolean;
+}
+
+export function DesignationsPanel({ canManage = false, perms = {} }: { canManage?: boolean; perms?: DesignationPerms }) {
+  const canCreate = perms.canCreate ?? canManage;
+  const canEdit = perms.canEdit ?? canManage;
+  const canDelete = perms.canDelete ?? canManage;
+  const canToggleStatus = perms.canToggleStatus ?? canManage;
+  const canSetPermissions = perms.canSetPermissions ?? canManage;
   const { data: designations, loading, refetch, mutate } = useQuery<Designation[]>(
     "/api/designations",
     "designations",
@@ -105,18 +119,19 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) { setSaveLoading(false); return; }
+        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to create designation"); setSaveLoading(false); return; }
       } else if (editingId) {
         const res = await fetch(`/api/designations/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) { setSaveLoading(false); return; }
+        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save designation"); setSaveLoading(false); return; }
       }
       closeModal();
       await refetch();
     } catch {
+      toast.error("Something went wrong");
       setSaveLoading(false);
     }
   }
@@ -127,7 +142,8 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
     try {
       const res = await fetch(`/api/designations/${deleteTarget._id}`, { method: "DELETE" });
       if (res.ok) { setDeleteTarget(null); await refetch(); }
-    } catch { /* ignore */ }
+      else toast.error("Failed to delete designation");
+    } catch { toast.error("Something went wrong"); }
     setDeleting(false);
   }
 
@@ -167,7 +183,7 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
           <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
             {loading && !designations ? "…" : sorted.length}
           </span>
-          {canManage && (
+          {canCreate && (
             <motion.button
               type="button"
               onClick={openCreate}
@@ -232,8 +248,9 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                         </p>
                       )}
                     </div>
-                    {canManage && (
+                    {(canEdit || canDelete) && (
                       <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        {canEdit && (
                         <button
                           type="button"
                           onClick={() => openEdit(d)}
@@ -246,7 +263,8 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
-                        {!d.isSystem && (
+                        )}
+                        {canDelete && !d.isSystem && (
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(d)}
@@ -261,7 +279,7 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                         )}
                       </div>
                     )}
-                    {canManage && (
+                    {canToggleStatus && (
                       <ToggleSwitch
                         size="sm"
                         checked={d.isActive !== false}
@@ -379,6 +397,7 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                   </div>
 
                   {/* ── Default Privileges ── */}
+                  {canSetPermissions && (
                   <div className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
                     <button
                       type="button"
@@ -464,6 +483,7 @@ export function DesignationsPanel({ canManage = false }: { canManage?: boolean }
                       )}
                     </AnimatePresence>
                   </div>
+                  )}
                 </div>
 
                 <div

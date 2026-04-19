@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "designations_manage")) return forbidden();
+  if (!hasPermission(actor, "designations_edit")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
@@ -99,7 +99,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "designations_manage")) return forbidden();
+  if (!hasPermission(actor, "designations_delete")) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");

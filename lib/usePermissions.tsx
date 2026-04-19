@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import type { IPermissions } from "@/lib/permissions.shared";
+import { SELF_PERMISSIONS, type IPermissions } from "@/lib/permissions.shared";
 
 interface PermissionsState {
   isSuperAdmin: boolean;
@@ -67,12 +67,12 @@ export function PermissionsProvider({ children, initialData }: ProviderProps) {
   }, [fetchPermissions, hasInitial]);
 
   const can = useCallback(
-    (key: keyof IPermissions) => isSuperAdmin || permissions[key] === true,
+    (key: keyof IPermissions) => SELF_PERMISSIONS.has(key) || isSuperAdmin || permissions[key] === true,
     [isSuperAdmin, permissions],
   );
 
   const canAny = useCallback(
-    (...keys: (keyof IPermissions)[]) => isSuperAdmin || keys.some((k) => permissions[k] === true),
+    (...keys: (keyof IPermissions)[]) => isSuperAdmin || keys.some((k) => SELF_PERMISSIONS.has(k) || permissions[k] === true),
     [isSuperAdmin, permissions],
   );
 

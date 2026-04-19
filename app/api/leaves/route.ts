@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (targetUserId !== actor.id && !isSuperAdmin(actor)) {
-    if (!hasPermission(actor, "leaves_approve")) {
+    if (!hasPermission(actor, "leaves_submitOnBehalf")) {
       return forbidden("You can only create leave requests for yourself.");
     }
     const subordinateIds = await getSubordinateUserIds(actor.id);

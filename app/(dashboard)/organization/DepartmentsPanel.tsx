@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import { staggerContainerFast, cardVariants } from "@/lib/motion";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Portal } from "../components/Portal";
@@ -47,7 +48,8 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
         body: JSON.stringify({ isActive: !d.isActive }),
       });
       if (res.ok) await refetch();
-    } catch { /* ignore */ }
+      else toast.error("Failed to update status");
+    } catch { toast.error("Something went wrong"); }
     setTogglingId(null);
   }
 
@@ -80,14 +82,15 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
       const body: Record<string, unknown> = { title: formTitle.trim(), description: formDescription };
       if (modalMode === "create") {
         const res = await fetch("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        if (!res.ok) { setSaveLoading(false); return; }
+        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to create department"); setSaveLoading(false); return; }
       } else if (editingId) {
         const res = await fetch(`/api/departments/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        if (!res.ok) { setSaveLoading(false); return; }
+        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save department"); setSaveLoading(false); return; }
       }
       closeModal();
       await refetch();
     } catch {
+      toast.error("Something went wrong");
       setSaveLoading(false);
     }
   }
@@ -98,7 +101,8 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
     try {
       const res = await fetch(`/api/departments/${deleteTarget._id}`, { method: "DELETE" });
       if (res.ok) { setDeleteTarget(null); await refetch(); }
-    } catch { /* ignore */ }
+      else toast.error("Failed to delete department");
+    } catch { toast.error("Something went wrong"); }
     setDeleting(false);
   }
 

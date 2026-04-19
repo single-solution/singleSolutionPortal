@@ -6,7 +6,7 @@ import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissio
 export async function PUT(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!isSuperAdmin(actor) && !hasPermission(actor, "tasks_edit")) return forbidden();
+  if (!isSuperAdmin(actor) && !hasPermission(actor, "tasks_reorder")) return forbidden();
 
   let body: { orderedIds: string[] };
   try {

@@ -104,14 +104,14 @@ export default function OrganizationPage() {
   const canViewOrg = canPerm("organization_view");
   const canManageOrganization = canPerm("organization_manageLinks");
   const canViewDesignations = canPerm("designations_view");
-  const canManageDesignations = canPerm("designations_manage");
+  const canManageDesignations = canPerm("designations_create") || canPerm("designations_edit") || canPerm("designations_delete") || canPerm("designations_toggleStatus") || canPerm("designations_setPermissions");
   const canCreateEmployees = canPerm("employees_create");
   const canCreateDepts = canPerm("departments_create");
   const canEditDepts = canPerm("departments_edit");
   const canDeleteDepts = canPerm("departments_delete");
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>(canViewOrg ? "/api/departments" : null, "org-departments");
-  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>(canViewOrg ? "/api/employees?includeSelf=true" : null, "org-employees");
+  const { data: employees, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>(canViewOrg ? "/api/employees?includeSelf=true" : null, "org-employees");
   const { data: designationsData } = useQuery<{ _id: string; name: string; color: string; isActive: boolean; defaultPermissions?: Record<string, boolean> }[]>(canViewOrg ? "/api/designations" : null, "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
   const { data: presenceData } = useQuery<PresenceRow[]>(canViewOrg ? "/api/attendance/presence" : null, "org-presence");
@@ -130,6 +130,7 @@ export default function OrganizationPage() {
   const [empViewId, setEmpViewId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [empTogglingId, setEmpTogglingId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [copyingId, setCopyingId] = useState<string | null>(null);
 
@@ -141,6 +142,7 @@ export default function OrganizationPage() {
   const canViewAttendanceDetail = canPerm("attendance_viewDetail");
   const canViewOrgTasks = canPerm("tasks_view");
   const canViewOrgCampaigns = canPerm("campaigns_view");
+  const canViewEmpLocation = canPerm("employees_viewLocation");
 
   function openEmployeePreview(empId: string) {
     const emp = scopedEmps.find((e) => e._id === empId);
@@ -151,17 +153,22 @@ export default function OrganizationPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await fetch(`/api/employees/${deleteTarget._id}`, { method: "DELETE" });
-      toast.success("Employee removed");
-      setDeleteTarget(null);
-      if (previewEmp?._id === deleteTarget._id) setPreviewEmp(null);
-      await refetchEmployees();
+      const res = await fetch(`/api/employees/${deleteTarget._id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Employee removed");
+        setDeleteTarget(null);
+        if (previewEmp?._id === deleteTarget._id) setPreviewEmp(null);
+        await refetchEmployees();
+      } else { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to remove employee"); }
     } catch { toast.error("Something went wrong"); }
     setDeleting(false);
   }
 
   async function toggleEmployeeActive(emp: Employee) {
+    if (empTogglingId) return;
     const newStatus = !emp.isActive;
+    setEmpTogglingId(emp._id);
+    mutateEmployees((prev) => prev?.map((e) => e._id === emp._id ? { ...e, isActive: newStatus } : e) ?? null);
     try {
       const res = await fetch(`/api/employees/${emp._id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
@@ -170,8 +177,9 @@ export default function OrganizationPage() {
       if (res.ok) {
         toast.success(newStatus ? "Activated" : "Deactivated");
         await refetchEmployees();
-      } else toast.error("Failed to update status");
-    } catch { toast.error("Failed to update status"); }
+      } else { mutateEmployees((prev) => prev?.map((e) => e._id === emp._id ? { ...e, isActive: !newStatus } : e) ?? null); toast.error("Failed to update status"); }
+    } catch { mutateEmployees((prev) => prev?.map((e) => e._id === emp._id ? { ...e, isActive: !newStatus } : e) ?? null); toast.error("Failed to update status"); }
+    setEmpTogglingId(null);
   }
 
   async function resendInvite(emp: Employee) {
@@ -357,7 +365,13 @@ export default function OrganizationPage() {
           {/* Designations card */}
           {canViewDesignations && (
             <div className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-              <DesignationsPanel canManage={canManageDesignations} />
+              <DesignationsPanel canManage={canManageDesignations} perms={{
+                canCreate: canPerm("designations_create"),
+                canEdit: canPerm("designations_edit"),
+                canDelete: canPerm("designations_delete"),
+                canToggleStatus: canPerm("designations_toggleStatus"),
+                canSetPermissions: canPerm("designations_setPermissions"),
+              }} />
             </div>
           )}
         </aside>
@@ -394,7 +408,7 @@ export default function OrganizationPage() {
                       showEmployeeMeta
                       showAttendance={canViewTeamAttendance}
                       showAttendanceDetail={canViewAttendanceDetail}
-                      showLocationFlags={canViewAttendanceDetail}
+                      showLocationFlags={canViewAttendanceDetail && canViewEmpLocation}
                       showTasks={canViewOrgTasks}
                       showCampaigns={canViewOrgCampaigns}
                       showActions={(canEditEmployees || canDeleteEmployees) && notSA}
@@ -429,7 +443,7 @@ export default function OrganizationPage() {
                       }}
                       footerSlot={
                         <div className="flex flex-wrap items-center gap-2">
-                          {canToggleStatus && notSA && <ToggleSwitch size="sm" checked={emp.isActive} onChange={() => toggleEmployeeActive(emp)} />}
+                          {canToggleStatus && notSA && <ToggleSwitch size="sm" checked={emp.isActive} disabled={empTogglingId === emp._id} onChange={() => toggleEmployeeActive(emp)} />}
                           <span className="text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
                             Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                           </span>

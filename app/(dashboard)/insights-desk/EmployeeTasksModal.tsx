@@ -1,42 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Portal } from "../components/Portal";
 import { MiniCalendar, useCalendarNav } from "../components/MiniCalendar";
 import { usePermissions } from "@/lib/usePermissions";
+import { useCachedState } from "@/lib/useQuery";
 
 /* ───── Types ───── */
 
-interface HistoryEvent {
+interface DropdownEmp {
   _id: string;
-  task: { _id: string; title: string; recurrence?: { frequency: string; days: number[] }; parentTask?: string } | null;
-  campaign: { _id: string; name: string } | null;
-  employee: { _id: string; about?: { firstName: string; lastName: string }; email?: string } | null;
-  changedBy?: { _id: string; about?: { firstName: string; lastName: string }; email?: string } | null;
-  status: string;
-  eventType: string;
-  changedAt: string;
-  note?: string;
-}
-
-interface DailyEntry {
-  date: string;
-  completedCount: number;
-  undoneCount: number;
-  totalEvents: number;
-  events: HistoryEvent[];
-}
-
-interface DetailGroup {
-  campaign: { _id: string; name: string };
-  events: HistoryEvent[];
-}
-
-interface EmployeeInfo {
-  _id: string;
-  about?: { firstName: string; lastName: string };
+  about?: { firstName?: string; lastName?: string };
   email?: string;
+  department?: { id: string; title: string } | null;
+}
+
+interface DeptGroup {
+  id: string;
+  title: string;
+  employees: DropdownEmp[];
 }
 
 interface TaskEmployee {
@@ -45,22 +29,11 @@ interface TaskEmployee {
   done: boolean;
 }
 
-interface EmpTaskNode {
-  _id: string;
-  title: string;
-  recurrence: { frequency?: string; days?: number[] } | null;
-  description: string | null;
-  done: boolean;
-  subtasks: EmpTaskNode[];
-}
-
 interface TaskNode {
   _id: string;
   title: string;
-  recurrence: { frequency?: string; days?: number[] } | null;
-  description: string | null;
-  doneCount: number;
-  totalCount: number;
+  recurrence?: { frequency?: string; days?: number[] } | null;
+  description?: string | null;
   employees: TaskEmployee[];
   subtasks: TaskNode[];
 }
@@ -73,55 +46,81 @@ interface CampaignGroup {
   tasks: TaskNode[];
 }
 
-interface SidebarTask {
+interface DetailEvent {
   _id: string;
-  title: string;
-  recurrence?: { frequency?: string; days?: number[] } | null;
-  subtasks?: SidebarTask[];
+  task: { _id: string; title: string; recurrence?: { frequency: string; days: number[] }; parentTask?: string } | null;
+  employee?: { _id: string; about?: { firstName: string; lastName: string }; email?: string } | null;
+  changedBy?: { _id: string; about?: { firstName: string; lastName: string }; email?: string } | null;
+  status: string;
+  eventType: string;
+  changedAt: string;
+  note?: string;
 }
 
-interface SidebarCampaign {
+interface DetailGroup {
+  campaign: { _id: string; name: string };
+  events: DetailEvent[];
+}
+
+interface TimelineLog {
   _id: string;
-  name: string;
-  tasks: SidebarTask[];
+  task: { _id: string; title: string; recurrence?: { frequency: string; days: number[] }; parentTask?: string } | null;
+  campaign: { _id: string; name: string } | null;
+  changedBy?: { _id: string; about?: { firstName: string; lastName: string }; email?: string } | null;
+  status: string;
+  eventType: string;
+  changedAt: string;
+  note?: string;
+}
+
+interface DailyEntry {
+  date: string;
+  completedCount: number;
+  undoneCount: number;
+  totalEvents: number;
+  events: TimelineLog[];
+}
+
+interface EmployeeInfo {
+  _id: string;
+  about?: { firstName: string; lastName: string };
+  email?: string;
 }
 
 /* ───── Helpers ───── */
 
 const MN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const AVATAR_COLORS = ["var(--primary)", "var(--teal)", "var(--purple)", "var(--amber)", "var(--rose)", "var(--green)", "var(--fg-secondary)"];
-function avatarColor(id?: string | null): string {
-  if (!id) return AVATAR_COLORS[0];
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+function nameOf(u: DropdownEmp): string {
+  return `${u.about?.firstName ?? ""} ${u.about?.lastName ?? ""}`.trim() || u.email || "—";
 }
-
-function empName(e: { about?: { firstName: string; lastName: string }; email?: string } | null): string {
+function initials(u: DropdownEmp | null): string {
+  if (!u) return "?";
+  return ((u.about?.firstName?.[0] ?? "") + (u.about?.lastName?.[0] ?? "")).toUpperCase() || "?";
+}
+function empName(e: EmployeeInfo | null): string {
   if (!e) return "Unknown";
   return `${e.about?.firstName ?? ""} ${e.about?.lastName ?? ""}`.trim() || e.email || "Unknown";
 }
-
-function empInitials(e: { about?: { firstName: string; lastName: string } } | null): string {
+function empInitials(e: EmployeeInfo | null): string {
   if (!e) return "?";
   return ((e.about?.firstName?.[0] ?? "") + (e.about?.lastName?.[0] ?? "")).toUpperCase() || "?";
+}
+
+const AVATAR_COLORS = ["var(--primary)", "var(--teal)", "var(--purple)", "var(--amber)", "var(--rose)", "var(--green)", "var(--fg-secondary)"];
+function avatarColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
 function fmtTime(d: string): string {
   return new Date(d).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-function fmtRecurrence(r: { frequency?: string; days?: number[] } | null): string {
-  if (!r?.frequency) return "One-time";
-  if (r.frequency === "daily") return "Daily";
-  if (r.frequency === "weekly" && r.days?.length) {
-    if (r.days.length >= 5) return "Weekly all working days";
-    return `Weekly ${r.days.map((d) => DAY_NAMES[d] || "?").join("/")}`;
-  }
-  if (r.frequency === "monthly") return "Monthly";
-  return r.frequency.charAt(0).toUpperCase() + r.frequency.slice(1);
+function fmtDate(d: string): string {
+  const dt = new Date(d + "T00:00:00");
+  return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 function statusMeta(status: string, eventType: string): { label: string; color: string; icon: string } {
@@ -134,206 +133,41 @@ function statusMeta(status: string, eventType: string): { label: string; color: 
   return { label: status, color: "var(--fg-tertiary)", icon: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" };
 }
 
-function mapTaskNodeToEmpTask(task: TaskNode, uid: string): EmpTaskNode {
-  return {
-    _id: task._id,
-    title: task.title,
-    recurrence: task.recurrence,
-    description: task.description,
-    done: task.employees.some((e) => e._id === uid && e.done),
-    subtasks: task.subtasks.map((s) => mapTaskNodeToEmpTask(s, uid)),
-  };
-}
-
-function countLeafProgress(nodes: EmpTaskNode[]): { done: number; total: number } {
+function flatLeafCount(nodes: TaskNode[], empId: string): { done: number; total: number } {
   let done = 0;
   let total = 0;
   for (const n of nodes) {
     if (n.subtasks.length > 0) {
-      const sub = countLeafProgress(n.subtasks);
-      done += sub.done;
-      total += sub.total;
+      const s = flatLeafCount(n.subtasks, empId);
+      done += s.done;
+      total += s.total;
     } else {
       total += 1;
-      if (n.done) done += 1;
+      if (n.employees.some((e) => e._id === empId && e.done)) done += 1;
     }
   }
   return { done, total };
 }
 
-function taskNodeToSidebarTask(t: TaskNode): SidebarTask {
+interface EmpTask {
+  _id: string;
+  title: string;
+  done: boolean;
+  recurrence?: { frequency?: string; days?: number[] } | null;
+  subtasks: EmpTask[];
+}
+
+function mapNodeForEmp(node: TaskNode, empId: string): EmpTask {
   return {
-    _id: t._id,
-    title: t.title,
-    recurrence: t.recurrence ?? undefined,
-    subtasks: t.subtasks.map(taskNodeToSidebarTask),
+    _id: node._id,
+    title: node.title,
+    done: node.employees.some((e) => e._id === empId && e.done),
+    recurrence: node.recurrence,
+    subtasks: node.subtasks.map((s) => mapNodeForEmp(s, empId)),
   };
 }
 
-function findTaskTitleInNodes(tasks: TaskNode[], taskId: string): string | null {
-  for (const t of tasks) {
-    if (t._id === taskId) return t.title;
-    const sub = findTaskTitleInNodes(t.subtasks, taskId);
-    if (sub) return sub;
-  }
-  return null;
-}
-
-/* ───── Sub-components (match TaskHistoryModal) ───── */
-
-function EmpTaskCard({ task, onTaskClick, isSubtask }: {
-  task: EmpTaskNode;
-  onTaskClick: (taskId: string) => void;
-  isSubtask?: boolean;
-}) {
-  const hasSubtasks = task.subtasks.length > 0;
-  const [expanded, setExpanded] = useState(hasSubtasks);
-  const recurLabel = fmtRecurrence(task.recurrence);
-  const pillColor = task.done ? "var(--green)" : task.recurrence ? "#8b5cf6" : "var(--amber)";
-  const pillLabel = task.done ? "Done" : (task.recurrence ? recurLabel : "Pending");
-
-  return (
-    <div className={isSubtask ? "mb-1" : "mb-1.5"}>
-      <div className="group relative rounded-xl border transition-all"
-        style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: task.done ? 0.65 : 1 }}>
-        <span className="pill-glass absolute -top-2.5 right-2 z-[5] rounded-full px-1.5 py-px text-[9px] font-semibold"
-          style={{
-            background: `color-mix(in srgb, ${pillColor} 15%, var(--dock-frosted-bg))`,
-            color: pillColor,
-            border: `1px solid color-mix(in srgb, ${pillColor} 30%, var(--border))`,
-          }}>
-          {pillLabel}
-        </span>
-        <div className="flex items-center gap-1.5 px-2 py-1.5">
-          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md"
-            style={{ background: task.done ? "color-mix(in srgb, var(--green) 14%, transparent)" : "color-mix(in srgb, var(--fg-tertiary) 8%, transparent)" }}>
-            {task.done ? (
-              <svg className="h-2.5 w-2.5" style={{ color: "var(--green)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" d="M5 13l4 4L19 7" /></svg>
-            ) : (
-              <svg className="h-2.5 w-2.5" style={{ color: "var(--fg-quaternary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            )}
-          </span>
-          {hasSubtasks && (
-            <button type="button" onClick={() => setExpanded(!expanded)} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
-              <motion.svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" animate={{ rotate: expanded ? 90 : 0 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </motion.svg>
-            </button>
-          )}
-          <div className="flex-1 min-w-0">
-            <span className="text-[11px] font-semibold truncate block" style={{ color: task.done ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.done ? "line-through" : "none" }}>
-              {task.title}
-            </span>
-            {task.description && <span className="text-[9px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
-          </div>
-          <button type="button" onClick={() => onTaskClick(task._id)}
-            className="h-5 w-5 flex items-center justify-center rounded-md shrink-0 transition-colors opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-grouped)]"
-            style={{ color: "var(--fg-tertiary)" }} title="View timeline">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-          </button>
-        </div>
-      </div>
-      <AnimatePresence initial={false}>
-        {expanded && hasSubtasks && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="ml-4 border-l pl-2 pr-1 py-1 space-y-1.5" style={{ borderColor: "color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }}>
-              {task.subtasks.map((sub) => (
-                <EmpTaskCard key={sub._id} task={sub} onTaskClick={onTaskClick} isSubtask />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function TimelinePanel({ events, loading, selectedDay, month, year, onClearDay }: {
-  events: HistoryEvent[];
-  loading: boolean;
-  selectedDay: number | null;
-  month: number;
-  year: number;
-  onClearDay: () => void;
-}) {
-  return (
-    <div className="flex-1 overflow-y-auto px-3 pb-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>
-          {selectedDay ? `${MN[month - 1]} ${selectedDay} — Activity` : `${MN[month - 1]} ${year} — Timeline`}
-        </h4>
-        {selectedDay && (
-          <button type="button" onClick={onClearDay} className="text-[10px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
-            Show full month
-          </button>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
-              <div className="shimmer h-8 w-8 rounded-full" />
-              <div className="flex-1 space-y-1.5"><div className="shimmer h-3 w-40 rounded" /><div className="shimmer h-2.5 w-28 rounded" /></div>
-            </div>
-          ))}
-        </div>
-      ) : events.length === 0 ? (
-        <div className="py-12 text-center">
-          <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-            {selectedDay ? "No activity on this day." : "No activity this month."}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {events.map((ev) => {
-            const meta = statusMeta(ev.status, ev.eventType);
-            return (
-              <motion.div key={ev._id} className="flex items-start gap-2.5 rounded-xl px-3 py-2 transition-colors" style={{ background: "var(--bg-grouped)" }}
-                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white mt-0.5"
-                  style={{ background: ev.employee?._id ? avatarColor(ev.employee._id) : "var(--fg-tertiary)" }}>
-                  {empInitials(ev.employee)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName(ev.employee)}</span>
-                    <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-semibold"
-                      style={{ background: `color-mix(in srgb, ${meta.color} 14%, transparent)`, color: meta.color }}>
-                      <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={meta.icon} /></svg>
-                      {meta.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                    {ev.campaign && (
-                      <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
-                        {ev.campaign.name}
-                      </span>
-                    )}
-                    {ev.task && (
-                      <span className="text-[10px] truncate" style={{ color: "var(--fg-secondary)" }}>{ev.task.title}</span>
-                    )}
-                  </div>
-                  {ev.note && (
-                    <p className="mt-0.5 text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{ev.note}</p>
-                  )}
-                </div>
-                <span className="shrink-0 text-[9px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
-                  {fmtTime(ev.changedAt)}
-                </span>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ───── Main ───── */
+/* ───── Component ───── */
 
 interface Props {
   open: boolean;
@@ -341,39 +175,43 @@ interface Props {
   userId: string;
 }
 
-export function EmployeeTasksModal({ open, onClose, userId }: Props) {
+export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) {
+  const { data: session } = useSession();
   const { isSuperAdmin, can: canPerm } = usePermissions();
-  const isPrivileged = isSuperAdmin || canPerm("tasks_view");
+  const isPrivileged = isSuperAdmin || canPerm("tasks_view") || canPerm("tasks_viewTeamProgress");
 
   const { defaultYear, defaultMonth, prevMonth, nextMonth } = useCalendarNav();
   const [year, setYear] = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
-
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState(preUserId);
+  const [employees, setEmployees] = useCachedState<DropdownEmp[]>("$tasks-modal/employees", []);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState("");
 
   const [campaignGroups, setCampaignGroups] = useState<CampaignGroup[]>([]);
   const [campaignGroupsLoading, setCampaignGroupsLoading] = useState(false);
 
+  const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
   const [dailyData, setDailyData] = useState<DailyEntry[]>([]);
   const [dailyLoading, setDailyLoading] = useState(false);
-  const [detailData, setDetailData] = useState<DetailGroup[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [timeline, setTimeline] = useState<TimelineLog[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineTotal, setTimelineTotal] = useState(0);
+  const [timelinePage, setTimelinePage] = useState(1);
 
-  const [campaignEmpTasks, setCampaignEmpTasks] = useState<EmpTaskNode[]>([]);
-  const [campaignEmpTasksLoading, setCampaignEmpTasksLoading] = useState(false);
+  const [dayCampaigns, setDayCampaigns] = useState<CampaignGroup[]>([]);
+  const [dayDetail, setDayDetail] = useState<DetailGroup[]>([]);
+  const [dayLoading, setDayLoading] = useState(false);
 
-  const [sidebarSearch, setSidebarSearch] = useState("");
+  useEffect(() => { setUserId(preUserId); }, [preUserId]);
 
-  const viewMode = useMemo(() => {
-    if (selectedTaskId) return "task" as const;
-    if (selectedCampaignId) return "campaign" as const;
-    return "grid" as const;
-  }, [selectedCampaignId, selectedTaskId]);
+  useEffect(() => {
+    if (!isPrivileged && !preUserId && session?.user?.id) {
+      setUserId(session.user.id);
+    }
+  }, [isPrivileged, preUserId, session?.user?.id]);
 
   const handlePrevMonth = useCallback(() => {
     const p = prevMonth(year, month);
@@ -389,69 +227,36 @@ export function EmployeeTasksModal({ open, onClose, userId }: Props) {
     setSelectedDay(null);
   }, [year, month, nextMonth]);
 
+  const allMode = isPrivileged && !userId;
+
+  /* ── Fetch employee list for sidebar ── */
   useEffect(() => {
-    if (!open) {
-      setSelectedCampaignId(null);
-      setSelectedTaskId(null);
-      setSelectedDay(null);
-      setExpandedCampaigns(new Set());
-      setSidebarSearch("");
-      setCampaignEmpTasks([]);
-      setDetailData([]);
-    }
-  }, [open]);
+    if (!open || !isPrivileged) return;
+    setSidebarLoading(true);
+    fetch("/api/employees/dropdown")
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setEmployees(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setSidebarLoading(false));
+  }, [open, isPrivileged]);
 
+  /* ── Fetch today's campaign-employee progress (all mode) ── */
   useEffect(() => {
-    if (selectedCampaignId) {
-      setExpandedCampaigns((prev) => new Set(prev).add(selectedCampaignId));
-    }
-  }, [selectedCampaignId]);
-
-  const loadEmployeeProfile = useCallback(async () => {
-    if (!open || !userId) return;
-    try {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = now.getMonth() + 1;
-      const daysInMonth = new Date(y, m, 0).getDate();
-      const from = `${y}-${String(m).padStart(2, "0")}-01`;
-      const to = `${y}-${String(m).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
-      const params = new URLSearchParams({ type: "employee-timeline", userId, from, to, limit: "1" });
-      const res = await fetch(`/api/tasks/history?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setEmployee(data.employee ?? null);
-      }
-    } catch { /* ignore */ }
-  }, [open, userId]);
-
-  useEffect(() => { loadEmployeeProfile(); }, [loadEmployeeProfile]);
-
-  const loadCampaignGroups = useCallback(async () => {
-    if (!open || !userId || !isPrivileged) return;
+    if (!open || !isPrivileged || userId) { setCampaignGroups([]); return; }
     setCampaignGroupsLoading(true);
-    try {
-      const params = new URLSearchParams({ type: "campaign-employees", days: "1" });
-      const res = await fetch(`/api/tasks/history?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.grouped) setCampaignGroups(data.campaigns || []);
-        else setCampaignGroups([]);
-      } else setCampaignGroups([]);
-    } catch { setCampaignGroups([]); }
-    setCampaignGroupsLoading(false);
-  }, [open, userId, isPrivileged]);
+    fetch("/api/tasks/history?type=campaign-employees&days=1")
+      .then((r) => r.ok ? r.json() : { campaigns: [] })
+      .then((d) => setCampaignGroups(d.campaigns || []))
+      .catch(() => setCampaignGroups([]))
+      .finally(() => setCampaignGroupsLoading(false));
+  }, [open, isPrivileged, userId]);
 
-  useEffect(() => { loadCampaignGroups(); }, [loadCampaignGroups]);
-
+  /* ── Fetch individual employee calendar data ── */
   const loadDaily = useCallback(async () => {
     if (!open || !userId) return;
-    if (viewMode === "grid") return;
     setDailyLoading(true);
     try {
       const params = new URLSearchParams({ type: "daily", year: String(year), month: String(month), userId });
-      if (selectedCampaignId) params.set("campaignId", selectedCampaignId);
-      if (selectedTaskId) params.set("taskId", selectedTaskId);
       const res = await fetch(`/api/tasks/history?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -459,57 +264,100 @@ export function EmployeeTasksModal({ open, onClose, userId }: Props) {
       } else setDailyData([]);
     } catch { setDailyData([]); }
     setDailyLoading(false);
-  }, [open, userId, year, month, selectedCampaignId, selectedTaskId, viewMode]);
+  }, [open, userId, year, month]);
 
-  useEffect(() => { loadDaily(); }, [loadDaily]);
+  useEffect(() => { if (userId) loadDaily(); }, [loadDaily, userId]);
 
-  const loadDetail = useCallback(async (date: string) => {
-    if (!userId) return;
-    setDetailLoading(true);
+  /* ── Fetch employee timeline (full month, no day selected) ── */
+  const loadTimeline = useCallback(async (page: number) => {
+    if (!open || !userId) return;
+    setTimelineLoading(true);
     try {
-      const params = new URLSearchParams({ type: "detail", date, userId });
-      if (selectedCampaignId) params.set("campaignId", selectedCampaignId);
-      if (selectedTaskId) params.set("taskId", selectedTaskId);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const from = `${year}-${String(month).padStart(2, "0")}-01`;
+      const to = `${year}-${String(month).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+      const params = new URLSearchParams({ type: "employee-timeline", userId, from, to, page: String(page), limit: "100" });
       const res = await fetch(`/api/tasks/history?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setDetailData(Array.isArray(data) ? data : []);
-      } else setDetailData([]);
-    } catch { setDetailData([]); }
-    setDetailLoading(false);
-  }, [userId, selectedCampaignId, selectedTaskId]);
+        setEmployee(data.employee ?? null);
+        setTimeline(data.logs ?? []);
+        setTimelineTotal(data.total ?? 0);
+        setTimelinePage(data.page ?? 1);
+      }
+    } catch { /* ignore */ }
+    setTimelineLoading(false);
+  }, [open, userId, year, month]);
 
-  useEffect(() => {
-    if (selectedDay && viewMode === "task") {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
-      loadDetail(dateStr);
-    }
-  }, [selectedDay, year, month, loadDetail, viewMode]);
+  useEffect(() => { if (userId) loadTimeline(1); }, [loadTimeline, userId]);
 
-  const loadCampaignEmpTasks = useCallback(async () => {
-    if (!open || !userId || !selectedCampaignId || selectedTaskId) {
-      setCampaignEmpTasks([]);
+  /* ── Fetch day detail: campaign cards + activity events ── */
+  const loadDayDetail = useCallback(async () => {
+    if (!open || !userId || !selectedDay) {
+      setDayCampaigns([]);
+      setDayDetail([]);
       return;
     }
-    setCampaignEmpTasksLoading(true);
+    setDayLoading(true);
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
     try {
-      const params = new URLSearchParams({ type: "campaign-employees", days: "1", campaignId: selectedCampaignId });
-      if (selectedDay) {
-        const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
-        params.set("date", dateStr);
-      }
-      const res = await fetch(`/api/tasks/history?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.employees || [];
-        const emp = list.find((e: { _id: string }) => e._id === userId);
-        setCampaignEmpTasks(emp?.tasks || []);
-      } else setCampaignEmpTasks([]);
-    } catch { setCampaignEmpTasks([]); }
-    setCampaignEmpTasksLoading(false);
-  }, [open, userId, selectedCampaignId, selectedTaskId, selectedDay, year, month]);
+      const [campRes, detailRes] = await Promise.all([
+        fetch(`/api/tasks/history?type=campaign-employees&days=1&date=${dateStr}`),
+        fetch(`/api/tasks/history?type=detail&date=${dateStr}&userId=${userId}`),
+      ]);
+      if (campRes.ok) {
+        const d = await campRes.json();
+        setDayCampaigns(d.campaigns || []);
+      } else setDayCampaigns([]);
+      if (detailRes.ok) {
+        const d = await detailRes.json();
+        setDayDetail(Array.isArray(d) ? d : []);
+      } else setDayDetail([]);
+    } catch {
+      setDayCampaigns([]);
+      setDayDetail([]);
+    }
+    setDayLoading(false);
+  }, [open, userId, selectedDay, year, month]);
 
-  useEffect(() => { loadCampaignEmpTasks(); }, [loadCampaignEmpTasks]);
+  useEffect(() => { loadDayDetail(); }, [loadDayDetail]);
+
+  /* ── Derived data ── */
+
+  const filteredEmployees = useMemo(() => {
+    if (!sidebarSearch.trim()) return employees;
+    const q = sidebarSearch.toLowerCase();
+    return employees.filter((e) => nameOf(e).toLowerCase().includes(q) || (e.department?.title ?? "").toLowerCase().includes(q));
+  }, [employees, sidebarSearch]);
+
+  const deptGroups = useMemo(() => {
+    const grouped = new Map<string, DeptGroup>();
+    const ungrouped: DropdownEmp[] = [];
+    for (const emp of filteredEmployees) {
+      if (emp.department) {
+        const ex = grouped.get(emp.department.id);
+        if (ex) ex.employees.push(emp);
+        else grouped.set(emp.department.id, { id: emp.department.id, title: emp.department.title, employees: [emp] });
+      } else ungrouped.push(emp);
+    }
+    const groups = [...grouped.values()].sort((a, b) => a.title.localeCompare(b.title));
+    if (ungrouped.length > 0) groups.push({ id: "__none", title: "Unassigned", employees: ungrouped });
+    for (const g of groups) g.employees.sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+    return groups;
+  }, [filteredEmployees]);
+
+  const empProgress = useMemo(() => {
+    const map = new Map<string, { done: number; total: number }>();
+    for (const cg of campaignGroups) {
+      for (const emp of employees) {
+        const { done, total } = flatLeafCount(cg.tasks, emp._id);
+        if (total === 0) continue;
+        const prev = map.get(emp._id) || { done: 0, total: 0 };
+        map.set(emp._id, { done: prev.done + done, total: prev.total + total });
+      }
+    }
+    return map;
+  }, [campaignGroups, employees]);
 
   const dailyMap = useMemo(() => {
     const m = new Map<number, DailyEntry>();
@@ -520,61 +368,84 @@ export function EmployeeTasksModal({ open, onClose, userId }: Props) {
     return m;
   }, [dailyData]);
 
-  const allTimelineEvents = useMemo(() => {
+  const filteredTimeline = useMemo(() => {
     if (selectedDay) return [];
-    return dailyData.flatMap((d) => d.events).sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
-  }, [dailyData, selectedDay]);
+    return timeline;
+  }, [timeline, selectedDay]);
 
-  const detailEvents = useMemo(() => {
-    return detailData.flatMap((g) => g.events.map((e) => ({ ...e, campaign: g.campaign }))).sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
-  }, [detailData]);
-
-  const sidebarCampaigns: SidebarCampaign[] = useMemo(
-    () => campaignGroups.map((cg) => ({ _id: cg._id, name: cg.name, tasks: cg.tasks.map(taskNodeToSidebarTask) })),
-    [campaignGroups],
-  );
-
-  const filteredSidebarCampaigns = useMemo(() => {
-    if (!sidebarSearch.trim()) return sidebarCampaigns;
-    const q = sidebarSearch.toLowerCase();
-    return sidebarCampaigns.filter((c) => {
-      if (c.name.toLowerCase().includes(q)) return true;
-      const walk = (tasks: SidebarTask[]): boolean =>
-        tasks.some((t) => t.title.toLowerCase().includes(q) || (t.subtasks && walk(t.subtasks)));
-      return walk(c.tasks);
-    });
-  }, [sidebarCampaigns, sidebarSearch]);
-
-  const selectScope = useCallback((campaignId: string | null, taskId: string | null) => {
-    setSelectedCampaignId(campaignId);
-    setSelectedTaskId(taskId);
-    setSelectedDay(null);
-    if (campaignId) setExpandedCampaigns((prev) => new Set(prev).add(campaignId));
-  }, []);
-
-  const toggleCampaignExpand = useCallback((cid: string) => {
-    setExpandedCampaigns((prev) => {
-      const next = new Set(prev);
-      if (next.has(cid)) next.delete(cid);
-      else next.add(cid);
-      return next;
-    });
-  }, []);
-
-  const scopeSubtitle = useMemo(() => {
-    if (viewMode === "grid") return "All Campaigns";
-    const cg = campaignGroups.find((c) => c._id === selectedCampaignId);
-    const cname = cg?.name ?? null;
-    if (viewMode === "campaign") {
-      return cname ?? "Campaign";
+  const groupedByDate = useMemo(() => {
+    const map = new Map<string, TimelineLog[]>();
+    for (const log of filteredTimeline) {
+      const d = new Date(log.changedAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(log);
     }
-    const tname = cg && selectedTaskId ? findTaskTitleInNodes(cg.tasks, selectedTaskId) : null;
-    if (cname && tname) return `${cname} · ${tname}`;
-    return tname || cname || "Task";
-  }, [viewMode, campaignGroups, selectedCampaignId, selectedTaskId]);
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filteredTimeline]);
 
-  const eventsToShow = selectedDay ? detailEvents : allTimelineEvents;
-  const eventsLoading = selectedDay ? detailLoading : dailyLoading;
+  const dayEventsMap = useMemo(() => {
+    const map = new Map<string, DetailEvent[]>();
+    for (const dg of dayDetail) {
+      map.set(dg.campaign._id, dg.events);
+    }
+    return map;
+  }, [dayDetail]);
+
+  const dayCampaignCards = useMemo(() => {
+    if (!selectedDay || !userId) return [];
+
+    const seen = new Set<string>();
+    const cards: { campaignId: string; campaignName: string; tasks: EmpTask[]; events: DetailEvent[] }[] = [];
+
+    for (const cg of dayCampaigns) {
+      seen.add(cg._id);
+      const empTasks = cg.tasks.map((t) => mapNodeForEmp(t, userId));
+      const events = dayEventsMap.get(cg._id) || [];
+      cards.push({ campaignId: cg._id, campaignName: cg.name, tasks: empTasks, events });
+    }
+
+    for (const dg of dayDetail) {
+      if (seen.has(dg.campaign._id)) continue;
+      seen.add(dg.campaign._id);
+      const taskMap = new Map<string, { title: string; done: boolean }>();
+      for (const ev of dg.events) {
+        if (!ev.task) continue;
+        const existing = taskMap.get(ev.task._id);
+        if (!existing) {
+          taskMap.set(ev.task._id, {
+            title: ev.task.title,
+            done: ev.status === "completed" || ev.eventType === "checklistComplete",
+          });
+        } else if (new Date(ev.changedAt) > new Date()) {
+          existing.done = ev.status === "completed" || ev.eventType === "checklistComplete";
+        }
+      }
+      const tasks: EmpTask[] = Array.from(taskMap.entries()).map(([id, t]) => ({
+        _id: id, title: t.title, done: t.done, subtasks: [],
+      }));
+      cards.push({ campaignId: dg.campaign._id, campaignName: dg.campaign.name, tasks, events: dg.events });
+    }
+
+    return cards;
+  }, [selectedDay, userId, dayCampaigns, dayDetail, dayEventsMap]);
+
+  const selectedEmployee = useMemo(() => employees.find((e) => e._id === userId), [employees, userId]);
+
+  const selectEmployee = useCallback((uid: string) => {
+    setUserId(uid);
+    setSelectedDay(null);
+  }, []);
+
+  const backToAll = useCallback(() => {
+    setUserId("");
+    setSelectedDay(null);
+    setEmployee(null);
+    setTimeline([]);
+    setDailyData([]);
+    setDayCampaigns([]);
+    setDayDetail([]);
+  }, []);
 
   if (!open) return null;
 
@@ -588,7 +459,7 @@ export function EmployeeTasksModal({ open, onClose, userId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className="relative mx-4 flex flex-col rounded-xl border shadow-xl overflow-hidden w-full max-w-7xl h-[85vh]"
+              className={`relative mx-4 flex flex-col rounded-xl border shadow-xl overflow-hidden ${isPrivileged ? "w-full max-w-7xl h-[85vh]" : "w-full max-w-5xl h-[85vh]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -596,208 +467,222 @@ export function EmployeeTasksModal({ open, onClose, userId }: Props) {
             >
               {/* ── Header ── */}
               <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
-                <div className="flex items-center gap-4 min-w-0">
-                  {employee && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                      style={{ background: avatarColor(employee._id) }}>
-                      {empInitials(employee)}
-                    </div>
+                <div className="flex items-center gap-3 min-w-0">
+                  {userId && (employee || selectedEmployee) && (
+                    <>
+                      {isPrivileged && (
+                        <button type="button" onClick={backToAll} className="rounded p-0.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                      )}
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                        style={{ background: avatarColor(userId) }}>
+                        {employee ? empInitials(employee) : initials(selectedEmployee!)}
+                      </div>
+                    </>
                   )}
                   <div className="min-w-0">
                     <h3 className="text-[12px] font-bold truncate" style={{ color: "var(--fg)" }}>
-                      {employee ? empName(employee) : "Employee tasks"}
+                      {userId
+                        ? (employee ? empName(employee) : selectedEmployee ? nameOf(selectedEmployee) : !isPrivileged ? "My Progress" : "Task Activity")
+                        : "Task Progress"}
                     </h3>
                     <p className="text-[11px] truncate" style={{ color: "var(--fg-tertiary)" }}>
-                      {scopeSubtitle}
-                      {selectedDay && ` · ${MN[month - 1]} ${selectedDay}, ${year}`}
+                      {userId
+                        ? selectedDay
+                          ? `${MN[month - 1]} ${selectedDay}, ${year}`
+                          : `${MN[month - 1]} ${year} · ${timelineTotal} event${timelineTotal !== 1 ? "s" : ""}`
+                        : `Today's progress · ${employees.length} employee${employees.length !== 1 ? "s" : ""}`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 rounded-lg border p-0.5 shrink-0" style={{ borderColor: "var(--border)" }}>
-                    <button type="button" onClick={handlePrevMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                    <span className="px-2 text-[11px] font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
-                      {MN[month - 1]} {year}
-                    </span>
-                    <button type="button" onClick={handleNextMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M9 5l7 7-7 7" /></svg>
-                    </button>
-                  </div>
+                  {userId && (
+                    <div className="flex items-center gap-1 rounded-lg border p-0.5 shrink-0" style={{ borderColor: "var(--border)" }}>
+                      <button type="button" onClick={handlePrevMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                      <span className="px-2 text-[11px] font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
+                        {MN[month - 1]} {year}
+                      </span>
+                      <button type="button" onClick={handleNextMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <button type="button" onClick={onClose} className="rounded-lg p-1 transition-colors hover:bg-[var(--bg-grouped)] shrink-0" style={{ color: "var(--fg-secondary)" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
                 </button>
               </div>
 
+              {/* ── Body ── */}
               <div className="flex min-h-0 flex-1 overflow-hidden">
-                {/* ── Sidebar ── */}
-                <div className="hidden md:flex w-[280px] shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                  <div className={`shrink-0 p-3 border-b transition-opacity ${viewMode === "grid" ? "opacity-40 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
-                    <MiniCalendar
-                      compact
-                      year={year}
-                      month={month}
-                      onPrevMonth={handlePrevMonth}
-                      onNextMonth={handleNextMonth}
-                      selectedDay={selectedDay}
-                      onSelectDay={(d) => setSelectedDay(d)}
-                      loading={dailyLoading}
-                      getDayMeta={(day) => {
-                        if (viewMode === "grid") return { dotColor: "transparent" };
-                        const entry = dailyMap.get(day);
-                        if (!entry || entry.totalEvents === 0) return { dotColor: "transparent" };
-                        if (entry.completedCount > 0 && entry.undoneCount === 0) return { dotColor: "var(--green)" };
-                        if (entry.undoneCount > 0 && entry.completedCount === 0) return { dotColor: "var(--amber)" };
-                        if (entry.completedCount > 0) return { dotColor: "var(--green)" };
-                        return { dotColor: "var(--fg-tertiary)" };
-                      }}
-                      showLegend={viewMode !== "grid"}
-                      legendItems={[
-                        { label: "Completed", color: "var(--green)" },
-                        { label: "Undone", color: "var(--amber)" },
-                      ]}
-                    />
-                    {selectedDay && viewMode !== "grid" && (
-                      <button type="button" onClick={() => setSelectedDay(null)} className="mt-2 w-full rounded-lg py-1 text-center text-[10px] font-semibold transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--primary)" }}>
-                        Back to today
-                      </button>
-                    )}
-                  </div>
-                  <div className="shrink-0 px-2 pt-2 pb-1">
-                    <div className="flex items-center gap-2 rounded-xl border px-3 py-1.5" style={{ background: "var(--bg)", borderColor: "var(--border)" }}>
-                      <svg className="pointer-events-none h-3 w-3 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                      </svg>
-                      <input type="text" value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search…" className="flex-1 min-w-0 bg-transparent text-[11px] outline-none" style={{ color: "var(--fg)", border: "none" }} />
+                {/* ═══ Sidebar ═══ */}
+                {isPrivileged && (
+                  <div className="hidden md:flex w-[260px] shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                    <div className={`shrink-0 p-3 border-b transition-opacity ${allMode ? "opacity-40 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
+                      <MiniCalendar
+                        compact
+                        year={year}
+                        month={month}
+                        onPrevMonth={handlePrevMonth}
+                        onNextMonth={handleNextMonth}
+                        selectedDay={selectedDay}
+                        onSelectDay={(d) => setSelectedDay(d)}
+                        loading={dailyLoading}
+                        getDayMeta={(day) => {
+                          if (allMode) return { dotColor: "transparent" };
+                          const entry = dailyMap.get(day);
+                          if (!entry || entry.totalEvents === 0) return { dotColor: "transparent" };
+                          if (entry.completedCount > 0 && entry.undoneCount === 0) return { dotColor: "var(--green)" };
+                          if (entry.undoneCount > 0 && entry.completedCount === 0) return { dotColor: "var(--amber)" };
+                          if (entry.completedCount > 0) return { dotColor: "var(--green)" };
+                          return { dotColor: "var(--fg-tertiary)" };
+                        }}
+                        showLegend={!allMode}
+                        legendItems={[
+                          { label: "Completed", color: "var(--green)" },
+                          { label: "Mixed", color: "var(--amber)" },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="p-3 border-b" style={{ borderColor: "var(--border)" }}>
+                      <div className="relative">
+                        <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
+                        <input type="text" value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search employees…"
+                          className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-[11px] outline-none transition-colors focus:border-[var(--primary)]"
+                          style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg)" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto py-1">
+                      {sidebarLoading ? (
+                        <div className="space-y-2 p-3">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="flex items-center gap-2"><div className="shimmer h-6 w-6 rounded-full" /><div className="shimmer h-3 flex-1 rounded" /></div>)}</div>
+                      ) : (
+                        <>
+                          {!sidebarSearch && (
+                            <button type="button" onClick={backToAll}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}>
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
+                              <span className="text-[11px] font-semibold" style={{ color: !userId ? "var(--primary)" : "var(--fg-secondary)" }}>All Employees</span>
+                            </button>
+                          )}
+                          {!sidebarSearch && employees.length > 0 && <div className="mx-3 my-1 border-b" style={{ borderColor: "var(--border)" }} />}
+                          {deptGroups.map((g) => (
+                            <div key={g.id}>
+                              <div className="px-2 py-0.5">
+                                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 block" style={{ color: "var(--fg-tertiary)" }}>
+                                  {g.title} ({g.employees.length})
+                                </span>
+                              </div>
+                              {g.employees.map((emp) => {
+                                const isSel = userId === emp._id;
+                                const prog = empProgress.get(emp._id);
+                                return (
+                                  <button key={emp._id} type="button" onClick={() => selectEmployee(emp._id)}
+                                    className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-6 text-left transition-colors"
+                                    style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}>
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <span className="text-[11px] font-medium truncate block" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>{nameOf(emp)}</span>
+                                    </div>
+                                    {prog && prog.total > 0 && (
+                                      <span className="shrink-0 text-[9px] font-bold tabular-nums" style={{ color: prog.done === prog.total ? "var(--green)" : "var(--fg-tertiary)" }}>
+                                        {prog.done}/{prog.total}
+                                      </span>
+                                    )}
+                                    {isSel && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ))}
+                          {filteredEmployees.length === 0 && sidebarSearch && <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>}
+                        </>
+                      )}
+                    </div>
+                    <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{sidebarLoading ? "Loading…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}</p>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto px-1 pb-2">
-                    <button type="button" onClick={() => selectScope(null, null)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors mb-1"
-                      style={{ background: !selectedCampaignId && !selectedTaskId ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent", color: !selectedCampaignId && !selectedTaskId ? "var(--primary)" : "var(--fg-secondary)" }}>
-                      <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-                      All Campaigns
-                    </button>
+                )}
 
-                    {filteredSidebarCampaigns.map((c) => {
-                      const isExpanded = expandedCampaigns.has(c._id);
-                      const isCampaignActive = selectedCampaignId === c._id && !selectedTaskId;
-                      return (
-                        <div key={c._id} className="mb-0.5">
-                          <div className="flex items-center">
-                            <button type="button" onClick={() => toggleCampaignExpand(c._id)}
-                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-[var(--hover-bg)]">
-                              <svg className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M9 5l7 7-7 7" /></svg>
-                            </button>
-                            <button type="button" onClick={() => selectScope(c._id, null)}
-                              className="flex-1 min-w-0 rounded-lg px-1.5 py-1 text-left text-[11px] font-semibold truncate transition-colors"
-                              style={{ background: isCampaignActive ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent", color: isCampaignActive ? "var(--primary)" : "var(--fg)" }}>
-                              {c.name}
-                            </button>
-                          </div>
-                          <AnimatePresence initial={false}>
-                            {isExpanded && c.tasks.length > 0 && (
-                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
-                                <div className="ml-5 border-l pl-1.5" style={{ borderColor: "var(--border)" }}>
-                                  {c.tasks.map((t) => {
-                                    const isTaskActive = selectedTaskId === t._id;
-                                    const hasSubtasks = (t.subtasks?.length ?? 0) > 0;
-                                    return (
-                                      <div key={t._id}>
-                                        <button type="button" onClick={() => selectScope(c._id, t._id)}
-                                          className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-[10px] transition-colors"
-                                          style={{ background: isTaskActive ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent", color: isTaskActive ? "var(--primary)" : "var(--fg-secondary)" }}>
-                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: t.recurrence ? "var(--purple)" : "var(--teal)" }} />
-                                          <span className="truncate">{t.title}</span>
-                                        </button>
-                                        {hasSubtasks && t.subtasks!.map((s) => {
-                                          const isSubActive = selectedTaskId === s._id;
-                                          return (
-                                            <button key={s._id} type="button" onClick={() => selectScope(c._id, s._id)}
-                                              className="flex w-full items-center gap-1.5 rounded-lg py-0.5 pl-4 pr-1.5 text-[10px] transition-colors"
-                                              style={{ background: isSubActive ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent", color: isSubActive ? "var(--primary)" : "var(--fg-tertiary)" }}>
-                                              <span className="h-1 w-1 shrink-0 rounded-full" style={{ background: s.recurrence ? "var(--purple)" : "var(--teal)" }} />
-                                              <span className="truncate">{s.title}</span>
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* ── Right panel ── */}
+                {/* ═══ Content ═══ */}
                 <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                  {viewMode === "grid" && (
+                  {/* ── All Employees: Today's progress by department ── */}
+                  {allMode ? (
                     <div className="flex-1 overflow-y-auto p-3">
-                      <div className="mb-3">
-                        <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>Campaigns</h4>
-                      </div>
-                      {!isPrivileged ? (
-                        <div className="py-12 text-center">
-                          <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>You don&apos;t have access to this data.</p>
-                        </div>
-                      ) : campaignGroupsLoading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
-                              <div className="p-3 space-y-2.5">
-                                <div className="shimmer h-4 w-36 rounded" />
-                                <div className="space-y-1.5">
-                                  {[1, 2, 3].map((j) => <div key={j} className="shimmer h-8 w-full rounded-lg" />)}
-                                </div>
+                      {campaignGroupsLoading ? (
+                        <div className="space-y-4">
+                          {[1, 2].map((i) => (
+                            <div key={i} className="space-y-2">
+                              <div className="shimmer h-4 w-32 rounded" />
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {[1, 2, 3, 4].map((j) => <div key={j} className="shimmer h-16 rounded-xl" />)}
                               </div>
                             </div>
                           ))}
                         </div>
-                      ) : campaignGroups.length === 0 ? (
+                      ) : deptGroups.length === 0 ? (
                         <div className="py-12 text-center">
-                          <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No active campaigns.</p>
+                          <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No employees found.</p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {campaignGroups.map((cg) => {
-                            const empTasks = cg.tasks.map((t) => mapTaskNodeToEmpTask(t, userId));
-                            const { done: totalDone, total: totalPossible } = countLeafProgress(empTasks);
+                        <div className="space-y-5">
+                          {deptGroups.map((dept) => {
+                            const deptDone = dept.employees.reduce((s, e) => s + (empProgress.get(e._id)?.done ?? 0), 0);
+                            const deptTotal = dept.employees.reduce((s, e) => s + (empProgress.get(e._id)?.total ?? 0), 0);
+                            const deptPct = deptTotal > 0 ? Math.round((deptDone / deptTotal) * 100) : 0;
                             return (
-                              <div key={cg._id} className="rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-                                <button type="button" onClick={() => selectScope(cg._id, null)}
-                                  className="flex items-center gap-1.5 px-3 py-2 border-b transition-colors hover:bg-[var(--hover-bg)]"
-                                  style={{ borderColor: "var(--border)" }}>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[12px] font-bold truncate" style={{ color: "var(--fg)" }}>{cg.name}</span>
-                                      {totalPossible > 0 && (
-                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums"
-                                          style={{ background: totalDone === totalPossible ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "color-mix(in srgb, var(--amber) 10%, transparent)", color: totalDone === totalPossible ? "var(--teal)" : "var(--amber)" }}>
-                                          {totalDone}/{totalPossible}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="text-[9px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                                      {cg.totalTasks} task{cg.totalTasks !== 1 ? "s" : ""}
+                              <div key={dept.id}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{dept.title}</h4>
+                                  {deptTotal > 0 && (
+                                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums"
+                                      style={{
+                                        background: deptPct === 100 ? "color-mix(in srgb, var(--green) 12%, transparent)" : "color-mix(in srgb, var(--amber) 10%, transparent)",
+                                        color: deptPct === 100 ? "var(--green)" : "var(--amber)",
+                                      }}>
+                                      {deptDone}/{deptTotal} · {deptPct}%
                                     </span>
-                                    <svg className="h-3 w-3" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                  </div>
-                                </button>
-                                <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-3 space-y-2">
-                                  {cg.tasks.length === 0 ? (
-                                    <p className="text-[10px] py-2 px-1 text-center" style={{ color: "var(--fg-tertiary)" }}>No tasks</p>
-                                  ) : empTasks.map((task) => (
-                                    <EmpTaskCard key={task._id} task={task} onTaskClick={(tid) => selectScope(cg._id, tid)} />
-                                  ))}
+                                  )}
+                                  <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                  {dept.employees.map((emp) => {
+                                    const prog = empProgress.get(emp._id);
+                                    const done = prog?.done ?? 0;
+                                    const total = prog?.total ?? 0;
+                                    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                                    const allDone = total > 0 && done >= total;
+                                    const barColor = allDone ? "var(--green)" : pct > 0 ? "var(--primary)" : "var(--fg-quaternary)";
+                                    return (
+                                      <motion.button type="button" key={emp._id} onClick={() => selectEmployee(emp._id)}
+                                        className="rounded-xl border p-3 text-left transition-colors hover:border-[var(--primary)]"
+                                        style={{ borderColor: "var(--border)", background: "var(--bg-grouped)" }}
+                                        whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
+                                          <span className="text-[11px] font-semibold truncate flex-1" style={{ color: "var(--fg)" }}>{nameOf(emp)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                          <span className="text-[9px]" style={{ color: "var(--fg-tertiary)" }}>
+                                            {total > 0 ? `${done} of ${total} tasks` : "No tasks"}
+                                          </span>
+                                          {total > 0 && (
+                                            <span className="text-[10px] font-bold tabular-nums" style={{ color: barColor }}>{pct}%</span>
+                                          )}
+                                        </div>
+                                        {total > 0 && (
+                                          <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: "var(--bg)" }}>
+                                            <motion.div className="h-full rounded-full" style={{ background: barColor }}
+                                              initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
+                                          </div>
+                                        )}
+                                      </motion.button>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             );
@@ -805,51 +690,234 @@ export function EmployeeTasksModal({ open, onClose, userId }: Props) {
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {viewMode === "campaign" && (
-                    <div className="flex-1 overflow-y-auto px-3 pb-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>
-                          {selectedDay ? `${MN[month - 1]} ${selectedDay}` : "Today"} — Tasks
-                        </h4>
-                        {selectedDay && (
-                          <button type="button" onClick={() => setSelectedDay(null)} className="text-[10px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
-                            Back to today
-                          </button>
-                        )}
-                      </div>
-                      {campaignEmpTasksLoading ? (
-                        <div className="space-y-2">
-                          {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="shimmer h-10 w-full rounded-xl" />
-                          ))}
-                        </div>
-                      ) : campaignEmpTasks.length === 0 ? (
-                        <div className="py-8 text-center">
-                          <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
-                            No tasks for this employee{selectedDay ? " on this date" : ""}.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {campaignEmpTasks.map((t) => (
-                            <EmpTaskCard key={t._id} task={t} onTaskClick={(tid) => selectScope(selectedCampaignId, tid)} />
-                          ))}
+                  ) : (
+                    /* ── Individual Employee ── */
+                    <>
+                      {!isPrivileged && (
+                        <div className="shrink-0 p-3 border-b" style={{ borderColor: "var(--border)" }}>
+                          <div className="max-w-xs mx-auto">
+                            <MiniCalendar
+                              compact year={year} month={month}
+                              onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth}
+                              selectedDay={selectedDay} onSelectDay={(d) => setSelectedDay(d)}
+                              loading={dailyLoading}
+                              getDayMeta={(day) => {
+                                const entry = dailyMap.get(day);
+                                if (!entry || entry.totalEvents === 0) return { dotColor: "transparent" };
+                                if (entry.completedCount > 0 && entry.undoneCount === 0) return { dotColor: "var(--green)" };
+                                if (entry.undoneCount > 0 && entry.completedCount === 0) return { dotColor: "var(--amber)" };
+                                if (entry.completedCount > 0) return { dotColor: "var(--green)" };
+                                return { dotColor: "var(--fg-tertiary)" };
+                              }}
+                              showLegend legendItems={[{ label: "Completed", color: "var(--green)" }, { label: "Mixed", color: "var(--amber)" }]}
+                            />
+                          </div>
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {viewMode === "task" && selectedCampaignId && (
-                    <TimelinePanel
-                      events={eventsToShow}
-                      loading={eventsLoading}
-                      selectedDay={selectedDay}
-                      month={month}
-                      year={year}
-                      onClearDay={() => setSelectedDay(null)}
-                    />
+                      <div className="flex-1 min-w-0 overflow-y-auto">
+                        {/* ── Day selected: Campaign cards view ── */}
+                        {selectedDay ? (
+                          <div className="p-3">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>
+                                {MN[month - 1]} {selectedDay}, {year}
+                              </h4>
+                              <button type="button" onClick={() => setSelectedDay(null)} className="text-[10px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
+                                Show full month
+                              </button>
+                            </div>
+
+                            {dayLoading ? (
+                              <div className="space-y-3">
+                                {[1, 2].map((i) => (
+                                  <div key={i} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                                    <div className="p-3 space-y-2">
+                                      <div className="shimmer h-4 w-40 rounded" />
+                                      <div className="space-y-1.5">{[1, 2, 3].map((j) => <div key={j} className="shimmer h-8 rounded-lg" />)}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : dayCampaignCards.length === 0 ? (
+                              <div className="py-12 text-center">
+                                <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No campaigns found for this day.</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {dayCampaignCards.map((card) => {
+                                  const doneCount = card.tasks.filter((t) => t.done).length;
+                                  const totalCount = card.tasks.length;
+                                  const allDone = totalCount > 0 && doneCount === totalCount;
+                                  const badgeColor = allDone ? "var(--green)" : doneCount > 0 ? "var(--amber)" : "var(--fg-tertiary)";
+
+                                  return (
+                                    <motion.div key={card.campaignId}
+                                      className="rounded-xl border overflow-hidden"
+                                      style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+                                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                                      {/* Campaign header */}
+                                      <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                                        <span className="text-[12px] font-bold truncate flex-1" style={{ color: "var(--fg)" }}>{card.campaignName}</span>
+                                        <span className="pill-glass shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums"
+                                          style={{
+                                            background: `color-mix(in srgb, ${badgeColor} 15%, var(--dock-frosted-bg))`,
+                                            color: badgeColor,
+                                            border: `1px solid color-mix(in srgb, ${badgeColor} 30%, var(--border))`,
+                                          }}>
+                                          {doneCount}/{totalCount}
+                                        </span>
+                                      </div>
+
+                                      {/* Task cards */}
+                                      <div className="p-2 space-y-1">
+                                        {card.tasks.map((task) => (
+                                          <div key={task._id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "var(--bg-grouped)", opacity: task.done ? 0.65 : 1 }}>
+                                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md"
+                                              style={{ background: task.done ? "color-mix(in srgb, var(--green) 14%, transparent)" : "color-mix(in srgb, var(--fg-tertiary) 8%, transparent)" }}>
+                                              {task.done ? (
+                                                <svg className="h-2.5 w-2.5" style={{ color: "var(--green)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" d="M5 13l4 4L19 7" /></svg>
+                                              ) : (
+                                                <svg className="h-2.5 w-2.5" style={{ color: "var(--fg-quaternary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                              )}
+                                            </span>
+                                            <span className="text-[11px] font-medium truncate flex-1" style={{ color: task.done ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.done ? "line-through" : "none" }}>
+                                              {task.title}
+                                            </span>
+                                            {task.recurrence && (
+                                              <span className="shrink-0 rounded-full px-1.5 py-px text-[8px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 12%, transparent)", color: "var(--purple)" }}>
+                                                Recurring
+                                              </span>
+                                            )}
+                                          </div>
+                                        ))}
+                                        {card.tasks.length === 0 && (
+                                          <p className="text-[10px] py-1 px-2" style={{ color: "var(--fg-tertiary)" }}>No task data available</p>
+                                        )}
+                                      </div>
+
+                                      {/* Activity events */}
+                                      {card.events.length > 0 && (
+                                        <div className="border-t px-2 py-1.5 space-y-1" style={{ borderColor: "var(--border)" }}>
+                                          <p className="text-[9px] font-bold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--fg-tertiary)" }}>Activity</p>
+                                          {card.events.map((ev) => {
+                                            const meta = statusMeta(ev.status, ev.eventType);
+                                            return (
+                                              <div key={ev._id} className="flex items-center gap-2 px-1 py-0.5">
+                                                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full"
+                                                  style={{ background: `color-mix(in srgb, ${meta.color} 18%, transparent)` }}>
+                                                  <svg className="h-2 w-2" style={{ color: meta.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={meta.icon} /></svg>
+                                                </span>
+                                                <span className="inline-flex items-center rounded-full px-1 py-px text-[8px] font-semibold"
+                                                  style={{ background: `color-mix(in srgb, ${meta.color} 12%, transparent)`, color: meta.color }}>
+                                                  {meta.label}
+                                                </span>
+                                                {ev.task && <span className="text-[10px] truncate flex-1" style={{ color: "var(--fg-secondary)" }}>{ev.task.title}</span>}
+                                                <span className="shrink-0 text-[9px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(ev.changedAt)}</span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* ── No day selected: Full month timeline ── */
+                          <>
+                            <div className="px-3 pt-3 pb-1 flex items-center justify-between sticky top-0 z-[1]" style={{ background: "var(--bg-elevated)" }}>
+                              <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>Activity Timeline</h4>
+                            </div>
+                            <div className="px-3 pb-3">
+                              {timelineLoading ? (
+                                <div className="space-y-2 mt-2">
+                                  {[1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i} className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
+                                      <div className="shimmer h-3 w-3 rounded-full" />
+                                      <div className="flex-1 space-y-1.5"><div className="shimmer h-3 w-52 rounded" /><div className="shimmer h-2.5 w-32 rounded" /></div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : groupedByDate.length === 0 ? (
+                                <div className="py-12 text-center">
+                                  <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No task activity this month.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4 mt-2">
+                                  {groupedByDate.map(([dateKey, logs]) => (
+                                    <div key={dateKey}>
+                                      <div className="sticky top-8 z-[1] flex items-center gap-2 mb-2 py-1" style={{ background: "var(--bg-elevated)" }}>
+                                        <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+                                        <span className="text-[10px] font-bold shrink-0" style={{ color: "var(--fg-tertiary)" }}>{fmtDate(dateKey)}</span>
+                                        <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        {logs.map((log) => {
+                                          const meta = statusMeta(log.status, log.eventType);
+                                          return (
+                                            <motion.div key={log._id}
+                                              className="flex items-start gap-2.5 rounded-xl px-3 py-2" style={{ background: "var(--bg-grouped)" }}
+                                              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
+                                              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                                                style={{ background: `color-mix(in srgb, ${meta.color} 18%, transparent)` }}>
+                                                <svg className="h-3 w-3" style={{ color: meta.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={meta.icon} /></svg>
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-semibold"
+                                                    style={{ background: `color-mix(in srgb, ${meta.color} 14%, transparent)`, color: meta.color }}>
+                                                    {meta.label}
+                                                  </span>
+                                                  {log.task && <span className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{log.task.title}</span>}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                  {log.campaign && (
+                                                    <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+                                                      {log.campaign.name}
+                                                    </span>
+                                                  )}
+                                                  {log.task?.recurrence && (
+                                                    <span className="rounded-full px-1.5 py-px text-[9px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 12%, transparent)", color: "var(--purple)" }}>
+                                                      Recurring
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                {log.note && <p className="mt-0.5 text-[9px]" style={{ color: "var(--fg-tertiary)" }}>{log.note}</p>}
+                                              </div>
+                                              <span className="shrink-0 text-[9px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                                                {fmtTime(log.changedAt)}
+                                              </span>
+                                            </motion.div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ))}
+
+                                  {timelineTotal > filteredTimeline.length && (
+                                    <div className="text-center py-2">
+                                      <button type="button" onClick={() => loadTimeline(timelinePage + 1)}
+                                        className="text-[10px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
+                                        Load more…
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

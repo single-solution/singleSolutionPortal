@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import toast from "react-hot-toast";
 import {
   AnimatePresence,
   LayoutGroup,
@@ -334,13 +335,14 @@ const blobGradients = [
 
 /* ──────────────────────── WELCOME HEADER ──────────────────────── */
 
-function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasTeamAccess, dataLoading, scopeStrip }: {
+function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasTeamAccess, canViewPresence, dataLoading, scopeStrip }: {
   user: User;
   presenceEmps: PresenceEmployee[];
   tasks: ApiTask[];
   campaigns: ApiCampaign[];
   userProfile: UserProfile | null;
   hasTeamAccess: boolean;
+  canViewPresence: boolean;
   dataLoading?: boolean;
   scopeStrip?: React.ReactNode;
 }) {
@@ -367,7 +369,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasT
         <p className="text-caption mb-0.5">Single Solution Sync</p>
         <h1 className="text-title"><span style={{ color: "var(--primary)" }}>{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {profileName}!</span></h1>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 [&_.badge]:!gap-1 [&_.badge]:!px-2 [&_.badge]:!py-0.5 [&_.badge]:!text-[9px] sm:[&_.badge]:!px-2.5 sm:[&_.badge]:!py-1 sm:[&_.badge]:!text-[10px] [&_.badge::before]:!h-[5px] [&_.badge::before]:!w-[5px]">
-          {hasTeamAccess ? (
+          {hasTeamAccess && canViewPresence ? (
             <>
               <span className="badge badge-office">{liveOfficeCount} In Office</span>
               <span className="badge badge-remote">{liveRemoteCount} Remote</span>
@@ -797,6 +799,10 @@ function AdminDashboard({
   const canViewTasks = canPerm("tasks_view");
   const canViewCampaigns = canPerm("campaigns_view");
   const canSendPing = canPerm("ping_send");
+  const canViewDashboard = canPerm("analytics_viewDashboard");
+  const canViewNeedsAttention = canPerm("analytics_viewNeedsAttention");
+  const canViewPresence = canPerm("analytics_viewPresence");
+  const canViewEmpLocation = canPerm("employees_viewLocation");
   const { registerTour } = useGuide();
   useEffect(() => { registerTour("dashboard", dashboardTour); }, [registerTour]);
   const [scopeDept, setScopeDept] = useState("all");
@@ -1075,8 +1081,8 @@ function AdminDashboard({
       if (res.ok) {
         setPingSuccess(toName);
         setTimeout(() => setPingSuccess(null), 2500);
-      }
-    } catch { /* ignore */ }
+      } else toast.error("Failed to send ping");
+    } catch { toast.error("Something went wrong"); }
     setPingSending(null);
   }, [pingSending]);
 
@@ -1084,7 +1090,7 @@ function AdminDashboard({
     <div className="flex flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* 1. Welcome header */}
       <div className="shrink-0 mb-4">
-        <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
+        <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} canViewPresence={canViewPresence} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
             </div>
 
       {/* 2. Main content + Activity sidebar (sidebar spans full height) */}
@@ -1099,8 +1105,8 @@ function AdminDashboard({
           </div>
         )}
 
-        {/* Admin Overview — general stats grid (SuperAdmin only) */}
-        {isSuperAdmin && (
+        {/* Admin Overview — general stats grid (SuperAdmin or analytics_viewDashboard) */}
+        {(isSuperAdmin || canViewDashboard) && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="shrink-0 rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
             <h3 className="shrink-0 px-4 py-2.5 text-[13px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>Admin Overview</h3>
             {teamTodayStats ? (
@@ -1161,7 +1167,7 @@ function AdminDashboard({
         )}
 
         {/* Quick stat pills — team/attendance (non-superadmin) */}
-        {!isSuperAdmin && hasTeamAccess && teamTodayStats && !presenceLoading && (
+        {!isSuperAdmin && hasTeamAccess && canViewPresence && teamTodayStats && !presenceLoading && (
           <div className="scrollbar-hide flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
             <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
             <span className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[9px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--status-office)" }}>{teamTodayStats.pctInOffice}% in-office</span>
@@ -1474,10 +1480,11 @@ function AdminDashboard({
                         idx={idx}
                         attendanceLoading={presenceLoading}
                         onPing={liveUpdates && canSendPing ? handlePing : undefined}
+                        pingSending={pingSending === emp._id}
                         onCardClick={(id) => { setEmpModalId(id); setEmpModalOpen(true); }}
                         showAttendance={hasTeamAccess}
                         showAttendanceDetail={canViewAttendanceDetail}
-                        showLocationFlags={canViewAttendanceDetail}
+                        showLocationFlags={canViewAttendanceDetail && canViewEmpLocation}
                         showTasks={canViewTasks}
                         showCampaigns={canViewCampaigns}
                         emp={{
@@ -1510,12 +1517,14 @@ function AdminDashboard({
         {canViewLogs && (
           <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px] gap-3">
             {/* Needs Attention */}
+            {canViewNeedsAttention && (
             <div className="shrink-0 rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", maxHeight: "30%" }}>
               <h3 className="shrink-0 px-3 py-2 text-[12px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>Action Items</h3>
               <div className="min-h-0 flex-1 overflow-y-auto p-2 space-y-1.5">
                 <NeedsAttentionItems tasks={tasks} canViewTasks={canViewTasks} emps={otherEmps} hasTeamAccess={hasTeamAccess} flagStats={flagStats} taskQuickStats={taskQuickStats} campaignStats={canViewCampaigns ? { active: campaigns.filter((c) => c.status === "active").length, total: campaigns.length } : null} isEmployee={!isSuperAdmin && !hasTeamAccess} pa={personalAttendance} />
               </div>
             </div>
+            )}
             {/* Activity */}
             <div className="flex w-full min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
               <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>

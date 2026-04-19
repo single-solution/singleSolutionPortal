@@ -76,7 +76,9 @@ export function useInsightsContext() {
 export default function InsightsDeskLayout({ children }: { children: React.ReactNode }) {
   const { registerTour } = useGuide();
   const { can: canPerm } = usePermissions();
-  const canManageHolidays = canPerm("holidays_manage");
+  const canCreateHoliday = canPerm("holidays_create");
+  const canToggleRecurring = canPerm("holidays_toggleRecurring");
+  const canDeleteHoliday = canPerm("holidays_delete");
 
   useEffect(() => { registerTour("insights-desk", insightsDeskTour); }, [registerTour]);
 
@@ -170,16 +172,16 @@ export default function InsightsDeskLayout({ children }: { children: React.React
 
   async function handleToggleRecurring(h: Holiday) {
     setTogglingId(h._id);
+    const newVal = !h.isRecurring;
+    setHolidays((prev) => prev.map((x) => x._id === h._id ? { ...x, isRecurring: newVal } : x));
     try {
       const res = await fetch("/api/payroll/holidays", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: h._id, isRecurring: !h.isRecurring }),
+        body: JSON.stringify({ id: h._id, isRecurring: newVal }),
       });
-      if (res.ok) {
-        setHolidays((prev) => prev.map((x) => x._id === h._id ? { ...x, isRecurring: !x.isRecurring } : x));
-      } else toast.error("Failed to update");
-    } catch { toast.error("Something went wrong"); }
+      if (!res.ok) { setHolidays((prev) => prev.map((x) => x._id === h._id ? { ...x, isRecurring: !newVal } : x)); toast.error("Failed to update"); }
+    } catch { setHolidays((prev) => prev.map((x) => x._id === h._id ? { ...x, isRecurring: !newVal } : x)); toast.error("Something went wrong"); }
     setTogglingId(null);
   }
 
@@ -224,7 +226,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 <svg className="h-3.5 w-3.5" style={{ color: "var(--amber)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
-                Tasks
+                Progress
               </motion.button>
               <motion.button type="button" onClick={() => openLeavesModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors"
@@ -291,7 +293,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-2 space-y-3">
-                    {canManageHolidays && (
+                    {canCreateHoliday && (
                       <AnimatePresence mode="wait">
                         {!showForm ? (
                           <motion.button
@@ -363,7 +365,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                                 <p className="text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}</p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                {canManageHolidays ? (
+                                {canToggleRecurring ? (
                                   <ToggleSwitch
                                     checked={h.isRecurring}
                                     onChange={() => handleToggleRecurring(h)}
@@ -374,7 +376,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                                 ) : h.isRecurring ? (
                                   <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ color: "var(--purple)", background: "color-mix(in srgb, var(--purple) 12%, transparent)" }}>Recurring</span>
                                 ) : null}
-                                {canManageHolidays && (
+                                {canDeleteHoliday && (
                                   <button type="button" onClick={() => setDeleteTarget(h)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-tertiary)" }} title="Remove holiday">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                   </button>

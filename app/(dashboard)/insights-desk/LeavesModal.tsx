@@ -101,6 +101,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const { data: session } = useSession();
   const { can: canPerm, isSuperAdmin } = usePermissions();
   const canViewTeam = canPerm("leaves_viewTeam");
+  const canSubmitOnBehalf = canPerm("leaves_submitOnBehalf");
 
   const [employees, setEmployees] = useCachedState<DropdownEmp[]>("$leaves/employees", []);
   const [sidebarLoading, setSidebarLoading] = useState(false);
@@ -284,7 +285,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
       const body: Record<string, unknown> = { date, isHalfDay, reason };
       if (leaveType && leaveType !== "leave") body.type = leaveType;
       if (multiDay && endDate) body.endDate = endDate;
-      if (canViewTeam && userId) body.userId = userId;
+      if (canSubmitOnBehalf && userId) body.userId = userId;
       const res = await fetch("/api/leaves", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -382,18 +383,18 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                     <span className="px-1.5 text-[11px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{selYear}</span>
                     <button type="button" onClick={() => setSelYear(y => y + 1)} disabled={selYear >= new Date().getFullYear()} className="px-2 py-1 text-[11px] font-bold disabled:opacity-30" style={{ color: "var(--fg-secondary)" }}>›</button>
                   </div>
-                  {(
-                    <motion.button
-                      type="button"
-                      onClick={() => setShowForm((p) => !p)}
-                      whileTap={{ scale: 0.95 }}
-                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white"
-                      style={{ background: "var(--primary)" }}
-                    >
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M12 4v16m8-8H4" /></svg>
-                      Request leave
-                    </motion.button>
-                  )}
+                  <motion.button
+                    type="button"
+                    onClick={() => setShowForm((p) => !p)}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white"
+                    style={{ background: "var(--primary)" }}
+                  >
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M12 4v16m8-8H4" /></svg>
+                    {userId && userId !== session?.user?.id && !canSubmitOnBehalf
+                      ? "Request leave (for yourself)"
+                      : "Request leave"}
+                  </motion.button>
                   <button type="button" onClick={onClose} className="rounded-lg p-1 transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
                   </button>

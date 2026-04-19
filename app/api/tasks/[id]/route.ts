@@ -119,6 +119,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           note: body.isActive ? "Task re-enabled" : "Task disabled",
         }).catch(() => {});
       }
+      if (!body.isActive) {
+        ActivityTask.updateMany({ parentTask: id, isActive: true }, { isActive: false }).catch(() => {});
+      }
     } else if (typeof body.isActive === "boolean") {
       task.isActive = body.isActive;
     }

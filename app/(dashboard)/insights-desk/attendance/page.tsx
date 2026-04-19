@@ -158,6 +158,7 @@ export default function AttendancePage() {
   const hasTeamAccess = canPerm("attendance_viewTeam");
   
   const canViewTeamLeaves = canPerm("leaves_viewTeam");
+  const canViewLocation = canPerm("attendance_viewLocation");
   const { setTeamCount, openLeavesModal, openTasksModal, setPagePills } = useInsightsContext();
 
   /* ── Team overview state ── */
@@ -1094,7 +1095,7 @@ export default function AttendancePage() {
                                       {sess.ipAddress && (
                                         <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>IP {sess.ipAddress}</p>
                                       )}
-                                      {sess.location.latitude != null && sess.location.longitude != null && (
+                                      {canViewLocation && sess.location.latitude != null && sess.location.longitude != null && (
                                         <p className="mt-1 text-[10px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                                           <a
                                             href={`https://www.google.com/maps?q=${sess.location.latitude},${sess.location.longitude}`}

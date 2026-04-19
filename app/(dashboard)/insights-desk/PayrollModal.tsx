@@ -140,6 +140,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const { can: canPerm, isSuperAdmin } = usePermissions();
   const canViewTeam = canPerm("payroll_viewTeam");
   const canManageSalary = canPerm("payroll_manageSalary");
+  const canExport = canPerm("payroll_export");
 
   const now = new Date();
   const [employees, setEmployees] = useCachedState<DropdownEmp[]>("$payroll/employees", []);
@@ -152,7 +153,7 @@ export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const [loading, setLoading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [detailTab, setDetailTab] = useState<DetailTab>(selectedUserId ? "summary" : "overview");
+  const [detailTab, setDetailTab] = useState<DetailTab>(selectedUserId || !canViewTeam ? "summary" : "overview");
 
   const [yearData, setYearData] = useCachedState<(EstimateData | null)[]>("$payroll/yearData", []);
   const [yearLoading, setYearLoading] = useState(false);
@@ -697,7 +698,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {(estimate || (detailTab === "year" && yearData.length > 0) || (allMode && payrollSheet)) && (
+                  {canExport && (estimate || (detailTab === "year" && yearData.length > 0) || (allMode && payrollSheet)) && (
                     <div className="relative" ref={exportRef}>
                       <motion.button type="button" onClick={() => setShowExportMenu((p) => !p)} whileTap={{ scale: 0.95 }}
                         className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors"
@@ -828,8 +829,8 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                         </div>
                       )}
 
-                      {/* Net pay hero — only for individual employee */}
-                      {userId ? (
+                      {/* Net pay hero — individual employee or self-view */}
+                      {!allMode ? (
                         loading ? (
                           <div className="shimmer h-24 rounded-xl" />
                         ) : estimate ? (
