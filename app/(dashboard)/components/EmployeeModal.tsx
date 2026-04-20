@@ -743,7 +743,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className="relative mx-4 flex w-full max-w-7xl flex-col overflow-hidden rounded-2xl border shadow-xl h-[85vh]"
+              className="relative mx-0 sm:mx-4 flex w-full max-w-7xl flex-col overflow-hidden rounded-none sm:rounded-2xl border shadow-xl h-[100dvh] sm:h-[85vh]"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -752,7 +752,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header: avatar + name + close */}
-              <div className="flex shrink-0 items-center justify-between gap-3 border-b px-6 py-4" style={{ borderColor: "var(--border)" }}>
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2 sm:px-6 sm:py-4" style={{ borderColor: "var(--border)" }}>
                 {!effectiveId ? (
                   <h2 className="text-base font-bold" style={{ color: "var(--fg)" }}>User Details</h2>
                 ) : (
@@ -800,11 +800,40 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                 </button>
               </div>
 
+              {/* Mobile horizontal tab bar */}
+              {effectiveId && (
+                <div className="flex sm:hidden shrink-0 overflow-x-auto border-b scrollbar-hide" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                  {(
+                    [
+                      ["overview", "Overview", "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"],
+                      ...(canAtt ? [["attendance", "Attendance", "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"]] : []),
+                      ...(canViewPayroll ? [["payroll", "Payroll", "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"]] : []),
+                      ...(canViewLeaves ? [["leaves", "Leaves", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"]] : []),
+                      ...(canTasksNav ? [["tasks", "Tasks", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 12l2 2 4-4"]] : []),
+                      ...(canViewLocation ? [["location", "Location", "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"]] : []),
+                      ...(canViewSchedule ? [["schedule", "Schedule", "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"]] : []),
+                      ["profile", "Profile", "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"],
+                    ] as [string, string, string][]
+                  ).map(([tid, lab]) => {
+                    const act = tab === tid;
+                    return (
+                      <button key={tid} type="button" onClick={() => setTab(tid as TabId)}
+                        className="flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-[11px] font-medium whitespace-nowrap border-b-2 transition-colors"
+                        style={{
+                          borderBottomColor: act ? "var(--primary)" : "transparent",
+                          color: act ? "var(--primary)" : "var(--fg-secondary)",
+                        }}
+                      >{lab}</button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Body: sidebar nav + content */}
               <div className="flex min-h-0 flex-1 overflow-hidden">
-                {/* Sidebar navigation */}
+                {/* Sidebar navigation — desktop only */}
                 {effectiveId && (
-                  <nav className="flex w-[180px] shrink-0 flex-col gap-0.5 border-r py-3 px-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }} aria-label="Employee sections">
+                  <nav className="hidden sm:flex w-[180px] shrink-0 flex-col gap-0.5 border-r py-3 px-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }} aria-label="Employee sections">
                     {(
                       [
                         ["overview", "Overview", "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"],
@@ -840,7 +869,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                 )}
 
                 {/* Content */}
-                <div ref={detailRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+                <div ref={detailRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-3 sm:px-5 sm:py-4">
                 {!effectiveId ? (
                   <div className="flex flex-col items-center py-16">
                     <p className="text-sm font-semibold" style={{ color: "var(--fg-secondary)" }}>No user selected</p>

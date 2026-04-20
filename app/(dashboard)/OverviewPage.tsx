@@ -487,7 +487,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
         </div>
       </div>
       <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {[
             { label: "Monthly Avg", value: pa.monthlyAvgHours > 0 ? `${pa.monthlyAvgHours.toFixed(1)}h` : "—", color: "var(--primary)" },
             { label: "On-Time Rate", value: `${pa.monthlyOnTimePct}%`, color: pa.monthlyOnTimePct >= 80 ? "var(--status-ontime)" : pa.monthlyOnTimePct >= 60 ? "var(--status-late)" : "var(--status-absent)" },
@@ -503,7 +503,7 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
       </div>
       {teamStats && !presenceLoading && (
         <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
             {[
               { label: "Team present", value: `${teamStats.pctPresent}%`, color: "var(--status-present)" },
               { label: "Team in office", value: `${teamStats.pctInOffice}%`, color: "var(--status-office)" },
@@ -1156,7 +1156,7 @@ function AdminDashboard({
               </div>
             ) : presenceLoading ? (
               <div className="p-2">
-                <div className="grid grid-cols-6 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                   {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="card-static p-1.5 text-center"><Bone w="w-12" h="h-2" /><Bone w="w-10" h="h-3" /></div>)}
                 </div>
               </div>
@@ -1449,7 +1449,7 @@ function AdminDashboard({
         </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pr-1 pt-4">
             {presenceLoading && filteredPresence.length === 0 ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div key={i} className="card flex flex-col overflow-hidden">
                     <div className="p-2.5">
@@ -1466,7 +1466,7 @@ function AdminDashboard({
                 ))}
             </div>
             ) : filteredPresence.length > 0 ? (
-              <motion.div className="grid grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+              <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
                 <AnimatePresence mode="popLayout">
                   {filteredPresence.map((emp, idx) => {
                     const empTasks = tasksByEmployee.get(emp._id) ?? [];

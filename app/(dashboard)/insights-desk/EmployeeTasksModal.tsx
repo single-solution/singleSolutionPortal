@@ -459,7 +459,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-4 flex flex-col rounded-xl border shadow-xl overflow-hidden ${isPrivileged ? "w-full max-w-7xl h-[85vh]" : "w-full max-w-5xl h-[85vh]"}`}
+              className={`relative mx-0 sm:mx-4 flex flex-col rounded-none sm:rounded-xl border shadow-xl overflow-hidden ${isPrivileged ? "w-full max-w-7xl h-[100dvh] sm:h-[85vh]" : "w-full max-w-5xl h-[100dvh] sm:h-[85vh]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -475,7 +475,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
                         </button>
                       )}
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
                         style={{ background: avatarColor(userId) }}>
                         {employee ? empInitials(employee) : initials(selectedEmployee!)}
                       </div>
@@ -487,7 +487,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                         ? (employee ? empName(employee) : selectedEmployee ? nameOf(selectedEmployee) : !isPrivileged ? "My Progress" : "Task Activity")
                         : "Task Progress"}
                     </h3>
-                    <p className="text-[11px] truncate" style={{ color: "var(--fg-tertiary)" }}>
+                    <p className="text-[12px] truncate" style={{ color: "var(--fg-tertiary)" }}>
                       {userId
                         ? selectedDay
                           ? `${MN[month - 1]} ${selectedDay}, ${year}`
@@ -518,7 +518,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
               <div className="flex min-h-0 flex-1 overflow-hidden">
                 {/* ═══ Sidebar ═══ */}
                 {isPrivileged && (
-                  <div className="hidden md:flex w-[260px] shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                  <div className="hidden sm:flex w-[260px] shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
                     <div className={`shrink-0 p-3 border-b transition-opacity ${allMode ? "opacity-40 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
                       <MiniCalendar
                         compact
@@ -550,7 +550,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                       <div className="relative">
                         <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
                         <input type="text" value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search employees…"
-                          className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-[11px] outline-none transition-colors focus:border-[var(--primary)]"
+                          className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-[12px] outline-none transition-colors focus:border-[var(--primary)]"
                           style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg)" }}
                         />
                       </div>
@@ -564,15 +564,15 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                           {!sidebarSearch && (
                             <button type="button" onClick={backToAll}
                               className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}>
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
-                              <span className="text-[11px] font-semibold" style={{ color: !userId ? "var(--primary)" : "var(--fg-secondary)" }}>All Employees</span>
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
+                              <span className="text-[12px] font-semibold" style={{ color: !userId ? "var(--primary)" : "var(--fg-secondary)" }}>All Employees</span>
                             </button>
                           )}
                           {!sidebarSearch && employees.length > 0 && <div className="mx-3 my-1 border-b" style={{ borderColor: "var(--border)" }} />}
                           {deptGroups.map((g) => (
                             <div key={g.id}>
                               <div className="px-2 py-0.5">
-                                <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-1 block" style={{ color: "var(--fg-tertiary)" }}>
+                                <span className="text-[12px] font-bold uppercase tracking-wider px-2 py-1 block" style={{ color: "var(--fg-tertiary)" }}>
                                   {g.title} ({g.employees.length})
                                 </span>
                               </div>
@@ -583,12 +583,12 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                   <button key={emp._id} type="button" onClick={() => selectEmployee(emp._id)}
                                     className="flex w-full items-center gap-2.5 px-3 py-1.5 pl-6 text-left transition-colors"
                                     style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}>
-                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
                                     <div className="flex-1 min-w-0">
-                                      <span className="text-[11px] font-medium truncate block" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>{nameOf(emp)}</span>
+                                      <span className="text-[12px] font-medium truncate block" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>{nameOf(emp)}</span>
                                     </div>
                                     {prog && prog.total > 0 && (
-                                      <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: prog.done === prog.total ? "var(--green)" : "var(--fg-tertiary)" }}>
+                                      <span className="shrink-0 text-[12px] font-bold tabular-nums" style={{ color: prog.done === prog.total ? "var(--green)" : "var(--fg-tertiary)" }}>
                                         {prog.done}/{prog.total}
                                       </span>
                                     )}
@@ -598,12 +598,12 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                               })}
                             </div>
                           ))}
-                          {filteredEmployees.length === 0 && sidebarSearch && <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>}
+                          {filteredEmployees.length === 0 && sidebarSearch && <p className="px-3 py-4 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>}
                         </>
                       )}
                     </div>
                     <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{sidebarLoading ? "Loading…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}</p>
+                      <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{sidebarLoading ? "Loading…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}</p>
                     </div>
                   </div>
                 )}
@@ -626,7 +626,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                         </div>
                       ) : deptGroups.length === 0 ? (
                         <div className="py-12 text-center">
-                          <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No employees found.</p>
+                          <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No employees found.</p>
                         </div>
                       ) : (
                         <div className="space-y-5">
@@ -637,9 +637,9 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                             return (
                               <div key={dept.id}>
                                 <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{dept.title}</h4>
+                                  <h4 className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{dept.title}</h4>
                                   {deptTotal > 0 && (
-                                    <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums"
+                                    <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold tabular-nums"
                                       style={{
                                         background: deptPct === 100 ? "color-mix(in srgb, var(--green) 12%, transparent)" : "color-mix(in srgb, var(--amber) 10%, transparent)",
                                         color: deptPct === 100 ? "var(--green)" : "var(--amber)",
@@ -663,15 +663,15 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                         style={{ borderColor: "var(--border)", background: "var(--bg-grouped)" }}
                                         whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}>
                                         <div className="flex items-center gap-2 mb-2">
-                                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
-                                          <span className="text-[11px] font-semibold truncate flex-1" style={{ color: "var(--fg)" }}>{nameOf(emp)}</span>
+                                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white" style={{ background: avatarColor(emp._id) }}>{initials(emp)}</span>
+                                          <span className="text-[12px] font-semibold truncate flex-1" style={{ color: "var(--fg)" }}>{nameOf(emp)}</span>
                                         </div>
                                         <div className="flex items-center justify-between mb-1.5">
-                                          <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                                          <span className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
                                             {total > 0 ? `${done} of ${total} tasks` : "No tasks"}
                                           </span>
                                           {total > 0 && (
-                                            <span className="text-[11px] font-bold tabular-nums" style={{ color: barColor }}>{pct}%</span>
+                                            <span className="text-[12px] font-bold tabular-nums" style={{ color: barColor }}>{pct}%</span>
                                           )}
                                         </div>
                                         {total > 0 && (
@@ -720,10 +720,10 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                         {selectedDay ? (
                           <div className="p-3">
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>
+                              <h4 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>
                                 {MN[month - 1]} {selectedDay}, {year}
                               </h4>
-                              <button type="button" onClick={() => setSelectedDay(null)} className="text-[11px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
+                              <button type="button" onClick={() => setSelectedDay(null)} className="text-[12px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
                                 Show full month
                               </button>
                             </div>
@@ -744,7 +744,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                 <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
-                                <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No campaigns found for this day.</p>
+                                <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No campaigns found for this day.</p>
                               </div>
                             ) : (
                               <div className="space-y-3">
@@ -762,7 +762,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                       {/* Campaign header */}
                                       <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                                         <span className="text-[12px] font-bold truncate flex-1" style={{ color: "var(--fg)" }}>{card.campaignName}</span>
-                                        <span className="pill-glass shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums"
+                                        <span className="pill-glass shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold tabular-nums"
                                           style={{
                                             background: `color-mix(in srgb, ${badgeColor} 15%, var(--dock-frosted-bg))`,
                                             color: badgeColor,
@@ -784,25 +784,25 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                                 <svg className="h-2.5 w-2.5" style={{ color: "var(--fg-quaternary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                               )}
                                             </span>
-                                            <span className="text-[11px] font-medium truncate flex-1" style={{ color: task.done ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.done ? "line-through" : "none" }}>
+                                            <span className="text-[12px] font-medium truncate flex-1" style={{ color: task.done ? "var(--fg-tertiary)" : "var(--fg)", textDecoration: task.done ? "line-through" : "none" }}>
                                               {task.title}
                                             </span>
                                             {task.recurrence && (
-                                              <span className="shrink-0 rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 12%, transparent)", color: "var(--purple)" }}>
+                                              <span className="shrink-0 rounded-full px-1.5 py-px text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 12%, transparent)", color: "var(--purple)" }}>
                                                 Recurring
                                               </span>
                                             )}
                                           </div>
                                         ))}
                                         {card.tasks.length === 0 && (
-                                          <p className="text-[11px] py-1 px-2" style={{ color: "var(--fg-tertiary)" }}>No task data available</p>
+                                          <p className="text-[12px] py-1 px-2" style={{ color: "var(--fg-tertiary)" }}>No task data available</p>
                                         )}
                                       </div>
 
                                       {/* Activity events */}
                                       {card.events.length > 0 && (
                                         <div className="border-t px-2 py-1.5 space-y-1" style={{ borderColor: "var(--border)" }}>
-                                          <p className="text-[11px] font-bold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--fg-tertiary)" }}>Activity</p>
+                                          <p className="text-[12px] font-bold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--fg-tertiary)" }}>Activity</p>
                                           {card.events.map((ev) => {
                                             const meta = statusMeta(ev.status, ev.eventType);
                                             return (
@@ -811,12 +811,12 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                                   style={{ background: `color-mix(in srgb, ${meta.color} 18%, transparent)` }}>
                                                   <svg className="h-2 w-2" style={{ color: meta.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={meta.icon} /></svg>
                                                 </span>
-                                                <span className="inline-flex items-center rounded-full px-1 py-px text-[11px] font-semibold"
+                                                <span className="inline-flex items-center rounded-full px-1 py-px text-[12px] font-semibold"
                                                   style={{ background: `color-mix(in srgb, ${meta.color} 12%, transparent)`, color: meta.color }}>
                                                   {meta.label}
                                                 </span>
-                                                {ev.task && <span className="text-[11px] truncate flex-1" style={{ color: "var(--fg-secondary)" }}>{ev.task.title}</span>}
-                                                <span className="shrink-0 text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(ev.changedAt)}</span>
+                                                {ev.task && <span className="text-[12px] truncate flex-1" style={{ color: "var(--fg-secondary)" }}>{ev.task.title}</span>}
+                                                <span className="shrink-0 text-[12px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(ev.changedAt)}</span>
                                               </div>
                                             );
                                           })}
@@ -832,7 +832,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                           /* ── No day selected: Full month timeline ── */
                           <>
                             <div className="px-3 pt-3 pb-1 flex items-center justify-between sticky top-0 z-[1]" style={{ background: "var(--bg-elevated)" }}>
-                              <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>Activity Timeline</h4>
+                              <h4 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Activity Timeline</h4>
                             </div>
                             <div className="px-3 pb-3">
                               {timelineLoading ? (
@@ -849,7 +849,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                   <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No task activity this month.</p>
+                                  <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No task activity this month.</p>
                                 </div>
                               ) : (
                                 <div className="space-y-4 mt-2">
@@ -857,7 +857,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                     <div key={dateKey}>
                                       <div className="sticky top-8 z-[1] flex items-center gap-2 mb-2 py-1" style={{ background: "var(--bg-elevated)" }}>
                                         <span className="h-px flex-1" style={{ background: "var(--border)" }} />
-                                        <span className="text-[11px] font-bold shrink-0" style={{ color: "var(--fg-tertiary)" }}>{fmtDate(dateKey)}</span>
+                                        <span className="text-[12px] font-bold shrink-0" style={{ color: "var(--fg-tertiary)" }}>{fmtDate(dateKey)}</span>
                                         <span className="h-px flex-1" style={{ background: "var(--border)" }} />
                                       </div>
                                       <div className="space-y-1.5">
@@ -873,27 +873,27 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                               </div>
                                               <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                  <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[11px] font-semibold"
+                                                  <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[12px] font-semibold"
                                                     style={{ background: `color-mix(in srgb, ${meta.color} 14%, transparent)`, color: meta.color }}>
                                                     {meta.label}
                                                   </span>
-                                                  {log.task && <span className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{log.task.title}</span>}
+                                                  {log.task && <span className="text-[12px] font-semibold truncate" style={{ color: "var(--fg)" }}>{log.task.title}</span>}
                                                 </div>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
                                                   {log.campaign && (
-                                                    <span className="rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+                                                    <span className="rounded-full px-1.5 py-px text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
                                                       {log.campaign.name}
                                                     </span>
                                                   )}
                                                   {log.task?.recurrence && (
-                                                    <span className="rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 12%, transparent)", color: "var(--purple)" }}>
+                                                    <span className="rounded-full px-1.5 py-px text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--purple) 12%, transparent)", color: "var(--purple)" }}>
                                                       Recurring
                                                     </span>
                                                   )}
                                                 </div>
-                                                {log.note && <p className="mt-0.5 text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{log.note}</p>}
+                                                {log.note && <p className="mt-0.5 text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{log.note}</p>}
                                               </div>
-                                              <span className="shrink-0 text-[11px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                                              <span className="shrink-0 text-[12px] tabular-nums mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                                                 {fmtTime(log.changedAt)}
                                               </span>
                                             </motion.div>
@@ -906,7 +906,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
                                   {timelineTotal > filteredTimeline.length && (
                                     <div className="text-center py-2">
                                       <button type="button" onClick={() => loadTimeline(timelinePage + 1)}
-                                        className="text-[11px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
+                                        className="text-[12px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
                                         Load more…
                                       </button>
                                     </div>

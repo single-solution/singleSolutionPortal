@@ -356,7 +356,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-4 flex flex-col rounded-xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-6xl h-[80vh]" : "w-full max-w-3xl h-[80vh]"}`}
+              className={`relative mx-0 sm:mx-4 flex flex-col rounded-none sm:rounded-xl border shadow-xl overflow-hidden ${showSidebar ? "w-full max-w-6xl h-[100dvh] sm:h-[80vh]" : "w-full max-w-3xl h-[100dvh] sm:h-[80vh]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -367,11 +367,11 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                 <div>
                   <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Leaves</h3>
                   {allMode ? (
-                    <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                    <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
                       All Employees · {selYear}{allEmployeeSummary ? ` · ${allEmployeeSummary.totalDays} days used` : ""}
                     </p>
                   ) : balance && !balLoading && (
-                    <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                    <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
                       {detailLabel && <>{detailLabel} · </>}
                       {balance.remaining} of {balance.total} remaining · {selYear}
                     </p>
@@ -405,8 +405,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                 {/* ── Left sidebar ── */}
                 {showSidebar && (
                   <div
-                    className="flex flex-col border-r"
-                    style={{ width: 260, minWidth: 260, borderColor: "var(--border)", background: "var(--bg)" }}
+                    className="hidden sm:flex flex-col border-r w-[260px] shrink-0"
+                    style={{ borderColor: "var(--border)", background: "var(--bg)" }}
                   >
                     {/* Search */}
                     <div className="p-3 border-b" style={{ borderColor: "var(--border)" }}>
@@ -417,7 +417,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                           value={sidebarSearch}
                           onChange={(e) => setSidebarSearch(e.target.value)}
                           placeholder="Search employees…"
-                          className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-[11px] outline-none transition-colors focus:border-[var(--primary)]"
+                          className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-[12px] outline-none transition-colors focus:border-[var(--primary)]"
                           style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg)" }}
                         />
                       </div>
@@ -434,10 +434,10 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                           onClick={() => { setUserId(""); setDeptFilter(null); setLeaveTab(isSuperAdmin ? "overview" : "summary"); }}
                           className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${!userId && !deptFilter ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                         >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>
                             {isSuperAdmin ? "All" : "You"}
                           </span>
-                          <span className="text-[11px] font-semibold" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg-secondary)" }}>
+                          <span className="text-[12px] font-semibold" style={{ color: !userId && !deptFilter ? "var(--primary)" : "var(--fg-secondary)" }}>
                             {isSuperAdmin ? "All Employees" : "Yourself"}
                           </span>
                         </button>
@@ -453,7 +453,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                             <button
                               type="button"
                               onClick={() => { setUserId(""); setDeptFilter(g.id); setLeaveTab("overview"); }}
-                              className={`text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
+                              className={`text-[12px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors w-full text-left ${deptFilter === g.id && !userId ? "bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]" : "hover:bg-[var(--hover-bg)]"}`}
                               style={{ color: deptFilter === g.id && !userId ? "var(--primary)" : "var(--fg-tertiary)" }}
                             >
                               {g.title} ({g.employees.length})
@@ -470,12 +470,12 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                 style={{ background: isSel ? "color-mix(in srgb, var(--primary) 8%, transparent)" : "transparent" }}
                               >
                                 <span
-                                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
                                   style={{ background: avatarColor(emp._id) }}
                                 >
                                   {initials(emp)}
                                 </span>
-                                <span className="flex-1 min-w-0 text-[11px] font-medium truncate" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>
+                                <span className="flex-1 min-w-0 text-[12px] font-medium truncate" style={{ color: isSel ? "var(--primary)" : "var(--fg)" }}>
                                   {nameOf(emp)}
                                 </span>
                                 {isSel && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--primary)" }} />}
@@ -486,13 +486,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       ))}
 
                       {filteredEmployees.length === 0 && sidebarSearch && (
-                        <p className="px-3 py-4 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>
+                        <p className="px-3 py-4 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No matches</p>
                       )}
                       </>}
                     </div>
 
                     <div className="border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                      <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                         {sidebarLoading ? "Loading…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}
                       </p>
                     </div>
@@ -505,17 +505,17 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                     <div className="space-y-4">
                       {/* All Employees header */}
                       <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[12px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>All</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>All Employees</p>
-                          <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Organization-wide leave overview · {selYear}</p>
+                          <p className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>All Employees</p>
+                          <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>Organization-wide leave overview · {selYear}</p>
                         </div>
                       </div>
                       {/* All-employees tabs */}
                       <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
                         {(["overview", "employees"] as const).map((t) => (
                           <button key={t} type="button" onClick={() => setLeaveTab(t)}
-                            className={`flex-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${leaveTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                            className={`flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all ${leaveTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                           >
                             {t === "overview" ? "Overview" : "Employees"}
                           </button>
@@ -531,7 +531,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                 <div className="shimmer h-20 rounded-xl" />
                               </div>
                             ) : !allEmployeeSummary ? (
-                              <p className="py-8 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for {selYear}.</p>
+                              <p className="py-8 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for {selYear}.</p>
                             ) : (
                               <>
                                 <div className="grid grid-cols-3 gap-2">
@@ -544,14 +544,14 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                     ["Employees with leaves", `${allEmployeeSummary.uniqueEmployees}`, "var(--primary)"],
                                   ] as const).map(([k, v, c]) => (
                                     <div key={k} className="rounded-xl p-2.5 text-center space-y-0.5" style={{ background: "var(--bg-grouped)" }}>
-                                      <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
-                                      <p className="text-[11px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                      <p className="text-[12px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                      <p className="text-[12px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                     </div>
                                   ))}
                                 </div>
                                 {allEmployeeSummary.totalLeaves > 0 && allEmployeeSummary.totalApproved > 0 && (
                                   <div>
-                                    <div className="flex justify-between text-[11px] font-semibold mb-1.5" style={{ color: "var(--fg-tertiary)" }}>
+                                    <div className="flex justify-between text-[12px] font-semibold mb-1.5" style={{ color: "var(--fg-tertiary)" }}>
                                       <span>Status breakdown</span>
                                       <span>{Math.round((allEmployeeSummary.totalApproved / allEmployeeSummary.totalLeaves) * 100)}% approved</span>
                                     </div>
@@ -560,7 +560,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                       {allEmployeeSummary.totalPending > 0 && <motion.div className="h-full" style={{ background: "var(--amber)" }} initial={{ width: 0 }} animate={{ width: `${(allEmployeeSummary.totalPending / allEmployeeSummary.totalLeaves) * 100}%` }} transition={{ duration: 0.6, delay: 0.1 }} />}
                                       {allEmployeeSummary.totalRejected > 0 && <motion.div className="h-full" style={{ background: "var(--rose)" }} initial={{ width: 0 }} animate={{ width: `${(allEmployeeSummary.totalRejected / allEmployeeSummary.totalLeaves) * 100}%` }} transition={{ duration: 0.6, delay: 0.2 }} />}
                                     </div>
-                                    <div className="mt-1.5 flex gap-3 text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
+                                    <div className="mt-1.5 flex gap-3 text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>
                                       <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--green)" }} />Approved</span>
                                       {allEmployeeSummary.totalPending > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--amber)" }} />Pending</span>}
                                       {allEmployeeSummary.totalRejected > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--rose)" }} />Rejected</span>}
@@ -569,10 +569,10 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                 )}
                                 {leaveSummary.typeDayBreakdown.length > 0 && (
                                   <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leave type breakdown</p>
+                                    <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Leave type breakdown</p>
                                     <div className="flex flex-wrap gap-1.5">
                                       {leaveSummary.typeDayBreakdown.map((t) => (
-                                        <span key={t.label} className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
+                                        <span key={t.label} className="rounded-full border px-2.5 py-0.5 text-[12px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>
                                           {t.label}: {t.days}d
                                         </span>
                                       ))}
@@ -582,7 +582,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                 {/* ── History (merged) ── */}
                                 {leaves.length > 0 && (
                                   <div className="mt-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-                                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Leave History · {selYear}</p>
+                                    <p className="text-[12px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Leave History · {selYear}</p>
                                     <div className="max-h-[300px] space-y-1.5 overflow-y-auto">
                                       {leaves.map((l) => {
                                         const col = STATUS_COLORS[l.status] ?? "var(--fg-secondary)";
@@ -592,14 +592,14 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                             <div className="min-w-0 flex-1">
                                               <div className="flex items-center gap-1.5">
                                                 <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
-                                                <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
-                                                <span className="shrink-0 text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{l.days}d</span>
+                                                <span className="truncate text-[12px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
+                                                <span className="shrink-0 text-[12px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{l.days}d</span>
                                               </div>
-                                              <p className="mt-0.5 truncate text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                                              <p className="mt-0.5 truncate text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
                                                 {l.type || "Leave"}{l.isHalfDay ? " (½)" : ""} · {fmtDate(l.startDate)}{l.startDate !== l.endDate ? ` – ${fmtDate(l.endDate)}` : ""}{l.reason ? ` · ${l.reason}` : ""}
                                               </p>
                                             </div>
-                                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{{ pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}</span>
+                                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{{ pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}</span>
                                           </div>
                                         );
                                       })}
@@ -616,12 +616,12 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                             {leavesLoading ? (
                               <div className="space-y-2">{[1,2,3,4,5].map((i) => <div key={i} className="shimmer h-10 rounded-lg" />)}</div>
                             ) : !allEmployeeSummary ? (
-                              <p className="py-8 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for {selYear}.</p>
+                              <p className="py-8 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for {selYear}.</p>
                             ) : (
                               <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Employee leave details</p>
+                                <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Employee leave details</p>
                                 <div className="max-h-[450px] overflow-y-auto">
-                                  <table className="w-full text-[11px]">
+                                  <table className="w-full text-[12px]">
                                     <thead>
                                       <tr style={{ color: "var(--fg-tertiary)" }}>
                                         <th className="py-1.5 text-left font-semibold">Employee</th>
@@ -637,7 +637,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                         <tr key={i} className="border-t" style={{ borderColor: "var(--border)" }}>
                                           <td className="py-1.5">
                                             <p className="font-medium truncate max-w-[180px]" style={{ color: "var(--fg)" }}>{r.name}</p>
-                                            {r.dept && <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{r.dept}</p>}
+                                            {r.dept && <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{r.dept}</p>}
                                           </td>
                                           <td className="py-1.5 text-right tabular-nums font-semibold" style={{ color: "var(--teal)" }}>{r.days}</td>
                                           <td className="py-1.5 text-right tabular-nums" style={{ color: "var(--green)" }}>{r.approved}</td>
@@ -677,14 +677,14 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       return (
                         <div className="space-y-4">
                           <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>{deptEmpIds.size}</span>
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[12px] font-bold" style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)" }}>{deptEmpIds.size}</span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>{deptName}</p>
-                              <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{deptEmpIds.size} employee{deptEmpIds.size !== 1 ? "s" : ""} · {selYear}</p>
+                              <p className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{deptName}</p>
+                              <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{deptEmpIds.size} employee{deptEmpIds.size !== 1 ? "s" : ""} · {selYear}</p>
                             </div>
                           </div>
                           {deptLeaves.length === 0 ? (
-                            <p className="py-8 text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for this department in {selYear}.</p>
+                            <p className="py-8 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for this department in {selYear}.</p>
                           ) : (
                             <>
                               <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -695,13 +695,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                   ["Total days off", `${dDays}`, "var(--teal)"],
                                 ] as const).map(([k, v, c]) => (
                                   <div key={k} className="rounded-xl p-2.5 text-center space-y-0.5" style={{ background: "var(--bg-grouped)" }}>
-                                    <p className="text-[11px] font-semibold uppercase" style={{ color: c }}>{k}</p>
-                                    <p className="text-[11px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
+                                    <p className="text-[12px] font-semibold uppercase" style={{ color: c }}>{k}</p>
+                                    <p className="text-[12px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{v}</p>
                                   </div>
                                 ))}
                               </div>
                               <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Recent leaves · {deptName}</p>
+                                <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Recent leaves · {deptName}</p>
                                 <div className="max-h-[300px] space-y-1.5 overflow-y-auto">
                                   {deptLeaves.slice(0, 25).map((l) => {
                                     const col = STATUS_COLORS[l.status] ?? "var(--fg-secondary)";
@@ -711,13 +711,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                         <div className="min-w-0 flex-1">
                                           <div className="flex items-center gap-1.5">
                                             <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: col }} />
-                                            <span className="truncate text-[11px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
+                                            <span className="truncate text-[12px] font-semibold" style={{ color: "var(--fg)" }}>{empName || "—"}</span>
                                           </div>
-                                          <p className="mt-0.5 truncate text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                                          <p className="mt-0.5 truncate text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
                                             {l.type || "Leave"} · {fmtDate(l.startDate)}{l.startDate !== l.endDate ? ` – ${fmtDate(l.endDate)}` : ""} · {l.days}d
                                           </p>
                                         </div>
-                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{{ pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}</span>
+                                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${col} 12%, transparent)`, color: col }}>{{ pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }[l.status] ?? l.status}</span>
                                       </div>
                                     );
                                   })}
@@ -725,7 +725,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                               </div>
                             </>
                           )}
-                          <p className="text-center text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Select an employee from the sidebar for individual details</p>
+                          <p className="text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>Select an employee from the sidebar for individual details</p>
                         </div>
                       );
                     })()
@@ -734,13 +734,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       {/* Selected employee header */}
                       {userId && selectedEmployee && (
                         <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-grouped)" }}>
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: avatarColor(selectedEmployee._id) }}>
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white" style={{ background: avatarColor(selectedEmployee._id) }}>
                             {initials(selectedEmployee)}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold truncate" style={{ color: "var(--fg)" }}>{nameOf(selectedEmployee)}</p>
+                            <p className="text-[12px] font-bold truncate" style={{ color: "var(--fg)" }}>{nameOf(selectedEmployee)}</p>
                             {selectedEmployee.department && (
-                              <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{selectedEmployee.department.title}</p>
+                              <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{selectedEmployee.department.title}</p>
                             )}
                           </div>
                         </div>
@@ -760,7 +760,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                         </div>
                       ) : balance ? (
                         <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}>
-                          <div className="flex justify-between text-[11px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                          <div className="flex justify-between text-[12px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                             <span>{balance.used} days used</span>
                             <span>{balance.remaining} remaining</span>
                           </div>
@@ -775,22 +775,22 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                           </div>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="rounded-lg p-2.5 text-center" style={{ background: "var(--bg-elevated)" }}>
-                              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total days</p>
-                              <p className="text-[11px] font-bold" style={{ color: "var(--primary)" }}>{balance.total}</p>
+                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total days</p>
+                              <p className="text-[12px] font-bold" style={{ color: "var(--primary)" }}>{balance.total}</p>
                             </div>
                             <div className="rounded-lg p-2.5 text-center" style={{ background: "var(--bg-elevated)" }}>
-                              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days used</p>
-                              <p className="text-[11px] font-bold" style={{ color: barColor }}>{balance.used}</p>
+                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days used</p>
+                              <p className="text-[12px] font-bold" style={{ color: barColor }}>{balance.used}</p>
                             </div>
                             <div className="rounded-lg p-2.5 text-center" style={{ background: "var(--bg-elevated)" }}>
-                              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days left</p>
-                              <p className="text-[11px] font-bold" style={{ color: "var(--green)" }}>{balance.remaining}</p>
+                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days left</p>
+                              <p className="text-[12px] font-bold" style={{ color: "var(--green)" }}>{balance.remaining}</p>
                             </div>
                           </div>
                           {balanceRunoutDays != null && (
                             <div className="rounded-lg px-2.5 py-2 text-center" style={{ background: "var(--bg-elevated)" }}>
-                              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days Until Balance Runs Out</p>
-                              <p className="text-[11px] font-bold" style={{ color: "var(--fg-secondary)" }}>~{balanceRunoutDays} days <span className="font-normal" style={{ color: "var(--fg-tertiary)" }}>(est.)</span></p>
+                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days Until Balance Runs Out</p>
+                              <p className="text-[12px] font-bold" style={{ color: "var(--fg-secondary)" }}>~{balanceRunoutDays} days <span className="font-normal" style={{ color: "var(--fg-tertiary)" }}>(est.)</span></p>
                             </div>
                           )}
                         </div>
@@ -798,7 +798,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
                       {/* Leave summary stats */}
                       {leavesLoading && (
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-14 rounded-lg" />)}
                         </div>
                       )}
@@ -813,14 +813,14 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                             { label: "Days taken", value: leaveSummary.totalDays, color: "var(--teal)" },
                           ].map((s) => (
                             <div key={s.label} className="flex-1 min-w-[72px] rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
-                              <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.value}</p>
+                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{s.label}</p>
+                              <p className="text-[12px] font-bold" style={{ color: s.color }}>{s.value}</p>
                             </div>
                           ))}
                         </div>
                       )}
                       {!leavesLoading && leaves.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                        <div className="flex flex-wrap gap-1.5 text-[12px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                           <span className="rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{leaveSummary.approvalRate}% approval</span>
                           {leaveSummary.avgDuration > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>avg {leaveSummary.avgDuration}d per leave</span>}
                           {leaveSummary.daysSinceLastLeave != null && <span className="rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)" }}>{leaveSummary.daysSinceLastLeave}d since last leave</span>}
@@ -832,18 +832,18 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                       {balance && !leavesLoading && leaves.length > 0 && (
                         <div className="grid grid-cols-3 gap-2">
                           <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>On Leave Today</p>
-                            <p className="text-[11px] font-bold" style={{ color: leavePersonalExtras.onLeaveToday ? "var(--green)" : "var(--fg-tertiary)" }}>
+                            <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>On Leave Today</p>
+                            <p className="text-[12px] font-bold" style={{ color: leavePersonalExtras.onLeaveToday ? "var(--green)" : "var(--fg-tertiary)" }}>
                               {leavePersonalExtras.onLeaveToday ? "Yes" : "No"}
                             </p>
                           </div>
                           <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Half-Day Leaves</p>
-                            <p className="text-[11px] font-bold" style={{ color: "var(--purple)" }}>{leavePersonalExtras.halfDayLeaves}</p>
+                            <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Half-Day Leaves</p>
+                            <p className="text-[12px] font-bold" style={{ color: "var(--purple)" }}>{leavePersonalExtras.halfDayLeaves}</p>
                           </div>
                           <div className="rounded-lg p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Next Scheduled Leave</p>
-                            <p className="text-[11px] font-bold truncate px-0.5" style={{ color: "var(--primary)" }} title={leavePersonalExtras.nextScheduledStart ?? undefined}>
+                            <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Next Scheduled Leave</p>
+                            <p className="text-[12px] font-bold truncate px-0.5" style={{ color: "var(--primary)" }} title={leavePersonalExtras.nextScheduledStart ?? undefined}>
                               {leavePersonalExtras.nextScheduledStart ? fmtDate(leavePersonalExtras.nextScheduledStart) : "—"}
                             </p>
                           </div>
@@ -859,20 +859,20 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                             className="overflow-hidden"
                           >
                             <form onSubmit={(e) => void handleSubmit(e)} className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}>
-                              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Request leave</p>
+                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Request leave</p>
                               <div>
                                 <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
                                   <button
                                     type="button"
                                     onClick={() => setIsHalfDay(false)}
-                                    className={`flex-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${!isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                                    className={`flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all ${!isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                                   >
                                     Full day
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => { setIsHalfDay(true); setMultiDay(false); }}
-                                    className={`flex-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                                    className={`flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all ${isHalfDay ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
                                   >
                                     Half day
                                   </button>
@@ -882,21 +882,21 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                 <ToggleSwitch checked={multiDay} onChange={setMultiDay} label="Multiple days" />
                               )}
                               <div className={multiDay && !isHalfDay ? "grid grid-cols-2 gap-2" : ""}>
-                                <label className="flex flex-col gap-1 text-[11px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                <label className="flex flex-col gap-1 text-[12px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                                   {multiDay && !isHalfDay ? "Start date" : "Date"}
-                                  <input type="date" required className="input text-[11px]" value={date} onChange={(e) => setDate(e.target.value)} />
+                                  <input type="date" required className="input text-[12px]" value={date} onChange={(e) => setDate(e.target.value)} />
                                 </label>
                                 {multiDay && !isHalfDay && (
-                                  <label className="flex flex-col gap-1 text-[11px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                  <label className="flex flex-col gap-1 text-[12px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                                     End date
-                                    <input type="date" required className="input text-[11px]" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={date} />
+                                    <input type="date" required className="input text-[12px]" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={date} />
                                   </label>
                                 )}
                               </div>
                               <div className="grid grid-cols-2 gap-2">
-                                <label className="flex flex-col gap-1 text-[11px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                <label className="flex flex-col gap-1 text-[12px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                                   Type
-                                  <select className="input text-[11px]" value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
+                                  <select className="input text-[12px]" value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
                                     <option value="leave">General</option>
                                     <option value="sick">Sick</option>
                                     <option value="casual">Casual</option>
@@ -904,13 +904,13 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                     <option value="unpaid">Unpaid</option>
                                   </select>
                                 </label>
-                                <label className="flex flex-col gap-1 text-[11px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
+                                <label className="flex flex-col gap-1 text-[12px] font-semibold" style={{ color: "var(--fg-tertiary)" }}>
                                   Reason <span className="font-normal">(optional)</span>
-                                  <input type="text" className="input text-[11px]" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Personal, health, etc." />
+                                  <input type="text" className="input text-[12px]" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Personal, health, etc." />
                                 </label>
                               </div>
                               <div className="flex gap-2">
-                                <button type="button" onClick={() => setShowForm(false)} className="flex-1 rounded-lg border px-3 py-2 text-[11px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Cancel</button>
+                                <button type="button" onClick={() => setShowForm(false)} className="flex-1 rounded-lg border px-3 py-2 text-[12px] font-semibold" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Cancel</button>
                                 <button type="submit" disabled={submitting || !date} className="btn btn-primary flex-1">{submitting ? "Submitting request…" : "Submit request"}</button>
                               </div>
                             </form>
@@ -920,7 +920,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
 
                       {/* Leave history */}
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
+                        <p className="text-[12px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
                           Leave History · {selYear}
                         </p>
                         {!leavesLoading && leaves.length > 0 && (
@@ -928,7 +928,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                             {leaveTypeCounts.map(([typeLabel, count]) => (
                               <span
                                 key={typeLabel}
-                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] font-semibold"
                                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}
                               >
                                 <span className="truncate max-w-[140px]" title={typeLabel}>{typeLabel}</span>
@@ -954,7 +954,7 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                             <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No leave records this year</p>
+                            <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No leave records this year</p>
                           </div>
                         ) : (
                           <div className="space-y-1.5">
@@ -970,20 +970,20 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
                                 >
                                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: sc }} />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-semibold" style={{ color: "var(--fg)" }}>
+                                    <p className="text-[12px] font-semibold" style={{ color: "var(--fg)" }}>
                                       {canViewTeam && l.user?.about && (
                                         <span style={{ color: "var(--fg-secondary)" }}>{`${l.user.about.firstName ?? ""} ${l.user.about.lastName ?? ""}`.trim() || l.user.email || ""} · </span>
                                       )}
                                       {fmtDate(l.startDate)}
                                       {l.startDate !== l.endDate && <> – {fmtDate(l.endDate)}</>}
                                     </p>
-                                    <p className="text-[11px] truncate" style={{ color: "var(--fg-tertiary)" }}>
+                                    <p className="text-[12px] truncate" style={{ color: "var(--fg-tertiary)" }}>
                                       {l.isHalfDay ? "Half day" : `${l.days} day${l.days !== 1 ? "s" : ""}`}
                                       {l.reason && <> · {l.reason}</>}
                                       {l.type && l.type !== "leave" && <> · {l.type}</>}
                                     </p>
                                   </div>
-                                  <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" style={{
+                                  <span className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold capitalize" style={{
                                     background: `color-mix(in srgb, ${sc} 12%, transparent)`,
                                     color: sc,
                                   }}>

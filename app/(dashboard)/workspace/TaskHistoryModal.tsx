@@ -685,7 +685,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className="relative mx-4 flex flex-col rounded-xl border shadow-xl overflow-hidden w-full max-w-7xl h-[85vh]"
+              className="relative mx-0 sm:mx-4 flex flex-col rounded-none sm:rounded-xl border shadow-xl overflow-hidden w-full max-w-7xl h-[100dvh] sm:h-[85vh]"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -737,7 +737,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
               {/* ── Body ── */}
               <div className="flex min-h-0 flex-1 overflow-hidden">
                 {/* ── Left Sidebar: Calendar + Campaigns Tree ── */}
-                <div className="hidden md:flex w-[280px] shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                <div className="hidden sm:flex w-[280px] shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: "var(--border)" }}>
                   {/* Calendar (always visible; faded + disabled in grid view) */}
                   <div className={`shrink-0 p-3 border-b transition-opacity ${viewMode === "grid" ? "opacity-40 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
                     <MiniCalendar

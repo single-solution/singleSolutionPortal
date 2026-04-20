@@ -282,7 +282,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                   <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                     <div>
                       <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Company Holidays</h3>
-                      <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                      <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
                         {holidays.length} holiday{holidays.length !== 1 ? "s" : ""} in {displayYear}
                         {upcoming.length > 0 && <> · {upcoming.length} upcoming</>}
                       </p>
@@ -301,7 +301,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                             type="button"
                             onClick={() => setShowForm(true)}
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                            className="flex items-center gap-1.5 text-[12px] font-semibold transition-colors"
                             style={{ color: "var(--primary)" }}
                           >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -317,14 +317,14 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                             style={{ background: "var(--bg-grouped)" }}
                           >
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <input type="text" className="input text-[11px]" placeholder="Holiday name" value={formName} onChange={(e) => setFormName(e.target.value)} autoFocus />
-                              <input type="date" className="input text-[11px]" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+                              <input type="text" className="input text-[12px]" placeholder="Holiday name" value={formName} onChange={(e) => setFormName(e.target.value)} autoFocus />
+                              <input type="date" className="input text-[12px]" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
                             </div>
                             <div className="flex items-center justify-between">
                               <ToggleSwitch checked={formRecurring} onChange={setFormRecurring} color="var(--purple)" label="Recurring yearly" />
                               <div className="flex gap-2">
-                                <button type="button" onClick={() => { setShowForm(false); setFormName(""); setFormDate(""); setFormRecurring(false); }} className="rounded-lg px-3 py-1.5 text-[11px] font-semibold" style={{ color: "var(--fg-secondary)" }}>Cancel</button>
-                                <button type="button" disabled={saving || !formName.trim() || !formDate} onClick={handleAdd} className="rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50" style={{ background: "var(--primary)" }}>{saving ? "Saving…" : "Add holiday"}</button>
+                                <button type="button" onClick={() => { setShowForm(false); setFormName(""); setFormDate(""); setFormRecurring(false); }} className="rounded-lg px-3 py-1.5 text-[12px] font-semibold" style={{ color: "var(--fg-secondary)" }}>Cancel</button>
+                                <button type="button" disabled={saving || !formName.trim() || !formDate} onClick={handleAdd} className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50" style={{ background: "var(--primary)" }}>{saving ? "Saving…" : "Add holiday"}</button>
                               </div>
                             </div>
                           </motion.div>
@@ -347,7 +347,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                         <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                         </svg>
-                        <p className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No holidays declared for {displayYear}.</p>
+                        <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No holidays declared for {displayYear}.</p>
                       </div>
                     ) : (
                       <div className="space-y-1.5">
@@ -357,12 +357,12 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                           return (
                             <div key={h._id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors" style={{ background: "var(--bg-grouped)", opacity: isPast ? 0.55 : 1 }}>
                               <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg text-white" style={{ background: h.isRecurring ? "var(--purple)" : "var(--primary)" }}>
-                                <span className="text-[11px] font-semibold leading-none uppercase">{SHORT_MONTHS[d.getUTCMonth()]}</span>
-                                <span className="text-[11px] font-bold leading-tight">{d.getUTCDate()}</span>
+                                <span className="text-[12px] font-semibold leading-none uppercase">{SHORT_MONTHS[d.getUTCMonth()]}</span>
+                                <span className="text-[12px] font-bold leading-tight">{d.getUTCDate()}</span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{h.name}</p>
-                                <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}</p>
+                                <p className="text-[12px] font-semibold truncate" style={{ color: "var(--fg)" }}>{h.name}</p>
+                                <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}</p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 {canToggleRecurring ? (
@@ -374,7 +374,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                                     title={h.isRecurring ? "Recurring — click to make one-time" : "One-time — click to make recurring"}
                                   />
                                 ) : h.isRecurring ? (
-                                  <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ color: "var(--purple)", background: "color-mix(in srgb, var(--purple) 12%, transparent)" }}>Recurring</span>
+                                  <span className="rounded-full px-1.5 py-0.5 text-[12px] font-semibold" style={{ color: "var(--purple)", background: "color-mix(in srgb, var(--purple) 12%, transparent)" }}>Recurring</span>
                                 ) : null}
                                 {canDeleteHoliday && (
                                   <button type="button" onClick={() => setDeleteTarget(h)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-tertiary)" }} title="Remove holiday">
