@@ -793,12 +793,12 @@ function AdminDashboard({
   const router = useRouter();
   const liveUpdates = useLive();
   const isSuperAdmin = user.isSuperAdmin === true;
-  const { can: canPerm } = usePermissions();
-  const hasTeamAccess = canPerm("attendance_viewTeam");
+  const { can: canPerm, hasSubordinates } = usePermissions();
+  const hasTeamAccess = canPerm("attendance_viewTeam") || canPerm("employees_viewAttendance") || hasSubordinates;
   const canViewAttendanceDetail = canPerm("attendance_viewDetail");
   const canViewTasks = canPerm("tasks_view");
   const canViewCampaigns = canPerm("campaigns_view");
-  const canSendPing = canPerm("ping_send");
+  const canSendPing = true;
   const canViewDashboard = canPerm("analytics_viewDashboard");
   const canViewNeedsAttention = canPerm("analytics_viewNeedsAttention");
   const canViewPresence = canPerm("analytics_viewPresence");
@@ -2191,7 +2191,7 @@ export default function OverviewPage({ user }: { user: User }) {
 
   const isSuperAdmin = user.isSuperAdmin === true;
   const { can: canPermRoot, hasSubordinates } = usePermissions();
-  const hasTeamAccess = canPermRoot("attendance_viewTeam") || hasSubordinates;
+  const hasTeamAccess = canPermRoot("attendance_viewTeam") || canPermRoot("employees_viewAttendance") || hasSubordinates;
   const canViewEmployees = canPermRoot("employees_view");
   const initialDone = useRef(false);
 

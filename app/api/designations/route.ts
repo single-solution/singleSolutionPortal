@@ -21,7 +21,7 @@ function buildPermissionsFromInput(input: unknown): IPermissions | undefined {
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "designations_view")) return forbidden();
+  if (!hasPermission(actor, "designations_view") && !hasPermission(actor, "organization_view")) return forbidden();
 
   await connectDB();
 

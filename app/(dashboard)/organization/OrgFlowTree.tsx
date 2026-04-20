@@ -534,7 +534,6 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     setPrivSaving(true);
     try {
       if (privLinkIdx >= 0) {
-        // Saving emp-to-emp link privileges
         setEmpLinks((prev) => {
           const updated = [...prev];
           updated[privLinkIdx] = { ...updated[privLinkIdx], permissions: { ...privPerms } };
@@ -545,11 +544,36 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       } else if (privMembershipId) {
         const res = await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) });
         if (!res.ok) { toast.error("Failed to save privileges"); setPrivSaving(false); return; }
+        await refetchMemberships();
         setPrivOpen(false);
       }
     } catch { toast.error("Network error"); }
     setPrivSaving(false);
-  }, [privMembershipId, privLinkIdx, privPerms, saveEmpLinks]);
+  }, [privMembershipId, privLinkIdx, privPerms, saveEmpLinks, refetchMemberships]);
+
+  const handleResetToDefaults = useCallback(async () => {
+    if (!privMembershipId) return;
+    setPrivSaving(true);
+    try {
+      const res = await fetch(`/api/memberships/${privMembershipId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hasCustomPermissions: false }),
+      });
+      if (!res.ok) { toast.error("Failed to reset privileges"); setPrivSaving(false); return; }
+      const updated = await res.json();
+      if (updated.permissions) {
+        const p: Record<string, boolean> = {};
+        for (const k of PERMISSION_KEYS) p[k] = !!updated.permissions?.[k];
+        setPrivPerms(p);
+      } else if (privDesigDefaults) {
+        setPrivPerms({ ...privDesigDefaults });
+      }
+      await refetchMemberships();
+      toast.success("Permissions reset to designation defaults");
+    } catch { toast.error("Network error"); }
+    setPrivSaving(false);
+  }, [privMembershipId, privDesigDefaults, refetchMemberships]);
 
   const handleDeleteMembership = useCallback((membershipId: string) => {
     const mem = memberships.find((m) => m._id === membershipId);
@@ -779,11 +803,18 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                   <p className="text-sm truncate mt-0.5" style={{ color: "var(--fg-secondary)" }}>{privLabel}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {privDesigDefaults && (
+                  {privDesigDefaults && privMembershipId && (
+                    <button type="button" onClick={handleResetToDefaults} disabled={privSaving}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
+                      style={{ color: "var(--primary)", borderColor: "rgba(99,102,241,0.3)" }}>
+                      Reset to Defaults
+                    </button>
+                  )}
+                  {privDesigDefaults && privLinkIdx >= 0 && (
                     <button type="button" onClick={() => setPrivPerms({ ...privDesigDefaults })}
                       className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
                       style={{ color: "var(--primary)", borderColor: "rgba(99,102,241,0.3)" }}>
-                      Reset to Original
+                      Reset to Defaults
                     </button>
                   )}
                   <button type="button" onClick={() => { const p: Record<string, boolean> = {}; for (const k of PERMISSION_KEYS) p[k] = true; setPrivPerms(p); }}

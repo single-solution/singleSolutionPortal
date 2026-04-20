@@ -331,9 +331,9 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const { data: employee, loading: empL } = useQuery<EmployeeDoc>(empUrl);
   const { data: sess, loading: sessL } = useQuery<SessionApi>(sessUrl);
   const { data: memRaw, loading: memL } = useQuery<MembershipRow[]>(memUrl);
-  const { data: dailyRaw, loading: dayL } = useQuery<DailyRow[]>(dailyUrl, undefined, { enabled: tab === "attendance" || tab === "overview" });
+  const { data: dailyRaw, loading: dayL } = useQuery<DailyRow[]>(dailyUrl, undefined, { enabled: tab === "attendance" || tab === "overview" || tab === "schedule" });
   const { data: monthlyRaw, loading: monL } = useQuery<MonthlyStats | null>(monthlyUrl, undefined, {
-    enabled: tab === "attendance" || tab === "overview",
+    enabled: tab === "attendance" || tab === "overview" || tab === "schedule",
   });
   const { data: tasksRaw, loading: taskL } = useQuery<TaskRow[]>(tasksUrl, undefined, {
     enabled: tab === "overview" || tab === "tasks",
@@ -359,7 +359,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
       ? `/api/payroll/estimate?detail=true&month=${payMonth}&year=${payYear}${otherUserParam ? `&${otherUserParam}` : ""}`
       : null;
   const flagsUrl =
-    open && effectiveId && canAtt && tab === "location"
+    open && effectiveId && (canAtt || canViewLocation) && tab === "location"
       ? `/api/location-flags?userId=${encodeURIComponent(effectiveId)}&limit=50`
       : null;
   const { data: flagsPayload, loading: flagsL } = useQuery<{ flags: FlagEvent[]; total: number }>(flagsUrl, undefined, {
@@ -369,7 +369,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
   const locDateStr = locDay ? `${locYear}-${String(locMonth).padStart(2, "0")}-${String(locDay).padStart(2, "0")}` : null;
   const locDetailUrl =
-    open && effectiveId && canAtt && tab === "location" && locDateStr
+    open && effectiveId && (canAtt || canViewLocation) && tab === "location" && locDateStr
       ? `/api/attendance?type=detail&date=${locDateStr}&userId=${encodeURIComponent(effectiveId)}`
       : null;
   interface LocSession {

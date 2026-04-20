@@ -132,10 +132,10 @@ export async function POST(req: Request) {
   const basePerms = clonePermissionsFromDesignation(
     (desigDoc.defaultPermissions ?? {}) as IPermissions,
   );
-  const permissions =
-    body.permissions !== undefined && body.permissions !== null
-      ? mergePermissionOverrides(basePerms, body.permissions)
-      : basePerms;
+  const hasExplicitPerms = body.permissions !== undefined && body.permissions !== null;
+  const permissions = hasExplicitPerms
+    ? mergePermissionOverrides(basePerms, body.permissions)
+    : basePerms;
 
   const direction = body.direction === "above" ? "above" : "below";
   const autoSource = body.autoSource === "hierarchy" ? "hierarchy" : null;
@@ -149,6 +149,7 @@ export async function POST(req: Request) {
       direction,
       autoSource,
       permissions,
+      hasCustomPermissions: hasExplicitPerms,
     });
 
     const populated = await populateMembership(Membership.findById(created._id)).lean();

@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   if (targetUserId !== actor.id) {
-    if (!hasPermission(actor, "leaves_viewTeam")) {
+    if (!hasPermission(actor, "leaves_viewTeam") && !hasPermission(actor, "employees_viewLeaves")) {
       return forbidden("You don't have permission to view others' leave balances.");
     }
     if (!isSuperAdmin(actor)) {

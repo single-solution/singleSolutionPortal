@@ -5,7 +5,7 @@ import FlowLayout from "@/lib/models/FlowLayout";
 import "@/lib/models/Department";
 import type { IPermissions } from "@/lib/models/Designation";
 import { PERMISSION_KEYS } from "@/lib/models/Designation";
-import { SELF_PERMISSIONS } from "@/lib/permissions.shared";
+import { SELF_PERMISSIONS, type AnyPermissionKey } from "@/lib/permissions.shared";
 import { auth } from "@/lib/auth";
 
 /* ================================================================ */
@@ -131,17 +131,17 @@ export function isSuperAdmin(user: VerifiedUser): boolean {
  */
 export function hasPermission(
   actor: VerifiedUser,
-  permission: keyof IPermissions,
+  permission: AnyPermissionKey,
   departmentId?: string,
 ): boolean {
-  if (SELF_PERMISSIONS.has(permission)) return true;
+  if ((SELF_PERMISSIONS as ReadonlySet<string>).has(permission)) return true;
   if (actor.isSuperAdmin) return true;
 
   const relevantMemberships = departmentId
     ? actor.memberships.filter((m) => m.departmentId === departmentId)
     : actor.memberships;
 
-  return relevantMemberships.some((m) => m.permissions[permission] === true);
+  return relevantMemberships.some((m) => m.permissions[permission as keyof IPermissions] === true);
 }
 
 /* ================================================================ */

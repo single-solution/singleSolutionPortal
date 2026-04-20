@@ -76,6 +76,7 @@ export function useInsightsContext() {
 export default function InsightsDeskLayout({ children }: { children: React.ReactNode }) {
   const { registerTour } = useGuide();
   const { can: canPerm } = usePermissions();
+  const canViewHolidays = canPerm("holidays_view");
   const canCreateHoliday = canPerm("holidays_create");
   const canToggleRecurring = canPerm("holidays_toggleRecurring");
   const canDeleteHoliday = canPerm("holidays_delete");
@@ -146,7 +147,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
     setHolidaysLoading(false);
   }, [displayYear]);
 
-  useEffect(() => { fetchHolidays(); }, [fetchHolidays]);
+  useEffect(() => { if (canViewHolidays) fetchHolidays(); }, [canViewHolidays, fetchHolidays]);
   useEffect(() => { if (holidaysOpen) fetchHolidays(); }, [holidaysOpen, fetchHolidays]);
 
   async function handleAdd() {

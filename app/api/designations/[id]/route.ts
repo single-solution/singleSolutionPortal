@@ -75,6 +75,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
+  let permsChanged = false;
+
   if (canSetPerms || canEditDesig) {
     if (body.defaultPermissions !== undefined) {
       if (typeof body.defaultPermissions !== "object" || body.defaultPermissions === null || Array.isArray(body.defaultPermissions)) {
@@ -87,6 +89,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           designation.set(`defaultPermissions.${k}`, src[k]);
         }
       }
+      permsChanged = true;
     }
   }
 
@@ -99,11 +102,27 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     throw e;
   }
 
+  let syncedCount = 0;
+
+  if (permsChanged) {
+    const newDefaults: Record<string, boolean> = {};
+    for (const k of PERMISSION_KEYS) {
+      newDefaults[`permissions.${String(k)}`] = Boolean(
+        (designation.defaultPermissions as unknown as Record<string, boolean>)?.[String(k)],
+      );
+    }
+    const result = await Membership.updateMany(
+      { designation: id, hasCustomPermissions: { $ne: true } },
+      { $set: newDefaults },
+    );
+    syncedCount = result.modifiedCount;
+  }
+
   const doc = await Designation.findById(id)
     .select("_id name description color isSystem isActive defaultPermissions createdAt updatedAt")
     .lean();
 
-  return ok(doc);
+  return ok({ ...doc, syncedCount });
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {

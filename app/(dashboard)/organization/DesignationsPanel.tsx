@@ -126,7 +126,11 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save designation"); setSaveLoading(false); return; }
+        const data = await res.json().catch(() => null);
+        if (!res.ok) { toast.error(data?.error ?? "Failed to save designation"); setSaveLoading(false); return; }
+        if (canSetPermissions && data?.syncedCount > 0) {
+          toast.success(`Permissions synced to ${data.syncedCount} membership${data.syncedCount !== 1 ? "s" : ""}`);
+        }
       }
       closeModal();
       await refetch();

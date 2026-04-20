@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!isSelf) {
-    if (!hasPermission(actor, "payroll_viewTeam")) return forbidden();
+    if (!hasPermission(actor, "payroll_viewTeam") && !hasPermission(actor, "employees_viewPayroll")) return forbidden();
     if (!isSuperAdmin(actor)) {
       const subs = await getSubordinateUserIds(actor.id);
       if (!subs.includes(targetUserId)) return forbidden();

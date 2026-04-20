@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
   const yearParam = url.searchParams.get("year");
   const monthParam = url.searchParams.get("month");
 
-  const hasTeamPerm = hasPermission(actor, "leaves_viewTeam");
+  const hasTeamPerm = hasPermission(actor, "leaves_viewTeam") || hasPermission(actor, "employees_viewLeaves");
 
   if (userIdParam && userIdParam !== actor.id) {
     if (!hasTeamPerm) return forbidden("You can only view your own leaves.");

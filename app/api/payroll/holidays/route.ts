@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import Holiday from "@/lib/models/Holiday";
 import { utcDateKey } from "@/lib/payrollUtils";
-import { isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 
 function holidayToCalendarRow(h: {
   name: string;
@@ -32,16 +32,17 @@ function holidayToCalendarRow(h: {
 
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
-  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!actor) return unauthorized();
+  if (!hasPermission(actor, "holidays_view")) return forbidden();
 
   const yearParam = req.nextUrl.searchParams.get("year");
   if (yearParam === null || yearParam === "") {
-    return NextResponse.json({ error: "Query parameter year is required" }, { status: 400 });
+    return badRequest("Query parameter year is required");
   }
 
   const year = Number(yearParam);
   if (!Number.isInteger(year) || year < 1970 || year > 9999) {
-    return NextResponse.json({ error: "Invalid year" }, { status: 400 });
+    return badRequest("Invalid year");
   }
 
   await connectDB();
@@ -66,13 +67,13 @@ export async function GET(req: NextRequest) {
 
   out.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  return NextResponse.json(out);
+  return ok(out);
 }
 
 export async function POST(req: Request) {
   const actor = await getVerifiedSession();
-  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "holidays_create")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!actor) return unauthorized();
+  if (!hasPermission(actor, "holidays_create")) return forbidden();
 
   await connectDB();
 
@@ -80,15 +81,15 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return badRequest("Invalid JSON body");
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
+  if (!name) return badRequest("name is required");
 
-  if (!body.date) return NextResponse.json({ error: "date is required" }, { status: 400 });
+  if (!body.date) return badRequest("date is required");
   const date = new Date(body.date);
-  if (Number.isNaN(date.getTime())) return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+  if (Number.isNaN(date.getTime())) return badRequest("Invalid date");
 
   const isRecurring = Boolean(body.isRecurring);
   const year =
@@ -114,36 +115,36 @@ export async function POST(req: Request) {
 
 export async function PUT(req: NextRequest) {
   const actor = await getVerifiedSession();
-  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "holidays_toggleRecurring")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!actor) return unauthorized();
+  if (!hasPermission(actor, "holidays_toggleRecurring")) return forbidden();
 
   let body: { id?: string; isRecurring?: boolean };
-  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
 
   const id = body.id;
-  if (!id || !isValidId(id)) return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
-  if (typeof body.isRecurring !== "boolean") return NextResponse.json({ error: "isRecurring (boolean) is required" }, { status: 400 });
+  if (!id || !isValidId(id)) return badRequest("Valid id is required");
+  if (typeof body.isRecurring !== "boolean") return badRequest("isRecurring (boolean) is required");
 
   await connectDB();
   const doc = await Holiday.findByIdAndUpdate(id, { isRecurring: body.isRecurring }, { new: true }).lean();
-  if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!doc) return notFound("Holiday not found");
 
-  return NextResponse.json(doc);
+  return ok(doc);
 }
 
 export async function DELETE(req: NextRequest) {
   const actor = await getVerifiedSession();
-  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(actor, "holidays_delete")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!actor) return unauthorized();
+  if (!hasPermission(actor, "holidays_delete")) return forbidden();
 
   const id = req.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Query parameter id is required" }, { status: 400 });
-  if (!isValidId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  if (!id) return badRequest("Query parameter id is required");
+  if (!isValidId(id)) return badRequest("Invalid id");
 
   await connectDB();
 
   const res = await Holiday.findByIdAndDelete(id);
-  if (!res) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!res) return notFound("Holiday not found");
 
-  return NextResponse.json({ ok: true });
+  return ok({ deleted: true });
 }

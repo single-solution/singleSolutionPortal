@@ -16,7 +16,7 @@ import { logActivity } from "@/lib/activityLogger";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "departments_view")) return ok([]);
+  if (!hasPermission(actor, "departments_view") && !hasPermission(actor, "organization_view")) return ok([]);
 
   await connectDB();
 

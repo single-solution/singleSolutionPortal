@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { getVerifiedSession, getSubordinateUserIds } from "@/lib/permissions";
 import { PERMISSION_KEYS, type IPermissions } from "@/lib/permissions.shared";
+import { unauthorized, ok } from "@/lib/helpers";
 
 export async function GET() {
   const actor = await getVerifiedSession();
-  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!actor) return unauthorized();
 
   const merged: Partial<Record<keyof IPermissions, boolean>> = {};
 
@@ -20,7 +20,7 @@ export async function GET() {
 
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
 
-  return NextResponse.json({
+  return ok({
     isSuperAdmin: actor.isSuperAdmin,
     permissions: merged,
     hasSubordinates: actor.isSuperAdmin || subordinateIds.length > 0,

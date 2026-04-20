@@ -24,7 +24,7 @@ export async function GET() {
   const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
   const today = startOfDay(new Date(), tz);
 
-  const hasTeamPerm = hasPermission(actor, "attendance_viewTeam");
+  const hasTeamPerm = hasPermission(actor, "attendance_viewTeam") || hasPermission(actor, "employees_viewAttendance");
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
 
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };

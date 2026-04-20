@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (targetUserId !== actor.id) {
-    if (!hasPermission(actor, "attendance_viewTeam")) {
+    if (!hasPermission(actor, "attendance_viewTeam") && !hasPermission(actor, "employees_viewAttendance")) {
       return ok({ activeSession: null, todayMinutes: 0, isStale: false });
     }
     if (!actor.isSuperAdmin) {

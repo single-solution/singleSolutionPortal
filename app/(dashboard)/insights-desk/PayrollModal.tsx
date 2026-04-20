@@ -138,7 +138,7 @@ interface Props { open: boolean; onClose: () => void; selectedUserId?: string }
 export function PayrollModal({ open, onClose, selectedUserId }: Props) {
   const { data: session } = useSession();
   const { can: canPerm, isSuperAdmin } = usePermissions();
-  const canViewTeam = canPerm("payroll_viewTeam");
+  const canViewTeam = canPerm("payroll_viewTeam") || canPerm("employees_viewPayroll");
   const canManageSalary = canPerm("payroll_manageSalary");
   const canExport = canPerm("payroll_export");
 

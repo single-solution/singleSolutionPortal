@@ -80,10 +80,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const deptId = membership.department.toString();
 
-  if (!isSuperAdmin(actor) && !hasPermission(actor, "members_customizePermissions", deptId)) {
-    return forbidden();
-  }
-
   if (!isSuperAdmin(actor)) {
     const targetUserId = membership.user.toString();
     if (targetUserId === actor.id) {
@@ -106,7 +102,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return badRequest("Invalid JSON body");
   }
 
-  if (body.designation !== undefined) {
+  const changingDesig = body.designation !== undefined;
+  const changingPerms = body.permissions !== undefined;
+  const changingActive = typeof body.isActive === "boolean";
+  const resettingToDefaults = body.hasCustomPermissions === false;
+
+  if (!isSuperAdmin(actor)) {
+    if (changingDesig && !hasPermission(actor, "members_assignDesignation", deptId)) {
+      return forbidden("Missing members_assignDesignation permission");
+    }
+    if ((changingPerms || resettingToDefaults) && !hasPermission(actor, "members_customizePermissions", deptId)) {
+      return forbidden("Missing members_customizePermissions permission");
+    }
+    if (!changingDesig && !changingPerms && !changingActive && !resettingToDefaults) {
+      return forbidden();
+    }
+  }
+
+  if (changingDesig) {
     if (typeof body.designation !== "string" || !isValidId(body.designation)) {
       return badRequest("Invalid designation");
     }
@@ -117,6 +130,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       const defaults: Record<string, boolean> = {};
       for (const k of PERMISSION_KEYS) defaults[k] = Boolean((desig.defaultPermissions as Record<string, boolean> | undefined)?.[k]);
       membership.permissions = defaults as typeof membership.permissions;
+      membership.hasCustomPermissions = false;
     }
   }
 
@@ -125,6 +139,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (body.permissions !== undefined) {
     const current = membership.permissions as unknown as Record<string, boolean>;
     membership.permissions = mergePermissionPatch(current, body.permissions) as typeof membership.permissions;
+    membership.hasCustomPermissions = true;
+  }
+
+  if (body.hasCustomPermissions === false && !changingPerms) {
+    const desig = await Designation.findById(membership.designation).select("defaultPermissions").lean();
+    if (desig) {
+      const defaults: Record<string, boolean> = {};
+      for (const k of PERMISSION_KEYS) defaults[k] = Boolean((desig.defaultPermissions as Record<string, boolean> | undefined)?.[k]);
+      membership.permissions = defaults as typeof membership.permissions;
+      membership.hasCustomPermissions = false;
+    }
   }
 
   await membership.save();

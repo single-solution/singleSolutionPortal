@@ -291,7 +291,7 @@ export function AppLayout({ user, liveUpdates = false, children }: AppLayoutProp
   }, []);
 
   const visibleLinks = NAV_LINKS.filter(
-    (l) => !l.permission || canPerm(l.permission as keyof import("@/lib/permissions.shared").IPermissions),
+    (l) => !l.permission || canPerm(l.permission as import("@/lib/permissions.shared").AnyPermissionKey),
   );
   const currentTheme =
     THEME_OPTIONS.find((o) => o.value === theme) ?? THEME_OPTIONS[0];

@@ -100,7 +100,7 @@ interface Props {
 export function LeavesModal({ open, onClose, selectedUserId }: Props) {
   const { data: session } = useSession();
   const { can: canPerm, isSuperAdmin } = usePermissions();
-  const canViewTeam = canPerm("leaves_viewTeam");
+  const canViewTeam = canPerm("leaves_viewTeam") || canPerm("employees_viewLeaves");
   const canSubmitOnBehalf = canPerm("leaves_submitOnBehalf");
 
   const [employees, setEmployees] = useCachedState<DropdownEmp[]>("$leaves/employees", []);

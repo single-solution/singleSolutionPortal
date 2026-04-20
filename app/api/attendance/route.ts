@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   const userId = url.searchParams.get("userId") ?? actor.id;
 
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
-  const canTeam = actor.isSuperAdmin || hasPermission(actor, "attendance_viewTeam");
+  const canTeam = actor.isSuperAdmin || hasPermission(actor, "attendance_viewTeam") || hasPermission(actor, "employees_viewAttendance");
 
   if (type === "team") {
     if (!canTeam) return ok([]);
@@ -237,7 +237,7 @@ export async function GET(req: NextRequest) {
     return ok([]);
   }
 
-  if (!isSelf && !isSubordinate && !hasPermission(actor, "attendance_viewTeam")) {
+  if (!isSelf && !isSubordinate && !canTeam) {
     if (type === "detail" || type === "monthly") return ok(null);
     return ok([]);
   }

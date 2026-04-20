@@ -16,7 +16,13 @@ async function getOrCreateSettings() {
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "settings_view")) return forbidden();
+
+  const canView = hasPermission(actor, "settings_view")
+    || hasPermission(actor, "settings_manageCompany")
+    || hasPermission(actor, "settings_manageOffice")
+    || hasPermission(actor, "settings_toggleLiveUpdates")
+    || hasPermission(actor, "settings_sendTestEmail");
+  if (!canView) return forbidden();
 
   await connectDB();
   const settings = await getOrCreateSettings();

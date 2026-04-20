@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { SELF_PERMISSIONS, type IPermissions } from "@/lib/permissions.shared";
+import { SELF_PERMISSIONS, type IPermissions, type AnyPermissionKey } from "@/lib/permissions.shared";
 
 interface PermissionsState {
   isSuperAdmin: boolean;
@@ -9,8 +9,8 @@ interface PermissionsState {
   subordinateIds: string[];
   permissions: Partial<Record<keyof IPermissions, boolean>>;
   loading: boolean;
-  can: (key: keyof IPermissions) => boolean;
-  canAny: (...keys: (keyof IPermissions)[]) => boolean;
+  can: (key: AnyPermissionKey) => boolean;
+  canAny: (...keys: AnyPermissionKey[]) => boolean;
   refresh: () => Promise<void>;
 }
 
@@ -67,12 +67,14 @@ export function PermissionsProvider({ children, initialData }: ProviderProps) {
   }, [fetchPermissions, hasInitial]);
 
   const can = useCallback(
-    (key: keyof IPermissions) => SELF_PERMISSIONS.has(key) || isSuperAdmin || permissions[key] === true,
+    (key: AnyPermissionKey) =>
+      (SELF_PERMISSIONS as ReadonlySet<string>).has(key) || isSuperAdmin || permissions[key as keyof IPermissions] === true,
     [isSuperAdmin, permissions],
   );
 
   const canAny = useCallback(
-    (...keys: (keyof IPermissions)[]) => isSuperAdmin || keys.some((k) => SELF_PERMISSIONS.has(k) || permissions[k] === true),
+    (...keys: AnyPermissionKey[]) =>
+      isSuperAdmin || keys.some((k) => (SELF_PERMISSIONS as ReadonlySet<string>).has(k) || permissions[k as keyof IPermissions] === true),
     [isSuperAdmin, permissions],
   );
 

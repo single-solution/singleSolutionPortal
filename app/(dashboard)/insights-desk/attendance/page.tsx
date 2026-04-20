@@ -155,7 +155,7 @@ export default function AttendancePage() {
   useEffect(() => { registerTour("attendance", attendanceTour); }, [registerTour]);
   const sessionReady = sessionStatus !== "loading";
   const { can: canPerm, isSuperAdmin } = usePermissions();
-  const hasTeamAccess = canPerm("attendance_viewTeam");
+  const hasTeamAccess = canPerm("attendance_viewTeam") || canPerm("employees_viewAttendance");
   
   const canViewTeamLeaves = canPerm("leaves_viewTeam");
   const canViewLocation = canPerm("attendance_viewLocation");

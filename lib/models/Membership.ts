@@ -12,6 +12,8 @@ export interface IMembership extends Document {
   /** "hierarchy" = auto-created from emp→emp link; null = manually created */
   autoSource?: "hierarchy" | null;
   permissions: IPermissions;
+  /** true = permissions were manually overridden; false = inherited from designation defaults */
+  hasCustomPermissions: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,12 +32,14 @@ const membershipSchema = new Schema<IMembership>(
     direction: { type: String, enum: ["above", "below"], default: "below" },
     autoSource: { type: String, enum: ["hierarchy", null], default: null },
     permissions: permissionSchemaFields,
+    hasCustomPermissions: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
 
 membershipSchema.index({ user: 1, isActive: 1 });
 membershipSchema.index({ department: 1, isActive: 1 });
+membershipSchema.index({ designation: 1, hasCustomPermissions: 1 });
 membershipSchema.index({ user: 1, department: 1 }, { unique: true, partialFilterExpression: { isActive: true } });
 
 const Membership =
