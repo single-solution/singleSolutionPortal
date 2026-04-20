@@ -10,7 +10,6 @@ import { organizationTour } from "@/lib/tourConfigs";
 import { DepartmentsPanel } from "./DepartmentsPanel";
 import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
-import { EmployeeCard } from "../components/EmployeeCard";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmployeeModal } from "../components/EmployeeModal";
 import toast from "react-hot-toast";
@@ -21,9 +20,6 @@ import {
   ALL_WEEKDAYS,
   WEEKDAY_LABELS as FULL_DAY_LABELS,
   makeDefaultWeeklySchedule,
-  resolveWeeklySchedule,
-  resolveGraceMinutes,
-  getTodaySchedule,
   type Weekday,
   type DaySchedule,
   type WeeklySchedule,
@@ -45,57 +41,6 @@ interface Employee {
 }
 interface Department { _id: string; title: string; slug: string; employeeCount: number; isActive: boolean; manager?: { _id: string; about: { firstName: string; lastName: string }; email: string } | null }
 
-interface PresenceRow {
-  _id: string; status: string; isLive?: boolean;
-  firstEntry?: string | null; lastOfficeExit?: string | null; lastExit?: string | null;
-  todayMinutes?: number; officeMinutes?: number; remoteMinutes?: number;
-  lateBy?: number; shiftStart?: string; shiftEnd?: string; shiftBreakTime?: number;
-  locationFlagged?: boolean;
-}
-
-const SHIFT_TYPE_LABELS: Record<string, string> = { fullTime: "Full-time", partTime: "Part-time", contract: "Contract", intern: "Intern" };
-const DAY_MAP: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-const FULL_WEEK = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-
-function formatWorkingDays(days: string[]) {
-  const sorted = FULL_WEEK.filter((d) => days.includes(d));
-  if (sorted.length === 7) return "Every day";
-  if (sorted.length === 5 && ["mon", "tue", "wed", "thu", "fri"].every((d) => sorted.includes(d))) return "Mon – Fri";
-  if (sorted.length === 6 && FULL_WEEK.slice(0, 6).every((d) => sorted.includes(d))) return "Mon – Sat";
-  return sorted.map((d) => DAY_MAP[d] ?? d).join(", ");
-}
-
-function primaryDesignationLabel(emp: Employee): string {
-  if (emp.isSuperAdmin) return "System Administrator";
-  const list = emp.memberships;
-  if (list?.length) {
-    for (const m of list) {
-      if (m.designation && typeof m.designation === "object" && "name" in m.designation && m.designation.name) return m.designation.name;
-    }
-  }
-  return "";
-}
-
-function primaryDepartmentLabel(emp: Employee): string {
-  const m = emp.memberships?.find((mb) => mb.department?.title);
-  return m?.department?.title ?? emp.department?.title ?? "";
-}
-
-function parentDepartmentLabel(emp: Employee): string {
-  const m = emp.memberships?.find((mb) => mb.department?.parentDepartment?.title);
-  return m?.department?.parentDepartment?.title ?? "";
-}
-
-function shiftSummaryLine(emp: Employee) {
-  const rec = emp as unknown as Record<string, unknown>;
-  const type = SHIFT_TYPE_LABELS[emp.shiftType ?? "fullTime"] ?? emp.shiftType;
-  const today = getTodaySchedule(rec, "Asia/Karachi");
-  const schedule = resolveWeeklySchedule(rec);
-  const workingKeys = ALL_WEEKDAYS.filter((d) => schedule[d].isWorking);
-  const days = workingKeys.length ? formatWorkingDays(workingKeys) : "";
-  return `${type} ${today.start}–${today.end}${days ? ` · ${days}` : ""}`;
-}
-
 export default function OrganizationPage() {
   const { data: session, status: sessionStatus } = useSession();
   const { registerTour } = useGuide();
@@ -111,42 +56,20 @@ export default function OrganizationPage() {
   const canDeleteDepts = canPerm("departments_delete");
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>(canViewOrg ? "/api/departments" : null, "org-departments");
-  const { data: employees, refetch: refetchEmployees, mutate: mutateEmployees } = useQuery<Employee[]>(canViewOrg ? "/api/employees?includeSelf=true" : null, "org-employees");
+  const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>(canViewOrg ? "/api/employees?includeSelf=true" : null, "org-employees");
   const { data: designationsData } = useQuery<{ _id: string; name: string; color: string; isActive: boolean; defaultPermissions?: Record<string, boolean> }[]>(canViewOrg ? "/api/designations" : null, "org-designations");
   const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
-  const { data: presenceData } = useQuery<PresenceRow[]>(canViewOrg ? "/api/attendance/presence" : null, "org-presence");
-
-  const presenceById = useMemo(() => {
-    const map = new Map<string, PresenceRow>();
-    if (presenceData) for (const p of presenceData) map.set(p._id, p);
-    return map;
-  }, [presenceData]);
 
   const [search, setSearch] = useState("");
 
-  /* ── Employee preview modal (full card) ── */
-  const [previewEmp, setPreviewEmp] = useState<Employee | null>(null);
   const [empViewOpen, setEmpViewOpen] = useState(false);
   const [empViewId, setEmpViewId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [empTogglingId, setEmpTogglingId] = useState<string | null>(null);
-  const [resendingId, setResendingId] = useState<string | null>(null);
-  const [copyingId, setCopyingId] = useState<string | null>(null);
 
-  const canEditEmployees = canPerm("employees_edit");
-  const canDeleteEmployees = canPerm("employees_delete");
-  const canToggleStatus = canPerm("employees_toggleStatus");
-  const canResendInvite = canPerm("employees_resendInvite");
-  const canViewTeamAttendance = canPerm("attendance_viewTeam");
-  const canViewAttendanceDetail = canPerm("attendance_viewDetail");
-  const canViewOrgTasks = canPerm("tasks_view");
-  const canViewOrgCampaigns = canPerm("campaigns_view");
-  const canViewEmpLocation = canPerm("employees_viewLocation");
-
-  function openEmployeePreview(empId: string) {
-    const emp = scopedEmps.find((e) => e._id === empId);
-    if (emp) setPreviewEmp(emp);
+  function openEmployee(empId: string) {
+    setEmpViewId(empId);
+    setEmpViewOpen(true);
   }
 
   async function handleDeleteEmployee() {
@@ -157,86 +80,28 @@ export default function OrganizationPage() {
       if (res.ok) {
         toast.success("Employee removed");
         setDeleteTarget(null);
-        if (previewEmp?._id === deleteTarget._id) setPreviewEmp(null);
         await refetchEmployees();
       } else { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to remove employee"); }
     } catch { toast.error("Something went wrong"); }
     setDeleting(false);
   }
 
-  async function toggleEmployeeActive(emp: Employee) {
-    if (empTogglingId) return;
-    const newStatus = !emp.isActive;
-    setEmpTogglingId(emp._id);
-    mutateEmployees((prev) => prev?.map((e) => e._id === emp._id ? { ...e, isActive: newStatus } : e) ?? null);
-    try {
-      const res = await fetch(`/api/employees/${emp._id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: newStatus }),
-      });
-      if (res.ok) {
-        toast.success(newStatus ? "Activated" : "Deactivated");
-        await refetchEmployees();
-      } else { mutateEmployees((prev) => prev?.map((e) => e._id === emp._id ? { ...e, isActive: !newStatus } : e) ?? null); toast.error("Failed to update status"); }
-    } catch { mutateEmployees((prev) => prev?.map((e) => e._id === emp._id ? { ...e, isActive: !newStatus } : e) ?? null); toast.error("Failed to update status"); }
-    setEmpTogglingId(null);
-  }
-
-  async function resendInvite(emp: Employee) {
-    setResendingId(emp._id);
-    try {
-      const res = await fetch(`/api/employees/${emp._id}/resend-invite`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.sent) toast.success(`Invite sent to ${emp.email}`);
-        else { await navigator.clipboard.writeText(data.link); toast.success("Email failed — invite link copied"); }
-      } else { const data = await res.json(); toast.error(data.error || "Failed to send"); }
-    } catch { toast.error("Something went wrong"); }
-    setResendingId(null);
-  }
-
-  async function copyInviteLink(emp: Employee) {
-    setCopyingId(emp._id);
-    try {
-      const res = await fetch(`/api/employees/${emp._id}/resend-invite`, { method: "POST" });
-      if (res.ok) { const data = await res.json(); await navigator.clipboard.writeText(data.link); toast.success("Invite link copied"); }
-      else { const data = await res.json(); toast.error(data.error || "Failed to generate link"); }
-    } catch { toast.error("Something went wrong"); }
-    setCopyingId(null);
-  }
-
-  /* ── Employee edit form modal ── */
+  /* ── Invite employee form modal ── */
   const [empModalOpen, setEmpModalOpen] = useState(false);
-  const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
   const [empForm, setEmpForm] = useState({
-    fullName: "", email: "", password: "",
+    fullName: "", email: "",
     shiftType: "fullTime", graceMinutes: 30,
     salary: 0,
     weeklySchedule: makeDefaultWeeklySchedule(),
   });
   const [empSaving, setEmpSaving] = useState(false);
-  const isEditEmp = !!editingEmpId;
 
   const deptList = useMemo(() => departments ?? [], [departments]);
   const empList = useMemo(() => employees ?? [], [employees]);
   const canManageSalary = canPerm("payroll_manageSalary");
 
   function openCreateEmployee() {
-    setEditingEmpId(null);
-    setEmpForm({ fullName: "", email: "", password: "", shiftType: "fullTime", graceMinutes: 30, salary: 0, weeklySchedule: makeDefaultWeeklySchedule() });
-    setEmpModalOpen(true);
-  }
-
-  function openEditEmployee(emp: Employee) {
-    setEditingEmpId(emp._id);
-    setEmpForm({
-      fullName: `${emp.about.firstName} ${emp.about.lastName}`.trim(),
-      email: emp.email, password: "",
-      shiftType: emp.shiftType ?? "fullTime",
-      graceMinutes: resolveGraceMinutes(emp as unknown as Record<string, unknown>),
-      salary: (emp as unknown as Record<string, unknown>).salary as number ?? 0,
-      weeklySchedule: resolveWeeklySchedule(emp as unknown as Record<string, unknown>),
-    });
+    setEmpForm({ fullName: "", email: "", shiftType: "fullTime", graceMinutes: 30, salary: 0, weeklySchedule: makeDefaultWeeklySchedule() });
     setEmpModalOpen(true);
   }
 
@@ -245,23 +110,17 @@ export default function OrganizationPage() {
   }
 
   async function handleSaveEmployee() {
-    if (!empForm.fullName.trim() || (!isEditEmp && !empForm.email.trim())) return;
+    if (!empForm.fullName.trim() || !empForm.email.trim()) return;
     setEmpSaving(true);
     try {
-      const schedulePayload: Record<string, unknown> = { weeklySchedule: empForm.weeklySchedule, graceMinutes: empForm.graceMinutes, shiftType: empForm.shiftType };
-      if (canManageSalary) schedulePayload.salary = empForm.salary;
-      if (isEditEmp) {
-        const body: Record<string, unknown> = { fullName: empForm.fullName, ...schedulePayload };
-        if (empForm.password) body.password = empForm.password;
-        const res = await fetch(`/api/employees/${editingEmpId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        if (res.ok) { toast.success("Employee updated"); setEmpModalOpen(false); await refetchEmployees(); }
-        else { const data = await res.json(); toast.error(data.error || "Failed to update"); }
-      } else {
-        const body: Record<string, unknown> = { email: empForm.email, fullName: empForm.fullName, ...schedulePayload };
-        const res = await fetch("/api/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        if (res.ok) { toast.success("Employee invited"); setEmpModalOpen(false); await refetchEmployees(); }
-        else { const data = await res.json(); toast.error(data.error || "Failed to create"); }
-      }
+      const body: Record<string, unknown> = {
+        email: empForm.email, fullName: empForm.fullName,
+        weeklySchedule: empForm.weeklySchedule, graceMinutes: empForm.graceMinutes, shiftType: empForm.shiftType,
+      };
+      if (canManageSalary) body.salary = empForm.salary;
+      const res = await fetch("/api/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (res.ok) { toast.success("Employee invited"); setEmpModalOpen(false); await refetchEmployees(); }
+      else { const data = await res.json(); toast.error(data.error || "Failed to create"); }
     } catch { toast.error("Something went wrong"); }
     setEmpSaving(false);
   }
@@ -378,124 +237,29 @@ export default function OrganizationPage() {
 
         {/* Flow diagram */}
         <main data-tour="org-context" className="min-h-0 min-w-0 flex-1">
-          <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={activeDesignations} canEditCanvas={canManageOrganization} canAssignDesignation={canPerm("members_assignDesignation")} canCustomizePermissions={canPerm("members_customizePermissions")} canAddToDepartment={canPerm("members_addToDepartment")} canRemoveFromDepartment={canPerm("members_removeFromDepartment")} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployeePreview(empId)} />
+          <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={activeDesignations} canEditCanvas={canManageOrganization} canAssignDesignation={canPerm("members_assignDesignation")} canCustomizePermissions={canPerm("members_customizePermissions")} canAddToDepartment={canPerm("members_addToDepartment")} canRemoveFromDepartment={canPerm("members_removeFromDepartment")} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployee(empId)} />
         </main>
       </div>
 
-      {/* ── Employee Preview Modal (full card) ── */}
-      <Portal>
-        <AnimatePresence>
-          {previewEmp && (() => {
-            const emp = scopedEmps.find((e) => e._id === previewEmp._id) ?? previewEmp;
-            const p = presenceById.get(emp._id);
-            const todaySch = getTodaySchedule(emp as unknown as Record<string, unknown>, "Asia/Karachi");
-            const notSA = !emp.isSuperAdmin;
-            return (
-              <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPreviewEmp(null)} />
-                <motion.div
-                  className="relative mx-4 w-full max-w-sm max-h-[92vh] overflow-y-auto rounded-2xl border shadow-xl"
-                  style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-                  initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className={`card group relative flex flex-col pt-4 ${!emp.isActive ? "opacity-60 grayscale" : ""}`}>
-                    <EmployeeCard
-                      embedded
-                      idx={0}
-                      onCardClick={(id) => { setPreviewEmp(null); setEmpViewId(id); setEmpViewOpen(true); }}
-                      showEmployeeMeta
-                      showAttendance={canViewTeamAttendance}
-                      showAttendanceDetail={canViewAttendanceDetail}
-                      showLocationFlags={canViewAttendanceDetail && canViewEmpLocation}
-                      showTasks={canViewOrgTasks}
-                      showCampaigns={canViewOrgCampaigns}
-                      showActions={(canEditEmployees || canDeleteEmployees) && notSA}
-                      onEdit={canEditEmployees && notSA ? () => { setPreviewEmp(null); openEditEmployee(emp); } : undefined}
-                      onDelete={canDeleteEmployees && notSA ? () => setDeleteTarget(emp) : undefined}
-                      emp={{
-                        _id: emp._id,
-                        username: emp.username,
-                        firstName: emp.about.firstName,
-                        lastName: emp.about.lastName,
-                        email: emp.email,
-                        designation: primaryDesignationLabel(emp),
-                        department: primaryDepartmentLabel(emp),
-                        parentDepartment: parentDepartmentLabel(emp),
-                        profileImage: emp.about.profileImage,
-                        isVerified: emp.isVerified,
-                        isLive: p?.isLive,
-                        status: p?.status,
-                        locationFlagged: p?.locationFlagged,
-                        firstEntry: p?.firstEntry ?? undefined,
-                        lastOfficeExit: p?.lastOfficeExit ?? undefined,
-                        lastExit: p?.lastExit ?? undefined,
-                        todayMinutes: p?.todayMinutes,
-                        officeMinutes: p?.officeMinutes,
-                        remoteMinutes: p?.remoteMinutes,
-                        lateBy: p?.lateBy,
-                        shiftStart: p?.shiftStart ?? todaySch.start,
-                        shiftEnd: p?.shiftEnd ?? todaySch.end,
-                        shiftBreakTime: p?.shiftBreakTime ?? todaySch.breakMinutes,
-                        phone: emp.about.phone,
-                        shiftSummary: shiftSummaryLine(emp),
-                      }}
-                      footerSlot={
-                        <div className="flex flex-wrap items-center gap-2">
-                          {canToggleStatus && notSA && <ToggleSwitch size="sm" checked={emp.isActive} disabled={empTogglingId === emp._id} onChange={() => toggleEmployeeActive(emp)} />}
-                          <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>
-                            Joined {new Date(emp.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                          </span>
-                          {canResendInvite && emp.isVerified === false && (
-                            <>
-                              <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} disabled={resendingId === emp._id} onClick={() => resendInvite(emp)} className="flex h-7 items-center gap-1 px-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50" style={{ color: "var(--teal)", background: "color-mix(in srgb, var(--teal) 10%, transparent)" }} title="Send invite email">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-                                {resendingId === emp._id ? "Sending…" : "Invite"}
-                              </motion.button>
-                              <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} disabled={copyingId === emp._id} onClick={() => copyInviteLink(emp)} className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-50" style={{ color: "var(--fg-secondary)" }} title="Copy invite link">
-                                {copyingId === emp._id ? (
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                                ) : (
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
-                                )}
-                              </motion.button>
-                            </>
-                          )}
-                        </div>
-                      }
-                    />
-                  </div>
-                </motion.div>
-              </motion.div>
-            );
-          })()}
-        </AnimatePresence>
-      </Portal>
-
-      {/* ── Employee Add/Edit Modal ── */}
+      {/* ── Invite Employee Modal ── */}
       <Portal>
         <AnimatePresence>
           {empModalOpen && (
             <motion.div className="fixed inset-0 z-[60] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setEmpModalOpen(false)} />
               <motion.div
-                className="relative w-full max-w-lg mx-4 max-h-[92vh] overflow-y-auto rounded-2xl border p-6 shadow-xl"
+                className="relative w-full max-w-lg mx-3 sm:mx-4 max-h-[min(92vh,900px)] overflow-y-auto rounded-2xl border p-6 shadow-xl"
                 style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <h2 className="text-lg font-bold mb-4" style={{ color: "var(--fg)" }}>{isEditEmp ? "Edit Employee" : "Invite Employee"}</h2>
+                <h2 className="text-lg font-bold mb-4" style={{ color: "var(--fg)" }}>Invite Employee</h2>
                 <form onSubmit={(e) => { e.preventDefault(); handleSaveEmployee(); }} className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Full Name</label><input type="text" value={empForm.fullName} onChange={(e) => setEmpForm((f) => ({ ...f, fullName: e.target.value }))} className="input w-full" required autoFocus /></div>
-                    <div><label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Email</label><input type="email" value={empForm.email} onChange={(e) => setEmpForm((f) => ({ ...f, email: e.target.value }))} className="input w-full" required disabled={isEditEmp} /></div>
+                    <div><label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Email</label><input type="email" value={empForm.email} onChange={(e) => setEmpForm((f) => ({ ...f, email: e.target.value }))} className="input w-full" required /></div>
                   </div>
-
-                  {isEditEmp && (
-                    <div><label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>New Password (optional)</label><input type="password" value={empForm.password} onChange={(e) => setEmpForm((f) => ({ ...f, password: e.target.value }))} className="input w-full" placeholder="Leave blank to keep current" /></div>
-                  )}
 
                   <div className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
                     <p className="text-[11px] font-medium mb-2" style={{ color: "var(--fg-secondary)" }}>Weekly Schedule</p>
@@ -524,14 +288,12 @@ export default function OrganizationPage() {
                     </div>
                   </div>
 
-                  {!isEditEmp && (
-                    <p className="text-[11px] rounded-lg p-2" style={{ color: "var(--fg-tertiary)", background: "var(--bg-grouped)" }}>
-                      After adding, drag from their node on the flow to a department to assign them.
-                    </p>
-                  )}
+                  <p className="text-[11px] rounded-lg p-2" style={{ color: "var(--fg-tertiary)", background: "var(--bg-grouped)" }}>
+                    After adding, drag from their node on the flow to a department to assign them.
+                  </p>
 
                   <div className="flex gap-2 pt-2">
-                    <motion.button type="submit" disabled={empSaving || !empForm.fullName.trim() || (!isEditEmp && !empForm.email.trim())} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{empSaving ? "Saving…" : isEditEmp ? "Update" : "Send Invite"}</motion.button>
+                    <motion.button type="submit" disabled={empSaving || !empForm.fullName.trim() || !empForm.email.trim()} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm flex-1">{empSaving ? "Saving…" : "Send Invite"}</motion.button>
                     <button type="button" onClick={() => setEmpModalOpen(false)} className="btn btn-secondary btn-sm flex-1">Cancel</button>
                   </div>
                 </form>

@@ -31,9 +31,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const user = await User.findById(id)
     .select("-password")
-    .lean();
+    .lean() as Record<string, unknown> | null;
 
   if (!user) return notFound("Employee not found");
+
+  if (user.createdBy && isValidId(user.createdBy as string)) {
+    const creator = await User.findById(user.createdBy as string).select("about.firstName about.lastName").lean();
+    if (creator) {
+      user.createdByName = `${creator.about?.firstName ?? ""} ${creator.about?.lastName ?? ""}`.trim();
+    }
+  }
 
   return ok(user);
 }

@@ -30,20 +30,8 @@ export async function GET() {
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (actor.isSuperAdmin) {
     // superadmin sees all non–super-admin employees
-  } else if (subordinateIds.length > 0) {
+  } else if (hasTeamPerm && subordinateIds.length > 0) {
     empFilter._id = { $in: [actor.id, ...subordinateIds] };
-  } else if (hasTeamPerm) {
-    const deptIds = actor.memberships.map((m) => m.departmentId).filter(Boolean);
-    if (deptIds.length > 0) {
-      const deptMembers = await Membership.find({
-        department: { $in: deptIds },
-        isActive: true,
-      }).select("user").lean();
-      const peerIds = [...new Set(deptMembers.map((m) => m.user.toString()))];
-      empFilter._id = { $in: [actor.id, ...peerIds.filter((id) => id !== actor.id)] };
-    } else {
-      empFilter._id = actor.id;
-    }
   } else {
     empFilter._id = actor.id;
   }

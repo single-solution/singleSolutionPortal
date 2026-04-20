@@ -10,6 +10,7 @@ import { ease } from "@/lib/motion";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { MiniCalendar } from "./MiniCalendar";
 import toast from "react-hot-toast";
+import { PERMISSION_CATEGORIES, PERMISSION_META, type IPermissions } from "@/lib/permissions.shared";
 import {
   ALL_WEEKDAYS,
   WEEKDAY_LABELS,
@@ -38,6 +39,7 @@ interface EmployeeDoc {
   salaryHistory?: { previousSalary: number; newSalary: number; effectiveDate: string; changedAt?: string }[];
   createdAt?: string;
   createdBy?: string;
+  createdByName?: string;
 }
 interface SessionApi {
   activeSession?: { status?: string; location?: { inOffice?: boolean } } | null;
@@ -63,8 +65,11 @@ interface SessionApi {
 interface MembershipRow {
   _id: string;
   isActive?: boolean;
-  department?: { title?: string };
-  designation?: { name?: string; color?: string };
+  direction?: "above" | "below";
+  department?: { _id?: string; title?: string };
+  designation?: { _id?: string; name?: string; color?: string; defaultPermissions?: Record<string, boolean> };
+  permissions?: Record<string, boolean>;
+  hasCustomPermissions?: boolean;
 }
 interface DailyRow {
   date: string;
@@ -166,7 +171,7 @@ interface FlagEvent {
   latitude: number;
   longitude: number;
 }
-type TabId = "overview" | "attendance" | "payroll" | "leaves" | "tasks" | "location" | "schedule" | "profile";
+type TabId = "overview" | "attendance" | "payroll" | "leaves" | "tasks" | "location" | "privileges";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -221,10 +226,13 @@ function fmtHours(mins: number) {
 function recordDateKey(iso: string | Date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
 }
-function primaryDesignation(memberships: MembershipRow[] | null, isSuperAdmin?: boolean) {
+function primaryDesignation(memberships: MembershipRow[] | null, isSuperAdmin?: boolean, linkDesignation?: string) {
   if (isSuperAdmin) return "System Administrator";
-  const w = memberships?.find((m) => m.designation?.name);
-  return w?.designation?.name ?? "";
+  const above = memberships?.find((m) => m.direction === "above" && m.designation?.name);
+  if (above) return above.designation!.name!;
+  if (linkDesignation) return linkDesignation;
+  const any = memberships?.find((m) => m.designation?.name);
+  return any?.designation?.name ?? "";
 }
 function avatarColor(id: string) {
   const h = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
@@ -261,9 +269,9 @@ function Sh({ c }: { c: string }) {
 }
 function ProfRow({ k, v }: { k: string; v: ReactNode }) {
   return (
-    <div className="flex justify-between gap-2 text-[12px] sm:block">
-      <dt style={{ color: "var(--fg-tertiary)" }}>{k}</dt>
-      <dd className="truncate font-medium sm:mt-0.5 sm:text-right" style={{ color: "var(--fg)" }}>
+    <div className="flex items-baseline justify-between gap-2 text-[12px]">
+      <dt className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>{k}</dt>
+      <dd className="truncate font-medium text-right" style={{ color: "var(--fg)" }}>
         {v}
       </dd>
     </div>
@@ -272,7 +280,7 @@ function ProfRow({ k, v }: { k: string; v: ReactNode }) {
 
 export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const { data: session } = useSession();
-  const { can: canPerm, isSuperAdmin: viewerIsSuperAdmin } = usePermissions();
+  const { can: canPerm, isSuperAdmin: viewerIsSuperAdmin, subordinateIds } = usePermissions();
   const [userId, setUserId] = useState("");
   const [tab, setTab] = useState<TabId>("overview");
   const n = new Date();
@@ -285,6 +293,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const [departments, setDepartments] = useState<DeptOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [multiDeptUi, setMultiDeptUi] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   const [locYear, setLocYear] = useState(n.getFullYear());
   const [locMonth, setLocMonth] = useState(n.getMonth() + 1);
@@ -307,12 +317,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     return userId || session?.user?.id || null;
   }, [viewerIsSuperAdmin, userId, session?.user?.id]);
   const isOwn = Boolean(session?.user?.id && effectiveId && session.user.id === effectiveId);
-  const canAtt = isOwn || canPerm("attendance_viewTeam") || canPerm("employees_viewAttendance");
-  const canTasksNav = isOwn || canPerm("tasks_view") || canPerm("employees_viewTasks");
+  const isInHierarchy = viewerIsSuperAdmin || subordinateIds.includes(effectiveId ?? "");
+  const canAtt = isOwn || (isInHierarchy && (canPerm("attendance_viewTeam") || canPerm("employees_viewAttendance")));
+  const canTasksNav = isOwn || (isInHierarchy && (canPerm("tasks_view") || canPerm("employees_viewTasks")));
   const tasksUrl =
     open && effectiveId && canTasksNav && (tab === "overview" || tab === "tasks") ? "/api/tasks" : null;
   const campUrl =
-    open && effectiveId && (isOwn || canPerm("campaigns_view")) && (tab === "overview" || tab === "tasks")
+    open && effectiveId && (isOwn || (isInHierarchy && canPerm("campaigns_view"))) && (tab === "overview" || tab === "tasks")
       ? "/api/campaigns"
       : null;
   const empUrl = open && effectiveId ? `/api/employees/${effectiveId}` : null;
@@ -330,10 +341,13 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
   const { data: employee, loading: empL } = useQuery<EmployeeDoc>(empUrl);
   const { data: sess, loading: sessL } = useQuery<SessionApi>(sessUrl);
-  const { data: memRaw, loading: memL } = useQuery<MembershipRow[]>(memUrl);
-  const { data: dailyRaw, loading: dayL } = useQuery<DailyRow[]>(dailyUrl, undefined, { enabled: tab === "attendance" || tab === "overview" || tab === "schedule" });
+  const { data: memResponse, loading: memL } = useQuery<{ memberships: MembershipRow[]; linkDesignation: { name: string; color: string } | null; isLeaf: boolean }>(memUrl);
+  const memRaw = memResponse?.memberships ?? null;
+  const linkDesignation = memResponse?.linkDesignation ?? null;
+  const isLeafNode = memResponse?.isLeaf ?? true;
+  const { data: dailyRaw, loading: dayL } = useQuery<DailyRow[]>(dailyUrl, undefined, { enabled: tab === "attendance" || tab === "overview" });
   const { data: monthlyRaw, loading: monL } = useQuery<MonthlyStats | null>(monthlyUrl, undefined, {
-    enabled: tab === "attendance" || tab === "overview" || tab === "schedule",
+    enabled: tab === "attendance" || tab === "overview",
   });
   const { data: tasksRaw, loading: taskL } = useQuery<TaskRow[]>(tasksUrl, undefined, {
     enabled: tab === "overview" || tab === "tasks",
@@ -342,10 +356,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     enabled: tab === "overview" || tab === "tasks",
   });
 
-  const canViewPayroll = isOwn || canPerm("payroll_viewTeam") || canPerm("employees_viewPayroll");
-  const canViewLeaves = isOwn || canPerm("leaves_viewTeam") || canPerm("employees_viewLeaves");
-  const canViewSchedule = isOwn || canPerm("employees_viewSchedule");
-  const canViewLocation = isOwn || canPerm("employees_viewLocation");
+  const canViewPayroll = isOwn || (isInHierarchy && (canPerm("payroll_viewTeam") || canPerm("employees_viewPayroll")));
+  const canViewLeaves = isOwn || (isInHierarchy && (canPerm("leaves_viewTeam") || canPerm("employees_viewLeaves")));
+  const canViewSchedule = isOwn || (isInHierarchy && canPerm("employees_viewSchedule"));
+  const canViewLocation = isOwn || (isInHierarchy && canPerm("employees_viewLocation"));
+  const canPrivileges = !isOwn && !(employee?.isSuperAdmin === true) && isInHierarchy && isLeafNode && (canPerm("members_customizePermissions") || canPerm("members_assignDesignation"));
 
   const now2 = new Date();
   const payMonth = now2.getMonth() + 1;
@@ -469,8 +484,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const id = effectiveId ?? "";
   const memActive = useMemo(() => memberships.filter((m) => m.isActive !== false), [memberships]);
   const designation = useMemo(
-    () => primaryDesignation(memberships, employee?.isSuperAdmin),
-    [memberships, employee?.isSuperAdmin],
+    () => primaryDesignation(memberships, employee?.isSuperAdmin, linkDesignation?.name),
+    [memberships, employee?.isSuperAdmin, linkDesignation],
   );
   const empTasks = useMemo(() => {
     const list = Array.isArray(tasksRaw) ? tasksRaw : [];
@@ -664,7 +679,6 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
       }
     } catch { /* optional */ }
     setEditing(true);
-    setTab("profile");
   }, [employee, effectiveId]);
 
   const cancelEditing = useCallback(() => {
@@ -743,7 +757,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className="relative mx-0 sm:mx-4 flex w-full max-w-7xl flex-col overflow-hidden rounded-none sm:rounded-2xl border shadow-xl h-[100dvh] sm:h-[85vh]"
+              className="relative mx-2 sm:mx-6 flex w-full max-w-7xl flex-col overflow-hidden rounded-2xl border shadow-xl h-[calc(100dvh-1rem)] sm:h-[min(85vh,900px)]"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -765,31 +779,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate text-sm font-bold" style={{ color: "var(--fg)" }}>{displayName}</h3>
-                        {canEdit && !editing && (
-                          <button type="button" onClick={startEditing} className="shrink-0 text-[11px] font-semibold hover:underline" style={{ color: "var(--primary)" }}>Edit</button>
-                        )}
-                        {editing && (
-                          <div className="flex items-center gap-1.5">
-                            <button type="button" onClick={cancelEditing} className="shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Cancel</button>
-                            <button type="button" onClick={saveEdits} disabled={saving} className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white transition-colors" style={{ background: saving ? "var(--fg-tertiary)" : "var(--primary)" }}>{saving ? "Saving…" : "Save"}</button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <span className="badge inline-flex items-center gap-1 text-[11px]" style={{ background: `color-mix(in srgb, ${stCol} 9%, transparent)`, color: stCol, border: `1px solid color-mix(in srgb, ${stCol} 35%, transparent)` }}>
-                          {hasAct && (
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: stCol }} />
-                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: stCol }} />
-                            </span>
-                          )}
-                          {stLabel}
-                        </span>
-                        {deptTitle ? <span className="badge text-[11px]" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>{deptTitle}</span> : null}
-                        <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{memL ? "…" : designation}</span>
-                      </div>
+                      <h3 className="truncate text-sm font-bold" style={{ color: "var(--fg)" }}>{displayName}</h3>
+                      {deptTitle && <p className="mt-0.5 text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{deptTitle}</p>}
                     </div>
                   </div>
                 )}
@@ -811,8 +802,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                       ...(canViewLeaves ? [["leaves", "Leaves", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"]] : []),
                       ...(canTasksNav ? [["tasks", "Tasks", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 12l2 2 4-4"]] : []),
                       ...(canViewLocation ? [["location", "Location", "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"]] : []),
-                      ...(canViewSchedule ? [["schedule", "Schedule", "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"]] : []),
-                      ["profile", "Profile", "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"],
+                      ...(canPrivileges ? [["privileges", "Privileges", "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"]] : []),
                     ] as [string, string, string][]
                   ).map(([tid, lab]) => {
                     const act = tab === tid;
@@ -833,38 +823,138 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
               <div className="flex min-h-0 flex-1 overflow-hidden">
                 {/* Sidebar navigation — desktop only */}
                 {effectiveId && (
-                  <nav className="hidden sm:flex w-[180px] shrink-0 flex-col gap-0.5 border-r py-3 px-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }} aria-label="Employee sections">
-                    {(
-                      [
-                        ["overview", "Overview", "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"],
-                        ...(canAtt ? [["attendance", "Attendance", "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"]] : []),
-                        ...(canViewPayroll ? [["payroll", "Payroll", "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"]] : []),
-                        ...(canViewLeaves ? [["leaves", "Leaves", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"]] : []),
-                        ...(canTasksNav ? [["tasks", "Tasks", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 12l2 2 4-4"]] : []),
-                        ...(canViewLocation ? [["location", "Location", "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"]] : []),
-                        ...(canViewSchedule ? [["schedule", "Schedule", "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"]] : []),
-                        ["profile", "Profile", "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"],
-                      ] as [string, string, string][]
-                    ).map(([tid, lab, icon]) => {
-                      const act = tab === tid;
-                      return (
-                        <button
-                          key={tid}
-                          type="button"
-                          onClick={() => setTab(tid as TabId)}
-                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors"
-                          style={{
-                            background: act ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent",
-                            color: act ? "var(--primary)" : "var(--fg-secondary)",
-                          }}
-                        >
-                          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
-                          </svg>
-                          {lab}
-                        </button>
-                      );
-                    })}
+                  <nav className="hidden sm:flex w-[210px] shrink-0 flex-col border-r" style={{ borderColor: "var(--border)", background: "var(--bg)" }} aria-label="Employee sections">
+                    <div className="flex-1 flex flex-col gap-0.5 py-3 px-2">
+                      {(
+                        [
+                          ["overview", "Overview", "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"],
+                          ...(canAtt ? [["attendance", "Attendance", "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"]] : []),
+                          ...(canViewPayroll ? [["payroll", "Payroll", "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"]] : []),
+                          ...(canViewLeaves ? [["leaves", "Leaves", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"]] : []),
+                          ...(canTasksNav ? [["tasks", "Tasks", "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 12l2 2 4-4"]] : []),
+                          ...(canViewLocation ? [["location", "Location", "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"]] : []),
+                          ...(canPrivileges ? [["privileges", "Privileges", "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"]] : []),
+                        ] as [string, string, string][]
+                      ).map(([tid, lab, icon]) => {
+                        const act = tab === tid;
+                        return (
+                          <button
+                            key={tid}
+                            type="button"
+                            onClick={() => setTab(tid as TabId)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors"
+                            style={{
+                              background: act ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent",
+                              color: act ? "var(--primary)" : "var(--fg-secondary)",
+                            }}
+                          >
+                            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+                            </svg>
+                            {lab}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Sidebar footer */}
+                    <div className="shrink-0 border-t px-2.5 py-2.5 space-y-2" style={{ borderColor: "var(--border)" }}>
+                      {!empL && employee && (
+                        <>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${stCol} 9%, transparent)`, color: stCol, border: `1px solid color-mix(in srgb, ${stCol} 35%, transparent)` }}>
+                              {hasAct && (
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50" style={{ background: stCol }} />
+                                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: stCol }} />
+                                </span>
+                              )}
+                              {stLabel}
+                            </span>
+                          </div>
+                          <div className="text-[11px] space-y-1 whitespace-nowrap">
+                            <div className="flex items-center justify-between gap-2">
+                              <span style={{ color: "var(--fg-tertiary)" }}>Designation</span>
+                              <span className="font-semibold truncate" style={{ color: "var(--fg)" }}>{designation || "—"}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span style={{ color: "var(--fg-tertiary)" }}>Shift</span>
+                              <span className="font-semibold" style={{ color: "var(--fg)" }}>{SHIFT_LABELS[employee.shiftType ?? ""] ?? employee.shiftType ?? "—"}</span>
+                            </div>
+                          </div>
+                          {employee.isVerified === false && canPerm("employees_resendInvite") && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={inviting}
+                                onClick={async () => {
+                                  setInviting(true);
+                                  try {
+                                    const res = await fetch(`/api/employees/${effectiveId}/resend-invite`, { method: "POST" });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      if (data.sent) toast.success(`Invite sent to ${employee.email}`);
+                                      else { await navigator.clipboard.writeText(data.link); toast.success("Email failed — invite link copied"); }
+                                    } else { const data = await res.json(); toast.error(data.error || "Failed to send"); }
+                                  } catch { toast.error("Something went wrong"); }
+                                  setInviting(false);
+                                }}
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                                style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                                {inviting ? "…" : "Invite"}
+                              </button>
+                              <button
+                                type="button"
+                                title="Copy invite link"
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/employees/${effectiveId}/resend-invite`, { method: "POST" });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      if (data.link) { await navigator.clipboard.writeText(data.link); toast.success("Invite link copied"); }
+                                      else toast.success("Invite sent (no link available)");
+                                    } else toast.error("Failed");
+                                  } catch { toast.error("Something went wrong"); }
+                                }}
+                                className="flex shrink-0 items-center justify-center rounded-lg p-1.5 transition-colors"
+                                style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                              </button>
+                            </div>
+                          )}
+                          {!isOwn && !targetSA && canPerm("employees_toggleStatus") && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-medium whitespace-nowrap" style={{ color: employee.isActive === false ? "var(--rose)" : "var(--fg-tertiary)" }}>
+                                {employee.isActive === false ? "Blocked" : "Active"}
+                              </span>
+                              <ToggleSwitch
+                                size="sm"
+                                checked={employee.isActive !== false}
+                                disabled={toggling}
+                                onChange={async () => {
+                                  const newStatus = employee.isActive === false;
+                                  setToggling(true);
+                                  try {
+                                    const res = await fetch(`/api/employees/${effectiveId}`, {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ isActive: newStatus }),
+                                    });
+                                    if (res.ok) {
+                                      toast.success(newStatus ? "Access restored" : "Access blocked");
+                                      invalidateQueries(`/api/employees`);
+                                    } else { toast.error("Failed to update status"); }
+                                  } catch { toast.error("Something went wrong"); }
+                                  setToggling(false);
+                                }}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </nav>
                 )}
 
@@ -907,176 +997,376 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                         const pendingT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "pending").length;
                         const inProgT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "inProgress").length;
                         return (
-                        <div className="space-y-3">
-                          {/* Today's attendance — EmployeeCard style */}
-                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Today&apos;s attendance</p>
-                            {sessL ? (
-                              <div className="space-y-2"><Sh c="h-12 rounded-lg" /><Sh c="h-12 rounded-lg" /><Sh c="h-8 rounded-lg" /></div>
-                            ) : (
+                        <div className="w-full space-y-3">
+                          {/* Action bar */}
+                          <div className="flex items-center justify-end gap-2">
+                            {canEdit && !editing && (
+                              <button type="button" onClick={startEditing} className="rounded-md px-3 py-1 text-[11px] font-semibold text-white transition-colors hover:opacity-90" style={{ background: "var(--primary)" }}>Edit</button>
+                            )}
+                            {editing && (
                               <>
-                                {/* Clock in / Hours today / Clock out */}
-                                <div className="grid grid-cols-3 gap-1 text-[11px]" style={{ borderColor: "var(--border)" }}>
-                                  <div>
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
-                                    <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sFirstArrival}</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours today</p>
-                                    <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(tm)}</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
-                                    <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sClockOut}</p>
-                                  </div>
-                                </div>
-                                {/* Office entry / Office hours / Office exit */}
-                                <div className="mt-2 grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
-                                  <div>
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
-                                    <p className="font-semibold tabular-nums">{sOfficeIn}</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
-                                    <p className="font-semibold tabular-nums">{formatMinutes(sOfficeMins)}</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
-                                    <p className="font-semibold tabular-nums">{sOfficeOut}</p>
-                                  </div>
-                                </div>
-                                {/* Activity strip — progress bar */}
-                                <div className="mt-3 space-y-1.5">
-                                  <div className="flex items-center gap-2">
-                                    <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-                                      <motion.div className="flex h-full min-w-0" initial={{ width: 0 }} animate={{ width: `${cappedFill}%` }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
-                                        {ofPct > 0 && <div className="h-full shrink-0" style={{ width: `${(ofPct / cappedFill) * 100}%`, background: "var(--status-office)" }} />}
-                                        {rmPct > 0 && <div className="h-full shrink-0" style={{ width: `${(rmPct / cappedFill) * 100}%`, background: "var(--status-remote)" }} />}
-                                        {bkPct > 0 && <div className="h-full shrink-0" style={{ width: `${(bkPct / cappedFill) * 100}%`, background: "var(--purple)" }} />}
-                                      </motion.div>
-                                    </div>
-                                    <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>{pctRaw}%</span>
-                                  </div>
-                                  {/* Detail chips */}
-                                  <div className="flex flex-wrap items-center gap-1 text-[11px]">
-                                    <span className="inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
-                                      {sSessions} {sSessions === 1 ? "session" : "sessions"}
-                                    </span>
-                                    {sRemoteMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 7%, transparent)", color: "var(--status-remote)" }}>{formatMinutes(sRemoteMins)} remote</span>}
-                                    {sBreakMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>{formatMinutes(sBreakMins)} break</span>}
-                                    {(sess?.lateBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-late) 7%, transparent)", color: "var(--status-late)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
-                                    {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-late) 7%, transparent)", color: "var(--status-late)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
-                                    {sIdleMins > 5 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{formatMinutes(sIdleMins)} idle</span>}
-                                  </div>
-                                </div>
-                                {/* Location flag alert */}
-                                {sess?.locationFlagged && (
-                                  <div className="mt-2 rounded-lg border p-2 text-[11px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
-                                    <div className="flex items-center gap-1">
-                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                      <span className="font-bold" style={{ color: "var(--rose)" }}>Location Flagged</span>
-                                    </div>
-                                    {sess.flagReason && <p className="leading-snug" style={{ color: "var(--rose)" }}>{sess.flagReason}</p>}
-                                    {sess.flagCoords && (
-                                      <a
-                                        href={`https://www.google.com/maps?q=${sess.flagCoords.lat},${sess.flagCoords.lng}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors"
-                                        style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}
-                                      >
-                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                                        {sess.flagCoords.lat.toFixed(5)}, {sess.flagCoords.lng.toFixed(5)}
-                                      </a>
-                                    )}
-                                  </div>
-                                )}
-                                {/* Monthly summary pills + today-vs-avg + shift adherence */}
-                                {(monL || overviewAttendancePct != null || monthlyRaw?.averageDailyHours != null || tm > 0) && (
-                                  <div className="mt-2 flex flex-wrap gap-1.5">
-                                    {monL ? <><Sh c="h-6 w-24 rounded-full" /><Sh c="h-6 w-28 rounded-full" /></> : (
-                                      <>
-                                        {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance {overviewAttendancePct}%</span>}
-                                        {monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>Avg {monthlyRaw.averageDailyHours}h / day</span>}
-                                        {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--status-ontime)" : "var(--status-late)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
-                                        {tm > 0 && monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: (tm / 60) >= monthlyRaw.averageDailyHours ? "var(--green)" : "var(--amber)" }}>Today {(tm / 60).toFixed(1)}h vs avg {monthlyRaw.averageDailyHours.toFixed(1)}h</span>}
-                                        {pctRaw > 0 && <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>Shift {pctRaw}% done</span>}
-                                      </>
-                                    )}
-                                  </div>
-                                )}
-                                {/* Weekly snapshot — last 5 days */}
-                                {weeklyDots.length > 0 && (
-                                  <div className="mt-2 flex items-center gap-1.5">
-                                    <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Week</span>
-                                    {weeklyDots.map((d, i) => (
-                                      <div key={i} className="flex flex-col items-center gap-0.5">
-                                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
-                                        <span className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{d.date}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {/* Streaks */}
-                                {personalInsights && (personalInsights.longestPresentStreak > 1 || personalInsights.onTimeStreak > 1) && (
-                                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                    {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
-                                    {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
-                                  </div>
-                                )}
+                                <button type="button" onClick={cancelEditing} className="rounded-md border px-3 py-1 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-grouped)]" style={{ borderColor: "var(--border)", color: "var(--fg-secondary)" }}>Cancel</button>
+                                <button type="button" onClick={saveEdits} disabled={saving} className="rounded-md px-3 py-1 text-[11px] font-semibold text-white transition-colors" style={{ background: saving ? "var(--fg-tertiary)" : "var(--primary)" }}>{saving ? "Saving…" : "Save"}</button>
                               </>
                             )}
                           </div>
-                          {/* Tasks & Campaigns — EmployeeCard style */}
-                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Workload</p>
-                            {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (() => {
-                              const overdueT = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) !== "completed").length;
-                              const completedT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "completed").length;
-                              return (
-                              <div className="flex flex-wrap gap-1.5 text-[11px]">
-                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} tasks pending</span>
-                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)" }}>{inProgT} in progress</span>
-                                {completedT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 20%, transparent)" }}>{completedT} completed</span>}
-                                {overdueT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)", borderColor: "color-mix(in srgb, var(--rose) 20%, transparent)" }}>{overdueT} overdue</span>}
-                                <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: campCount > 0 ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "var(--bg-grouped)", color: campCount > 0 ? "var(--teal)" : "var(--fg-tertiary)", borderColor: campCount > 0 ? "color-mix(in srgb, var(--teal) 20%, transparent)" : "var(--border)" }}>{campCount} campaign{campCount !== 1 ? "s" : ""}</span>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+                              {/* Column 1: Identity & Account */}
+                              <div className="min-w-0">
+                                <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Identity & Account</p>
+                                  {empL || !employee ? (
+                                    <div className="space-y-2">{[1, 2, 3, 4].map((i) => <Sh key={i} c="h-4 w-full" />)}</div>
+                                  ) : editing && editForm ? (
+                                    <div className="space-y-2">
+                                      <div>
+                                        <label className="block text-[11px] font-medium mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Full Name</label>
+                                        <input className="input !min-h-0 text-xs py-1.5" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[11px] font-medium mb-0.5" style={{ color: "var(--fg-tertiary)" }}>New Password</label>
+                                        <input className="input !min-h-0 text-xs py-1.5" type="password" placeholder="Leave blank to keep" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
+                                      </div>
+                                      <ProfRow k="Email" v={employee.email} />
+                                      <ProfRow k="Username" v={`@${employee.username}`} />
+                                      {departments.length > 0 && (
+                                        <div>
+                                          <label className="block text-[11px] font-medium mb-0.5" style={{ color: "var(--fg-tertiary)" }}>{multiDeptUi ? "Managed Departments" : "Department"}</label>
+                                          <div className="flex flex-wrap gap-1">
+                                            {departments.map((d) => {
+                                              const active = multiDeptUi ? editForm.managedDepartments.includes(d._id) : editForm.department === d._id;
+                                              return (
+                                                <button key={d._id} type="button"
+                                                  onClick={() => { if (multiDeptUi) { toggleManagedDept(d._id); } else { setEditForm((f) => f ? { ...f, department: f.department === d._id ? "" : d._id } : f); } }}
+                                                  className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-all ${active ? "text-white" : ""}`}
+                                                  style={active ? { background: "var(--primary)" } : { background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}
+                                                >{d.title}</button>
+                                              );
+                                            })}
+                                          </div>
+                                          <button type="button" className="mt-1 text-[10px] font-medium hover:underline" style={{ color: "var(--primary)" }}
+                                            onClick={() => { if (!multiDeptUi) { setMultiDeptUi(true); setEditForm((f) => f ? { ...f, managedDepartments: f.department ? [f.department] : f.managedDepartments } : f); } else { setMultiDeptUi(false); setEditForm((f) => f ? { ...f, department: f.department || f.managedDepartments[0] || "", managedDepartments: [] } : f); } }}
+                                          >{multiDeptUi ? "Single dept" : "Multi dept"}</button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <dl className="space-y-1.5">
+                                      <ProfRow k="Email" v={employee.email} />
+                                      <ProfRow k="Phone" v={employee.about?.phone || "—"} />
+                                      <ProfRow k="Username" v={`@${employee.username}`} />
+                                      <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
+                                      <ProfRow k="Account Age" v={(() => {
+                                        if (!employee.createdAt) return "—";
+                                        const diff = Date.now() - new Date(employee.createdAt).getTime();
+                                        const days = Math.floor(diff / 86400000);
+                                        if (days < 30) return `${days}d`;
+                                        const months = Math.floor(days / 30.44);
+                                        if (months < 12) return `${months}mo`;
+                                        const years = Math.floor(months / 12);
+                                        const rem = months % 12;
+                                        return rem > 0 ? `${years}y ${rem}mo` : `${years}y`;
+                                      })()} />
+                                      {(employee.createdByName || employee.createdBy) && <ProfRow k="Invited By" v={employee.createdByName ?? employee.createdBy!} />}
+                                    </dl>
+                                  )}
+                                </section>
                               </div>
-                              );
-                            })()}
-                            {canViewLeaves && (
-                              <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
-                                {balL ? <Sh c="h-7 w-full max-w-xs rounded-lg" /> : !leaveBalance ? (
-                                  <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Leave balance unavailable.</p>
+
+                              {/* Column 2: Attendance + Workload */}
+                              <div className="space-y-3 min-w-0">
+                              <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Today&apos;s attendance</p>
+                                {sessL ? (
+                                  <div className="space-y-2"><Sh c="h-12 rounded-lg" /><Sh c="h-12 rounded-lg" /><Sh c="h-8 rounded-lg" /></div>
                                 ) : (
                                   <>
-                                    <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Leave balance</span>
-                                    <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-bold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>{leaveBalance.remaining} remaining</span>
-                                    <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>of {leaveBalance.total} · used {leaveBalance.used}</span>
-                                    {leaveExtras.onLeaveToday && <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>On Leave Today</span>}
-                                    {leaveExtras.nextLeave && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Next: {new Date(leaveExtras.nextLeave).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
-                                    {leaveExtras.daysSinceLast != null && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{leaveExtras.daysSinceLast}d since last</span>}
-                                    {leaveExtras.runoutDays != null && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>~{leaveExtras.runoutDays}d until runout</span>}
+                                    <div className="grid grid-cols-3 gap-1 text-[11px]">
+                                      <div>
+                                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
+                                        <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sFirstArrival}</p>
+                                      </div>
+                                      <div className="text-center">
+                                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Hours today</p>
+                                        <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{formatMinutes(tm)}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
+                                        <p className="font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{sClockOut}</p>
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 grid grid-cols-3 gap-1 text-[11px]" style={{ color: "var(--fg-secondary)" }}>
+                                      <div>
+                                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
+                                        <p className="font-semibold tabular-nums">{sOfficeIn}</p>
+                                      </div>
+                                      <div className="text-center">
+                                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
+                                        <p className="font-semibold tabular-nums">{formatMinutes(sOfficeMins)}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-caption" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
+                                        <p className="font-semibold tabular-nums">{sOfficeOut}</p>
+                                      </div>
+                                    </div>
+                                    <div className="mt-3 space-y-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                                          <motion.div className="flex h-full min-w-0" initial={{ width: 0 }} animate={{ width: `${cappedFill}%` }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
+                                            {ofPct > 0 && <div className="h-full shrink-0" style={{ width: `${(ofPct / cappedFill) * 100}%`, background: "var(--status-office)" }} />}
+                                            {rmPct > 0 && <div className="h-full shrink-0" style={{ width: `${(rmPct / cappedFill) * 100}%`, background: "var(--status-remote)" }} />}
+                                            {bkPct > 0 && <div className="h-full shrink-0" style={{ width: `${(bkPct / cappedFill) * 100}%`, background: "var(--purple)" }} />}
+                                          </motion.div>
+                                        </div>
+                                        <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>{pctRaw}%</span>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                                        <span className="inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>
+                                          {sSessions} {sSessions === 1 ? "session" : "sessions"}
+                                        </span>
+                                        {sRemoteMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 7%, transparent)", color: "var(--status-remote)" }}>{formatMinutes(sRemoteMins)} remote</span>}
+                                        {sBreakMins > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--purple) 7%, transparent)", color: "var(--purple)" }}>{formatMinutes(sBreakMins)} break</span>}
+                                        {(sess?.lateBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-late) 7%, transparent)", color: "var(--status-late)" }}>+{formatMinutes(sess!.lateBy!)} late</span>}
+                                        {sess?.isLateToOffice && (sess.lateToOfficeBy ?? 0) > 0 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "color-mix(in srgb, var(--status-late) 7%, transparent)", color: "var(--status-late)" }}>+{formatMinutes(sess.lateToOfficeBy!)} late to office</span>}
+                                        {sIdleMins > 5 && <span className="rounded-lg px-1.5 py-0.5 font-medium" style={{ background: "var(--bg-grouped)", color: "var(--fg-tertiary)" }}>{formatMinutes(sIdleMins)} idle</span>}
+                                      </div>
+                                    </div>
+                                    {sess?.locationFlagged && (
+                                      <div className="mt-2 rounded-lg border p-2 text-[11px] space-y-1" style={{ borderColor: "color-mix(in srgb, var(--rose) 30%, transparent)", background: "color-mix(in srgb, var(--rose) 4%, transparent)" }}>
+                                        <div className="flex items-center gap-1">
+                                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                          <span className="font-bold" style={{ color: "var(--rose)" }}>Location Flagged</span>
+                                        </div>
+                                        {sess.flagReason && <p className="leading-snug" style={{ color: "var(--rose)" }}>{sess.flagReason}</p>}
+                                        {sess.flagCoords && (
+                                          <a href={`https://www.google.com/maps?q=${sess.flagCoords.lat},${sess.flagCoords.lng}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}>
+                                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                            {sess.flagCoords.lat.toFixed(5)}, {sess.flagCoords.lng.toFixed(5)}
+                                          </a>
+                                        )}
+                                      </div>
+                                    )}
+                                    {(monL || overviewAttendancePct != null || monthlyRaw?.averageDailyHours != null || tm > 0) && (
+                                      <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {monL ? <><Sh c="h-6 w-24 rounded-full" /><Sh c="h-6 w-28 rounded-full" /></> : (
+                                          <>
+                                            {overviewAttendancePct != null && <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: overviewAttendancePct >= 90 ? "var(--status-present)" : "var(--status-absent)" }}>Attendance {overviewAttendancePct}%</span>}
+                                            {monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--primary)" }}>Avg {monthlyRaw.averageDailyHours}h/day</span>}
+                                            {typeof monthlyRaw?.onTimePercentage === "number" && <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: monthlyRaw.onTimePercentage >= 80 ? "var(--status-ontime)" : "var(--status-late)" }}>On-Time {Math.round(monthlyRaw.onTimePercentage)}%</span>}
+                                            {tm > 0 && monthlyRaw?.averageDailyHours != null && <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: (tm / 60) >= monthlyRaw.averageDailyHours ? "var(--green)" : "var(--amber)" }}>Today {(tm / 60).toFixed(1)}h vs avg {monthlyRaw.averageDailyHours.toFixed(1)}h</span>}
+                                            {pctRaw > 0 && <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ borderColor: "var(--border)", color: pctRaw >= 100 ? "var(--status-ontime)" : "var(--fg-secondary)" }}>Shift {pctRaw}%</span>}
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                    {weeklyDots.length > 0 && (
+                                      <div className="mt-2 flex items-center gap-1.5">
+                                        <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Week</span>
+                                        {weeklyDots.map((d, i) => (
+                                          <div key={i} className="flex flex-col items-center gap-0.5">
+                                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
+                                            <span className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{d.date}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {personalInsights && (personalInsights.longestPresentStreak > 1 || personalInsights.onTimeStreak > 1) && (
+                                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                        {personalInsights.longestPresentStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-present) 10%, transparent)", color: "var(--status-present)" }}>{personalInsights.longestPresentStreak}d present streak</span>}
+                                        {personalInsights.onTimeStreak > 1 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--status-ontime) 10%, transparent)", color: "var(--status-ontime)" }}>{personalInsights.onTimeStreak}d on-time streak</span>}
+                                      </div>
+                                    )}
                                   </>
                                 )}
                               </div>
-                            )}
-                          </div>
-                          {/* Memberships */}
-                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
-                            {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
-                            : memActive.length === 0 ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No active memberships.</p>
-                            : (
-                              <div className="flex flex-wrap gap-1.5">
-                                {memActive.map((m) => (
-                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
-                                    {m.department?.title ?? "Dept"}{m.designation?.name ? ` · ${m.designation.name}` : ""}
-                                  </span>
-                                ))}
+                                <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Workload</p>
+                                  {taskL || campL ? <div className="flex gap-2"><Sh c="h-8 w-28" /><Sh c="h-8 w-32" /></div> : (() => {
+                                    const overdueT = empTasks.filter((t) => t.deadline && new Date(t.deadline) < new Date() && (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) !== "completed").length;
+                                    const completedT = empTasks.filter((t) => (effectiveId ? employeeTaskStatus(t, effectiveId) : t.status) === "completed").length;
+                                    return (
+                                    <div className="flex flex-wrap gap-1.5 text-[11px]">
+                                      <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: pendingT > 0 ? "color-mix(in srgb, var(--amber) 8%, transparent)" : "var(--bg-grouped)", color: pendingT > 0 ? "var(--amber)" : "var(--fg-tertiary)", borderColor: pendingT > 0 ? "color-mix(in srgb, var(--amber) 19%, transparent)" : "var(--border)" }}>{pendingT} pending</span>
+                                      <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: inProgT > 0 ? "var(--primary-light)" : "var(--bg-grouped)", color: inProgT > 0 ? "var(--primary)" : "var(--fg-tertiary)", borderColor: inProgT > 0 ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border)" }}>{inProgT} in progress</span>
+                                      {completedT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--green) 8%, transparent)", color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 20%, transparent)" }}>{completedT} done</span>}
+                                      {overdueT > 0 && <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)", borderColor: "color-mix(in srgb, var(--rose) 20%, transparent)" }}>{overdueT} overdue</span>}
+                                      <span className="rounded-full border px-1.5 py-0.5 font-semibold" style={{ background: campCount > 0 ? "color-mix(in srgb, var(--teal) 10%, transparent)" : "var(--bg-grouped)", color: campCount > 0 ? "var(--teal)" : "var(--fg-tertiary)", borderColor: campCount > 0 ? "color-mix(in srgb, var(--teal) 20%, transparent)" : "var(--border)" }}>{campCount} campaign{campCount !== 1 ? "s" : ""}</span>
+                                    </div>
+                                    );
+                                  })()}
+                                  {canViewLeaves && (
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t pt-2 text-[11px]" style={{ borderColor: "var(--border)" }}>
+                                      {balL ? <Sh c="h-6 w-full max-w-xs rounded-lg" /> : !leaveBalance ? (
+                                        <p style={{ color: "var(--fg-tertiary)" }}>Leave balance unavailable.</p>
+                                      ) : (
+                                        <>
+                                          <span className="rounded-full border px-2 py-0.5 font-bold tabular-nums" style={{ borderColor: "var(--border)", color: "var(--green)" }}>{leaveBalance.remaining} remaining</span>
+                                          <span className="tabular-nums" style={{ color: "var(--fg-tertiary)" }}>of {leaveBalance.total} · used {leaveBalance.used}</span>
+                                          {leaveExtras.onLeaveToday && <span className="rounded-full px-2 py-0.5 font-bold" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>On Leave</span>}
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            )}
-                          </div>
+                              {/* Schedule — spans 2 columns */}
+                              {canViewSchedule && (
+                                <div className="lg:col-span-2 min-w-0 rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Schedule</p>
+                                      {!editing && week && (() => {
+                                        const workDays = ALL_WEEKDAYS.filter((d) => week[d]?.isWorking);
+                                        const workDayCount = workDays.length;
+                                        let weeklyMins = 0, weeklyBreakMins = 0;
+                                        for (const d of workDays) {
+                                          const wd2 = week[d];
+                                          if (!wd2.isWorking) continue;
+                                          const [sh3, sm3] = (wd2.start ?? "10:00").split(":").map(Number);
+                                          const [eh3, em3] = (wd2.end ?? "19:00").split(":").map(Number);
+                                          weeklyMins += Math.max(eh3 * 60 + em3 - (sh3 * 60 + sm3), 0);
+                                          weeklyBreakMins += wd2.breakMinutes ?? 0;
+                                        }
+                                        return (
+                                          <span className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--primary)" }}>{fmtHours(weeklyMins - weeklyBreakMins)}/wk · {workDayCount} days</span>
+                                        );
+                                      })()}
+                                      {editing && editForm && (
+                                        <button type="button" onClick={copyMondayToAll} className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: "var(--primary)", background: "var(--bg-grouped)" }}>Mon → All</button>
+                                      )}
+                                    </div>
+                                    {empL || !employee ? (
+                                      <div className="space-y-1">{[1, 2, 3].map((i) => <Sh key={i} c="h-6 w-full rounded" />)}</div>
+                                    ) : editing && editForm ? (
+                                      <div className="space-y-2 overflow-hidden">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <select className="input !w-auto !min-h-0 text-[11px] py-1 px-2 flex-1" value={editForm.shiftType} onChange={(e) => setEditForm({ ...editForm, shiftType: e.target.value })}>
+                                            <option value="fullTime">Full Time</option>
+                                            <option value="partTime">Part Time</option>
+                                            <option value="contract">Contract</option>
+                                          </select>
+                                          <div className="flex items-center gap-1">
+                                            <input className="input !w-12 !min-h-0 text-[11px] py-1 px-1 text-center" type="number" min={0} title="Grace" value={editForm.graceMinutes} onChange={(e) => setEditForm({ ...editForm, graceMinutes: Number(e.target.value) || 0 })} />
+                                            <span className="text-[10px] shrink-0" style={{ color: "var(--fg-tertiary)" }}>grace</span>
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                          {ALL_WEEKDAYS.map((day) => {
+                                            const ds = editForm.weeklySchedule[day];
+                                            return (
+                                              <div key={day} className="flex items-center gap-1.5 rounded-md px-1.5 py-1" style={{ background: "var(--bg-grouped)" }}>
+                                                <span className="w-7 shrink-0 text-[10px] font-semibold" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[day].slice(0, 3)}</span>
+                                                <ToggleSwitch checked={ds.isWorking} onChange={() => updateEditDay(day, { isWorking: !ds.isWorking })} size="sm" />
+                                                {ds.isWorking && (
+                                                  <div className="flex items-center gap-1 min-w-0 flex-1">
+                                                    <input className="input !min-h-0 text-[10px] py-0.5 px-1 min-w-0 flex-1" type="time" value={ds.start} onChange={(e) => updateEditDay(day, { start: e.target.value })} />
+                                                    <input className="input !min-h-0 text-[10px] py-0.5 px-1 min-w-0 flex-1" type="time" value={ds.end} onChange={(e) => updateEditDay(day, { end: e.target.value })} />
+                                                    <input className="input !min-h-0 !w-8 shrink-0 text-[10px] py-0.5 px-0.5 text-center" type="number" min={0} title="Break" value={ds.breakMinutes} onChange={(e) => updateEditDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                                          {week && ALL_WEEKDAYS.map((d) => {
+                                            const wd3 = week[d];
+                                            const isToday = d === todayWeekdayKey();
+                                            return (
+                                              <div key={d} className="flex items-center justify-between rounded-md px-2 py-1"
+                                                style={{ background: isToday ? "color-mix(in srgb, var(--primary) 6%, transparent)" : "transparent" }}
+                                              >
+                                                <span className="text-[11px] font-semibold w-10" style={{ color: isToday ? "var(--primary)" : "var(--fg-secondary)" }}>
+                                                  {WEEKDAY_LABELS[d].slice(0, 3)}{isToday ? " ●" : ""}
+                                                </span>
+                                                {wd3.isWorking ? (
+                                                  <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--fg)" }}>{wd3.start} – {wd3.end}</span>
+                                                ) : (
+                                                  <span className="text-[11px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Off</span>
+                                                )}
+                                                {wd3.isWorking && <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{wd3.breakMinutes}m brk</span>}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                        <div className="mt-1.5 flex items-center justify-between border-t pt-1.5 text-[11px]" style={{ borderColor: "var(--border)" }}>
+                                          <span style={{ color: "var(--fg-tertiary)" }}>Grace</span>
+                                          <span className="font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{employee.graceMinutes ?? 0} min</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                </div>
+                              )}
+                            </div>
                         </div>
+                        );
+                      })()}
+
+                      {tab === "privileges" && canPrivileges && (() => {
+                        const primary = memActive[0];
+                        if (!primary) return <p className="text-sm py-8 text-center" style={{ color: "var(--fg-tertiary)" }}>No active membership found.</p>;
+                        const desigPerms = primary.designation?.defaultPermissions ?? {};
+                        const currentPerms = primary.permissions ?? desigPerms;
+                        const isCustom = primary.hasCustomPermissions === true;
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>
+                                  {primary.designation?.name ?? "Unknown"} <span className="font-normal" style={{ color: "var(--fg-tertiary)" }}>in {primary.department?.title ?? "—"}</span>
+                                </p>
+                                {isCustom && <p className="text-[10px] font-semibold" style={{ color: "var(--amber)" }}>Custom overrides active</p>}
+                              </div>
+                              {isCustom && canPerm("members_customizePermissions") && (
+                                <button type="button" className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}
+                                  onClick={async () => {
+                                    const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hasCustomPermissions: false }) });
+                                    if (res.ok) { toast.success("Reset to designation defaults"); if (memUrl) invalidateQueries(memUrl); }
+                                    else toast.error("Failed to reset");
+                                  }}
+                                >Reset to Defaults</button>
+                              )}
+                            </div>
+                            {PERMISSION_CATEGORIES.map((cat) => {
+                              const relevant = cat.keys.filter((k) => desigPerms[k] !== undefined || currentPerms[k] !== undefined);
+                              if (relevant.length === 0) return null;
+                              return (
+                                <div key={cat.label} className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{cat.label}</p>
+                                  <div className="space-y-1">
+                                    {cat.keys.map((k) => {
+                                      const meta = PERMISSION_META[k];
+                                      const enabled = Boolean(currentPerms[k as string]);
+                                      const isDefault = desigPerms[k as string] === currentPerms[k as string] || !isCustom;
+                                      return (
+                                        <div key={k} className="flex items-center justify-between gap-2 rounded-md px-2 py-1" style={{ background: enabled ? "color-mix(in srgb, var(--green) 4%, transparent)" : "transparent" }}>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-[11px] font-medium" style={{ color: enabled ? "var(--fg)" : "var(--fg-tertiary)" }}>{meta.label}</p>
+                                          </div>
+                                          {canPerm("members_customizePermissions") ? (
+                                            <ToggleSwitch size="sm" checked={enabled}
+                                              onChange={async () => {
+                                                const newPerms = { [k]: !enabled };
+                                                const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: newPerms }) });
+                                                if (res.ok) { if (memUrl) invalidateQueries(memUrl); }
+                                                else toast.error("Failed to update");
+                                              }}
+                                            />
+                                          ) : (
+                                            <span className="text-[10px] font-semibold" style={{ color: enabled ? "var(--green)" : "var(--fg-tertiary)" }}>{enabled ? "Yes" : "No"}</span>
+                                          )}
+                                          {!isDefault && <span className="text-[9px] font-bold rounded px-1" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>custom</span>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         );
                       })()}
 
@@ -1931,302 +2221,6 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                         </div>
                       )}
 
-                      {tab === "schedule" && (
-                        <div className="space-y-3">
-                          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Shift & Schedule</p>
-                            {empL || !employee ? (
-                              <div className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <Sh key={i} c="h-10 w-full rounded-lg" />)}</div>
-                            ) : editing && editForm ? (
-                              <>
-                                {/* Editable shift type + grace */}
-                                <div className="grid grid-cols-2 gap-3 mb-3">
-                                  <div>
-                                    <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Shift Type</label>
-                                    <select className="input text-xs" value={editForm.shiftType} onChange={(e) => setEditForm({ ...editForm, shiftType: e.target.value })}>
-                                      <option value="fullTime">Full Time</option>
-                                      <option value="partTime">Part Time</option>
-                                      <option value="contract">Contract</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Grace Minutes</label>
-                                    <input className="input text-xs" type="number" min={0} value={editForm.graceMinutes} onChange={(e) => setEditForm({ ...editForm, graceMinutes: Number(e.target.value) || 0 })} />
-                                  </div>
-                                </div>
-                                {/* Editable weekly schedule */}
-                                <div className="flex items-center justify-between mb-2">
-                                  <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly Schedule</p>
-                                  <button type="button" onClick={copyMondayToAll} className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ color: "var(--primary)", background: "var(--bg-grouped)" }}>Copy Mon → All</button>
-                                </div>
-                                <div className="space-y-1.5">
-                                  {ALL_WEEKDAYS.map((day) => {
-                                    const ds = editForm.weeklySchedule[day];
-                                    return (
-                                      <div key={day} className="rounded-lg px-2.5 py-2" style={{ background: "var(--bg-grouped)" }}>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                          <span className="text-[11px] font-semibold" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[day]}</span>
-                                          <ToggleSwitch checked={ds.isWorking} onChange={() => updateEditDay(day, { isWorking: !ds.isWorking })} size="md" />
-                                        </div>
-                                        {ds.isWorking && (
-                                          <div className="grid grid-cols-3 gap-2">
-                                            <div>
-                                              <label className="block text-[11px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Start</label>
-                                              <input className="input text-xs py-1" type="time" value={ds.start} onChange={(e) => updateEditDay(day, { start: e.target.value })} />
-                                            </div>
-                                            <div>
-                                              <label className="block text-[11px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>End</label>
-                                              <input className="input text-xs py-1" type="time" value={ds.end} onChange={(e) => updateEditDay(day, { end: e.target.value })} />
-                                            </div>
-                                            <div>
-                                              <label className="block text-[11px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Break</label>
-                                              <input className="input text-xs py-1" type="number" min={0} value={ds.breakMinutes} onChange={(e) => updateEditDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                    <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Shift Type</p>
-                                    <p className="text-sm font-bold" style={{ color: "var(--fg)" }}>{(SHIFT_LABELS[shiftK] ?? shiftK) || "—"}</p>
-                                  </div>
-                                  <div className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                    <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Grace Minutes</p>
-                                    <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{employee.graceMinutes ?? 0}m</p>
-                                  </div>
-                                </div>
-                                <div className="mt-3 rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                                  <p className="mb-1 text-[11px] font-semibold uppercase" style={{ color: "var(--fg-tertiary)" }}>Today</p>
-                                  <p className="text-sm font-bold" style={{ color: todayS.isWorking ? "var(--fg)" : "var(--amber)" }}>{todayS.isWorking ? `${todayS.start} – ${todayS.end} (${todayS.breakMinutes}m break)` : "Day off"}</p>
-                                </div>
-                                {week && (() => {
-                                  const workDays = ALL_WEEKDAYS.filter((d) => week[d]?.isWorking);
-                                  const workDayCount = workDays.length;
-                                  let weeklyMins = 0, weeklyBreakMins = 0;
-                                  for (const d of workDays) {
-                                    const wd2 = week[d];
-                                    if (!wd2.isWorking) continue;
-                                    const [sh3, sm3] = (wd2.start ?? "10:00").split(":").map(Number);
-                                    const [eh3, em3] = (wd2.end ?? "19:00").split(":").map(Number);
-                                    const dayMins = Math.max(eh3 * 60 + em3 - (sh3 * 60 + sm3), 0);
-                                    weeklyMins += dayMins;
-                                    weeklyBreakMins += wd2.breakMinutes ?? 0;
-                                  }
-                                  const netWeeklyMins = weeklyMins - weeklyBreakMins;
-                                  const avgDaily = ms?.averageDailyHours;
-                                  const scheduledDailyHrs = workDayCount > 0 ? netWeeklyMins / workDayCount / 60 : 0;
-                                  const adherence = avgDaily && scheduledDailyHrs > 0 ? Math.round((avgDaily / scheduledDailyHrs) * 100) : null;
-                                  return (
-                                    <div className="mt-3 grid grid-cols-2 gap-2">
-                                      <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--primary)" }}>Weekly Hours</p>
-                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(netWeeklyMins)}</p>
-                                      </div>
-                                      <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--fg-secondary)" }}>Working Days</p>
-                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{workDayCount}/wk</p>
-                                      </div>
-                                      <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--purple)" }}>Weekly Break</p>
-                                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{fmtHours(weeklyBreakMins)}</p>
-                                      </div>
-                                      {adherence != null && (
-                                        <div className="rounded-lg border px-2 py-1.5 text-center" style={{ borderColor: "var(--border)" }}>
-                                          <p className="text-[11px] font-semibold uppercase" style={{ color: adherence >= 90 ? "var(--green)" : "var(--amber)" }}>Adherence</p>
-                                          <p className="text-sm font-bold tabular-nums" style={{ color: "var(--fg)" }}>{adherence}%</p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-                                {week && (
-                                  <div className="mt-3">
-                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Weekly schedule</p>
-                                    <div className="space-y-1">
-                                      {ALL_WEEKDAYS.map((d) => {
-                                        const wd3 = week[d];
-                                        const isToday = d === todayWeekdayKey();
-                                        return (
-                                          <div
-                                            key={d}
-                                            className="flex items-center justify-between rounded-lg px-2.5 py-1.5"
-                                            style={{
-                                              background: isToday ? "color-mix(in srgb, var(--primary) 6%, transparent)" : "var(--bg-grouped)",
-                                              border: isToday ? "1px solid color-mix(in srgb, var(--primary) 20%, transparent)" : "none",
-                                            }}
-                                          >
-                                            <span className="text-[11px] font-semibold" style={{ color: isToday ? "var(--primary)" : "var(--fg-secondary)" }}>
-                                              {WEEKDAY_LABELS[d]}{isToday ? " (Today)" : ""}
-                                            </span>
-                                            <span className="text-[11px] font-bold tabular-nums" style={{ color: wd3.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>
-                                              {wd3.isWorking ? `${wd3.start} – ${wd3.end} · ${wd3.breakMinutes}m break` : "Off"}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {tab === "profile" && (
-                        <div className="space-y-3">
-                          {/* ── Editable Personal Info ── */}
-                          {editing && editForm ? (
-                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Personal Information</p>
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Full Name</label>
-                                  <input className="input text-xs" placeholder="Full Name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
-                                </div>
-                                <div>
-                                  <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>New Password (optional)</label>
-                                  <input className="input text-xs" type="password" placeholder="Leave blank to keep current" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
-                                </div>
-                              </div>
-                            </section>
-                          ) : (
-                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Identity & Account</p>
-                              {empL || !employee ? (
-                                <div className="space-y-2">{[1, 2, 3, 4, 5, 6].map((i) => <Sh key={i} c="h-4 w-full" />)}</div>
-                              ) : (
-                                <dl className="grid gap-2 sm:grid-cols-2">
-                                  <ProfRow k="Email" v={employee.email} />
-                                  <ProfRow k="Phone" v={employee.about?.phone || "—"} />
-                                  <ProfRow k="Username" v={`@${employee.username}`} />
-                                  <div className="flex justify-between gap-2 text-[12px] sm:block">
-                                    <dt style={{ color: "var(--fg-tertiary)" }}>Role</dt>
-                                    <dd className="flex flex-wrap items-center justify-end gap-1 sm:mt-0.5">
-                                      <span className="font-medium" style={{ color: "var(--fg)" }}>{designation}</span>
-                                      {employee.isSuperAdmin && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: "var(--rose)", color: "#fff" }}>Super Admin</span>}
-                                      {employee.isVerified === true && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--green) 18%, transparent)", color: "var(--green)" }}>Verified</span>}
-                                      {employee.isVerified === false && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: "color-mix(in srgb, var(--amber) 18%, transparent)", color: "var(--amber)" }}>Unverified</span>}
-                                    </dd>
-                                  </div>
-                                  <ProfRow k="Department" v={employee.department?.title ?? "—"} />
-                                  <ProfRow k="Designation" v={designation} />
-                                  <ProfRow k="Joined" v={employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"} />
-                                  <ProfRow k="Account status" v={employee.isActive === false ? "Inactive" : "Active"} />
-                                  <ProfRow k="Account Age" v={(() => {
-                                    if (!employee.createdAt) return "—";
-                                    const diff = Date.now() - new Date(employee.createdAt).getTime();
-                                    const days = Math.floor(diff / 86400000);
-                                    if (days < 30) return `${days}d`;
-                                    const months = Math.floor(days / 30.44);
-                                    if (months < 12) return `${months}mo`;
-                                    const years = Math.floor(months / 12);
-                                    const rem = months % 12;
-                                    return rem > 0 ? `${years}y ${rem}mo` : `${years}y`;
-                                  })()} />
-                                  {employee.createdBy && <ProfRow k="Invited By" v={employee.createdBy} />}
-                                  <ProfRow k="Last Active" v={(() => {
-                                    const le = sess?.lastExit;
-                                    if (!le) return hasAct ? "Now" : "—";
-                                    if (hasAct) return "Now";
-                                    const d = new Date(le);
-                                    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
-                                  })()} />
-                                </dl>
-                              )}
-                            </section>
-                          )}
-
-                          {/* ── Editable Department Assignment ── */}
-                          {editing && editForm && departments.length > 0 ? (
-                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
-                                {multiDeptUi ? "Managed Departments" : "Department"}
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {departments.map((d) => {
-                                  const active = multiDeptUi ? editForm.managedDepartments.includes(d._id) : editForm.department === d._id;
-                                  return (
-                                    <button
-                                      key={d._id}
-                                      type="button"
-                                      onClick={() => {
-                                        if (multiDeptUi) { toggleManagedDept(d._id); }
-                                        else { setEditForm((f) => f ? { ...f, department: f.department === d._id ? "" : d._id } : f); }
-                                      }}
-                                      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all ${active ? "text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
-                                      style={active ? { background: "var(--primary)" } : { background: "var(--bg-grouped)" }}
-                                    >
-                                      {d.title}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              <div className="mt-2">
-                                {!multiDeptUi ? (
-                                  <button type="button" className="text-[11px] font-medium hover:underline" style={{ color: "var(--primary)" }} onClick={() => {
-                                    setMultiDeptUi(true);
-                                    setEditForm((f) => f ? { ...f, managedDepartments: f.department ? [f.department] : f.managedDepartments } : f);
-                                  }}>Manage multiple departments</button>
-                                ) : (
-                                  <button type="button" className="text-[11px] font-medium hover:underline" style={{ color: "var(--fg-secondary)" }} onClick={() => {
-                                    setMultiDeptUi(false);
-                                    setEditForm((f) => f ? { ...f, department: f.department || f.managedDepartments[0] || "", managedDepartments: [] } : f);
-                                  }}>Use single department</button>
-                                )}
-                              </div>
-                            </section>
-                          ) : null}
-
-                          {/* ── Editable Salary ── */}
-                          {editing && editForm && canPerm("payroll_manageSalary") ? (
-                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
-                              <div>
-                                <label className="block text-[11px] font-medium mb-1" style={{ color: "var(--fg-secondary)" }}>Base Salary (Monthly)</label>
-                                <input className="input text-xs" type="number" min={0} placeholder="e.g. 50000" value={editForm.salary} onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })} />
-                              </div>
-                            </section>
-                          ) : !editing && employee?.salary != null && canPerm("payroll_manageSalary") ? (
-                            <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Salary</p>
-                              <p className="text-lg font-bold tabular-nums" style={{ color: "var(--fg)" }}>{employee.salary.toLocaleString()}</p>
-                              {employee.salaryHistory?.length ? (
-                                <div className="mt-2 space-y-1">
-                                  {employee.salaryHistory.slice().reverse().slice(0, 5).map((h, i) => (
-                                    <div key={i} className="flex items-center justify-between rounded-lg px-2 py-1" style={{ background: "var(--bg-grouped)" }}>
-                                      <span className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{new Date(h.effectiveDate).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
-                                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{h.previousSalary.toLocaleString()} → {h.newSalary.toLocaleString()}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : null}
-                            </section>
-                          ) : null}
-
-                          {/* Memberships (read-only) */}
-                          <section className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Memberships</p>
-                            {memL ? <div className="flex flex-wrap gap-1.5"><Sh c="h-7 w-24" /><Sh c="h-7 w-28" /></div>
-                            : memActive.length === 0 ? <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>No active memberships.</p>
-                            : (
-                              <div className="flex flex-wrap gap-1.5">
-                                {memActive.map((m) => (
-                                  <span key={m._id} className="max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: m.designation?.color ?? "var(--border)", color: "var(--fg-secondary)", background: "var(--bg-elevated)" }} title={m.designation?.name}>
-                                    {m.department?.title ?? "Dept"}{m.designation?.name ? ` · ${m.designation.name}` : ""}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </section>
-                        </div>
-                      )}
                   </motion.div>
                   </AnimatePresence>
                 )}

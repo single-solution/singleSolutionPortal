@@ -135,10 +135,12 @@ html {
   text-size-adjust: 100%;
 }
 
-/* Large / 4K screen scaling — progressive zoom */
-@media (min-width: 1921px) { html { zoom: 1.08; } }
-@media (min-width: 2560px) { html { zoom: 1.2; } }
-@media (min-width: 3840px) { html { zoom: 1.4; } }
+/* Large / 4K screen scaling — scale via root font-size so rem-based
+   layouts grow while coordinate-based libs (ReactFlow, canvas) stay correct.
+   CSS zoom breaks getBoundingClientRect / pointer math in those libs. */
+@media (min-width: 1921px) { html { font-size: 17.28px; } }
+@media (min-width: 2560px) { html { font-size: 19.2px;  } }
+@media (min-width: 3840px) { html { font-size: 22.4px;  } }
 
 body {
   background: var(--bg);

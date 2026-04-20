@@ -17,7 +17,7 @@ import {
 import type { VerifiedUser } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
-async function buildTeamEmployeeFilter(actor: VerifiedUser, subordinateIds: string[]): Promise<Record<string, unknown>> {
+function buildSubordinateEmployeeFilter(actor: VerifiedUser, subordinateIds: string[]): Record<string, unknown> {
   const filter: Record<string, unknown> = {
     isActive: true,
     isSuperAdmin: { $ne: true },
@@ -28,24 +28,12 @@ async function buildTeamEmployeeFilter(actor: VerifiedUser, subordinateIds: stri
     return filter;
   }
 
-  if (subordinateIds.length > 0) {
-    filter._id = { $in: subordinateIds };
+  if (subordinateIds.length === 0) {
+    filter._id = { $in: [] };
     return filter;
   }
 
-  const deptIds = actor.memberships.map((m) => m.departmentId).filter(Boolean);
-  if (deptIds.length > 0) {
-    const deptMembers = await Membership.find({
-      department: { $in: deptIds },
-      isActive: true,
-      user: { $ne: actor.id },
-    }).select("user").lean();
-    const peerIds = [...new Set(deptMembers.map((m) => m.user.toString()))];
-    filter._id = { $in: peerIds };
-    return filter;
-  }
-
-  filter._id = { $in: [] };
+  filter._id = { $in: subordinateIds };
   return filter;
 }
 
@@ -69,7 +57,7 @@ export async function GET(req: NextRequest) {
 
   if (type === "team") {
     if (!canTeam) return ok([]);
-    const empFilter = await buildTeamEmployeeFilter(actor, subordinateIds);
+    const empFilter = buildSubordinateEmployeeFilter(actor, subordinateIds);
 
     const employees = await User.find(empFilter)
       .select("about")
@@ -86,7 +74,7 @@ export async function GET(req: NextRequest) {
 
   if (type === "team-monthly") {
     if (!canTeam) return ok([]);
-    const empFilter = await buildTeamEmployeeFilter(actor, subordinateIds);
+    const empFilter = buildSubordinateEmployeeFilter(actor, subordinateIds);
 
     const employees = await User.find(empFilter)
       .select("about")
@@ -162,7 +150,7 @@ export async function GET(req: NextRequest) {
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok([]);
 
-    const empFilter = await buildTeamEmployeeFilter(actor, subordinateIds);
+    const empFilter = buildSubordinateEmployeeFilter(actor, subordinateIds);
 
     const employees = await User.find(empFilter)
       .select("about")
@@ -243,13 +231,8 @@ export async function GET(req: NextRequest) {
 
   const isSelf = userId === actor.id;
   const isSubordinate = subordinateIds.includes(userId);
-  const allowed = actor.isSuperAdmin || isSelf || isSubordinate;
+  const allowed = actor.isSuperAdmin || isSelf || (canTeam && isSubordinate);
   if (!allowed) {
-    if (type === "detail" || type === "monthly") return ok(null);
-    return ok([]);
-  }
-
-  if (!isSelf && !isSubordinate && !canTeam) {
     if (type === "detail" || type === "monthly") return ok(null);
     return ok([]);
   }

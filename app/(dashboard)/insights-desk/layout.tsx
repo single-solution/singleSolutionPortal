@@ -245,6 +245,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                 </svg>
                 Payroll
               </motion.button>
+              {canViewHolidays && (
               <motion.button type="button" onClick={() => setHolidaysOpen(true)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
@@ -258,6 +259,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
                   </span>
                 )}
               </motion.button>
+              )}
             </div>
           </div>
         </div>
@@ -274,7 +276,7 @@ export default function InsightsDeskLayout({ children }: { children: React.React
               >
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setHolidaysOpen(false)} />
                 <motion.div
-                  className="relative w-full max-w-lg mx-4 max-h-[85vh] flex flex-col rounded-xl border shadow-xl overflow-hidden"
+                  className="relative w-full max-w-lg mx-3 sm:mx-4 max-h-[min(85vh,900px)] flex flex-col rounded-xl border shadow-xl overflow-hidden"
                   style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                   initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}

@@ -3,6 +3,7 @@ import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
+import FlowLayout from "@/lib/models/FlowLayout";
 import { unauthorized, forbidden, badRequest, ok, isValidId } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds, invalidateHierarchyCache } from "@/lib/permissions";
 
@@ -70,6 +71,26 @@ export async function GET(req: Request) {
   const list = await populateMembership(Membership.find(filter))
     .sort({ createdAt: -1 })
     .lean();
+
+  if (userId) {
+    const empKey = `emp-${userId}`;
+    const flow = await FlowLayout.findOne({ canvasId: "org" }).select("links").lean();
+    const links = (flow?.links ?? []) as { source: string; target: string; designationId?: string }[];
+    const isLinkSource = links.some((l) => l.source === empKey);
+    const hasAboveMembership = (list as { direction?: string }[]).some((m) => m.direction === "above");
+    const isLeaf = !isLinkSource && !hasAboveMembership;
+
+    let linkDesignation: { name: string; color: string } | null = null;
+    if (isLinkSource) {
+      const upperLink = links.find((l) => l.source === empKey && l.designationId);
+      if (upperLink?.designationId && isValidId(upperLink.designationId)) {
+        const desig = await Designation.findById(upperLink.designationId).select("name color").lean();
+        if (desig) linkDesignation = { name: desig.name, color: desig.color };
+      }
+    }
+
+    return ok({ memberships: list, linkDesignation, isLeaf });
+  }
 
   return ok(list);
 }

@@ -459,7 +459,7 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <motion.div
-              className={`relative mx-0 sm:mx-4 flex flex-col rounded-none sm:rounded-xl border shadow-xl overflow-hidden ${isPrivileged ? "w-full max-w-7xl h-[100dvh] sm:h-[85vh]" : "w-full max-w-5xl h-[100dvh] sm:h-[85vh]"}`}
+              className={`relative mx-2 sm:mx-6 flex flex-col rounded-xl border shadow-xl overflow-hidden ${isPrivileged ? "w-full max-w-7xl h-[calc(100dvh-1rem)] sm:h-[min(85vh,900px)]" : "w-full max-w-5xl h-[calc(100dvh-1rem)] sm:h-[min(85vh,900px)]"}`}
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}

@@ -18,7 +18,7 @@ interface MembershipContext {
   departmentName: string;
   designationId: string;
   designationName: string;
-  permissions: IPermissions;
+  permissions: IPermissions | Record<string, boolean>;
 }
 
 export interface VerifiedUser {
@@ -27,6 +27,34 @@ export interface VerifiedUser {
   isSuperAdmin: boolean;
   memberships: MembershipContext[];
   isActive: boolean;
+}
+
+/**
+ * Get permissions granted to a user via emp-to-emp links in the org chart
+ * where the user is the upper node (has subordinates below them on that link).
+ */
+async function getLinkPermissions(userId: string): Promise<Partial<Record<keyof IPermissions, boolean>>> {
+  await connectDB();
+  const layout = await FlowLayout.findOne({ canvasId: "org" }).select("links").lean();
+  const links = (layout?.links ?? []) as { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean> }[];
+  const empNode = `emp-${userId}`;
+  const merged: Partial<Record<keyof IPermissions, boolean>> = {};
+
+  for (const link of links) {
+    let isAbove = false;
+    if (link.source === empNode && link.sourceHandle === "bottom" && link.targetHandle === "top") {
+      isAbove = true;
+    } else if (link.target === empNode && link.sourceHandle === "top" && link.targetHandle === "bottom") {
+      isAbove = true;
+    }
+    if (isAbove && link.permissions) {
+      for (const k of PERMISSION_KEYS) {
+        if (link.permissions[String(k)]) merged[k] = true;
+      }
+    }
+  }
+
+  return merged;
 }
 
 export async function getVerifiedSession(): Promise<VerifiedUser | null> {
@@ -57,6 +85,20 @@ export async function getVerifiedSession(): Promise<VerifiedUser | null> {
     designationName: m.designation?.name ?? "Unknown",
     permissions: m.permissions ?? {},
   }));
+
+  if (!raw.isSuperAdmin) {
+    const linkPerms = await getLinkPermissions(dbUser._id.toString());
+    if (Object.keys(linkPerms).length > 0) {
+      membershipContexts.push({
+        membershipId: "__link__",
+        departmentId: "",
+        departmentName: "",
+        designationId: "",
+        designationName: "",
+        permissions: linkPerms as Record<string, boolean>,
+      });
+    }
+  }
 
   return {
     id: dbUser._id.toString(),
@@ -105,6 +147,11 @@ export async function getPermissionsPayload(userId: string): Promise<Permissions
         if ((m.permissions as unknown as Record<string, boolean>)?.[k]) merged[k] = true;
       }
     }
+
+    const linkPerms = await getLinkPermissions(userId);
+    for (const k of PERMISSION_KEYS) {
+      if (linkPerms[k]) merged[k] = true;
+    }
   }
 
   const subordinateIds = userIsSuperAdmin ? [] : await getSubordinateUserIds(userId);
@@ -141,7 +188,7 @@ export function hasPermission(
     ? actor.memberships.filter((m) => m.departmentId === departmentId)
     : actor.memberships;
 
-  return relevantMemberships.some((m) => m.permissions[permission as keyof IPermissions] === true);
+  return relevantMemberships.some((m) => (m.permissions as Record<string, boolean>)[permission as string] === true);
 }
 
 /* ================================================================ */

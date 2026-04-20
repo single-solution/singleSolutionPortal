@@ -52,23 +52,6 @@ export async function GET() {
     }
   }
 
-  const selfDeptIds = (await Membership.find({ user: actor.id, isActive: true }).select("department").lean())
-    .map((m) => m.department?.toString())
-    .filter(Boolean) as string[];
-
-  if (selfDeptIds.length > 0) {
-    const aboveMembers = await Membership.find({
-      department: { $in: selfDeptIds },
-      direction: "above",
-      isActive: true,
-      user: { $ne: actor.id },
-    }).select("user").lean();
-    for (const m of aboveMembers) {
-      const uid = m.user.toString();
-      if (!managerIds.includes(uid)) managerIds.push(uid);
-    }
-  }
-
   const allVisibleUsers = [actor.id, ...subordinateIds, ...managerIds];
   const visibleEmpNodes = new Set(allVisibleUsers.map((id) => `emp-${id}`));
 

@@ -325,7 +325,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                className="rounded-xl border flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden shadow-xl"
+                className="rounded-xl border flex w-full max-w-2xl max-h-[min(90vh,900px)] flex-col overflow-hidden shadow-xl"
                 style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
                 onClick={(e) => e.stopPropagation()}
               >

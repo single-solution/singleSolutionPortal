@@ -78,9 +78,28 @@ function EmpNode({ data }: NodeProps) {
   const initials = String(data.initials ?? "");
   const isActive = data.active !== false;
   const onEdit = data.onEdit as (() => void) | undefined;
+  const isLeaf = data.isLeaf === true;
+  const leafDesig = data.leafDesignation as string | null;
+  const leafDesigId = data.leafDesigId as string | null;
+  const leafColor = (data.leafDesigColor as string | null) ?? "var(--fg-tertiary)";
+  const leafDesignations = data.leafDesignations as DesigOption[] | undefined;
+  const canAssignLeafDesig = data.canAssignLeafDesig === true;
+  const onChangeLeafDesig = data.onChangeLeafDesig as ((membershipId: string | null, designationId: string) => void) | undefined;
+  const leafMembershipId = data.leafMembershipId as string | null;
+
+  const [pillOpen, setPillOpen] = useState(false);
+  const pillRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pillOpen) return;
+    const h = (e: MouseEvent) => { if (pillRef.current && !pillRef.current.contains(e.target as HTMLElement)) setPillOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [pillOpen]);
+
   return (
     <div
-      className={`rounded-xl border px-3 py-2 shadow-sm min-w-[140px] transition-shadow ${isActive ? "" : "opacity-50 grayscale"} ${onEdit ? "cursor-pointer hover:shadow-md hover:border-[var(--teal)]" : ""}`}
+      className={`relative rounded-xl border px-3 py-2 shadow-sm min-w-[140px] transition-shadow ${isActive ? "" : "opacity-50 grayscale"} ${onEdit ? "cursor-pointer hover:shadow-md hover:border-[var(--teal)]" : ""}`}
       style={{ background: "var(--bg-elevated)", borderColor: "var(--border-strong)" }}
       onClick={() => onEdit?.()}
     >
@@ -93,6 +112,46 @@ function EmpNode({ data }: NodeProps) {
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-[var(--teal)] !w-3 !h-3 !border-2 !border-white" />
+
+      {isLeaf && (
+        <div ref={pillRef} className="absolute -right-1 top-1/2 -translate-y-1/2 translate-x-full z-10 nodrag nopan" style={{ pointerEvents: "all" }}>
+          <button type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); if (canAssignLeafDesig) setPillOpen(!pillOpen); }}
+            className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all hover:shadow-md whitespace-nowrap"
+            style={leafDesig
+              ? { background: leafColor, color: "white", borderColor: leafColor, cursor: canAssignLeafDesig ? "pointer" : "default" }
+              : { background: "var(--bg-elevated)", color: "var(--fg-tertiary)", borderColor: "var(--border)", cursor: canAssignLeafDesig ? "pointer" : "default", borderStyle: "dashed" }
+            }
+          >
+            {leafDesig ?? "Assign"}
+            {canAssignLeafDesig && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
+          </button>
+          <AnimatePresence>
+            {pillOpen && canAssignLeafDesig && (
+              <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.12 }}
+                onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+                className="absolute right-0 top-full mt-1 z-50 rounded-xl border shadow-xl overflow-hidden min-w-[160px]"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+                <div className="p-1.5 max-h-44 overflow-y-auto">
+                  <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Designation</p>
+                  {(leafDesignations ?? []).map((d) => (
+                    <button key={d._id} type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onChangeLeafDesig?.(leafMembershipId ?? null, d._id); setPillOpen(false); }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors hover:bg-[var(--bg-grouped)]"
+                      style={{ color: leafDesigId === d._id ? d.color : "var(--fg-secondary)" }}>
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: d.color }} />
+                      {d.name}
+                      {leafDesigId === d._id && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="ml-auto"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
@@ -233,7 +292,7 @@ interface Props {
 }
 
 export function OrgFlowTree({ departments, employees, designations, canEditCanvas, canAssignDesignation = false, canCustomizePermissions = false, canAddToDepartment = false, canRemoveFromDepartment = false, editableEmployeeIds, onEditEmployee }: Props) {
-  interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string }
+  interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string; leafDesignationId?: string }
 
   const canEditEmp = useCallback((empId: string) => {
     if (!editableEmployeeIds) return true;
@@ -471,6 +530,26 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     setChangingDesigId(null);
   }, []);
 
+  const handleLeafDesignation = useCallback((empId: string, membershipId: string | null, designationId: string) => {
+    if (membershipId) {
+      setChangingDesigId(membershipId);
+      fetch(`/api/memberships/${membershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ designation: designationId }) })
+        .then(async (res) => { if (res.ok) { const updated = await res.json(); setMemberships((prev) => prev.map((m) => m._id === membershipId ? updated : m)); } else toast.error("Failed to update designation"); })
+        .catch(() => toast.error("Something went wrong"))
+        .finally(() => setChangingDesigId(null));
+    } else {
+      const eKey = `emp-${empId}`;
+      setEmpLinks((prev) => {
+        const idx = prev.findIndex((l) => l.target === eKey);
+        if (idx < 0) { toast.error("No connection found for this employee"); return prev; }
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], leafDesignationId: designationId };
+        saveEmpLinks(updated);
+        return updated;
+      });
+    }
+  }, [saveEmpLinks]);
+
   /* ── Edge actions (emp link) ── */
   const handleChangeLinkDesignation = useCallback((linkIdx: number, designationId: string) => {
     setEmpLinks((prev) => {
@@ -623,6 +702,8 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       nodes.push({ id: dId, type: "dept", position: savedPositions[dId] ?? { x: dIdx * DEPT_X, y: 0 }, data: { label: dept.title, sub: `${dept.employeeCount} people` } });
     });
 
+    const linkSources = new Set(empLinks.filter((l) => l.source.startsWith("emp-")).map((l) => l.source.slice(4)));
+
     const empSet = new Set<string>();
     employees.forEach((emp, eIdx) => {
       const eId = `emp-${emp._id}`;
@@ -637,7 +718,32 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         if (n) { xGuess = n.position.x; yGuess = n.position.y + LEVEL; }
       }
       const editable = canEditEmp(emp._id);
-      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: { label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id, onEdit: onEditEmployee && editable ? () => onEditEmployee(emp._id) : undefined } });
+      const hasAbove = empMems.some((m) => m.direction === "above");
+      const isLeaf = !linkSources.has(emp._id) && !hasAbove;
+      const leafMem = isLeaf ? empMems.find((m) => m.designation?.name) : null;
+      const leafMemAny = isLeaf ? empMems[0] : null;
+      let leafDesigName: string | null = leafMem?.designation?.name ?? null;
+      let leafDesigIdVal: string | null = leafMem?.designation?._id ?? null;
+      let leafDesigColorVal: string | null = leafMem?.designation?.color ?? null;
+      if (isLeaf && !leafDesigName) {
+        const incomingLink = empLinks.find((l) => l.target === eId);
+        if (incomingLink?.leafDesignationId) {
+          const d = designations.find((dd) => dd._id === incomingLink.leafDesignationId);
+          if (d) { leafDesigName = d.name; leafDesigIdVal = d._id; leafDesigColorVal = d.color; }
+        }
+      }
+      nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: {
+        label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id,
+        onEdit: onEditEmployee && editable ? () => onEditEmployee(emp._id) : undefined,
+        isLeaf,
+        leafDesignation: leafDesigName,
+        leafDesigId: leafDesigIdVal,
+        leafDesigColor: leafDesigColorVal,
+        leafMembershipId: leafMemAny?._id ?? null,
+        leafDesignations: isLeaf ? designations : undefined,
+        canAssignLeafDesig: isLeaf && canAssignDesignation && editable,
+        onChangeLeafDesig: isLeaf ? (mId: string | null, dId: string) => handleLeafDesignation(emp._id, mId, dId) : undefined,
+      } });
     });
 
     const edgeData = (m: MembershipRow): Record<string, unknown> => {
@@ -693,7 +799,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee, canEditEmp, canEditCanvas, canAssignDesignation, canCustomizePermissions, canRemoveFromDepartment, changingDesigId]);
+  }, [departments, employees, memberships, empLinks, savedPositions, designations, handleChangeDesignation, handleLeafDesignation, handleChangeLinkDesignation, openPrivileges, openLinkPrivileges, handleDeleteMembership, handleDeleteLink, onEditEmployee, canEditEmp, canEditCanvas, canAssignDesignation, canCustomizePermissions, canRemoveFromDepartment, changingDesigId]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -757,7 +863,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         {connOpen && (
           <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setConnOpen(false)} />
-            <motion.div className="relative w-full max-w-md mx-4 rounded-2xl border p-6 shadow-xl"
+            <motion.div className="relative w-full max-w-md mx-3 sm:mx-4 rounded-2xl border p-6 shadow-xl"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
@@ -792,7 +898,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         {privOpen && (
           <motion.div className="fixed inset-0 z-[70] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPrivOpen(false)} />
-            <motion.div className="relative w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col rounded-2xl border shadow-xl"
+            <motion.div className="relative w-full max-w-4xl mx-3 sm:mx-4 max-h-[min(90vh,900px)] flex flex-col rounded-2xl border shadow-xl"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }} onClick={(e) => e.stopPropagation()}>
