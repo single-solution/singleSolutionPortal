@@ -423,18 +423,18 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
     : 480;
 
   if (!pa) {
-    return (
+                return (
       <div className="rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
         <h3 className="shrink-0 px-3 py-2 text-[12px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>My Day</h3>
         <div className="p-2">
-          <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
             {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="card-static p-1.5"><Bone w="w-12" h="h-2" /><Bone w="w-10" h="h-3" /></div>)}
-          </div>
+              </div>
           <div className="mt-2"><Bone w="w-full" h="h-2" /></div>
-        </div>
-      </div>
-    );
-  }
+                    </div>
+    </div>
+  );
+}
 
   const todayHours = pa.todayMinutes / 60;
   const shiftPct = Math.min(100, Math.round((pa.todayMinutes / shiftTarget) * 100));
@@ -446,46 +446,46 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
       <h3 className="shrink-0 px-3 py-2 text-[12px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>My Day</h3>
       <div className="p-2 space-y-2">
       <div className="grid grid-cols-3 gap-1.5">
-        <div className="card-static p-1.5">
+            <div className="card-static p-1.5">
           <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Clock in</p>
-          <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
-        </div>
-        <div className="card-static p-1.5 text-center">
+              <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockIn ? formatClock(new Date(pa.clockIn)) : "—"}</p>
+          </div>
+            <div className="card-static p-1.5 text-center">
           <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Hours today</p>
-          <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
-        </div>
-        <div className="card-static p-1.5 text-right">
+              <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{todayHours >= 1 ? todayHours.toFixed(1) + "h" : pa.todayMinutes + "m"}</p>
+            </div>
+            <div className="card-static p-1.5 text-right">
           <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Clock out</p>
-          <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
-        </div>
-      </div>
+              <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg)" }}>{pa.clockOut ? formatClock(new Date(pa.clockOut)) : "—"}</p>
+            </div>
+            </div>
       <div className="grid grid-cols-3 gap-1.5">
-        <div className="card-static p-1.5">
+            <div className="card-static p-1.5">
           <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Office entry</p>
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.firstOfficeEntry ? formatClock(new Date(pa.firstOfficeEntry)) : "—"}</p>
-        </div>
-        <div className="card-static p-1.5 text-center">
+          </div>
+            <div className="card-static p-1.5 text-center">
           <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Office hours</p>
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{formatMinutes(pa.officeMinutes)}</p>
         </div>
-        <div className="card-static p-1.5 text-right">
+            <div className="card-static p-1.5 text-right">
           <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Office exit</p>
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.lastOfficeExit ? formatClock(new Date(pa.lastOfficeExit)) : "—"}</p>
-        </div>
-      </div>
+              </div>
+            </div>
       <div className="flex items-center gap-2 text-[11px]">
         <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--status-office) 10%, transparent)", color: "var(--status-office)" }}>{formatMinutes(pa.officeMinutes)} office ({officePct}%)</span>
         <span className="rounded px-1 py-px font-medium" style={{ background: "color-mix(in srgb, var(--status-remote) 10%, transparent)", color: "var(--status-remote)" }}>{formatMinutes(pa.remoteMinutes)} remote ({remotePct}%)</span>
-      </div>
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
+              </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
           <span className="text-[11px]" style={{ color: "var(--fg-secondary)" }}>Progress</span>
           <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-secondary)" }}>{pa.todayMinutes}/{shiftTarget}m ({shiftPct}%)</span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
-          <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
-        </div>
-      </div>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+              <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${shiftPct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ background: "var(--primary)" }} />
+            </div>
+            </div>
       <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {[
@@ -501,23 +501,23 @@ function SelfOverviewCard({ pa, userProfile, user, companyTz = "Asia/Karachi", t
           ))}
         </div>
       </div>
-      {teamStats && !presenceLoading && (
-        <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
+          {teamStats && !presenceLoading && (
+            <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
-            {[
+                {[
               { label: "Team present", value: `${teamStats.pctPresent}%`, color: "var(--status-present)" },
               { label: "Team in office", value: `${teamStats.pctInOffice}%`, color: "var(--status-office)" },
-              { label: "Avg hours today", value: formatMinutes(teamStats.avgMins), color: "var(--primary)" },
-              { label: "Office / remote", value: `${teamStats.officePct}% / ${100 - teamStats.officePct}%`, color: "var(--fg-secondary)" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-md p-1 text-center" style={{ background: "var(--bg-grouped)" }}>
+                  { label: "Avg hours today", value: formatMinutes(teamStats.avgMins), color: "var(--primary)" },
+                  { label: "Office / remote", value: `${teamStats.officePct}% / ${100 - teamStats.officePct}%`, color: "var(--fg-secondary)" },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-md p-1 text-center" style={{ background: "var(--bg-grouped)" }}>
                 <p className="text-[10px] font-semibold uppercase" style={{ color: s.color }}>{s.label}</p>
                 <p className="text-[11px] font-bold tabular-nums" style={{ color: "var(--fg)" }}>{s.value}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
       </div>
     </motion.div>
   );
@@ -602,9 +602,9 @@ function QuickHubCard({
               subtitle={leaveBalance && !leaveBalance.exempt ? `${leaveBalance.used} used` : "N/A"}
             />
           </div>
-        </div>
-      </div>
-    </motion.div>
+            </div>
+            </div>
+          </motion.div>
   );
 }
 
@@ -1098,9 +1098,9 @@ function AdminDashboard({
         <div className="flex min-w-0 flex-1 flex-col gap-3">
 
         {/* Self overview + Quick hub (employees only) */}
-        {!isSuperAdmin && (
+      {!isSuperAdmin && (
           <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2">
-            <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} companyTz={companyTz} teamStats={hasTeamAccess ? teamTodayStats : null} presenceLoading={presenceLoading} />
+          <SelfOverviewCard pa={personalAttendance} userProfile={userProfile} user={user} companyTz={companyTz} teamStats={hasTeamAccess ? teamTodayStats : null} presenceLoading={presenceLoading} />
             <QuickHubCard holidays={holidays} leaveBalance={leaveBalance} />
           </div>
         )}
@@ -1192,19 +1192,19 @@ function AdminDashboard({
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} className="rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", minHeight: 0 }}>
               <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                 <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Checklist</h3>
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
                   {myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length > 0 && (
                     <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
                       {myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length} pending
-                    </span>
-                  )}
+                  </span>
+                )}
                   {myChecklists.filter((cl) => checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done).length > 0 && (
                     <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>
                       {myChecklists.filter((cl) => checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done).length} done
-                    </span>
-                  )}
-                </div>
+                  </span>
+                )}
               </div>
+            </div>
               <div className="relative min-h-0 flex-1 overflow-y-auto p-2 pl-7 pt-4">
                 <div className="absolute left-[14px] top-2 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />
                 {myChecklists.length === 0
@@ -1249,7 +1249,7 @@ function AdminDashboard({
                                       className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed"
                                       style={{ background: item.isDone ? "color-mix(in srgb, var(--amber) 10%, transparent)" : "color-mix(in srgb, var(--teal) 10%, transparent)", color: item.isDone ? "var(--amber)" : "var(--teal)" }}>
                                       {item.isDone ? "Undo" : "Mark complete"}
-                                    </button>
+                      </button>
                                   )}
                                 </div>
                               </div>
@@ -1260,7 +1260,7 @@ function AdminDashboard({
                                     const subPrevDone = si === 0 || item.subs[si - 1].isDone;
                                     const subLocked = isLocked || (!subPrevDone && !sub.isDone);
                                     const subDotColor = sub.isDone ? "var(--teal)" : "var(--amber)";
-                                    return (
+                  return (
                                       <div key={`sub-${sub.taskId}`} className="relative">
                                         <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${subDotColor}` }}>
                                           {sub.isDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: subDotColor }} />}
@@ -1282,12 +1282,12 @@ function AdminDashboard({
                                             </button>
                                           </div>
                                         </div>
-                                      </div>
-                                    );
+                    </div>
+                  );
                                   })}
-                                </div>
+            </div>
                               )}
-                            </motion.div>
+          </motion.div>
                           );
                         })}
                       </motion.div>
@@ -1301,7 +1301,7 @@ function AdminDashboard({
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.14, ease: [0.22, 1, 0.36, 1] }} className="rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", minHeight: 0 }}>
                 <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                   <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Tasks</h3>
-                  <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
                     {myTasks.length > 0 && (
                       <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>
                         {myTasks.length} pending
@@ -1312,8 +1312,8 @@ function AdminDashboard({
                         {myCompleted} done
                       </span>
                     )}
-                  </div>
-                </div>
+            </div>
+          </div>
                 <div className="min-h-0 flex-1 overflow-y-auto p-2 pt-4">
                   <motion.div className="space-y-2.5" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.04 } } }}>
                     {[...myTasks, ...tasks.filter((t) => isAssignedTo(t, user.id) && myTaskStatus(t, user.id) === "completed" && !t.recurrence)]
@@ -1329,7 +1329,7 @@ function AdminDashboard({
                         const subtaskStatuses = subtasks.map((s) => myTaskStatus(s, user.id));
                         const subtasksDone = subtaskStatuses.filter((st) => st === "completed").length;
 
-                        return (
+                  return (
                           <motion.div key={`tk-${task._id}`} variants={{ hidden: { opacity: 0, x: -12 }, visible: { opacity: 1, x: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}>
                             <div className="relative rounded-xl border transition-all" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isCompleted ? 0.65 : 1 }}>
                               <span className="pill-glass absolute -top-2.5 right-2 z-[2] rounded-full px-1.5 py-px text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${statusColor} 15%, var(--dock-frosted-bg))`, color: statusColor, border: `1px solid color-mix(in srgb, ${statusColor} 30%, var(--border))` }}>{statusLabel}</span>
@@ -1344,7 +1344,7 @@ function AdminDashboard({
                                     {task.deadline && (
                                       <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: new Date(task.deadline).getTime() < Date.now() && !isCompleted ? "var(--rose)" : "var(--fg-tertiary)" }}>
                                         Due {new Date(task.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                                      </span>
+                      </span>
                                     )}
                                     {hasSubtasks && (
                                       <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: subtasksDone === subtasks.length ? "color-mix(in srgb, var(--teal) 12%, transparent)" : "color-mix(in srgb, var(--amber) 12%, transparent)", color: subtasksDone === subtasks.length ? "var(--teal)" : "var(--amber)" }}>
@@ -1362,8 +1362,8 @@ function AdminDashboard({
                                       className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition-all hover:opacity-80"
                                       style={{ background: `color-mix(in srgb, ${btnColor} 10%, transparent)`, color: btnColor }}>
                                       {nextLabel}
-                                    </button>
-                                  );
+                    </button>
+                  );
                                 })()}
                               </div>
                               {hasSubtasks && (
@@ -1376,7 +1376,7 @@ function AdminDashboard({
                                     const subLocked = !subPrevDone && !subDone;
                                     const subDotColor = subDone ? "var(--teal)" : "var(--amber)";
                                     const subStatusLabel = subDone ? "Done" : subStatus === "inProgress" ? "In Progress" : "Pending";
-                                    return (
+                return (
                                       <div key={sub._id} className="relative">
                                         <div className="absolute -left-5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: `2px solid ${subDotColor}` }}>
                                           {subDone && <span className="h-1.5 w-1.5 rounded-full" style={{ background: subDotColor }} />}
@@ -1397,8 +1397,8 @@ function AdminDashboard({
                                             </button>
                                           </div>
                                         </div>
-                                      </div>
-                                    );
+                  </div>
+                );
                                   })}
                                 </div>
                               )}
@@ -1407,11 +1407,11 @@ function AdminDashboard({
                         );
                       })}
                   </motion.div>
-                </div>
-              </motion.div>
-            )}
           </div>
-        )}
+        </motion.div>
+          )}
+        </div>
+      )}
 
         {/* SuperAdmin task board removed — admin doesn't manage personal tasks */}
 
@@ -1672,16 +1672,16 @@ function AdminDashboard({
           ? `Mark as ${dashStatusConfirm.label}?`
           : dashStatusConfirm?.type === "subtask"
             ? (dashStatusConfirm.next === "completed" ? "Mark subtask as done?" : "Undo subtask?")
-            : dashStatusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
+          : dashStatusConfirm?.currentDone ? "Undo completion?" : "Mark as done?"}
         description={dashStatusConfirm?.type === "task"
           ? `Change "${dashStatusConfirm.task.title}" status to ${dashStatusConfirm.label}.`
           : dashStatusConfirm?.type === "subtask"
             ? (dashStatusConfirm.next === "completed"
               ? `Mark "${dashStatusConfirm.subtask.title}" as completed.`
               : `Revert "${dashStatusConfirm.subtask.title}" to pending.`)
-            : dashStatusConfirm?.currentDone
-              ? `Unmark "${dashStatusConfirm?.title}" as completed for today.`
-              : `Mark "${dashStatusConfirm?.title}" as completed for today.`}
+          : dashStatusConfirm?.currentDone
+            ? `Unmark "${dashStatusConfirm?.title}" as completed for today.`
+            : `Mark "${dashStatusConfirm?.title}" as completed for today.`}
         confirmLabel={dashStatusConfirm?.type === "task" ? dashStatusConfirm.label : dashStatusConfirm?.type === "subtask" ? (dashStatusConfirm.next === "completed" ? "Mark complete" : "Undo") : dashStatusConfirm?.currentDone ? "Undo" : "Mark complete"}
         variant={dashStatusConfirm?.type === "task" && dashStatusConfirm.next === "pending" ? "warning" : dashStatusConfirm?.type === "subtask" && dashStatusConfirm.next === "pending" ? "warning" : "default"}
         loading={dashStatusUpdating}
@@ -1867,7 +1867,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         )}
 
         {/* Self overview */}
-        <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} companyTz={companyTz} />
+          <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} companyTz={companyTz} />
 
         {/* Task Board — split: left=checklist/recurring, right=one-time tasks */}
         {(myChecklists.length > 0 || myOnceTasks.length > 0 || myOnceCompleted > 0) && (
@@ -1883,7 +1883,7 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
                         {myChecklists.filter((cl) => !(checklistOverrides.has(cl.taskId) ? checklistOverrides.get(cl.taskId)! : cl.done)).length} pending
                       </span>
                     )}
-                  </div>
+      </div>
                 </div>
                 <div className="relative min-h-0 flex-1 overflow-y-auto p-2 pl-7 pt-4">
                   <div className="absolute left-[14px] top-2 bottom-1 w-[2px] rounded-full" style={{ background: "var(--border)" }} />

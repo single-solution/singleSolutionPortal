@@ -27,26 +27,23 @@ export async function GET() {
   const hasTeamPerm = hasPermission(actor, "attendance_viewTeam") || hasPermission(actor, "employees_viewAttendance");
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
 
-  let teamUserIds = subordinateIds;
-  if (!actor.isSuperAdmin && hasTeamPerm && subordinateIds.length === 0) {
-    const myMemberships = await Membership.find({ user: actor.id, isActive: { $ne: false } })
-      .select("department").lean();
-    const myDeptIds = myMemberships.map((m) => m.department?.toString()).filter(Boolean);
-    if (myDeptIds.length > 0) {
-      const coMembers = await Membership.find({
-        department: { $in: myDeptIds },
-        user: { $ne: actor.id },
-        isActive: { $ne: false },
-      }).select("user").lean();
-      teamUserIds = [...new Set(coMembers.map((m) => m.user?.toString()).filter(Boolean) as string[])];
-    }
-  }
-
   let empFilter: Record<string, unknown> = { isActive: true, isSuperAdmin: { $ne: true } };
   if (actor.isSuperAdmin) {
     // superadmin sees all non–super-admin employees
-  } else if (hasTeamPerm || teamUserIds.length > 0) {
-    empFilter._id = { $in: [actor.id, ...teamUserIds] };
+  } else if (subordinateIds.length > 0) {
+    empFilter._id = { $in: [actor.id, ...subordinateIds] };
+  } else if (hasTeamPerm) {
+    const deptIds = actor.memberships.map((m) => m.departmentId).filter(Boolean);
+    if (deptIds.length > 0) {
+      const deptMembers = await Membership.find({
+        department: { $in: deptIds },
+        isActive: true,
+      }).select("user").lean();
+      const peerIds = [...new Set(deptMembers.map((m) => m.user.toString()))];
+      empFilter._id = { $in: [actor.id, ...peerIds.filter((id) => id !== actor.id)] };
+    } else {
+      empFilter._id = actor.id;
+    }
   } else {
     empFilter._id = actor.id;
   }
