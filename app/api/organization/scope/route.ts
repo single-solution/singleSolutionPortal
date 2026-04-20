@@ -52,10 +52,27 @@ export async function GET() {
     }
   }
 
+  const myMemberships = await Membership.find({
+    user: actor.id,
+    isActive: { $ne: false },
+  }).select("department").lean();
+  const myDeptIds = myMemberships.map((m) => m.department?.toString()).filter(Boolean) as string[];
+
+  const aboveDeptMembers = await Membership.find({
+    department: { $in: myDeptIds },
+    direction: "above",
+    user: { $ne: actor.id },
+    isActive: { $ne: false },
+  }).select("user").lean();
+  const deptManagerIds = aboveDeptMembers.map((m) => m.user?.toString()).filter(Boolean) as string[];
+  for (const id of deptManagerIds) {
+    if (!managerIds.includes(id)) managerIds.push(id);
+  }
+
   const allVisibleUsers = [actor.id, ...subordinateIds, ...managerIds];
   const visibleEmpNodes = new Set(allVisibleUsers.map((id) => `emp-${id}`));
 
-  const departmentIdSet = new Set<string>();
+  const departmentIdSet = new Set<string>(myDeptIds);
 
   for (const link of links) {
     const empNode = visibleEmpNodes.has(link.source) ? link.source : visibleEmpNodes.has(link.target) ? link.target : null;
@@ -66,12 +83,12 @@ export async function GET() {
     }
   }
 
-  const memberships = await Membership.find({
+  const allMemberships = await Membership.find({
     user: { $in: allVisibleUsers },
     isActive: { $ne: false },
   }).select("department").lean();
 
-  for (const m of memberships) {
+  for (const m of allMemberships) {
     const dId = m.department?.toString();
     if (dId) departmentIdSet.add(dId);
   }

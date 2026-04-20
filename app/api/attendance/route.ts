@@ -17,7 +17,26 @@ import {
 import type { VerifiedUser } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 
-function buildSubordinateEmployeeFilter(actor: VerifiedUser, subordinateIds: string[]): Record<string, unknown> {
+async function getTeamUserIds(actor: VerifiedUser, subordinateIds: string[]): Promise<string[]> {
+  if (actor.isSuperAdmin) return [];
+  if (subordinateIds.length > 0) return subordinateIds;
+
+  const myMemberships = await Membership.find({ user: actor.id, isActive: { $ne: false } })
+    .select("department")
+    .lean();
+  const myDeptIds = myMemberships.map((m) => m.department?.toString()).filter(Boolean);
+  if (myDeptIds.length === 0) return [];
+
+  const coMembers = await Membership.find({
+    department: { $in: myDeptIds },
+    user: { $ne: actor.id },
+    isActive: { $ne: false },
+  }).select("user").lean();
+
+  return [...new Set(coMembers.map((m) => m.user?.toString()).filter(Boolean) as string[])];
+}
+
+function buildTeamEmployeeFilter(actor: VerifiedUser, teamUserIds: string[]): Record<string, unknown> {
   const filter: Record<string, unknown> = {
     isActive: true,
     isSuperAdmin: { $ne: true },
@@ -28,12 +47,7 @@ function buildSubordinateEmployeeFilter(actor: VerifiedUser, subordinateIds: str
     return filter;
   }
 
-  if (subordinateIds.length === 0) {
-    filter._id = { $in: [] };
-    return filter;
-  }
-
-  filter._id = { $in: subordinateIds };
+  filter._id = { $in: teamUserIds };
   return filter;
 }
 
@@ -54,10 +68,11 @@ export async function GET(req: NextRequest) {
 
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
   const canTeam = actor.isSuperAdmin || hasPermission(actor, "attendance_viewTeam") || hasPermission(actor, "employees_viewAttendance");
+  const teamUserIds = canTeam ? await getTeamUserIds(actor, subordinateIds) : [];
 
   if (type === "team") {
     if (!canTeam) return ok([]);
-    const empFilter = buildSubordinateEmployeeFilter(actor, subordinateIds);
+    const empFilter = buildTeamEmployeeFilter(actor, teamUserIds);
 
     const employees = await User.find(empFilter)
       .select("about")
@@ -74,7 +89,7 @@ export async function GET(req: NextRequest) {
 
   if (type === "team-monthly") {
     if (!canTeam) return ok([]);
-    const empFilter = buildSubordinateEmployeeFilter(actor, subordinateIds);
+    const empFilter = buildTeamEmployeeFilter(actor, teamUserIds);
 
     const employees = await User.find(empFilter)
       .select("about")
@@ -150,7 +165,7 @@ export async function GET(req: NextRequest) {
     const dateStr = url.searchParams.get("date");
     if (!dateStr) return ok([]);
 
-    const empFilter = buildSubordinateEmployeeFilter(actor, subordinateIds);
+    const empFilter = buildTeamEmployeeFilter(actor, teamUserIds);
 
     const employees = await User.find(empFilter)
       .select("about")
@@ -230,14 +245,14 @@ export async function GET(req: NextRequest) {
   }
 
   const isSelf = userId === actor.id;
-  const isSubordinate = subordinateIds.includes(userId);
-  const allowed = actor.isSuperAdmin || isSelf || isSubordinate;
+  const isTeamMember = teamUserIds.includes(userId);
+  const allowed = actor.isSuperAdmin || isSelf || isTeamMember;
   if (!allowed) {
     if (type === "detail" || type === "monthly") return ok(null);
     return ok([]);
   }
 
-  if (!isSelf && !isSubordinate && !canTeam) {
+  if (!isSelf && !isTeamMember && !canTeam) {
     if (type === "detail" || type === "monthly") return ok(null);
     return ok([]);
   }
