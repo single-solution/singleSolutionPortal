@@ -297,6 +297,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const [inviting, setInviting] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState(false);
+  const [confirmResetPriv, setConfirmResetPriv] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [locYear, setLocYear] = useState(n.getFullYear());
@@ -314,6 +316,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     setEditing(false);
     setEditForm(null);
     setConfirmDelete(false);
+    setConfirmBlock(false);
+    setConfirmResetPriv(false);
     setInviting(false);
     setToggling(false);
     setSaving(false);
@@ -946,21 +950,24 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 size="sm"
                                 checked={employee.isActive !== false}
                                 disabled={toggling}
-                                onChange={async () => {
-                                  const newStatus = employee.isActive === false;
-                                  setToggling(true);
-                                  try {
-                                    const res = await fetch(`/api/employees/${effectiveId}`, {
-                                      method: "PUT",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ isActive: newStatus }),
-                                    });
-                                    if (res.ok) {
-                                      toast.success(newStatus ? "Access restored" : "Access blocked");
-                                      invalidateQueries(`/api/employees`);
-                                    } else { toast.error("Failed to update status"); }
-                                  } catch { toast.error("Something went wrong"); }
-                                  setToggling(false);
+                                onChange={() => {
+                                  if (employee.isActive !== false) {
+                                    setConfirmBlock(true);
+                                  } else {
+                                    (async () => {
+                                      setToggling(true);
+                                      try {
+                                        const res = await fetch(`/api/employees/${effectiveId}`, {
+                                          method: "PUT",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ isActive: true }),
+                                        });
+                                        if (res.ok) { toast.success("Access restored"); invalidateQueries(`/api/employees`); }
+                                        else toast.error("Failed to update status");
+                                      } catch { toast.error("Something went wrong"); }
+                                      setToggling(false);
+                                    })();
+                                  }
                                 }}
                               />
                             </div>
@@ -1350,13 +1357,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               </div>
                               {isCustom && canPerm("members_customizePermissions") && (
                                 <button type="button" className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}
-                                  onClick={async () => {
-                                    try {
-                                      const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hasCustomPermissions: false }) });
-                                      if (res.ok) { toast.success("Reset to designation defaults"); if (memUrl) invalidateQueries(memUrl); }
-                                      else toast.error("Failed to reset");
-                                    } catch { toast.error("Something went wrong"); }
-                                  }}
+                                  onClick={() => setConfirmResetPriv(true)}
                                 >Reset to Defaults</button>
                               )}
                             </div>
@@ -1382,7 +1383,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                                 try {
                                                   const newPerms = { [k]: !enabled };
                                                   const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: newPerms }) });
-                                                  if (res.ok) { if (memUrl) invalidateQueries(memUrl); }
+                                                  if (res.ok) { toast.success("Privilege updated"); if (memUrl) invalidateQueries(memUrl); }
                                                   else toast.error("Failed to update");
                                                 } catch { toast.error("Something went wrong"); }
                                               }}
@@ -2289,6 +2290,47 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
             }
           } catch { toast.error("Something went wrong"); }
           setDeleting(false);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmBlock}
+        title="Block Employee Access"
+        description={`${employee?.about?.firstName ?? "This employee"} will lose access to the portal immediately. You can restore access later.`}
+        confirmLabel={toggling ? "Blocking…" : "Block Access"}
+        variant="warning"
+        loading={toggling}
+        onCancel={() => setConfirmBlock(false)}
+        onConfirm={async () => {
+          setToggling(true);
+          try {
+            const res = await fetch(`/api/employees/${effectiveId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ isActive: false }),
+            });
+            if (res.ok) { toast.success("Access blocked"); invalidateQueries(`/api/employees`); }
+            else toast.error("Failed to update status");
+          } catch { toast.error("Something went wrong"); }
+          setToggling(false);
+          setConfirmBlock(false);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmResetPriv}
+        title="Reset to Defaults"
+        description="All custom privilege overrides for this membership will be removed and replaced with the designation defaults."
+        confirmLabel="Reset"
+        variant="warning"
+        onCancel={() => setConfirmResetPriv(false)}
+        onConfirm={async () => {
+          const mid = memActive?.[0]?._id;
+          if (!mid) { setConfirmResetPriv(false); return; }
+          try {
+            const res = await fetch(`/api/memberships/${mid}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hasCustomPermissions: false }) });
+            if (res.ok) { toast.success("Reset to designation defaults"); if (memUrl) invalidateQueries(memUrl); }
+            else toast.error("Failed to reset");
+          } catch { toast.error("Something went wrong"); }
+          setConfirmResetPriv(false);
         }}
       />
     </Portal>

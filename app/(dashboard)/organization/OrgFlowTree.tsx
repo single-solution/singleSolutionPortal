@@ -325,6 +325,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
   const [privSaving, setPrivSaving] = useState(false);
   const [privLabel, setPrivLabel] = useState("");
   const [privDesigDefaults, setPrivDesigDefaults] = useState<Record<string, boolean> | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   /* ── Remove modal (shared for memberships & emp links) ── */
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -460,7 +461,8 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       const defaultPerms: Record<string, boolean> = {};
       for (const k of PERMISSION_KEYS) defaultPerms[k] = k === "employees_view" || k === "employees_viewDetail";
       const firstActiveDesig = designations.find((d) => d.isActive !== false);
-      saveEmpLinks([...empLinks, { source: upperNode, target: lowerNode, sourceHandle: upperHandle, targetHandle: lowerHandle, permissions: defaultPerms, designationId: firstActiveDesig?._id ?? undefined }]);
+      saveEmpLinks([...empLinks, { source: upperNode, target: lowerNode, sourceHandle: upperHandle, targetHandle: lowerHandle, permissions: defaultPerms, designationId: firstActiveDesig?._id ?? undefined }])
+        .then(() => toast.success("Employee link created"));
       return;
     }
 
@@ -492,7 +494,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user: userId, department: deptId, designation: designations.find((d) => d.isActive !== false)?._id, direction: "below" }),
-      }).then((res) => { if (res.ok) { syncHierarchy(); refetchMemberships(); } else toast.error("Failed to add employee"); }).catch(() => toast.error("Something went wrong"));
+      }).then((res) => { if (res.ok) { toast.success("Employee added to department"); syncHierarchy(); refetchMemberships(); } else toast.error("Failed to add employee"); }).catch(() => toast.error("Something went wrong"));
       return;
     }
 
@@ -518,6 +520,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         body: JSON.stringify({ user: userId, department: deptId, designation: connDesig, direction: connAbove ? "above" : "below" }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); toast.error((err as Record<string, string>).error ?? "Failed to create connection"); setConnSaving(false); return; }
+      toast.success("Connection created");
       await syncHierarchy();
       await refetchMemberships();
       setConnOpen(false);
@@ -534,6 +537,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       if (res.ok) {
         const updated = await res.json();
         setMemberships((prev) => prev.map((m) => m._id === membershipId ? updated : m));
+        toast.success("Designation updated");
       } else toast.error("Failed to update designation");
     } catch { toast.error("Something went wrong"); }
     setChangingDesigId(null);
@@ -543,7 +547,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     if (membershipId) {
       setChangingDesigId(membershipId);
       fetch(`/api/memberships/${membershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ designation: designationId }) })
-        .then(async (res) => { if (res.ok) { const updated = await res.json(); setMemberships((prev) => prev.map((m) => m._id === membershipId ? updated : m)); } else toast.error("Failed to update designation"); })
+        .then(async (res) => { if (res.ok) { const updated = await res.json(); setMemberships((prev) => prev.map((m) => m._id === membershipId ? updated : m)); toast.success("Designation assigned"); } else toast.error("Failed to update designation"); })
         .catch(() => toast.error("Something went wrong"))
         .finally(() => setChangingDesigId(null));
     } else {
@@ -553,7 +557,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         if (idx < 0) { toast.error("No connection found for this employee"); return prev; }
         const updated = [...prev];
         updated[idx] = { ...updated[idx], leafDesignationId: designationId };
-        saveEmpLinks(updated);
+        saveEmpLinks(updated).then(() => toast.success("Designation assigned"));
         return updated;
       });
     }
@@ -564,7 +568,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     setEmpLinks((prev) => {
       const updated = [...prev];
       updated[linkIdx] = { ...updated[linkIdx], designationId };
-      saveEmpLinks(updated);
+      saveEmpLinks(updated).then(() => toast.success("Designation updated"));
       return updated;
     });
   }, [saveEmpLinks]);
@@ -629,13 +633,14 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         setEmpLinks((prev) => {
           const updated = [...prev];
           updated[privLinkIdx] = { ...updated[privLinkIdx], permissions: { ...privPerms } };
-          saveEmpLinks(updated);
+          saveEmpLinks(updated).then(() => toast.success("Privileges saved"));
           return updated;
         });
         setPrivOpen(false);
       } else if (privMembershipId) {
         const res = await fetch(`/api/memberships/${privMembershipId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: privPerms }) });
         if (!res.ok) { toast.error("Failed to save privileges"); setPrivSaving(false); return; }
+        toast.success("Privileges saved");
         await refetchMemberships();
         setPrivOpen(false);
       }
@@ -692,10 +697,12 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       if (removeLinkIdx >= 0) {
         const newLinks = empLinks.filter((_, i) => i !== removeLinkIdx);
         await saveEmpLinks(newLinks);
+        toast.success("Connection removed");
         setRemoveOpen(false);
       } else if (removeMembershipId) {
         const res = await fetch(`/api/memberships/${removeMembershipId}`, { method: "DELETE" });
         if (res.ok) {
+          toast.success("Membership removed");
           await syncHierarchy();
           await refetchMemberships();
           setRemoveOpen(false);
@@ -833,21 +840,9 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
   useEffect(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   const handleEdgesChange = useCallback((changes: Parameters<typeof onEdgesChange>[0]) => {
-    if (!canEditCanvas) { onEdgesChange(changes.filter((c) => c.type !== "remove")); return; }
-    const filtered = changes.filter((c) => {
-      if (c.type !== "remove") return true;
-      const edgeId = (c as unknown as { id: string }).id;
-      if (edgeId?.startsWith("mem-")) return false;
-      return true;
-    });
-    const removals = filtered.filter((c): c is Extract<typeof c, { type: "remove" }> => c.type === "remove" && "id" in c && (c as { id?: string }).id?.startsWith("link-") === true);
-    if (removals.length > 0) {
-      const removeIds = new Set(removals.map((c) => (c as unknown as { id: string }).id));
-      const newLinks = empLinks.filter((_, idx) => !removeIds.has(`link-${idx}`));
-      saveEmpLinks(newLinks);
-    }
-    onEdgesChange(filtered);
-  }, [canEditCanvas, onEdgesChange, empLinks, saveEmpLinks]);
+    const nonRemove = changes.filter((c) => c.type !== "remove");
+    onEdgesChange(nonRemove);
+  }, [onEdgesChange]);
 
   const savePositions = useCallback((currentNodes: Node[]) => {
     if (!canEditCanvas) return;
@@ -944,7 +939,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {privDesigDefaults && privMembershipId && (
-                    <button type="button" onClick={handleResetToDefaults} disabled={privSaving}
+                    <button type="button" onClick={() => setConfirmResetOpen(true)} disabled={privSaving}
                       className="rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors hover:bg-[var(--hover-bg)]"
                       style={{ color: "var(--primary)", borderColor: "rgba(99,102,241,0.3)" }}>
                       Reset to Defaults
@@ -1026,6 +1021,18 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         loading={removeDeleting}
         onConfirm={confirmDelete}
         onCancel={() => setRemoveOpen(false)}
+      />
+
+      {/* ── Reset Privileges Confirmation ── */}
+      <ConfirmDialog
+        open={confirmResetOpen}
+        title="Reset to Defaults"
+        description="All custom privilege overrides will be removed and replaced with the designation defaults. This cannot be undone."
+        confirmLabel={privSaving ? "Resetting…" : "Reset"}
+        variant="warning"
+        loading={privSaving}
+        onConfirm={async () => { await handleResetToDefaults(); setConfirmResetOpen(false); }}
+        onCancel={() => setConfirmResetOpen(false)}
       />
 
       {/* ── Restriction Warning ── */}

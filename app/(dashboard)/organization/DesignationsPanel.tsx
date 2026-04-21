@@ -66,6 +66,7 @@ export function DesignationsPanel({ canManage = false, perms = {}, onToggle }: {
   const [deleteTarget, setDeleteTarget] = useState<Designation | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [savingToggleId, setSavingToggleId] = useState<string | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<Designation | null>(null);
 
   const openCreate = useCallback(() => {
     setModalMode("create");
@@ -300,7 +301,7 @@ export function DesignationsPanel({ canManage = false, perms = {}, onToggle }: {
                       <ToggleSwitch
                         size="sm"
                         checked={d.isActive !== false}
-                        onChange={() => toggleActive(d)}
+                        onChange={() => d.isActive !== false ? setDeactivateTarget(d) : toggleActive(d)}
                         disabled={savingToggleId === d._id}
                         loading={savingToggleId === d._id}
                       />
@@ -322,6 +323,16 @@ export function DesignationsPanel({ canManage = false, perms = {}, onToggle }: {
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+      <ConfirmDialog
+        open={deactivateTarget !== null}
+        title="Deactivate Designation"
+        description={`Deactivate "${deactivateTarget?.name}"? All memberships using this designation will be suspended. You can reactivate it later.`}
+        confirmLabel={savingToggleId === deactivateTarget?._id ? "Deactivating…" : "Deactivate"}
+        variant="warning"
+        loading={savingToggleId === deactivateTarget?._id}
+        onConfirm={async () => { if (deactivateTarget) { await toggleActive(deactivateTarget); setDeactivateTarget(null); } }}
+        onCancel={() => setDeactivateTarget(null)}
       />
 
       <Portal>

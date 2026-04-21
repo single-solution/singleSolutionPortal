@@ -39,6 +39,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
   const [deleteTarget, setDeleteTarget] = useState<DeptItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<DeptItem | null>(null);
 
   async function handleToggleActive(d: DeptItem) {
     const newActive = !d.isActive;
@@ -168,7 +169,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
                         {canEdit && (
                           <ToggleSwitch
                             checked={d.isActive}
-                            onChange={() => handleToggleActive(d)}
+                            onChange={() => d.isActive ? setDeactivateTarget(d) : handleToggleActive(d)}
                             disabled={togglingId === d._id}
                             loading={togglingId === d._id}
                             color="var(--green)"
@@ -201,6 +202,16 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
         description={`Remove "${deleteTarget?.title}"? Employees in this department will be unaffected but the department record will be permanently deleted.`}
         confirmLabel="Delete" variant="danger" loading={deleting}
         onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)}
+      />
+      <ConfirmDialog
+        open={deactivateTarget !== null}
+        title="Deactivate Department"
+        description={`Deactivate "${deactivateTarget?.title}"?${deactivateTarget?.employeeCount ? ` ${deactivateTarget.employeeCount} membership${deactivateTarget.employeeCount !== 1 ? "s" : ""} will be suspended.` : ""} You can reactivate it later.`}
+        confirmLabel={togglingId === deactivateTarget?._id ? "Deactivating…" : "Deactivate"}
+        variant="warning"
+        loading={togglingId === deactivateTarget?._id}
+        onConfirm={async () => { if (deactivateTarget) { await handleToggleActive(deactivateTarget); setDeactivateTarget(null); } }}
+        onCancel={() => setDeactivateTarget(null)}
       />
 
       <Portal>
