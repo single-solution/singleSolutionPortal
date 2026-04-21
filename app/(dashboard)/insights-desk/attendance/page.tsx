@@ -12,6 +12,7 @@ import { timeAgo } from "@/lib/formatters";
 import { useInsightsContext } from "../layout";
 import { useCachedState } from "@/lib/useQuery";
 import { MiniCalendar } from "../../components/MiniCalendar";
+import toast from "react-hot-toast";
 
 /* ───── Types ───── */
 
@@ -207,7 +208,7 @@ export default function AttendancePage() {
       if (!r.ok) throw new Error();
       const res = await r.json();
       setTeamSummary(Array.isArray(res) ? res : []);
-    } catch { setTeamSummary([]); }
+    } catch { setTeamSummary([]); toast.error("Failed to load team summary"); }
     setTeamLoading(false);
   }, [sessionReady, hasTeamAccess, year, month]);
 
@@ -221,7 +222,7 @@ export default function AttendancePage() {
       if (!r.ok) throw new Error();
       const res = await r.json();
     setRecords(Array.isArray(res) ? res : []);
-    } catch { setRecords([]); }
+    } catch { setRecords([]); toast.error("Failed to load records"); }
     setLoading(false);
   }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
 
@@ -234,7 +235,7 @@ export default function AttendancePage() {
       if (!r.ok) throw new Error();
       const res = await r.json();
       setMonthlyStats(res ?? null);
-    } catch { setMonthlyStats(null); }
+    } catch { setMonthlyStats(null); toast.error("Failed to load monthly stats"); }
   }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
 
   const loadSelfMonthlyStats = useCallback(async () => {
@@ -244,7 +245,7 @@ export default function AttendancePage() {
       if (!r.ok) throw new Error();
       const res = await r.json();
       setSelfMonthlyStats(res ?? null);
-    } catch { setSelfMonthlyStats(null); }
+    } catch { setSelfMonthlyStats(null); toast.error("Failed to load stats"); }
   }, [sessionReady, hasTeamAccess, isSuperAdmin, year, month]);
 
   const loadDetail = useCallback(async (day: number) => {
@@ -256,7 +257,7 @@ export default function AttendancePage() {
       if (!r.ok) throw new Error();
       const res = await r.json();
       setDetailData(res ?? null);
-    } catch { setDetailData(null); }
+    } catch { setDetailData(null); toast.error("Failed to load day details"); }
     setDetailLoading(false);
   }, [year, month, userIdParam]);
 
@@ -269,7 +270,7 @@ export default function AttendancePage() {
       if (!r.ok) throw new Error();
       const res = await r.json();
       setTeamDateData(Array.isArray(res) ? res : []);
-    } catch { setTeamDateData([]); }
+    } catch { setTeamDateData([]); toast.error("Failed to load team data"); }
     setTeamDateLoading(false);
   }, [hasTeamAccess, year, month]);
 
@@ -291,16 +292,16 @@ export default function AttendancePage() {
     if (viewingUserId) q.set("userId", viewingUserId);
     else if (selfId) q.set("userId", selfId);
     fetch(`/api/leaves?${q}`)
-      .then((r) => r.ok ? r.json() : [])
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data: LeaveRecord[]) => setCalendarLeaves(Array.isArray(data) ? data : []))
-      .catch(() => setCalendarLeaves([]));
+      .catch(() => { setCalendarLeaves([]); toast.error("Failed to load leaves"); });
   }, [year, month, viewingUserId, canViewTeamLeaves, authSession?.user?.id]);
 
   useEffect(() => {
     fetch(`/api/payroll/holidays?year=${year}`)
-      .then((r) => r.ok ? r.json() : [])
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data) => setCalendarHolidays(Array.isArray(data) ? data : []))
-      .catch(() => setCalendarHolidays([]));
+      .catch(() => { setCalendarHolidays([]); toast.error("Failed to load holidays"); });
   }, [year]);
 
   useEffect(() => {
@@ -314,9 +315,9 @@ export default function AttendancePage() {
     const q = new URLSearchParams({ year: String(new Date().getFullYear()) });
     if (viewingUserId) q.set("userId", viewingUserId);
     fetch(`/api/leaves/balance?${q}`)
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data) => setLeaveBalance(data?.exempt ? null : data))
-      .catch(() => setLeaveBalance(null));
+      .catch(() => { setLeaveBalance(null); toast.error("Failed to load leave balance"); });
   }, [sessionReady, isSuperAdmin, viewingUserId, canViewTeamLeaves, authSession?.user?.id]);
 
   const mountRef = useRef(true);
@@ -357,7 +358,7 @@ export default function AttendancePage() {
 
   const recordMap = useMemo(() => {
     const map = new Map<number, DailyRecord>();
-    records.forEach((r) => map.set(new Date(r.date).getDate(), r));
+    records.forEach((r) => map.set(new Date(r.date).getUTCDate(), r));
     return map;
   }, [records]);
 
@@ -380,12 +381,13 @@ export default function AttendancePage() {
     for (const l of calendarLeaves) {
       const s = new Date(l.startDate);
       const e = new Date(l.endDate);
-      const cur = new Date(s);
-      while (cur <= e) {
-        if (cur.getFullYear() === year && cur.getMonth() + 1 === month) {
-          days.add(cur.getDate());
+      const cur = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate()));
+      const end = new Date(Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate()));
+      while (cur <= end) {
+        if (cur.getUTCFullYear() === year && cur.getUTCMonth() + 1 === month) {
+          days.add(cur.getUTCDate());
         }
-        cur.setDate(cur.getDate() + 1);
+        cur.setUTCDate(cur.getUTCDate() + 1);
       }
     }
     return days;
@@ -1380,7 +1382,7 @@ export default function AttendancePage() {
               variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.03 } } }}
             >
               {records.map((rec) => {
-                const recDay = new Date(rec.date).getDate();
+                const recDay = new Date(rec.date).getUTCDate();
                 const statusColor = rec.isPresent ? (rec.isOnTime ? "var(--status-ontime)" : "var(--status-late)") : "var(--status-absent)";
                 const statusLabel = rec.isPresent ? (rec.isOnTime ? "On Time" : "Late") : "Absent";
                 const officePct = rec.totalWorkingMinutes > 0 ? Math.round((rec.officeMinutes / rec.totalWorkingMinutes) * 100) : 0;
@@ -1467,7 +1469,13 @@ export default function AttendancePage() {
               })}
           </motion.div>
           </div>
-        ) : null
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--fg-tertiary)" }}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></svg>
+            <p className="text-sm font-medium" style={{ color: "var(--fg-secondary)" }}>No attendance records for this month</p>
+            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Records will appear here as days are logged</p>
+          </div>
+        )
       )}
 
     </div>

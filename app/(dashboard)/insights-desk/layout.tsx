@@ -141,9 +141,10 @@ export default function InsightsDeskLayout({ children }: { children: React.React
     setHolidaysLoading(true);
     try {
       const res = await fetch(`/api/payroll/holidays?year=${displayYear}`);
-      const data = res.ok ? await res.json() : [];
+      if (!res.ok) throw new Error();
+      const data = await res.json();
       setHolidays(Array.isArray(data) ? data : []);
-    } catch { setHolidays([]); }
+    } catch { setHolidays([]); toast.error("Failed to load holidays"); }
     setHolidaysLoading(false);
   }, [displayYear]);
 

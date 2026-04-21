@@ -7,6 +7,7 @@ import { Portal } from "../components/Portal";
 import { MiniCalendar, useCalendarNav } from "../components/MiniCalendar";
 import { usePermissions } from "@/lib/usePermissions";
 import { useCachedState } from "@/lib/useQuery";
+import toast from "react-hot-toast";
 
 /* ───── Types ───── */
 
@@ -234,9 +235,9 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
     if (!open || !isPrivileged) return;
     setSidebarLoading(true);
     fetch("/api/employees/dropdown")
-      .then((r) => r.ok ? r.json() : [])
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => setEmployees(Array.isArray(d) ? d : []))
-      .catch(() => {})
+      .catch(() => { setEmployees([]); toast.error("Failed to load employees"); })
       .finally(() => setSidebarLoading(false));
   }, [open, isPrivileged]);
 
@@ -245,9 +246,9 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
     if (!open || !isPrivileged || userId) { setCampaignGroups([]); return; }
     setCampaignGroupsLoading(true);
     fetch("/api/tasks/history?type=campaign-employees&days=1")
-      .then((r) => r.ok ? r.json() : { campaigns: [] })
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => setCampaignGroups(d.campaigns || []))
-      .catch(() => setCampaignGroups([]))
+      .catch(() => { setCampaignGroups([]); toast.error("Failed to load campaigns"); })
       .finally(() => setCampaignGroupsLoading(false));
   }, [open, isPrivileged, userId]);
 
@@ -261,8 +262,8 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
       if (res.ok) {
         const data = await res.json();
         setDailyData(Array.isArray(data) ? data : []);
-      } else setDailyData([]);
-    } catch { setDailyData([]); }
+      } else { setDailyData([]); toast.error("Failed to load daily data"); }
+    } catch { setDailyData([]); toast.error("Failed to load daily data"); }
     setDailyLoading(false);
   }, [open, userId, year, month]);
 
@@ -281,11 +282,14 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
       if (res.ok) {
         const data = await res.json();
         setEmployee(data.employee ?? null);
-        setTimeline(data.logs ?? []);
+        setTimeline((prev) => page === 1 ? (data.logs ?? []) : [...prev, ...(data.logs ?? [])]);
         setTimelineTotal(data.total ?? 0);
         setTimelinePage(data.page ?? 1);
+      } else {
+        if (page === 1) { setTimeline([]); setTimelineTotal(0); }
+        toast.error("Failed to load timeline");
       }
-    } catch { /* ignore */ }
+    } catch { toast.error("Failed to load timeline"); }
     setTimelineLoading(false);
   }, [open, userId, year, month]);
 
@@ -308,14 +312,15 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
       if (campRes.ok) {
         const d = await campRes.json();
         setDayCampaigns(d.campaigns || []);
-      } else setDayCampaigns([]);
+      } else { setDayCampaigns([]); toast.error("Failed to load day campaigns"); }
       if (detailRes.ok) {
         const d = await detailRes.json();
         setDayDetail(Array.isArray(d) ? d : []);
-      } else setDayDetail([]);
+      } else { setDayDetail([]); toast.error("Failed to load day details"); }
     } catch {
       setDayCampaigns([]);
       setDayDetail([]);
+      toast.error("Failed to load day details");
     }
     setDayLoading(false);
   }, [open, userId, selectedDay, year, month]);
@@ -412,13 +417,11 @@ export function EmployeeTasksModal({ open, onClose, userId: preUserId }: Props) 
       for (const ev of dg.events) {
         if (!ev.task) continue;
         const existing = taskMap.get(ev.task._id);
+        const isDone = ev.status === "completed" || ev.eventType === "checklistComplete";
         if (!existing) {
-          taskMap.set(ev.task._id, {
-            title: ev.task.title,
-            done: ev.status === "completed" || ev.eventType === "checklistComplete",
-          });
-        } else if (new Date(ev.changedAt) > new Date()) {
-          existing.done = ev.status === "completed" || ev.eventType === "checklistComplete";
+          taskMap.set(ev.task._id, { title: ev.task.title, done: isDone });
+        } else {
+          existing.done = isDone;
         }
       }
       const tasks: EmpTask[] = Array.from(taskMap.entries()).map(([id, t]) => ({

@@ -305,7 +305,7 @@ export default function WorkspacePage() {
         const data = await res.json();
         setSubtasksByParent((prev) => new Map(prev).set(taskId, data));
       }
-    } catch { /* ignore */ }
+    } catch { toast.error("Failed to load subtasks"); }
     setSubtaskLoading(null);
   }, []);
 
@@ -393,6 +393,7 @@ export default function WorkspacePage() {
         if (failed.length > 0) { toast.error(`Failed to create ${failed.length} of ${fAssignees.length} task(s)`); }
       }
 
+      toast.success(editingTask ? "Task updated" : "Task created");
       setTaskModalOpen(false);
       if (fParentTask && !editingTask) {
         await loadSubtasks(fParentTask);
@@ -407,8 +408,6 @@ export default function WorkspacePage() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [cName, setCName] = useState("");
   const [cDesc, setCDesc] = useState("");
-  
-  
   const [cTagEmployees, setCTagEmployees] = useState<string[]>([]);
   const [cTagDepts, setCTagDepts] = useState<string[]>([]);
   const [campaignSaving, setCampaignSaving] = useState(false);
@@ -435,7 +434,7 @@ export default function WorkspacePage() {
     }
     try {
       const res = await fetch(`/api/tasks/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !currentlyActive }) });
-      if (res.ok) { void refetchTasks(); if (currentlyActive && subtasksByParent.has(taskId)) void loadSubtasks(taskId); }
+      if (res.ok) { toast.success(currentlyActive ? "Task deactivated" : "Task activated"); void refetchTasks(); if (currentlyActive && subtasksByParent.has(taskId)) void loadSubtasks(taskId); }
       else { mutateTasks((prev) => prev?.map((t) => t._id === taskId ? { ...t, isActive: currentlyActive } : t) ?? null); toast.error("Failed to update task"); }
     } catch { mutateTasks((prev) => prev?.map((t) => t._id === taskId ? { ...t, isActive: currentlyActive } : t) ?? null); toast.error("Network error"); }
     setTogglingId(null);
@@ -453,7 +452,7 @@ export default function WorkspacePage() {
     });
     try {
       const res = await fetch(`/api/tasks/${subtaskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !currentlyActive }) });
-      if (res.ok) void loadSubtasks(parentId);
+      if (res.ok) { toast.success(currentlyActive ? "Subtask deactivated" : "Subtask activated"); void loadSubtasks(parentId); }
       else {
         setSubtasksByParent((prev) => {
           const subs = prev.get(parentId);
@@ -484,7 +483,7 @@ export default function WorkspacePage() {
     mutateCampaigns((prev) => prev?.map((c) => c._id === campaignId ? { ...c, status: next } : c) ?? null);
     try {
       const res = await fetch(`/api/campaigns/${campaignId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
-      if (res.ok) void refetchCampaigns();
+      if (res.ok) { toast.success(next === "active" ? "Campaign activated" : "Campaign paused"); void refetchCampaigns(); }
       else { mutateCampaigns((prev) => prev?.map((c) => c._id === campaignId ? { ...c, status: currentStatus } : c) ?? null); toast.error("Failed to update campaign"); }
     } catch { mutateCampaigns((prev) => prev?.map((c) => c._id === campaignId ? { ...c, status: currentStatus } : c) ?? null); toast.error("Network error"); }
     setTogglingId(null);
@@ -499,6 +498,7 @@ export default function WorkspacePage() {
         ? await fetch(`/api/campaigns/${editingCampaign._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save campaign"); setCampaignSaving(false); return; }
+      toast.success(editingCampaign ? "Campaign updated" : "Campaign created");
       setCampaignModalOpen(false); await refetchCampaigns();
     } catch { toast.error("Network error"); }
     setCampaignSaving(false);
@@ -508,6 +508,10 @@ export default function WorkspacePage() {
   /* ── delete ── */
   const [deleteTarget, setDeleteTarget] = useState<{ type: "task" | "campaign"; id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  /* ── deactivation confirmations ── */
+  const [deactivateTaskTarget, setDeactivateTaskTarget] = useState<{ id: string; name: string; hasSubtasks: boolean } | null>(null);
+  const [pauseCampaignTarget, setPauseCampaignTarget] = useState<{ id: string; name: string; status: CampaignStatus } | null>(null);
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -515,6 +519,7 @@ export default function WorkspacePage() {
       const endpoint = deleteTarget.type === "task" ? `/api/tasks/${deleteTarget.id}` : `/api/campaigns/${deleteTarget.id}`;
       const res = await fetch(endpoint, { method: "DELETE" });
       if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Delete failed"); setDeleting(false); return; }
+      toast.success(deleteTarget.type === "task" ? "Task deleted" : "Campaign deleted");
       setDeleteTarget(null);
       if (deleteTarget.type === "task") await refetchTasks();
       else await refetchCampaigns();
@@ -536,6 +541,7 @@ export default function WorkspacePage() {
       } catch {
         setChecklistOverrides((prev) => { const n = new Map(prev); n.delete(statusConfirm.taskId); return n; });
       }
+      toast.success(statusConfirm.currentDone ? "Unmarked" : "Marked as done");
     } catch { toast.error("Network error"); }
     setStatusConfirm(null);
     setStatusUpdating(false);
@@ -835,7 +841,7 @@ export default function WorkspacePage() {
                           </motion.button>
                         )}
                         {canEditCampaigns && isMyCampaign && (
-                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditCampaign(c)} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
+                          <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditCampaign(c)} className="h-5 w-5 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }} title="Edit">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                           </motion.button>
                         )}
@@ -888,7 +894,7 @@ export default function WorkspacePage() {
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                             </motion.svg>
                                           </button>
-                                          {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === item._id} onChange={() => toggleTaskActive(item._id, taskActive)} />}
+                                          {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === item._id} onChange={() => taskActive ? setDeactivateTaskTarget({ id: item._id, name: item.title, hasSubtasks: (subtasksByParent.get(item._id) ?? []).length > 0 }) : toggleTaskActive(item._id, false)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{item.title}</span>
                                             {fullTask?.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{fullTask.description}</span>}
@@ -898,15 +904,15 @@ export default function WorkspacePage() {
                                               ))}
                                             </div>
                                           </div>
-                                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <div className="flex items-center gap-0.5 shrink-0">
                                             {canEditTasks && isMyTask && fullTask && (
-                                              <button type="button" onClick={() => openEditTask(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
-                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                              <button type="button" onClick={() => openEditTask(fullTask)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }} title="Edit">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                               </button>
                                             )}
                                             {canDeleteTasks && isMyTask && (
                                               <button type="button" onClick={() => setDeleteTarget({ type: "task", id: item._id, name: item.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
-                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                               </button>
                                             )}
                                           </div>
@@ -955,15 +961,15 @@ export default function WorkspacePage() {
                                                                     ))}
                                                                   </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <div className="flex items-center gap-0.5 shrink-0">
                                                                   {canEditTasks && isSubMyTask && (
-                                                                    <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
-                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                                    <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }} title="Edit">
+                                                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                                                     </button>
                                                                   )}
                                                                   {canDeleteTasks && isSubMyTask && (
                                                                     <button type="button" onClick={() => setDeleteTarget({ type: "task", id: sub._id, name: sub.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
-                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                                                     </button>
                                                                   )}
                                                                 </div>
@@ -1029,7 +1035,7 @@ export default function WorkspacePage() {
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                             </motion.svg>
                                           </button>
-                                          {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === task._id} onChange={() => toggleTaskActive(task._id, taskActive)} />}
+                                          {canToggleActive && isMyTask && <ToggleSwitch size="sm" checked={taskActive} disabled={togglingId === task._id} onChange={() => taskActive ? setDeactivateTaskTarget({ id: task._id, name: task.title, hasSubtasks: (subtasksByParent.get(task._id) ?? []).length > 0 }) : toggleTaskActive(task._id, false)} />}
                                           <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-semibold truncate block" style={{ color: taskActive ? "var(--fg)" : "var(--fg-tertiary)" }}>{task.title}</span>
                                             {task.description && <span className="text-[11px] truncate block" style={{ color: "var(--fg-tertiary)" }}>{task.description}</span>}
@@ -1040,15 +1046,15 @@ export default function WorkspacePage() {
                                               {task.deadline && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: deadlineUrgency(task.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(task.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(task.deadline)}</span>}
                                             </div>
                                           </div>
-                                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <div className="flex items-center gap-0.5 shrink-0">
                                             {canEditTasks && isMyTask && (
-                                              <button type="button" onClick={() => openEditTask(task)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
-                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                              <button type="button" onClick={() => openEditTask(task)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }} title="Edit">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                               </button>
                                             )}
                                             {canDeleteTasks && isMyTask && (
                                               <button type="button" onClick={() => setDeleteTarget({ type: "task", id: task._id, name: task.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
-                                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                               </button>
                                             )}
                                           </div>
@@ -1097,15 +1103,15 @@ export default function WorkspacePage() {
                                                                     {sub.deadline && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: deadlineUrgency(sub.deadline) === "overdue" ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "var(--bg-grouped)", color: deadlineUrgency(sub.deadline) === "overdue" ? "var(--rose)" : "var(--fg-tertiary)" }}>{formatDate(sub.deadline)}</span>}
                                                                   </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <div className="flex items-center gap-0.5 shrink-0">
                                                                   {canEditTasks && isSubMyTask && (
-                                                                    <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-tertiary)" }} title="Edit">
-                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                                    <button type="button" onClick={() => openEditTask(sub)} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--primary)" }} title="Edit">
+                                                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                                                     </button>
                                                                   )}
                                                                   {canDeleteTasks && isSubMyTask && (
                                                                     <button type="button" onClick={() => setDeleteTarget({ type: "task", id: sub._id, name: sub.title })} className="h-5 w-5 flex items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--rose)_10%,transparent)]" style={{ color: "var(--rose)" }} title="Delete">
-                                                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                                                                     </button>
                                                                   )}
                                                                 </div>
@@ -1144,11 +1150,9 @@ export default function WorkspacePage() {
                       )}
                     </div>
 
-                    
-
                     {/* ── card footer: stat pills ── */}
                     <div className="border-t px-2 py-1.5 flex items-center gap-1 flex-wrap" style={{ borderColor: "var(--border)" }}>
-                      {canToggleCampaign && isMyCampaign && <ToggleSwitch size="sm" checked={c.status === "active"} disabled={togglingId === c._id} onChange={() => toggleCampaignActive(c._id, c.status)} />}
+                      {canToggleCampaign && isMyCampaign && <ToggleSwitch size="sm" checked={c.status === "active"} disabled={togglingId === c._id} onChange={() => c.status === "active" ? setPauseCampaignTarget({ id: c._id, name: c.name, status: c.status }) : toggleCampaignActive(c._id, c.status)} />}
                       {totalTasks > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>{totalTasks} task{totalTasks !== 1 ? "s" : ""}</span>}
                       {inProgressTasks > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>{inProgressTasks} in progress</span>}
                       {completedTasks > 0 && <span className="rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 12%, transparent)", color: "var(--teal)" }}>{completedTasks} completed</span>}
@@ -1427,6 +1431,30 @@ export default function WorkspacePage() {
         loading={statusUpdating}
         onConfirm={handleStatusConfirm}
         onCancel={() => setStatusConfirm(null)}
+      />
+
+      {/* ── deactivate task confirm ── */}
+      <ConfirmDialog
+        open={!!deactivateTaskTarget}
+        title="Deactivate Task"
+        description={`Deactivate "${deactivateTaskTarget?.name}"?${deactivateTaskTarget?.hasSubtasks ? " All subtasks will also be deactivated." : ""} You can reactivate it later.`}
+        confirmLabel={togglingId === deactivateTaskTarget?.id ? "Deactivating…" : "Deactivate"}
+        variant="warning"
+        loading={togglingId === deactivateTaskTarget?.id}
+        onConfirm={async () => { if (deactivateTaskTarget) { await toggleTaskActive(deactivateTaskTarget.id, true); setDeactivateTaskTarget(null); } }}
+        onCancel={() => setDeactivateTaskTarget(null)}
+      />
+
+      {/* ── pause campaign confirm ── */}
+      <ConfirmDialog
+        open={!!pauseCampaignTarget}
+        title="Pause Campaign"
+        description={`Pause "${pauseCampaignTarget?.name}"? Tasks will remain but no new checklist entries will be generated. You can resume it later.`}
+        confirmLabel={togglingId === pauseCampaignTarget?.id ? "Pausing…" : "Pause"}
+        variant="warning"
+        loading={togglingId === pauseCampaignTarget?.id}
+        onConfirm={async () => { if (pauseCampaignTarget) { await toggleCampaignActive(pauseCampaignTarget.id, pauseCampaignTarget.status); setPauseCampaignTarget(null); } }}
+        onCancel={() => setPauseCampaignTarget(null)}
       />
 
       {/* ── Task History Modal ── */}

@@ -3,9 +3,7 @@ import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import FlowLayout from "@/lib/models/FlowLayout";
 import "@/lib/models/Department";
-import type { IPermissions } from "@/lib/models/Designation";
-import { PERMISSION_KEYS } from "@/lib/models/Designation";
-import { SELF_PERMISSIONS, type AnyPermissionKey } from "@/lib/permissions.shared";
+import { PERMISSION_KEYS, SELF_PERMISSIONS, type IPermissions, type AnyPermissionKey } from "@/lib/permissions.shared";
 import { auth } from "@/lib/auth";
 
 /* ================================================================ */

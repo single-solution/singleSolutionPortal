@@ -138,9 +138,9 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
     if (!open || !canViewTeam) return;
     setSidebarLoading(true);
     fetch("/api/employees/dropdown")
-      .then((r) => r.ok ? r.json() : [])
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => setEmployees(Array.isArray(d) ? d : []))
-      .catch(() => {})
+      .catch(() => { setEmployees([]); toast.error("Failed to load employees"); })
       .finally(() => setSidebarLoading(false));
   }, [open, canViewTeam]);
 
@@ -154,7 +154,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
       if (userId) q.set("userId", userId);
       const res = await fetch(`/api/leaves/balance?${q}`);
       if (res.ok) setBalance(await res.json());
-    } catch { /* ignore */ }
+      else toast.error("Failed to load leave balance");
+    } catch { toast.error("Failed to load leave balance"); }
     setBalLoading(false);
   }, [userId, session?.user?.id, isSuperAdmin, selYear]);
 
@@ -169,8 +170,8 @@ export function LeavesModal({ open, onClose, selectedUserId }: Props) {
       if (res.ok) {
         const data = await res.json();
         setLeaves(Array.isArray(data) ? data : []);
-      }
-    } catch { setLeaves([]); }
+      } else { setLeaves([]); toast.error("Failed to load leaves"); }
+    } catch { setLeaves([]); toast.error("Failed to load leaves"); }
     setLeavesLoading(false);
   }, [userId, session?.user?.id, isSuperAdmin, selYear]);
 
