@@ -27,7 +27,7 @@ const flowLayoutSchema = new Schema<IFlowLayout>(
       default: {},
     },
     links: {
-      type: [Schema.Types.Mixed],
+      type: [Schema.Types.Mixed] as unknown as IEmpLink[],
       default: [],
     },
   },
