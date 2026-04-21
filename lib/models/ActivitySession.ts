@@ -16,6 +16,8 @@ export interface IActivitySession extends Document {
   platform?: string;
   userAgent?: string;
   deviceId?: string;
+  deviceCheckFlagged?: boolean;
+  deviceCheckSignals?: Record<string, unknown>;
   location: {
     inOffice: boolean;
     latitude?: number;
@@ -58,6 +60,8 @@ const activitySessionSchema = new Schema<IActivitySession>(
     platform: String,
     userAgent: String,
     deviceId: String,
+    deviceCheckFlagged: { type: Boolean, default: false },
+    deviceCheckSignals: { type: Schema.Types.Mixed, default: null },
     location: {
       inOffice: { type: Boolean, default: false },
       latitude: Number,

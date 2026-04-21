@@ -52,10 +52,26 @@ function getDeviceId(): string {
 function detectMobile(): boolean {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent;
-  return (
-    /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
-    ("ontouchstart" in window && window.innerWidth < 768)
-  );
+
+  if (/Android|iPhone|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) {
+    return true;
+  }
+
+  const isMacUA = /Macintosh|Mac OS/i.test(ua);
+  if (isMacUA && navigator.maxTouchPoints > 0) {
+    return true;
+  }
+
+  const shortSide = Math.min(screen.width, screen.height);
+  if (shortSide < 500 && navigator.maxTouchPoints > 0) {
+    return true;
+  }
+
+  if ("ontouchstart" in window && window.innerWidth < 768) {
+    return true;
+  }
+
+  return false;
 }
 
 function sendBrowserNotification(title: string, body: string) {
@@ -176,6 +192,10 @@ export default function SessionTracker() {
             userAgent: navigator.userAgent,
             deviceId: getDeviceId(),
             isMobile: isMobileRef.current,
+            screenWidth: screen.width,
+            screenHeight: screen.height,
+            devicePixelRatio: window.devicePixelRatio,
+            maxTouchPoints: navigator.maxTouchPoints,
           }),
         });
         const data = await res.json();

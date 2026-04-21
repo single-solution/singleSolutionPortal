@@ -13,6 +13,7 @@ import { emitSocket } from "@/lib/socket";
 import { logActivity } from "@/lib/activityLogger";
 import { startOfDay, isSameDay } from "@/lib/dayBoundary";
 import { resolveTimezone, dateParts, dateInTz } from "@/lib/tz";
+import { checkDevice } from "@/lib/deviceCheck";
 import { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
 
@@ -111,10 +112,21 @@ export async function POST(req: Request) {
   const action = body.action as string;
 
   if (action === "checkin") {
-    if (body.isMobile) {
-      return badRequest("Mobile devices cannot start attendance sessions. Use a laptop or PC.");
+    const deviceResult = checkDevice(req, {
+      screenWidth: body.screenWidth as number | undefined,
+      screenHeight: body.screenHeight as number | undefined,
+      devicePixelRatio: body.devicePixelRatio as number | undefined,
+      maxTouchPoints: body.maxTouchPoints as number | undefined,
+      platform: body.platform as string | undefined,
+    });
+
+    if (!deviceResult.allowed) {
+      return badRequest(
+        `Mobile devices cannot start attendance sessions. Use a laptop or PC. (${deviceResult.reason})`,
+      );
     }
-    return handleCheckIn(actor.id, body);
+
+    return handleCheckIn(actor.id, body, deviceResult);
   } else if (action === "checkout") {
     return handleCheckOut(actor.id);
   }
@@ -421,6 +433,7 @@ async function handleCheckIn(
     userAgent?: string;
     deviceId?: string;
   },
+  deviceResult?: { allowed: boolean; flagged: boolean; reason?: string; signals: object },
 ) {
   const settings = await SystemSettings.findOne({ key: "global" })
     .select("company.timezone")
@@ -477,6 +490,8 @@ async function handleCheckIn(
     platform: body.platform,
     userAgent: body.userAgent,
     deviceId: body.deviceId,
+    deviceCheckFlagged: deviceResult?.flagged ?? false,
+    deviceCheckSignals: deviceResult?.signals ?? null,
     location: {
       inOffice,
       latitude: body.latitude,

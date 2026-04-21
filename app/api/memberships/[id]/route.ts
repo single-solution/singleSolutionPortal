@@ -1,10 +1,9 @@
 import { connectDB } from "@/lib/db";
 import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
-import "@/lib/models/User";
-import "@/lib/models/Department";
-import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import User from "@/lib/models/User";
+import Department from "@/lib/models/Department";
+import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds, invalidateHierarchyCache } from "@/lib/permissions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -114,6 +113,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if ((changingPerms || resettingToDefaults) && !hasPermission(actor, "members_customizePermissions", deptId)) {
       return forbidden("Missing members_customizePermissions permission");
     }
+    if (changingActive && !hasPermission(actor, "members_addToDepartment", deptId) && !hasPermission(actor, "members_removeFromDepartment", deptId)) {
+      return forbidden("Missing permission to change membership status");
+    }
     if (!changingDesig && !changingPerms && !changingActive && !resettingToDefaults) {
       return forbidden();
     }
@@ -123,8 +125,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (typeof body.designation !== "string" || !isValidId(body.designation)) {
       return badRequest("Invalid designation");
     }
-    const desig = await Designation.findById(body.designation).select("_id defaultPermissions").lean();
+    const desig = await Designation.findById(body.designation).select("_id isActive defaultPermissions").lean();
     if (!desig) return badRequest("Designation not found");
+    if ((desig as Record<string, unknown>).isActive === false) return badRequest("Cannot assign an inactive designation");
     membership.designation = body.designation;
     if (body.permissions === undefined) {
       const defaults: Record<string, boolean> = {};
@@ -134,7 +137,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  if (typeof body.isActive === "boolean") membership.isActive = body.isActive;
+  if (typeof body.isActive === "boolean") {
+    if (body.isActive === true) {
+      const dept = await Department.findById(membership.department).select("isActive").lean();
+      if (dept && (dept as Record<string, unknown>).isActive === false) {
+        return badRequest("Cannot activate: parent department is inactive");
+      }
+      const desig = await Designation.findById(membership.designation).select("isActive").lean();
+      if (desig && (desig as Record<string, unknown>).isActive === false) {
+        return badRequest("Cannot activate: designation is inactive");
+      }
+      membership.deactivatedBy = [];
+    }
+    membership.isActive = body.isActive;
+  }
 
   if (body.permissions !== undefined) {
     const current = membership.permissions as unknown as Record<string, boolean>;

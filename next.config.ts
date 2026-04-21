@@ -13,6 +13,17 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
+  headers: async () => [
+    {
+      source: "/(.*)",
+      headers: [
+        {
+          key: "Accept-CH",
+          value: "Sec-CH-UA-Mobile, Sec-CH-UA-Platform, Sec-CH-UA",
+        },
+      ],
+    },
+  ],
 };
 
 export default nextConfig;

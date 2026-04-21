@@ -29,7 +29,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /* ────────── Types ────────── */
 
-interface DesigOption { _id: string; name: string; color: string; defaultPermissions?: Record<string, boolean> }
+interface DesigOption { _id: string; name: string; color: string; isActive?: boolean; defaultPermissions?: Record<string, boolean> }
 
 interface MembershipRow {
   _id: string;
@@ -45,7 +45,7 @@ interface Employee {
   about: { firstName: string; lastName: string; profileImage?: string };
   isActive: boolean;
 }
-interface Department { _id: string; title: string; employeeCount: number }
+interface Department { _id: string; title: string; employeeCount: number; isActive: boolean }
 
 function idStr(x: unknown): string {
   if (x === null || x === undefined) return "";
@@ -57,8 +57,9 @@ function idStr(x: unknown): string {
 /* ────────── Custom Nodes ────────── */
 
 function DeptNode({ data }: NodeProps) {
+  const active = data.active !== false;
   return (
-    <div className="rounded-xl border-2 px-5 py-3 shadow-lg min-w-[180px]" style={{ background: "var(--bg-elevated)", borderColor: "var(--purple)" }}>
+    <div className={`rounded-xl border-2 px-5 py-3 shadow-lg min-w-[180px] transition-all ${active ? "" : "opacity-40 grayscale"}`} style={{ background: "var(--bg-elevated)", borderColor: "var(--purple)" }}>
       <Handle type="source" position={Position.Top} id="top" className="!bg-[var(--purple)] !w-3 !h-3 !border-2 !border-white" />
       <div className="flex items-center gap-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--purple)", color: "white" }}>
@@ -289,9 +290,10 @@ interface Props {
   /** When set, only these employee IDs can be edited/connected. Undefined = all (SuperAdmin). */
   editableEmployeeIds?: string[];
   onEditEmployee?: (empId: string) => void;
+  refreshKey?: number;
 }
 
-export function OrgFlowTree({ departments, employees, designations, canEditCanvas, canAssignDesignation = false, canCustomizePermissions = false, canAddToDepartment = false, canRemoveFromDepartment = false, editableEmployeeIds, onEditEmployee }: Props) {
+export function OrgFlowTree({ departments, employees, designations, canEditCanvas, canAssignDesignation = false, canCustomizePermissions = false, canAddToDepartment = false, canRemoveFromDepartment = false, editableEmployeeIds, onEditEmployee, refreshKey }: Props) {
   interface EmpLink { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean>; designationId?: string; leafDesignationId?: string }
 
   const canEditEmp = useCallback((empId: string) => {
@@ -336,8 +338,10 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
   const [restrictMsg, setRestrictMsg] = useState("");
 
   const refetchMemberships = useCallback(async () => {
-    const res = await fetch("/api/memberships");
-    if (res.ok) setMemberships(await res.json());
+    try {
+      const res = await fetch("/api/memberships");
+      if (res.ok) setMemberships(await res.json());
+    } catch { /* network error during refetch — silent retry on next action */ }
   }, []);
 
   const syncHierarchy = useCallback(() => {
@@ -365,7 +369,14 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       setSavedPositions(l.positions ?? {});
       setEmpLinks(Array.isArray(l.links) ? l.links : []);
       setLoaded(true);
+    }).catch(() => {
+      toast.error("Failed to load organization data");
+      setLoaded(true);
     });
+  }, [refreshKey]);
+
+  useEffect(() => {
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, []);
 
   function getNodeLabel(nodeId: string): string {
@@ -383,17 +394,14 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     const queue = [upperNode];
     while (queue.length > 0) {
       const cur = queue.shift()!;
-      if (cur === lowerNode) continue;
+      if (cur === lowerNode) return true;
       if (visited.has(cur)) continue;
       visited.add(cur);
       for (const l of links) {
-        // Walk upward: who is above `cur`?
         if (l.target === cur && l.sourceHandle === "bottom" && l.targetHandle === "top") {
-          if (l.source === lowerNode) return true;
           queue.push(l.source);
         }
         if (l.source === cur && l.sourceHandle === "top" && l.targetHandle === "bottom") {
-          if (l.target === lowerNode) return true;
           queue.push(l.target);
         }
       }
@@ -451,7 +459,8 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
 
       const defaultPerms: Record<string, boolean> = {};
       for (const k of PERMISSION_KEYS) defaultPerms[k] = k === "employees_view" || k === "employees_viewDetail";
-      saveEmpLinks([...empLinks, { source: upperNode, target: lowerNode, sourceHandle: upperHandle, targetHandle: lowerHandle, permissions: defaultPerms, designationId: designations[0]?._id ?? undefined }]);
+      const firstActiveDesig = designations.find((d) => d.isActive !== false);
+      saveEmpLinks([...empLinks, { source: upperNode, target: lowerNode, sourceHandle: upperHandle, targetHandle: lowerHandle, permissions: defaultPerms, designationId: firstActiveDesig?._id ?? undefined }]);
       return;
     }
 
@@ -482,7 +491,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       fetch("/api/memberships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: userId, department: deptId, designation: designations[0]?._id, direction: "below" }),
+        body: JSON.stringify({ user: userId, department: deptId, designation: designations.find((d) => d.isActive !== false)?._id, direction: "below" }),
       }).then((res) => { if (res.ok) { syncHierarchy(); refetchMemberships(); } else toast.error("Failed to add employee"); }).catch(() => toast.error("Something went wrong"));
       return;
     }
@@ -491,7 +500,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     setConnDeptId(deptNode);
     setConnEmpLabel(getNodeLabel(empNode));
     setConnDeptLabel(getNodeLabel(deptNode));
-    setConnDesig(designations[0]?._id ?? "");
+    setConnDesig(designations.find((d) => d.isActive !== false)?._id ?? "");
     setConnAbove(true);
     setConnOpen(true);
   }, [canEditCanvas, canAddToDepartment, departments, employees, designations, empLinks, saveEmpLinks, wouldCycle, canEditEmp, syncHierarchy, refetchMemberships]);
@@ -582,9 +591,13 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         } else {
           setPrivDesigDefaults(null);
         }
+        setPrivOpen(true);
+      } else {
+        toast.error("Failed to load membership permissions");
       }
-    } catch { /* ignore */ }
-    setPrivOpen(true);
+    } catch {
+      toast.error("Failed to load membership permissions");
+    }
   }, [memberships]);
 
   const openLinkPrivileges = useCallback((linkIdx: number) => {
@@ -679,16 +692,22 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       if (removeLinkIdx >= 0) {
         const newLinks = empLinks.filter((_, i) => i !== removeLinkIdx);
         await saveEmpLinks(newLinks);
+        setRemoveOpen(false);
       } else if (removeMembershipId) {
         const res = await fetch(`/api/memberships/${removeMembershipId}`, { method: "DELETE" });
         if (res.ok) {
           await syncHierarchy();
           await refetchMemberships();
+          setRemoveOpen(false);
+        } else {
+          const err = await res.json().catch(() => null);
+          toast.error(err?.error ?? "Failed to remove membership");
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      toast.error("Something went wrong");
+    }
     setRemoveDeleting(false);
-    setRemoveOpen(false);
   }, [removeMembershipId, removeLinkIdx, empLinks, refetchMemberships, syncHierarchy, saveEmpLinks]);
 
   /* ── Build graph ── */
@@ -697,9 +716,12 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     const edges: Edge[] = [];
     const DEPT_X = 340; const EMP_X = 190; const LEVEL = 170;
 
+    const inactiveDeptIds = new Set(departments.filter((d) => !d.isActive).map((d) => d._id));
+    const inactiveDesigIds = new Set(designations.filter((d) => d.isActive === false).map((d) => d._id));
+
     departments.forEach((dept, dIdx) => {
       const dId = `dept-${dept._id}`;
-      nodes.push({ id: dId, type: "dept", position: savedPositions[dId] ?? { x: dIdx * DEPT_X, y: 0 }, data: { label: dept.title, sub: `${dept.employeeCount} people` } });
+      nodes.push({ id: dId, type: "dept", position: savedPositions[dId] ?? { x: dIdx * DEPT_X, y: 0 }, data: { label: dept.title, sub: `${dept.employeeCount} people`, active: dept.isActive } });
     });
 
     const linkSources = new Set(empLinks.filter((l) => l.source.startsWith("emp-")).map((l) => l.source.slice(4)));
@@ -732,15 +754,18 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
           if (d) { leafDesigName = d.name; leafDesigIdVal = d._id; leafDesigColorVal = d.color; }
         }
       }
+      const cascadeGrayed = empMems.length > 0 && empMems.every((m) => inactiveDeptIds.has(idStr(m.department)) || (m.designation && inactiveDesigIds.has(m.designation._id)));
+      const effectiveActive = emp.isActive && !cascadeGrayed;
+
       nodes.push({ id: eId, type: "emp", position: savedPositions[eId] ?? { x: xGuess, y: yGuess }, data: {
-        label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: emp.isActive, empId: emp._id,
+        label: `${emp.about.firstName} ${emp.about.lastName}`, email: emp.email, initials, active: effectiveActive, empId: emp._id,
         onEdit: onEditEmployee && editable ? () => onEditEmployee(emp._id) : undefined,
         isLeaf,
         leafDesignation: leafDesigName,
         leafDesigId: leafDesigIdVal,
         leafDesigColor: leafDesigColorVal,
         leafMembershipId: leafMemAny?._id ?? null,
-        leafDesignations: isLeaf ? designations : undefined,
+        leafDesignations: isLeaf ? designations.filter((dd) => dd.isActive !== false) : undefined,
         canAssignLeafDesig: isLeaf && canAssignDesignation && editable,
         onChangeLeafDesig: isLeaf ? (mId: string | null, dId: string) => handleLeafDesignation(emp._id, mId, dId) : undefined,
       } });
@@ -755,7 +780,8 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       }
       const empEditable = m.user?._id ? canEditEmp(idStr(m.user._id)) : false;
       const isAboveDirection = m.direction === "above";
-      return { designation: isAboveDirection ? (m.designation ?? null) : null, membershipId: m._id, designations, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: !isAboveDirection, readOnly: !canEditCanvas || !empEditable, canAssignDesig: canAssignDesignation, canCustomize: canCustomizePermissions, canRemove: canRemoveFromDepartment, isCustomPermissions: isAboveDirection && isCustom, changingDesigId } as DesigEdgeData as unknown as Record<string, unknown>;
+      const activeDesigs = designations.filter((dd) => dd.isActive !== false);
+      return { designation: isAboveDirection ? (m.designation ?? null) : null, membershipId: m._id, designations: activeDesigs, onChangeDesignation: handleChangeDesignation, onOpenPrivileges: openPrivileges, onDeleteMembership: handleDeleteMembership, hidePill: !isAboveDirection, readOnly: !canEditCanvas || !empEditable, canAssignDesig: canAssignDesignation, canCustomize: canCustomizePermissions, canRemove: canRemoveFromDepartment, isCustomPermissions: isAboveDirection && isCustom, changingDesigId } as DesigEdgeData as unknown as Record<string, unknown>;
     };
 
     memberships.forEach((m) => {
@@ -769,7 +795,8 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       const srcHandle = isAbove ? "top" : "bottom";
       const tgtHandle = isAbove ? "bottom" : "top";
 
-      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: isAbove ? (m.designation?.color ?? "var(--purple)") : "var(--purple)", strokeWidth: isAbove ? 2 : 1.5, ...(isAbove ? {} : { strokeDasharray: "4 3" }) } });
+      const edgeGrayed = inactiveDeptIds.has(idStr(m.department)) || (m.designation && inactiveDesigIds.has(m.designation._id));
+      edges.push({ id: `mem-${m._id}`, source: dId, target: eId, sourceHandle: srcHandle, targetHandle: tgtHandle, type: "designation", data: edgeData(m), style: { stroke: isAbove ? (m.designation?.color ?? "var(--purple)") : "var(--purple)", strokeWidth: isAbove ? 2 : 1.5, opacity: edgeGrayed ? 0.25 : 1, ...(isAbove ? {} : { strokeDasharray: "4 3" }) } });
     });
 
     // Emp ↔ Emp hierarchy links (with pill for designation + privileges)
@@ -787,7 +814,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
         targetHandle: link.targetHandle || "top",
         type: "designation",
         data: {
-          designation: linkDesig, membershipId: `link-${idx}`, designations,
+          designation: linkDesig, membershipId: `link-${idx}`, designations: designations.filter((dd) => dd.isActive !== false),
           onChangeDesignation: (_id: string, dId: string) => handleChangeLinkDesignation(linkIdx, dId),
           onOpenPrivileges: () => openLinkPrivileges(linkIdx),
           onDeleteMembership: () => handleDeleteLink(linkIdx),
@@ -807,13 +834,19 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
 
   const handleEdgesChange = useCallback((changes: Parameters<typeof onEdgesChange>[0]) => {
     if (!canEditCanvas) { onEdgesChange(changes.filter((c) => c.type !== "remove")); return; }
-    const removals = changes.filter((c): c is Extract<typeof c, { type: "remove" }> => c.type === "remove" && "id" in c && (c as { id?: string }).id?.startsWith("link-") === true);
+    const filtered = changes.filter((c) => {
+      if (c.type !== "remove") return true;
+      const edgeId = (c as unknown as { id: string }).id;
+      if (edgeId?.startsWith("mem-")) return false;
+      return true;
+    });
+    const removals = filtered.filter((c): c is Extract<typeof c, { type: "remove" }> => c.type === "remove" && "id" in c && (c as { id?: string }).id?.startsWith("link-") === true);
     if (removals.length > 0) {
       const removeIds = new Set(removals.map((c) => (c as unknown as { id: string }).id));
       const newLinks = empLinks.filter((_, idx) => !removeIds.has(`link-${idx}`));
       saveEmpLinks(newLinks);
     }
-    onEdgesChange(changes);
+    onEdgesChange(filtered);
   }, [canEditCanvas, onEdgesChange, empLinks, saveEmpLinks]);
 
   const savePositions = useCallback((currentNodes: Node[]) => {
@@ -823,7 +856,8 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
       const pos: Record<string, { x: number; y: number }> = {};
       for (const n of currentNodes) pos[n.id] = { x: Math.round(n.position.x), y: Math.round(n.position.y) };
       setSavedPositions(pos);
-      fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", positions: pos }) });
+      fetch("/api/flow-layout", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canvasId: "org", positions: pos }) })
+        .catch(() => {});
     }, 800);
   }, [canEditCanvas]);
 
@@ -877,7 +911,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
                 <div>
                   <label className="text-[11px] font-medium mb-1 block" style={{ color: "var(--fg-secondary)" }}>Designation</label>
                   <select value={connDesig} onChange={(e) => setConnDesig(e.target.value)} className="input w-full">
-                    {designations.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                    {designations.filter((d) => d.isActive !== false).map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
                   </select>
                   <p className="text-[11px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
                     Privileges from this designation will be applied. You can fine-tune them later via the pill.

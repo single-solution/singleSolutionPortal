@@ -212,7 +212,7 @@ async function loadOrgGraph(): Promise<OrgGraphData> {
   await connectDB();
   const [layout, allMemberships] = await Promise.all([
     FlowLayout.findOne({ canvasId: "org" }).select("links").lean(),
-    Membership.find({ isActive: { $ne: false } })
+    Membership.find({ isActive: true })
       .select("user department direction")
       .lean(),
   ]);
@@ -314,7 +314,7 @@ export async function getHierarchyDepartmentIds(userId: string): Promise<string[
 
   const memberships = await Membership.find({
     user: { $in: allVisibleUsers },
-    isActive: { $ne: false },
+    isActive: true,
   }).select("department").lean();
 
   const deptIds = new Set<string>();

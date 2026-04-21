@@ -49,9 +49,14 @@ export async function GET(req: Request) {
   if (userId && !isValidId(userId)) return badRequest("Invalid userId");
   if (departmentId && !isValidId(departmentId)) return badRequest("Invalid departmentId");
 
+  const isSelf = userId === actor.id;
+  if (!isSelf && !isSuperAdmin(actor) && !hasPermission(actor, "employees_view") && !hasPermission(actor, "organization_view")) {
+    return forbidden();
+  }
+
   await connectDB();
 
-  const filter: Record<string, unknown> = { isActive: { $ne: false } };
+  const filter: Record<string, unknown> = { isActive: true };
 
   if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
@@ -139,12 +144,13 @@ export async function POST(req: Request) {
   const [userDoc, deptDoc, desigDoc] = await Promise.all([
     User.findById(user).select("_id isSuperAdmin").lean(),
     Department.findById(department).select("_id").lean(),
-    Designation.findById(designationId).select("defaultPermissions").lean(),
+    Designation.findById(designationId).select("isActive defaultPermissions").lean(),
   ]);
 
   if (!userDoc) return badRequest("User not found");
   if (!deptDoc) return badRequest("Department not found");
   if (!desigDoc) return badRequest("Designation not found");
+  if ((desigDoc as Record<string, unknown>).isActive === false) return badRequest("Cannot create membership with an inactive designation");
 
   if ((userDoc as Record<string, unknown>).isSuperAdmin === true && !isSuperAdmin(actor)) {
     return forbidden("Cannot add a superadmin to a department");

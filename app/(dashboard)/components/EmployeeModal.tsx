@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { Portal } from "./Portal";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useQuery, invalidateQueries } from "@/lib/useQuery";
 import { ease } from "@/lib/motion";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -295,6 +296,8 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const [multiDeptUi, setMultiDeptUi] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [locYear, setLocYear] = useState(n.getFullYear());
   const [locMonth, setLocMonth] = useState(n.getMonth() + 1);
@@ -310,6 +313,17 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     setTab("overview");
     setEditing(false);
     setEditForm(null);
+    setConfirmDelete(false);
+    setInviting(false);
+    setToggling(false);
+    setSaving(false);
+    setDeleting(false);
+    const now = new Date();
+    setCalYear(now.getFullYear());
+    setCalMonth(now.getMonth() + 1);
+    setLocYear(now.getFullYear());
+    setLocMonth(now.getMonth() + 1);
+    setLocDay(now.getDate());
   }, [open, initialEmployeeId, viewerIsSuperAdmin]);
 
   const effectiveId = useMemo(() => {
@@ -344,7 +358,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
   const { data: memResponse, loading: memL } = useQuery<{ memberships: MembershipRow[]; linkDesignation: { name: string; color: string } | null; isLeaf: boolean }>(memUrl);
   const memRaw = memResponse?.memberships ?? null;
   const linkDesignation = memResponse?.linkDesignation ?? null;
-  const isLeafNode = memResponse?.isLeaf ?? true;
+  const isLeafNode = memResponse?.isLeaf ?? false;
   const { data: dailyRaw, loading: dayL } = useQuery<DailyRow[]>(dailyUrl, undefined, { enabled: tab === "attendance" || tab === "overview" });
   const { data: monthlyRaw, loading: monL } = useQuery<MonthlyStats | null>(monthlyUrl, undefined, {
     enabled: tab === "attendance" || tab === "overview",
@@ -491,10 +505,6 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     const list = Array.isArray(tasksRaw) ? tasksRaw : [];
     return !effectiveId ? [] : list.filter((t) => assigneeId(t) === effectiveId);
   }, [tasksRaw, effectiveId]);
-  const activeTasks = useMemo(
-    () => empTasks.filter((t) => { const s = effectiveId ? employeeTaskStatus(t, effectiveId) : t.status; return s === "pending" || s === "inProgress"; }).length,
-    [empTasks, effectiveId],
-  );
   const empCampaigns = useMemo(() => {
     const list = Array.isArray(campRaw) ? campRaw : [];
     if (!effectiveId) return [];
@@ -650,6 +660,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
 
   const startEditing = useCallback(async () => {
     if (!employee || !effectiveId) return;
+    const startId = effectiveId;
     const empRec2 = employee as unknown as Record<string, unknown>;
     const sched = resolveWeeklySchedule(empRec2);
     const grace = resolveGraceMinutes(empRec2);
@@ -666,11 +677,12 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
     setMultiDeptUi(false);
     try {
       const deptRes = await fetch("/api/departments").then((r) => r.ok ? r.json() : []);
+      if (startId !== effectiveId) return;
       if (Array.isArray(deptRes)) {
         setDepartments(deptRes);
         const managed = deptRes.filter((d: DeptOption) => {
           const mId = typeof d.manager === "object" && d.manager ? d.manager._id : d.manager;
-          return mId === effectiveId;
+          return mId === startId;
         }).map((d: DeptOption) => d._id);
         if (managed.length > 0) {
           setMultiDeptUi(true);
@@ -678,6 +690,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
         }
       }
     } catch { /* optional */ }
+    if (startId !== effectiveId) return;
     setEditing(true);
   }, [employee, effectiveId]);
 
@@ -951,6 +964,17 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 }}
                               />
                             </div>
+                          )}
+                          {!isOwn && !targetSA && canPerm("employees_delete") && (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDelete(true)}
+                              className="flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors"
+                              style={{ background: "color-mix(in srgb, var(--rose) 8%, transparent)", color: "var(--rose)" }}
+                            >
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                              Delete
+                            </button>
                           )}
                         </>
                       )}
@@ -1245,23 +1269,27 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                             <option value="partTime">Part Time</option>
                                             <option value="contract">Contract</option>
                                           </select>
-                                          <div className="flex items-center gap-1">
-                                            <input className="input !w-12 !min-h-0 text-[11px] py-1 px-1 text-center" type="number" min={0} title="Grace" value={editForm.graceMinutes} onChange={(e) => setEditForm({ ...editForm, graceMinutes: Number(e.target.value) || 0 })} />
-                                            <span className="text-[10px] shrink-0" style={{ color: "var(--fg-tertiary)" }}>grace</span>
+                                          <div className="flex items-center gap-1.5">
+                                            <input className="input !min-h-0 text-[11px] py-1 px-2 text-center w-16" type="number" min={0} title="Grace minutes" value={editForm.graceMinutes} onChange={(e) => setEditForm({ ...editForm, graceMinutes: Number(e.target.value) || 0 })} />
+                                            <span className="text-[10px] shrink-0" style={{ color: "var(--fg-tertiary)" }}>min grace</span>
                                           </div>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                        <div className="grid grid-cols-1 gap-1">
                                           {ALL_WEEKDAYS.map((day) => {
                                             const ds = editForm.weeklySchedule[day];
                                             return (
-                                              <div key={day} className="flex items-center gap-1.5 rounded-md px-1.5 py-1" style={{ background: "var(--bg-grouped)" }}>
-                                                <span className="w-7 shrink-0 text-[10px] font-semibold" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[day].slice(0, 3)}</span>
+                                              <div key={day} className="flex items-center gap-2 rounded-md px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                                                <span className="w-8 shrink-0 text-[11px] font-semibold" style={{ color: ds.isWorking ? "var(--fg)" : "var(--fg-tertiary)" }}>{WEEKDAY_LABELS[day].slice(0, 3)}</span>
                                                 <ToggleSwitch checked={ds.isWorking} onChange={() => updateEditDay(day, { isWorking: !ds.isWorking })} size="sm" />
                                                 {ds.isWorking && (
-                                                  <div className="flex items-center gap-1 min-w-0 flex-1">
-                                                    <input className="input !min-h-0 text-[10px] py-0.5 px-1 min-w-0 flex-1" type="time" value={ds.start} onChange={(e) => updateEditDay(day, { start: e.target.value })} />
-                                                    <input className="input !min-h-0 text-[10px] py-0.5 px-1 min-w-0 flex-1" type="time" value={ds.end} onChange={(e) => updateEditDay(day, { end: e.target.value })} />
-                                                    <input className="input !min-h-0 !w-8 shrink-0 text-[10px] py-0.5 px-0.5 text-center" type="number" min={0} title="Break" value={ds.breakMinutes} onChange={(e) => updateEditDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
+                                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <input className="input !min-h-0 text-[11px] py-1 px-2 min-w-0 flex-1" type="time" value={ds.start} onChange={(e) => updateEditDay(day, { start: e.target.value })} />
+                                                    <span className="text-[10px] shrink-0" style={{ color: "var(--fg-tertiary)" }}>to</span>
+                                                    <input className="input !min-h-0 text-[11px] py-1 px-2 min-w-0 flex-1" type="time" value={ds.end} onChange={(e) => updateEditDay(day, { end: e.target.value })} />
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                      <input className="input !min-h-0 text-[11px] py-1 px-2 text-center w-14" type="number" min={0} title="Break minutes" value={ds.breakMinutes} onChange={(e) => updateEditDay(day, { breakMinutes: Number(e.target.value) || 0 })} />
+                                                      <span className="text-[10px] shrink-0" style={{ color: "var(--fg-tertiary)" }}>brk</span>
+                                                    </div>
                                                   </div>
                                                 )}
                                               </div>
@@ -1323,9 +1351,11 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                               {isCustom && canPerm("members_customizePermissions") && (
                                 <button type="button" className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ color: "var(--fg-secondary)", background: "var(--bg-grouped)" }}
                                   onClick={async () => {
-                                    const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hasCustomPermissions: false }) });
-                                    if (res.ok) { toast.success("Reset to designation defaults"); if (memUrl) invalidateQueries(memUrl); }
-                                    else toast.error("Failed to reset");
+                                    try {
+                                      const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hasCustomPermissions: false }) });
+                                      if (res.ok) { toast.success("Reset to designation defaults"); if (memUrl) invalidateQueries(memUrl); }
+                                      else toast.error("Failed to reset");
+                                    } catch { toast.error("Something went wrong"); }
                                   }}
                                 >Reset to Defaults</button>
                               )}
@@ -1337,7 +1367,7 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                 <div key={cat.label} className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{cat.label}</p>
                                   <div className="space-y-1">
-                                    {cat.keys.map((k) => {
+                                    {relevant.map((k) => {
                                       const meta = PERMISSION_META[k];
                                       const enabled = Boolean(currentPerms[k as string]);
                                       const isDefault = desigPerms[k as string] === currentPerms[k as string] || !isCustom;
@@ -1349,10 +1379,12 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
                                           {canPerm("members_customizePermissions") ? (
                                             <ToggleSwitch size="sm" checked={enabled}
                                               onChange={async () => {
-                                                const newPerms = { [k]: !enabled };
-                                                const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: newPerms }) });
-                                                if (res.ok) { if (memUrl) invalidateQueries(memUrl); }
-                                                else toast.error("Failed to update");
+                                                try {
+                                                  const newPerms = { [k]: !enabled };
+                                                  const res = await fetch(`/api/memberships/${primary._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: newPerms }) });
+                                                  if (res.ok) { if (memUrl) invalidateQueries(memUrl); }
+                                                  else toast.error("Failed to update");
+                                                } catch { toast.error("Something went wrong"); }
                                               }}
                                             />
                                           ) : (
@@ -2230,6 +2262,35 @@ export function EmployeeModal({ open, onClose, initialEmployeeId }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete employee"
+        description={`Permanently remove ${employee?.about?.firstName ?? ""} ${employee?.about?.lastName ?? ""}? This will delete their account, memberships, and all associated data. This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={async () => {
+          setDeleting(true);
+          try {
+            const res = await fetch(`/api/employees/${effectiveId}`, { method: "DELETE" });
+            if (res.ok) {
+              toast.success("Employee deleted");
+              invalidateQueries("/api/employees");
+              invalidateQueries("/api/departments");
+              invalidateQueries("/api/memberships");
+              invalidateQueries("/api/designations");
+              invalidateQueries("/api/flow-layout");
+              setConfirmDelete(false);
+              onClose();
+            } else {
+              const data = await res.json().catch(() => ({}));
+              toast.error((data as Record<string, string>).error ?? "Failed to delete");
+            }
+          } catch { toast.error("Something went wrong"); }
+          setDeleting(false);
+        }}
+      />
     </Portal>
   );
 }

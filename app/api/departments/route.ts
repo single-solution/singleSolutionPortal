@@ -2,7 +2,7 @@ import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
-import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
   hasPermission,
@@ -16,7 +16,7 @@ import { logActivity } from "@/lib/activityLogger";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-  if (!hasPermission(actor, "departments_view") && !hasPermission(actor, "organization_view")) return ok([]);
+  if (!hasPermission(actor, "departments_view") && !hasPermission(actor, "organization_view")) return forbidden();
 
   await connectDB();
 
@@ -38,7 +38,7 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean(),
     Membership.aggregate([
-      { $match: { isActive: { $ne: false } } },
+      { $match: { isActive: true } },
       { $group: { _id: "$department", count: { $sum: 1 } } },
     ]),
   ]);
@@ -66,6 +66,7 @@ export async function POST(req: Request) {
   if (!body.title?.trim()) return badRequest("Department title is required");
 
   if (body.managerId) {
+    if (!isValidId(body.managerId)) return badRequest("Invalid managerId");
     const mgr = await User.findById(body.managerId).select("isSuperAdmin").lean();
     if (mgr?.isSuperAdmin === true) return badRequest("Superadmin cannot be set as department manager");
     if (!isSuperAdmin(actor)) {
@@ -74,6 +75,10 @@ export async function POST(req: Request) {
         return badRequest("Manager must be within your hierarchy");
       }
     }
+  }
+
+  if (body.parentId) {
+    if (!isValidId(body.parentId)) return badRequest("Invalid parentId");
   }
 
   if (body.parentId && !isSuperAdmin(actor)) {

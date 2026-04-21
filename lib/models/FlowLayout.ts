@@ -7,6 +7,7 @@ export interface IEmpLink {
   targetHandle: string;
   permissions?: Record<string, boolean>;
   designationId?: string;
+  leafDesignationId?: string;
 }
 
 export interface IFlowLayout extends Document {
@@ -26,7 +27,7 @@ const flowLayoutSchema = new Schema<IFlowLayout>(
       default: {},
     },
     links: {
-      type: [{ source: String, target: String, sourceHandle: String, targetHandle: String, permissions: { type: Map, of: Boolean, default: {} }, designationId: { type: String, default: null } }],
+      type: [Schema.Types.Mixed],
       default: [],
     },
   },

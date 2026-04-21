@@ -34,7 +34,7 @@ interface DesignationPerms {
   canSetPermissions?: boolean;
 }
 
-export function DesignationsPanel({ canManage = false, perms = {} }: { canManage?: boolean; perms?: DesignationPerms }) {
+export function DesignationsPanel({ canManage = false, perms = {}, onToggle }: { canManage?: boolean; perms?: DesignationPerms; onToggle?: () => void }) {
   const canCreate = perms.canCreate ?? canManage;
   const canEdit = perms.canEdit ?? canManage;
   const canDelete = perms.canDelete ?? canManage;
@@ -132,6 +132,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
           toast.success(`Permissions synced to ${data.syncedCount} membership${data.syncedCount !== 1 ? "s" : ""}`);
         }
       }
+      toast.success(modalMode === "create" ? "Designation created" : "Designation updated");
       closeModal();
       await refetch();
     } catch {
@@ -145,8 +146,8 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
     setDeleting(true);
     try {
       const res = await fetch(`/api/designations/${deleteTarget._id}`, { method: "DELETE" });
-      if (res.ok) { setDeleteTarget(null); await refetch(); }
-      else toast.error("Failed to delete designation");
+      if (res.ok) { toast.success("Designation deleted"); setDeleteTarget(null); await refetch(); }
+      else { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to delete designation"); }
     } catch { toast.error("Something went wrong"); }
     setDeleting(false);
   }
@@ -167,11 +168,23 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
         mutate((prev) =>
           prev ? prev.map((x) => (x._id === d._id ? { ...x, isActive: d.isActive } : x)) : prev,
         );
+        toast.error("Failed to update status");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const count = (data as Record<string, number>).cascadeCount ?? 0;
+        if (newStatus) {
+          toast.success(count > 0 ? `${d.name} activated — ${count} membership${count !== 1 ? "s" : ""} restored` : `${d.name} activated`);
+        } else {
+          toast.success(count > 0 ? `${d.name} deactivated — ${count} membership${count !== 1 ? "s" : ""} suspended` : `${d.name} deactivated`);
+        }
+        await refetch();
+        onToggle?.();
       }
     } catch {
       mutate((prev) =>
         prev ? prev.map((x) => (x._id === d._id ? { ...x, isActive: d.isActive } : x)) : prev,
       );
+      toast.error("Something went wrong");
     }
     setSavingToggleId(null);
   }
@@ -253,7 +266,7 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                       )}
                     </div>
                     {(canEdit || canDelete) && (
-                      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         {canEdit && (
                         <button
                           type="button"
@@ -287,7 +300,9 @@ export function DesignationsPanel({ canManage = false, perms = {} }: { canManage
                       <ToggleSwitch
                         size="sm"
                         checked={d.isActive !== false}
-                        onChange={() => savingToggleId !== d._id && toggleActive(d)}
+                        onChange={() => toggleActive(d)}
+                        disabled={savingToggleId === d._id}
+                        loading={savingToggleId === d._id}
                       />
                     )}
                   </div>

@@ -14,6 +14,8 @@ export interface IMembership extends Document {
   permissions: IPermissions;
   /** true = permissions were manually overridden; false = inherited from designation defaults */
   hasCustomPermissions: boolean;
+  /** Tracks what caused automatic deactivation(s); membership becomes active only when empty */
+  deactivatedBy: ("department" | "designation")[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +35,7 @@ const membershipSchema = new Schema<IMembership>(
     autoSource: { type: String, enum: ["hierarchy", null], default: null },
     permissions: permissionSchemaFields,
     hasCustomPermissions: { type: Boolean, default: false },
+    deactivatedBy: { type: [String], enum: ["department", "designation"], default: [] },
   },
   { timestamps: true },
 );

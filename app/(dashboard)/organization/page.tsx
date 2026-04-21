@@ -10,7 +10,6 @@ import { organizationTour } from "@/lib/tourConfigs";
 import { DepartmentsPanel } from "./DepartmentsPanel";
 import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
-import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmployeeModal } from "../components/EmployeeModal";
 import toast from "react-hot-toast";
 import { HeaderStatPill } from "../components/StatChips";
@@ -57,33 +56,15 @@ export default function OrganizationPage() {
 
   const { data: departments, loading: deptsLoading, refetch: refetchDepts } = useQuery<Department[]>(canViewOrg ? "/api/departments" : null, "org-departments");
   const { data: employees, refetch: refetchEmployees } = useQuery<Employee[]>(canViewOrg ? "/api/employees?includeSelf=true" : null, "org-employees");
-  const { data: designationsData } = useQuery<{ _id: string; name: string; color: string; isActive: boolean; defaultPermissions?: Record<string, boolean> }[]>(canViewOrg ? "/api/designations" : null, "org-designations");
-  const activeDesignations = useMemo(() => (designationsData ?? []).filter((d) => d.isActive !== false), [designationsData]);
-
+  const { data: designationsData, refetch: refetchDesignations } = useQuery<{ _id: string; name: string; color: string; isActive: boolean; defaultPermissions?: Record<string, boolean> }[]>(canViewOrg ? "/api/designations" : null, "org-designations");
   const [search, setSearch] = useState("");
 
   const [empViewOpen, setEmpViewOpen] = useState(false);
   const [empViewId, setEmpViewId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
+  const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   function openEmployee(empId: string) {
     setEmpViewId(empId);
     setEmpViewOpen(true);
-  }
-
-  async function handleDeleteEmployee() {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/employees/${deleteTarget._id}`, { method: "DELETE" });
-      if (res.ok) {
-        toast.success("Employee removed");
-        setDeleteTarget(null);
-        await refetchEmployees();
-      } else { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to remove employee"); }
-    } catch { toast.error("Something went wrong"); }
-    setDeleting(false);
   }
 
   /* ── Invite employee form modal ── */
@@ -178,7 +159,7 @@ export default function OrganizationPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1600px] flex-col px-4 pt-6" style={{ height: "calc(93dvh - 80px)" }}>
+    <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* ── Title row ── */}
       <div data-tour="org-header" className="mb-4 shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
@@ -218,7 +199,7 @@ export default function OrganizationPage() {
           </div>
           {/* Departments card */}
           <div className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-            <DepartmentsPanel departments={scopedDepts} loading={deptsLoading} refetch={refetchDepts} canCreate={canCreateDepts} canEdit={canEditDepts} canDelete={canDeleteDepts} />
+            <DepartmentsPanel departments={scopedDepts} loading={deptsLoading} refetch={refetchDepts} canCreate={canCreateDepts} canEdit={canEditDepts} canDelete={canDeleteDepts} onToggle={() => { refetchDepts(); setTreeRefreshKey((k) => k + 1); }} />
           </div>
 
           {/* Designations card */}
@@ -230,14 +211,14 @@ export default function OrganizationPage() {
                 canDelete: canPerm("designations_delete"),
                 canToggleStatus: canPerm("designations_toggleStatus"),
                 canSetPermissions: canPerm("designations_setPermissions"),
-              }} />
+              }} onToggle={() => { refetchDesignations(); setTreeRefreshKey((k) => k + 1); }} />
             </div>
           )}
         </aside>
 
         {/* Flow diagram */}
         <main data-tour="org-context" className="min-h-0 min-w-0 flex-1">
-          <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={activeDesignations} canEditCanvas={canManageOrganization} canAssignDesignation={canPerm("members_assignDesignation")} canCustomizePermissions={canPerm("members_customizePermissions")} canAddToDepartment={canPerm("members_addToDepartment")} canRemoveFromDepartment={canPerm("members_removeFromDepartment")} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployee(empId)} />
+          <OrgFlowTree departments={scopedDepts} employees={filteredEmps} designations={designationsData ?? []} canEditCanvas={canManageOrganization} canAssignDesignation={canPerm("members_assignDesignation")} canCustomizePermissions={canPerm("members_customizePermissions")} canAddToDepartment={canPerm("members_addToDepartment")} canRemoveFromDepartment={canPerm("members_removeFromDepartment")} editableEmployeeIds={isSuperAdmin ? undefined : hierarchyScope?.subordinateIds} onEditEmployee={(empId) => openEmployee(empId)} refreshKey={treeRefreshKey} />
         </main>
       </div>
 
@@ -303,19 +284,8 @@ export default function OrganizationPage() {
         </AnimatePresence>
       </Portal>
 
-      {/* ── Delete Confirmation ── */}
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Remove Employee"
-        description={`Remove "${deleteTarget?.about.firstName} ${deleteTarget?.about.lastName}"? This action cannot be undone.`}
-        confirmLabel="Remove"
-        variant="danger"
-        loading={deleting}
-        onConfirm={handleDeleteEmployee}
-        onCancel={() => setDeleteTarget(null)}
-      />
 
-      <EmployeeModal open={empViewOpen} onClose={() => setEmpViewOpen(false)} initialEmployeeId={empViewId} />
+      <EmployeeModal open={empViewOpen} onClose={() => { setEmpViewOpen(false); setEmpViewId(null); setTreeRefreshKey((k) => k + 1); }} initialEmployeeId={empViewId} />
     </div>
   );
 }

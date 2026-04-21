@@ -68,7 +68,7 @@ export async function GET() {
 
   const memberships = await Membership.find({
     user: { $in: allVisibleUsers },
-    isActive: { $ne: false },
+    isActive: true,
   }).select("department").lean();
 
   for (const m of memberships) {

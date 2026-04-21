@@ -93,7 +93,7 @@ export async function POST(req: Request) {
   if (!defaultDesig) return badRequest("No designations exist. Create at least one designation first.");
 
   // Get all existing memberships
-  const allMemberships = await Membership.find({ isActive: { $ne: false } }).lean();
+  const allMemberships = await Membership.find({ isActive: true }).lean();
 
   // Build a map: employeeId -> department IDs they have MANUAL memberships in
   const empDeptMap = new Map<string, Set<string>>();

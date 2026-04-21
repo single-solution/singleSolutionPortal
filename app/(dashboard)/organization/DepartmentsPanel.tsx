@@ -23,9 +23,10 @@ interface DepartmentsPanelProps {
   canCreate?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  onToggle?: () => void;
 }
 
-export function DepartmentsPanel({ departments, loading, refetch, canCreate = false, canEdit = false, canDelete = false }: DepartmentsPanelProps) {
+export function DepartmentsPanel({ departments, loading, refetch, canCreate = false, canEdit = false, canDelete = false, onToggle }: DepartmentsPanelProps) {
   const list = departments ?? [];
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -40,15 +41,25 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   async function handleToggleActive(d: DeptItem) {
+    const newActive = !d.isActive;
     setTogglingId(d._id);
     try {
       const res = await fetch(`/api/departments/${d._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !d.isActive }),
+        body: JSON.stringify({ isActive: newActive }),
       });
-      if (res.ok) await refetch();
-      else toast.error("Failed to update status");
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const count = (data as Record<string, number>).cascadeCount ?? 0;
+        if (newActive) {
+          toast.success(count > 0 ? `${d.title} activated — ${count} membership${count !== 1 ? "s" : ""} restored` : `${d.title} activated`);
+        } else {
+          toast.success(count > 0 ? `${d.title} deactivated — ${count} membership${count !== 1 ? "s" : ""} suspended` : `${d.title} deactivated`);
+        }
+        await refetch();
+        onToggle?.();
+      } else toast.error("Failed to update status");
     } catch { toast.error("Something went wrong"); }
     setTogglingId(null);
   }
@@ -87,6 +98,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
         const res = await fetch(`/api/departments/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (!res.ok) { const err = await res.json().catch(() => null); toast.error(err?.error ?? "Failed to save department"); setSaveLoading(false); return; }
       }
+      toast.success(modalMode === "create" ? "Department created" : "Department updated");
       closeModal();
       await refetch();
     } catch {
@@ -100,7 +112,7 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
     setDeleting(true);
     try {
       const res = await fetch(`/api/departments/${deleteTarget._id}`, { method: "DELETE" });
-      if (res.ok) { setDeleteTarget(null); await refetch(); }
+      if (res.ok) { toast.success("Department deleted"); setDeleteTarget(null); await refetch(); }
       else toast.error("Failed to delete department");
     } catch { toast.error("Something went wrong"); }
     setDeleting(false);
@@ -152,12 +164,13 @@ export function DepartmentsPanel({ departments, loading, refetch, canCreate = fa
                       </p>
                     </div>
                     {(canEdit || canDelete) && (
-                      <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         {canEdit && (
                           <ToggleSwitch
                             checked={d.isActive}
                             onChange={() => handleToggleActive(d)}
                             disabled={togglingId === d._id}
+                            loading={togglingId === d._id}
                             color="var(--green)"
                             title={d.isActive ? "Active — click to deactivate" : "Inactive — click to activate"}
                           />

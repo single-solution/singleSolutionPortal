@@ -2,12 +2,27 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
 import Membership from "@/lib/models/Membership";
+import ActivitySession from "@/lib/models/ActivitySession";
+import DailyAttendance from "@/lib/models/DailyAttendance";
+import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
+import Leave from "@/lib/models/Leave";
+import LeaveBalance from "@/lib/models/LeaveBalance";
+import Payslip from "@/lib/models/Payslip";
+import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
+import Ping from "@/lib/models/Ping";
+import TaskStatusLog from "@/lib/models/TaskStatusLog";
+import ChecklistLog from "@/lib/models/ChecklistLog";
+import Campaign from "@/lib/models/Campaign";
+import ActivityTask from "@/lib/models/ActivityTask";
+import FlowLayout from "@/lib/models/FlowLayout";
+import ActivityLog from "@/lib/models/ActivityLog";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
   hasPermission,
   getSubordinateUserIds,
+  invalidateHierarchyCache,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 import bcrypt from "bcryptjs";
@@ -108,6 +123,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   if (canToggleEmp && body.isActive !== undefined) {
+    if (typeof body.isActive !== "boolean") return badRequest("isActive must be a boolean");
     update.isActive = body.isActive;
   }
 
@@ -162,6 +178,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     visibility: "targeted",
   });
 
+  if (body.isActive !== undefined || body.managedDepartments) invalidateHierarchyCache();
   return ok(user);
 }
 
@@ -177,7 +194,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   if (actor.id === id) return badRequest("Cannot delete yourself");
 
-  const target = await User.findById(id).select("isSuperAdmin").lean();
+  const target = await User.findById(id).select("isSuperAdmin about.firstName about.lastName email").lean();
   if (!target) return notFound("Employee not found");
   if (target.isSuperAdmin) return badRequest("Cannot delete superadmin");
 
@@ -186,18 +203,49 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     if (!subordinateIds.includes(id)) return forbidden("Can only delete employees within your hierarchy");
   }
 
-  await Membership.deleteMany({ user: id });
+  const empKey = `emp-${id}`;
+
+  await Promise.all([
+    Membership.deleteMany({ user: id }),
+    ActivitySession.deleteMany({ user: id }),
+    DailyAttendance.deleteMany({ user: id }),
+    MonthlyAttendanceStats.deleteMany({ user: id }),
+    Leave.deleteMany({ user: id }),
+    LeaveBalance.deleteMany({ user: id }),
+    Payslip.deleteMany({ user: id }),
+    LocationFlagEvent.deleteMany({ user: id }),
+    Ping.deleteMany({ $or: [{ from: id }, { to: id }] }),
+    TaskStatusLog.deleteMany({ employee: id }),
+    ChecklistLog.deleteMany({ employee: id }),
+    ActivityLog.deleteMany({ targetUserIds: id }),
+    Department.updateMany({ manager: id }, { $unset: { manager: 1 } }),
+    Campaign.updateMany({ employees: id }, { $pull: { employees: id } }),
+    ActivityTask.updateMany({ assignedTo: id }, { $pull: { assignedTo: id } }),
+  ]);
+
+  // Remove from org chart: links involving this employee + saved position
+  await FlowLayout.updateMany(
+    { canvasId: "org" },
+    {
+      $pull: { links: { $or: [{ source: empKey }, { target: empKey }] } },
+      $unset: { [`positions.${empKey}`]: 1 },
+    },
+  );
+
   await User.findByIdAndDelete(id);
 
+  const name = `${target.about?.firstName ?? ""} ${target.about?.lastName ?? ""}`.trim();
   logActivity({
     userEmail: actor.email,
     userName: "",
     action: "deleted employee",
     entity: "employee",
     entityId: id,
+    details: name || target.email,
     targetUserIds: [],
     visibility: "targeted",
   });
 
+  invalidateHierarchyCache();
   return ok({ message: "Employee deleted" });
 }

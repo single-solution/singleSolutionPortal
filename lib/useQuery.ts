@@ -115,6 +115,7 @@ export function useQuery<T>(
     return subscribe(url, () => {
       const entry = cache.get(url) as CacheEntry<T> | undefined;
       if (entry && mountedRef.current) setData(entry.data);
+      else if (!entry && mountedRef.current) fetchDataRef.current(false);
     });
   }, [url]);
 
@@ -167,6 +168,9 @@ export function useQuery<T>(
     },
     [],
   );
+
+  const fetchDataRef = useRef(fetchData);
+  fetchDataRef.current = fetchData;
 
   useEffect(() => {
     if (!enabled || !url) {

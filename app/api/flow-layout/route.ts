@@ -36,7 +36,17 @@ export async function PUT(req: Request) {
     update.positions = body.positions;
   }
   if (Array.isArray(body.links)) {
-    update.links = body.links;
+    const links = body.links as { source?: string; target?: string; sourceHandle?: string; targetHandle?: string; [k: string]: unknown }[];
+    const normalized = links.map((link) => {
+      if (!link.source || !link.target) return link;
+      if (link.source.startsWith("emp-") && link.target.startsWith("emp-")) {
+        if (link.sourceHandle !== "bottom" || link.targetHandle !== "top") {
+          return { ...link, source: link.target, target: link.source, sourceHandle: "bottom", targetHandle: "top" };
+        }
+      }
+      return link;
+    });
+    update.links = normalized;
   }
 
   if (Object.keys(update).length === 0) {
