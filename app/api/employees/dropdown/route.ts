@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import Department from "@/lib/models/Department";
+import FlowLayout from "@/lib/models/FlowLayout";
 import { unauthorized, ok } from "@/lib/helpers";
 import {
   getVerifiedSession,
@@ -9,6 +10,7 @@ import {
   hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
+import { inheritDepartments } from "@/lib/departmentInheritance";
 
 export async function GET() {
   const actor = await getVerifiedSession();
@@ -41,11 +43,12 @@ export async function GET() {
     .lean();
 
   const userIds = users.map((u) => u._id);
-  const [memberships, departments] = await Promise.all([
+  const [memberships, departments, flowLayout] = await Promise.all([
     Membership.find({ user: { $in: userIds }, isActive: true })
       .select("user department")
       .lean(),
     Department.find({ isActive: true }).select("_id title").lean(),
+    FlowLayout.findOne({ canvasId: "org" }).lean(),
   ]);
 
   const deptMap = new Map(departments.map((d) => [String(d._id), d.title]));
@@ -58,10 +61,22 @@ export async function GET() {
     }
   }
 
-  const enriched = users.map((u) => ({
-    ...u,
-    department: userDeptMap.get(String(u._id)) ?? null,
-  }));
+  const empIdStrs = userIds.map(String);
+  const inheritMap = new Map<string, { deptId: string; deptName: string }>();
+  for (const [uid, dept] of userDeptMap) {
+    inheritMap.set(uid, { deptId: dept.id, deptName: dept.title });
+  }
+  const links = ((flowLayout as { links?: { source: string; target: string; sourceHandle: string; targetHandle: string }[] })?.links ?? []);
+  inheritDepartments(empIdStrs, inheritMap, links);
+
+  const enriched = users.map((u) => {
+    const uid = String(u._id);
+    const dept = inheritMap.get(uid);
+    return {
+      ...u,
+      department: dept ? { id: dept.deptId, title: dept.deptName } : null,
+    };
+  });
 
   return ok(enriched);
 }

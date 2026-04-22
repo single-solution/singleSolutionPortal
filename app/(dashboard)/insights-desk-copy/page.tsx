@@ -291,9 +291,7 @@ export default function InsightsDeskCopyPage() {
   const [calendarLeaves, setCalendarLeaves] = useState<LeaveRecord[]>([]);
   const [leaveBalance, setLeaveBalance] = useState<{ total: number; used: number; remaining: number } | null>(null);
 
-  const userIdParam = viewingUserId || "";
-  const hasSelectedEmployee = !!viewingUserId;
-  const isAggregateMode = hasTeamAccess && !hasSelectedEmployee;
+  const isAggregateMode = hasTeamAccess && !viewingUserId;
 
   /* ── Sync state → URL query params ── */
   useEffect(() => {
@@ -331,10 +329,10 @@ export default function InsightsDeskCopyPage() {
 
   const loadRecords = useCallback(async (signal?: AbortSignal) => {
     if (!sessionReady) return;
-    if (!userIdParam && hasTeamAccess) { setRecords([]); setLoading(false); return; }
+    if (!viewingUserId && hasTeamAccess) { setRecords([]); setLoading(false); return; }
     setLoading(true);
     try {
-      const qs = `type=daily&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
+      const qs = `type=daily&year=${year}&month=${month}${viewingUserId ? `&userId=${viewingUserId}` : ""}`;
       const r = await fetch(`/api/attendance?${qs}`, { signal });
       if (!r.ok) throw new Error();
       const res = await r.json();
@@ -344,12 +342,12 @@ export default function InsightsDeskCopyPage() {
       setRecords([]); toast.error("Failed to load records");
     }
     setLoading(false);
-  }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
+  }, [sessionReady, year, month, viewingUserId, hasTeamAccess]);
 
   const loadMonthlyStats = useCallback(async (signal?: AbortSignal) => {
     if (!sessionReady) return;
-    if (!userIdParam && hasTeamAccess) { setMonthlyStats(null); return; }
-    const qs = `type=monthly&year=${year}&month=${month}${userIdParam ? `&userId=${userIdParam}` : ""}`;
+    if (!viewingUserId && hasTeamAccess) { setMonthlyStats(null); return; }
+    const qs = `type=monthly&year=${year}&month=${month}${viewingUserId ? `&userId=${viewingUserId}` : ""}`;
     try {
       const r = await fetch(`/api/attendance?${qs}`, { signal });
       if (!r.ok) throw new Error();
@@ -359,12 +357,12 @@ export default function InsightsDeskCopyPage() {
       if (e instanceof DOMException && e.name === "AbortError") return;
       setMonthlyStats(null); toast.error("Failed to load monthly stats");
     }
-  }, [sessionReady, year, month, userIdParam, hasTeamAccess]);
+  }, [sessionReady, year, month, viewingUserId, hasTeamAccess]);
 
   const loadDetail = useCallback(async (day: number, signal?: AbortSignal) => {
     setDetailLoading(true);
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const qs = `type=detail&date=${dateStr}${userIdParam ? `&userId=${userIdParam}` : ""}`;
+    const qs = `type=detail&date=${dateStr}${viewingUserId ? `&userId=${viewingUserId}` : ""}`;
     try {
       const r = await fetch(`/api/attendance?${qs}`, { signal });
       if (!r.ok) throw new Error();
@@ -375,7 +373,7 @@ export default function InsightsDeskCopyPage() {
       setDetailData(null); toast.error("Failed to load day details");
     }
     setDetailLoading(false);
-  }, [year, month, userIdParam]);
+  }, [year, month, viewingUserId]);
 
   const loadTeamDate = useCallback(async (day: number, signal?: AbortSignal) => {
     if (!hasTeamAccess) return;
@@ -466,10 +464,7 @@ export default function InsightsDeskCopyPage() {
   }, [selectedDay, isAggregateMode, loadDetail, loadTeamDate]);
 
   /* ── Derived state (exact clone) ── */
-  const filteredSummary = useMemo(
-    () => teamSummary,
-    [teamSummary],
-  );
+  const filteredSummary = teamSummary;
 
   const viewingMember = teamSummary.find((m) => m._id === viewingUserId);
 
@@ -479,7 +474,7 @@ export default function InsightsDeskCopyPage() {
     return map;
   }, [records]);
 
-  const filteredTeamDate = useMemo(() => teamDateData, [teamDateData]);
+  const filteredTeamDate = teamDateData;
 
   const holidayDays = useMemo(() => {
     const days = new Set<number>();
@@ -508,11 +503,7 @@ export default function InsightsDeskCopyPage() {
   const personalInsights = useMemo(() => {
     const present = records.filter((r) => r.isPresent);
     const totalLateMins = present.reduce((s, r) => s + (r.lateBy ?? 0), 0);
-    const lateRecords = present.filter((r) => (r.lateBy ?? 0) > 0);
-    const avgLateMins = lateRecords.length > 0 ? Math.round(totalLateMins / lateRecords.length) : 0;
     const perfectDays = present.filter((r) => r.isOnTime).length;
-    const totalBreakMins = present.reduce((s, r) => s + (r.breakMinutes ?? 0), 0);
-    const avgBreakMins = present.length > 0 ? Math.round(totalBreakMins / present.length) : 0;
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const byDay = new Map<number, { total: number; count: number }>();
     for (const r of present) {
@@ -521,35 +512,18 @@ export default function InsightsDeskCopyPage() {
       cur.total += r.totalWorkingMinutes; cur.count += 1;
       byDay.set(dow, cur);
     }
-    let bestDay = "", worstDay = "", bestAvg = 0, worstAvg = Infinity;
+    let bestDay = "", bestAvg = 0;
     for (const [dow, v] of byDay) {
       const avg = v.total / v.count;
       if (avg > bestAvg) { bestAvg = avg; bestDay = dayNames[dow]; }
-      if (avg < worstAvg) { worstAvg = avg; worstDay = dayNames[dow]; }
     }
-    if (!byDay.size) { worstAvg = 0; }
     const sorted = [...records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     let longestPresentStreak = 0, runPresent = 0;
     for (const r of sorted) {
       if (r.isPresent) { runPresent++; longestPresentStreak = Math.max(longestPresentStreak, runPresent); }
       else { runPresent = 0; }
     }
-    let onTimeStreak = 0, runOt = 0;
-    for (const r of sorted) {
-      if (r.isPresent && r.isOnTime) { runOt++; onTimeStreak = Math.max(onTimeStreak, runOt); }
-      else { runOt = 0; }
-    }
-    let maxHoursDay = "", maxHoursMins = 0;
-    let minHoursDay = "", minHoursMins = Infinity;
-    for (const r of present) {
-      const m = r.totalWorkingMinutes;
-      if (m > maxHoursMins) { maxHoursMins = m; maxHoursDay = r.date; }
-      if (m > 0 && m < minHoursMins) { minHoursMins = m; minHoursDay = r.date; }
-    }
-    if (minHoursMins === Infinity) { minHoursMins = 0; minHoursDay = ""; }
-    const remoteOnlyDays = present.filter((r) => (r.remoteMinutes ?? 0) > 0 && (r.officeMinutes ?? 0) === 0).length;
-    const officeOnlyDays = present.filter((r) => (r.officeMinutes ?? 0) > 0 && (r.remoteMinutes ?? 0) === 0).length;
-    return { totalLateMins, avgLateMins, perfectDays, avgBreakMins, bestDay, worstDay, bestAvg, worstAvg, longestPresentStreak, maxHoursDay, maxHoursMins, minHoursDay, minHoursMins, remoteOnlyDays, officeOnlyDays, onTimeStreak };
+    return { totalLateMins, perfectDays, bestDay, bestAvg, longestPresentStreak };
   }, [records]);
 
   const today = new Date();
@@ -663,9 +637,6 @@ export default function InsightsDeskCopyPage() {
 
   const upcomingHolidays = useMemo(() => holidays.filter((h) => new Date(h.date) >= new Date()), [holidays]);
 
-  function handleTabClick(tab: TabId) {
-    setActiveTab(tab);
-  }
 
   /* ────────────────── RENDER ────────────────── */
 
@@ -827,7 +798,7 @@ export default function InsightsDeskCopyPage() {
             {TAB_ITEMS.map((t) => {
               const isAct = activeTab === t.id;
               return (
-                <button key={t.id} type="button" onClick={() => handleTabClick(t.id)}
+                <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
                   className="relative flex items-center justify-center gap-1.5 whitespace-nowrap px-5 py-2 transition-colors"
                   style={{ color: isAct ? t.color : "var(--fg-tertiary)" }}>
                   {isAct && <motion.span layoutId="insights-tab-active" className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.color }} transition={{ type: "spring", stiffness: 400, damping: 30 }} />}

@@ -81,11 +81,6 @@ interface DailyEntry {
   events: TimelineLog[];
 }
 
-interface EmployeeInfo {
-  _id: string;
-  about?: { firstName: string; lastName: string };
-  email?: string;
-}
 
 /* ───── Helpers ───── */
 
@@ -180,7 +175,6 @@ export function ProgressContent({ userId: preUserId, year, month }: Props) {
   const [campaignGroupsLoading, setCampaignGroupsLoading] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
 
-  const [, setEmployee] = useState<EmployeeInfo | null>(null);
   const [dailyData, setDailyData] = useState<DailyEntry[]>([]);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [timeline, setTimeline] = useState<TimelineLog[]>([]);
@@ -273,7 +267,6 @@ export function ProgressContent({ userId: preUserId, year, month }: Props) {
       const res = await fetch(`/api/tasks/history?${params}`, { signal });
       if (res.ok) {
         const data = await res.json();
-        setEmployee(data.employee ?? null);
         setTimeline((prev) => page === 1 ? (data.logs ?? []) : [...prev, ...(data.logs ?? [])]);
         setTimelineTotal(data.total ?? 0);
         setTimelinePage(data.page ?? 1);

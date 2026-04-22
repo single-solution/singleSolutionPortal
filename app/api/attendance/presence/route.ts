@@ -13,6 +13,7 @@ import {
 } from "@/lib/permissions";
 import { startOfDay } from "@/lib/dayBoundary";
 import { resolveTimezone } from "@/lib/tz";
+import { inheritDepartments } from "@/lib/departmentInheritance";
 
 export async function GET() {
   const actor = await getVerifiedSession();
@@ -98,6 +99,24 @@ export async function GET() {
     }
   }
 
+  /* ── Build per-employee department map & inherit from manager chain ── */
+  const presenceDeptMap = new Map<string, { deptId: string; deptName: string; parentDept: string }>();
+  for (const emp of employees) {
+    const id = emp._id.toString();
+    const userMemberships = membershipsByUser.get(id) ?? [];
+    const primary = userMemberships[0];
+    const deptObj = primary?.department as { _id?: unknown; title?: string; parentDepartment?: { title?: string } } | undefined;
+    if (deptObj?.title) {
+      presenceDeptMap.set(id, {
+        deptId: deptObj._id?.toString() ?? "",
+        deptName: deptObj.title,
+        parentDept: deptObj.parentDepartment?.title ?? "",
+      });
+    }
+  }
+  const allEmpIds = employees.map((e) => e._id.toString());
+  inheritDepartments(allEmpIds, presenceDeptMap, empLinks);
+
   const STALE_MS = 3 * 60 * 1000;
   const nowMs = Date.now();
   const firstStartMap = new Map(sessionAgg.map((r) => [r._id.toString(), r.firstStart as Date]));
@@ -137,10 +156,10 @@ export async function GET() {
     const userMemberships = membershipsByUser.get(id) ?? [];
     const primaryMembership = userMemberships[0];
     const desName = primaryMembership?.designation?.name ?? "";
-    const deptObj = primaryMembership?.department as { _id?: unknown; title?: string; parentDepartment?: { title?: string } } | undefined;
-    const deptTitle = deptObj?.title ?? "";
-    const deptId = deptObj?._id?.toString() ?? null;
-    const parentDeptTitle = deptObj?.parentDepartment?.title ?? "";
+    const inherited = presenceDeptMap.get(id);
+    const deptTitle = inherited?.deptName ?? "";
+    const deptId = inherited?.deptId || null;
+    const parentDeptTitle = (inherited as { parentDept?: string } | undefined)?.parentDept ?? "";
 
     return {
       _id: id,

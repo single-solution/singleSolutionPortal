@@ -308,10 +308,6 @@ export function PayrollContent({ selectedUserId, year, month, initialTab, onTabC
     };
   }, [yearData]);
 
-  /* ── Derived ── */
-  const attendancePct = estimate && estimate.workingDays > 0 ? Math.round((estimate.presentDays / estimate.workingDays) * 100) : 0;
-  const deductionPct = estimate && estimate.grossPay > 0 ? Math.round((estimate.totalDeductions / estimate.grossPay) * 100) : 0;
-
   const filteredTeamSheet = useMemo(() => {
     const emps = payrollSheet?.employees ?? [];
     if (!deptFilter) return emps;
@@ -337,29 +333,8 @@ export function PayrollContent({ selectedUserId, year, month, initialTab, onTabC
     };
   }, [payrollSheet, filteredTeamSheet]);
 
-  const summaryRateStats = useMemo(() => {
-    if (!estimate) return null;
-    const totalWorkMinutes = (estimate.dailyBreakdown ?? []).reduce((a, r) => a + r.workingMinutes, 0);
-    let hoursForRate = totalWorkMinutes / 60;
-    if (hoursForRate <= 0 && estimate.presentDays > 0) {
-      const presentRows = (estimate.dailyBreakdown ?? []).filter((r) => r.status === "present" || r.status === "late");
-      const minsOnPresent = presentRows.reduce((a, r) => a + r.workingMinutes, 0);
-      const avgH = presentRows.length > 0 && minsOnPresent > 0 ? minsOnPresent / 60 / presentRows.length : 8;
-      hoursForRate = estimate.presentDays * avgH;
-    }
-    const effectiveHourly = hoursForRate > 0 ? estimate.netPay / hoursForRate : null;
-    const dailyRate = estimate.workingDays > 0 ? estimate.baseSalary / estimate.workingDays : null;
-    const payPerPresentDay = estimate.presentDays > 0 ? estimate.netPay / estimate.presentDays : null;
-    const overtimeRate = estimate.overtimeHours > 0 ? (estimate.grossPay - estimate.baseSalary) / estimate.overtimeHours : null;
-    const netDailyRate = estimate.workingDays > 0 ? estimate.netPay / estimate.workingDays : null;
-    return { effectiveHourly, dailyRate, payPerPresentDay, overtimeRate, netDailyRate };
-  }, [estimate]);
-
   const yearInsightStats = useMemo(() => {
     if (!yearTotals) return null;
-    const ytdAvgMonthlyNet = yearTotals.months > 0 ? yearTotals.netPay / yearTotals.months : null;
-    const ytdAttendancePct = yearTotals.workingDays > 0 ? Math.round((yearTotals.presentDays / yearTotals.workingDays) * 100) : null;
-    const ytdDeductionPct = yearTotals.grossPay > 0 ? Math.round((yearTotals.totalDeductions / yearTotals.grossPay) * 100) : null;
     let bestIdx = -1;
     let bestNet = -Infinity;
     let worstDedIdx = -1;
@@ -398,9 +373,6 @@ export function PayrollContent({ selectedUserId, year, month, initialTab, onTabC
     const bestMonth = bestIdx >= 0 ? MN_SHORT[bestIdx] : null;
     const worstMonth = worstDedIdx >= 0 ? MN_SHORT[worstDedIdx] : null;
     return {
-      ytdAvgMonthlyNet,
-      ytdAttendancePct,
-      ytdDeductionPct,
       bestMonth,
       bestNet: bestIdx >= 0 ? bestNet : null,
       worstMonth,
@@ -414,53 +386,6 @@ export function PayrollContent({ selectedUserId, year, month, initialTab, onTabC
       totalOvertimeHours,
     };
   }, [yearTotals, yearData]);
-
-  const teamSheetStats = useMemo(() => {
-    const emps = filteredTeamSheet;
-    if (!emps.length) return null;
-    const n = emps.length;
-    const teamAvgAttendancePct = Math.round(emps.reduce((a, e) => a + e.attendancePct, 0) / n);
-    const teamTotalOvertimeHours = emps.reduce((a, e) => a + e.overtimeHours, 0);
-    const teamAvgNetPay = n > 0 ? emps.reduce((a, e) => a + e.netPay, 0) / n : null;
-    const zeroDeductionEmployees = emps.filter((e) => e.absenceDeduction === 0 && e.lateDeduction === 0).length;
-    const overtimeEmployees = emps.filter((e) => e.overtimeHours > 0).length;
-    const avgLateDays = n > 0 ? +(emps.reduce((a, e) => a + e.lateDays, 0) / n).toFixed(1) : 0;
-    const avgAbsenceDays = n > 0 ? +(emps.reduce((a, e) => a + e.absentDays, 0) / n).toFixed(1) : 0;
-    const salaries = emps.map((e) => e.salary).filter((s) => s > 0).sort((a, b) => a - b);
-    const avgSalary = salaries.length > 0 ? Math.round(salaries.reduce((a, v) => a + v, 0) / salaries.length) : null;
-    const medianSalary = salaries.length > 0 ? (salaries.length % 2 === 1 ? salaries[Math.floor(salaries.length / 2)] : Math.round((salaries[salaries.length / 2 - 1] + salaries[salaries.length / 2]) / 2)) : null;
-    const highestPaid = salaries.length > 0 ? emps.reduce((best, e) => e.salary > best.salary ? e : best, emps[0]) : null;
-    const lowestPaid = salaries.length > 0 ? emps.reduce((worst, e) => (e.salary > 0 && e.salary < worst.salary) ? e : worst, emps.find((e) => e.salary > 0) ?? emps[0]) : null;
-    const highestDed = emps.reduce((best, e) => e.totalDeductions > best.totalDeductions ? e : best, emps[0]);
-    const bestAtt = emps.reduce((best, e) => e.attendancePct > best.attendancePct ? e : best, emps[0]);
-    const worstAtt = emps.reduce((worst, e) => e.attendancePct < worst.attendancePct ? e : worst, emps[0]);
-    const mostLate = emps.reduce((best, e) => e.lateDays > best.lateDays ? e : best, emps[0]);
-    const lowestNetEmp = emps.reduce((worst, e) => e.netPay < worst.netPay ? e : worst, emps[0]);
-    const salaryRange = salaries.length > 0 ? salaries[salaries.length - 1] - salaries[0] : null;
-    return {
-      teamAvgAttendancePct,
-      teamTotalOvertimeHours,
-      teamAvgNetPay,
-      zeroDeductionEmployees,
-      overtimeEmployees,
-      avgLateDays,
-      avgAbsenceDays,
-      avgSalary,
-      medianSalary,
-      highestPaid,
-      lowestPaid,
-      highestDed,
-      bestAttendanceName: bestAtt.name,
-      bestAttendancePct: bestAtt.attendancePct,
-      worstAttendanceName: worstAtt.name,
-      worstAttendancePct: worstAtt.attendancePct,
-      mostLateName: mostLate.name,
-      mostLateDays: mostLate.lateDays,
-      lowestNetName: lowestNetEmp.name,
-      lowestNet: lowestNetEmp.netPay,
-      salaryRange,
-    };
-  }, [filteredTeamSheet]);
 
   /* ── Export — builds lines for selected month (Summary + Daily) ── */
   function buildMonthCSV(): string[] {

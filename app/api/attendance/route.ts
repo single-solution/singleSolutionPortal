@@ -4,6 +4,7 @@ import DailyAttendance from "@/lib/models/DailyAttendance";
 import ActivitySession from "@/lib/models/ActivitySession";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
 import Membership from "@/lib/models/Membership";
+import FlowLayout from "@/lib/models/FlowLayout";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
@@ -16,6 +17,7 @@ import {
 } from "@/lib/permissions";
 import type { VerifiedUser } from "@/lib/permissions";
 import { NextRequest } from "next/server";
+import { inheritDepartments } from "@/lib/departmentInheritance";
 
 function buildSubordinateEmployeeFilter(actor: VerifiedUser, subordinateIds: string[]): Record<string, unknown> {
   const filter: Record<string, unknown> = {
@@ -102,10 +104,13 @@ export async function GET(req: NextRequest) {
     const dailyMap = new Map<string, typeof dailyCounts[0]>();
     for (const d of dailyCounts) dailyMap.set(d._id.toString(), d);
 
-    const memberships = await Membership.find({
-      user: { $in: empIds },
-      isActive: true,
-    }).populate("department", "title").populate("designation", "name").lean();
+    const [memberships, flowLayout] = await Promise.all([
+      Membership.find({
+        user: { $in: empIds },
+        isActive: true,
+      }).populate("department", "title").populate("designation", "name").lean(),
+      FlowLayout.findOne({ canvasId: "org" }).lean(),
+    ]);
 
     const empDeptMap = new Map<string, { deptId: string; deptName: string; role: string }>();
     for (const m of memberships) {
@@ -119,6 +124,10 @@ export async function GET(req: NextRequest) {
         role: desig?.name ?? "",
       });
     }
+
+    const empIdStrs = empIds.map(String);
+    const flowLinks = ((flowLayout as { links?: { source: string; target: string; sourceHandle: string; targetHandle: string }[] })?.links ?? []);
+    inheritDepartments(empIdStrs, empDeptMap, flowLinks);
 
     const result = employees.map((emp) => {
       const id = emp._id.toString();
@@ -182,10 +191,13 @@ export async function GET(req: NextRequest) {
     const sessMap = new Map<string, { firstStart: Date; lastEnd: Date }>();
     for (const s of sessionAgg) sessMap.set(s._id.toString(), { firstStart: s.firstStart, lastEnd: s.lastEnd });
 
-    const dateMemberships = await Membership.find({
-      user: { $in: empIds },
-      isActive: true,
-    }).populate("department", "title").populate("designation", "name").lean();
+    const [dateMemberships, dateFlowLayout] = await Promise.all([
+      Membership.find({
+        user: { $in: empIds },
+        isActive: true,
+      }).populate("department", "title").populate("designation", "name").lean(),
+      FlowLayout.findOne({ canvasId: "org" }).lean(),
+    ]);
 
     const dateDeptMap = new Map<string, { deptId: string; deptName: string; role: string }>();
     for (const m of dateMemberships) {
@@ -199,6 +211,10 @@ export async function GET(req: NextRequest) {
         role: desig?.name ?? "",
       });
     }
+
+    const dateEmpIdStrs = empIds.map(String);
+    const dateFlowLinks = ((dateFlowLayout as { links?: { source: string; target: string; sourceHandle: string; targetHandle: string }[] })?.links ?? []);
+    inheritDepartments(dateEmpIdStrs, dateDeptMap, dateFlowLinks);
 
     const result = employees.map((emp) => {
       const id = emp._id.toString();
