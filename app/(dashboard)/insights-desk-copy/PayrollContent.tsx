@@ -573,7 +573,6 @@ export function PayrollContent({ selectedUserId, year, month, initialTab, onTabC
       }).join("");
       const totRow = yearTotals ? `<tr class="total"><td>Total</td><td>${yearTotals.workingDays}</td><td>${yearTotals.presentDays}</td><td>${yearTotals.absentDays}</td><td>${yearTotals.lateDays}</td><td>${yearTotals.leaveDays}</td><td>${fmt(yearTotals.grossPay)}</td><td style="color:#dc2626">${fmt(yearTotals.totalDeductions)}</td><td style="font-weight:700">${fmt(yearTotals.netPay)}</td></tr>` : "";
       body = `<h1>Annual Payroll Report — ${year}</h1><h2>${emp}${dept ? ` · ${dept}` : ""}</h2>
-${yearTotals ? `<div class="hero"><div class="label">Annual Net Pay</div><div class="amount">${fmt(yearTotals.netPay)}</div><div style="margin-top:4px;font-size:11px;color:#888">${yearTotals.months} months · ${fmt(yearTotals.grossPay)} gross · ${fmt(yearTotals.totalDeductions)} deductions</div></div>` : ""}
 <table><thead><tr><th>Month</th><th>Work Days</th><th>Present</th><th>Absent</th><th>Late</th><th>Leaves</th><th>Gross</th><th>Deductions</th><th>Net Pay</th></tr></thead><tbody>${rows}${totRow}</tbody></table>`;
     } else if (estimate) {
       const dailyRows = (estimate.dailyBreakdown ?? []).map((r) => {
@@ -619,116 +618,61 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* ══ Header — only for allMode ══ */}
-      {allMode && (
-        <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
-          <div>
-            <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Payroll</h3>
-            <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>All Employees · {MN[month - 1]} {year}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {canExport && payrollSheet && (
-              <div className="relative" ref={exportRef}>
-                <motion.button type="button" onClick={() => setShowExportMenu((p) => !p)} whileTap={{ scale: 0.95 }} disabled={sheetLoading}
-                  className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50"
-                  style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  Export Payroll
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M19 9l-7 7-7-7" /></svg>
-                </motion.button>
-                <AnimatePresence>
-                  {showExportMenu && (
-                    <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.12 }}
-                      className="absolute right-0 top-full mt-1 z-10 w-52 rounded-xl border p-1 shadow-lg" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-                      {[
-                        { label: "Payroll Report CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", action: handleExportCSV },
-                        { label: "Print / PDF", icon: "M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z", action: handlePrint },
-                      ].map((item) => (
-                        <button key={item.label} type="button" onClick={item.action}
-                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg)" }}>
-                          <svg className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
-                          {item.label}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
+      {/* ══ Header ══ */}
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+        <div>
+          <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Payroll</h3>
+          <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
+            {allMode ? `All Employees · ${MN[month - 1]} ${year}` : loading ? "Loading…" : estimate ? `${fmt(estimate.netPay)} net · ${fmt(estimate.grossPay)} gross · ${fmt(estimate.totalDeductions)} deductions` : `${MN[month - 1]} ${year}`}
+          </p>
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          {!allMode && (
+            <div className="flex gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
+              {(["month", "year"] as DetailTab[]).map((t) => (
+                <button key={t} type="button" onClick={() => setDetailTab(t)}
+                  className={`rounded-lg px-3 py-1 text-[12px] font-semibold transition-all ${detailTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
+                >
+                  {t === "month" ? `${MN_SHORT[month - 1]} ${year}` : `Year ${year}`}
+                </button>
+              ))}
+            </div>
+          )}
+          {canExport && ((allMode && payrollSheet) || (!allMode && (estimate || (detailTab === "year" && yearData.length > 0)))) && (
+            <div className="relative" ref={exportRef}>
+              <motion.button type="button" onClick={() => setShowExportMenu((p) => !p)} whileTap={{ scale: 0.95 }} disabled={allMode ? sheetLoading : (loading || yearLoading)}
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50"
+                style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export Payroll
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M19 9l-7 7-7-7" /></svg>
+              </motion.button>
+              <AnimatePresence>
+                {showExportMenu && (
+                  <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.12 }}
+                    className="absolute right-0 top-full mt-1 z-10 w-52 rounded-xl border p-1 shadow-lg" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
+                    {[
+                      { label: allMode ? "Payroll Report CSV" : (detailTab === "year" ? "Year Report CSV" : "Month Report CSV"), icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", action: handleExportCSV },
+                      { label: "Print / PDF", icon: "M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z", action: handlePrint },
+                    ].map((item) => (
+                      <button key={item.label} type="button" onClick={item.action}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg)" }}>
+                        <svg className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
+                        {item.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </div>
 
                 {/* ══ Detail panel ══ */}
                 <div ref={detailRef} className="flex-1 overflow-y-auto p-3 space-y-3">
                   {(
                     <>
-                      {/* Net pay hero — individual employee or self-view */}
-                      {!allMode ? (
-                        loading ? (
-                          <div className="shimmer h-24 rounded-xl" />
-                        ) : estimate ? (
-                          <div className="rounded-xl p-5 text-center" style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, var(--bg-grouped)), color-mix(in srgb, var(--green) 6%, var(--bg-grouped)))" }}>
-                            <p className="text-[12px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--fg-tertiary)" }}>
-                              {isCurrentMonth ? "Estimated " : ""}Net Pay · {MN[month - 1]} {year}
-                            </p>
-                            <p className="text-3xl font-bold" style={{ color: "var(--primary)" }}>{fmt(estimate.netPay)}</p>
-                            {estimate.totalDeductions > 0 && (
-                              <p className="text-[12px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                                {fmt(estimate.grossPay)} gross − {fmt(estimate.totalDeductions)} deductions ({deductionPct}%)
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="py-8 text-center">
-                            <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No payroll data for {MN[month - 1]} {year}.</p>
-                          </div>
-                        )
-                      ) : null}
-
-                      {/* ── Tabs — single employee only (Month / Year) ── */}
-                      {!allMode && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-1 gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                            {(["month", "year"] as DetailTab[]).map((t) => (
-                              <button key={t} type="button" onClick={() => setDetailTab(t)}
-                                className={`flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all ${detailTab === t ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--fg-secondary)]"}`}
-                              >
-                                {t === "month" ? `${MN_SHORT[month - 1]} ${year}` : `Year ${year}`}
-                              </button>
-                            ))}
-                          </div>
-                          {canExport && (estimate || (detailTab === "year" && yearData.length > 0)) && (
-                            <div className="relative" ref={exportRef}>
-                              <motion.button type="button" onClick={() => setShowExportMenu((p) => !p)} whileTap={{ scale: 0.95 }} disabled={loading || yearLoading}
-                                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50"
-                                style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
-                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                Export Payroll
-                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M19 9l-7 7-7-7" /></svg>
-                              </motion.button>
-                              <AnimatePresence>
-                                {showExportMenu && (
-                                  <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.12 }}
-                                    className="absolute right-0 top-full mt-1 z-10 w-52 rounded-xl border p-1 shadow-lg" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-                                    {[
-                                      { label: detailTab === "year" ? "Year Report CSV" : "Month Report CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", action: handleExportCSV },
-                                      { label: "Print / PDF", icon: "M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z", action: handlePrint },
-                                    ].map((item) => (
-                                      <button key={item.label} type="button" onClick={item.action}
-                                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg)" }}>
-                                        <svg className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
-                                        {item.label}
-                                      </button>
-                                    ))}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       <AnimatePresence mode="wait">
                         {/* ═══════ SINGLE EMPLOYEE: MONTH VIEW (Summary + Daily combined) ═══════ */}
                         {!allMode && detailTab === "month" && loading && (
@@ -743,102 +687,87 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                         )}
                         {!allMode && detailTab === "month" && !loading && estimate && (
                           <motion.div key="month" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.15 }} className="space-y-4">
+                            {/* ── Stat cards ── */}
+                            {(() => {
+                              const rows = estimate.dailyBreakdown ?? [];
+                              const daysWithDeductions = rows.filter((r) => r.deduction > 0).length;
+                              const daysZeroDedPresent = rows.filter((r) => r.deduction === 0 && r.status === "present").length;
+                              const maxDed = rows.reduce((m, r) => Math.max(m, r.deduction), 0);
+                              const totalLateMins = rows.reduce((s, r) => s + r.lateMinutes, 0);
+                              const totalOfficeMins = rows.reduce((s, r) => s + (r.officeMinutes ?? 0), 0);
+                              const totalRemoteMins = rows.reduce((s, r) => s + (r.remoteMinutes ?? 0), 0);
+                              const cards: { label: string; value: string; color: string }[] = [
+                                { label: "Days present", value: `${estimate.presentDays}/${estimate.workingDays}`, color: "var(--status-present)" },
+                                { label: "Absent", value: `${estimate.absentDays}`, color: estimate.absentDays > 0 ? "var(--status-absent)" : "var(--fg)" },
+                                { label: "Late", value: `${estimate.lateDays}`, color: estimate.lateDays > 0 ? "var(--status-late)" : "var(--fg)" },
+                                { label: "Leave", value: `${estimate.leaveDays}`, color: "var(--teal)" },
+                                { label: "Holidays", value: `${estimate.holidays}`, color: "var(--purple)" },
+                                { label: "Deduction days", value: `${daysWithDeductions}`, color: daysWithDeductions > 0 ? "var(--rose)" : "var(--fg)" },
+                              ];
+                              if (daysZeroDedPresent > 0) cards.push({ label: "Clean days", value: `${daysZeroDedPresent}`, color: "var(--green)" });
+                              if (maxDed > 0) cards.push({ label: "Max deduction", value: fmt(maxDed), color: "var(--rose)" });
+                              if (totalLateMins > 0) cards.push({ label: "Total late", value: `${Math.floor(totalLateMins / 60)}h ${totalLateMins % 60}m`, color: "var(--status-late)" });
+                              if (totalOfficeMins > 0 || totalRemoteMins > 0) cards.push({ label: "Office / Remote", value: `${Math.round(totalOfficeMins / 60)}h / ${Math.round(totalRemoteMins / 60)}h`, color: "var(--fg)" });
+                              return (
+                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                  {cards.map((c) => (
+                                    <div key={c.label} className="rounded-xl p-2 text-center" style={{ background: "var(--bg-grouped)" }}>
+                                      <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{c.label}</p>
+                                      <p className="text-[12px] font-bold" style={{ color: c.color }}>{c.value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                             {/* ── Daily Breakdown ── */}
-                            <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
+                            <div>
                             <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                               Daily Breakdown · {MN[month - 1]} {year}
                             </p>
-                            <div className="grid grid-cols-[2rem_2.5rem_1fr_4rem_3.5rem_3.5rem_3.5rem_3.5rem] gap-x-2 px-2 py-1 text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
-                              <span>Day</span><span>Wkday</span><span>Status</span><span className="text-right">Hours</span><span className="text-right">Late</span><span className="text-right">Deduct.</span><span className="text-right">Clock in</span><span className="text-right">Clock out</span>
+                            <div className="grid grid-cols-[2rem_1fr_3.5rem_3.5rem_3rem_3rem_3rem_3.5rem_3.5rem_3.5rem] gap-x-1 px-2 py-1 text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                              <span>Day</span><span>Status</span><span className="text-right">In</span><span className="text-right">Out</span><span className="text-right">Office</span><span className="text-right">Remote</span><span className="text-right">Late</span><span className="text-right">Gross</span><span className="text-right">Deduct.</span><span className="text-right">Net</span>
                             </div>
                             <div className="space-y-0.5">
-                              {(estimate.dailyBreakdown ?? []).map((row, idx) => {
+                              {(() => {
+                                const dailyGross = estimate.workingDays > 0 ? estimate.grossPay / estimate.workingDays : 0;
+                                return (estimate.dailyBreakdown ?? []).map((row, idx) => {
                                 const s = SC[row.status] ?? SC.off;
                                 const isWork = row.status === "present" || row.status === "late" || row.status === "absent";
+                                const rowGross = isWork ? dailyGross : 0;
+                                const rowNet = rowGross - row.deduction;
                                 return (
                                   <motion.div key={row.day}
-                                    className="grid grid-cols-[2rem_2.5rem_1fr_4rem_3.5rem_3.5rem_3.5rem_3.5rem] gap-x-2 items-center rounded-lg px-2 py-1.5"
-                                    style={{ background: isWork ? "var(--bg-grouped)" : "transparent", opacity: row.status === "future" ? 0.35 : 1 }}
-                                    initial={{ opacity: 0 }} animate={{ opacity: row.status === "future" ? 0.35 : 1 }}
+                                    className="grid grid-cols-[2rem_1fr_3.5rem_3.5rem_3rem_3rem_3rem_3.5rem_3.5rem_3.5rem] gap-x-1 items-center rounded-lg px-2 py-1.5"
+                                    style={{ background: isWork ? "var(--bg-grouped)" : "transparent", opacity: row.status === "future" || row.status === "weekend" || row.status === "holiday" ? 0.45 : 1 }}
+                                    initial={{ opacity: 0 }} animate={{ opacity: row.status === "future" || row.status === "weekend" || row.status === "holiday" ? 0.45 : 1 }}
                                     transition={{ duration: 0.15, delay: Math.min(idx * 0.01, 0.3) }}
                                   >
                                     <span className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{row.day}</span>
-                                    <span className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>{row.dayOfWeek}</span>
-                                    <div className="flex items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} /><span className="text-[12px] font-semibold" style={{ color: s.color }}>{s.label}</span></div>
-                                    <span className="text-right text-[12px] font-semibold" style={{ color: row.workingMinutes > 0 ? "var(--fg)" : "var(--fg-quaternary)" }}>{row.workingMinutes > 0 ? fmtMins(row.workingMinutes) : "—"}</span>
-                                    <span className="text-right text-[12px] font-semibold" style={{ color: row.lateMinutes > 0 ? "var(--status-late)" : "var(--fg-quaternary)" }}>{row.lateMinutes > 0 ? `${row.lateMinutes}m` : "—"}</span>
-                                    <span className="text-right text-[12px] font-semibold" style={{ color: row.deduction > 0 ? "var(--rose)" : "var(--fg-quaternary)" }}>{row.deduction > 0 ? fmt(row.deduction) : "—"}</span>
+                                    <div className="flex items-center gap-1 min-w-0"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} /><span className="text-[12px] font-semibold truncate" style={{ color: s.color }}>{s.label}</span></div>
                                     <span className="text-right text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(row.firstStart)}</span>
                                     <span className="text-right text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{fmtTime(row.lastEnd)}</span>
+                                    <span className="text-right text-[12px] font-semibold" style={{ color: (row.officeMinutes ?? 0) > 0 ? "var(--status-office)" : "var(--fg-quaternary)" }}>{(row.officeMinutes ?? 0) > 0 ? fmtMins(row.officeMinutes) : "—"}</span>
+                                    <span className="text-right text-[12px] font-semibold" style={{ color: (row.remoteMinutes ?? 0) > 0 ? "var(--status-remote)" : "var(--fg-quaternary)" }}>{(row.remoteMinutes ?? 0) > 0 ? fmtMins(row.remoteMinutes) : "—"}</span>
+                                    <span className="text-right text-[12px] font-semibold" style={{ color: row.lateMinutes > 0 ? "var(--status-late)" : "var(--fg-quaternary)" }}>{row.lateMinutes > 0 ? `${row.lateMinutes}m` : "—"}</span>
+                                    <span className="text-right text-[12px] font-medium" style={{ color: rowGross > 0 ? "var(--fg)" : "var(--fg-quaternary)" }}>{rowGross > 0 ? fmt(Math.round(rowGross)) : "—"}</span>
+                                    <span className="text-right text-[12px] font-semibold" style={{ color: row.deduction > 0 ? "var(--rose)" : "var(--fg-quaternary)" }}>{row.deduction > 0 ? fmt(row.deduction) : "—"}</span>
+                                    <span className="text-right text-[12px] font-bold" style={{ color: rowGross > 0 ? "var(--primary)" : "var(--fg-quaternary)" }}>{rowGross > 0 ? fmt(Math.round(rowNet)) : "—"}</span>
                                   </motion.div>
                                 );
-                              })}
+                              });
+                              })()}
                             </div>
                             {estimate.dailyBreakdown && estimate.dailyBreakdown.length > 0 && (
                               <>
-                                <div className="grid grid-cols-[2rem_2.5rem_1fr_4rem_3.5rem_3.5rem_3.5rem_3.5rem] gap-x-2 items-center rounded-lg border-t px-2 pt-2 pb-1" style={{ borderColor: "var(--border)" }}>
-                                  <span /><span /><span className="text-[12px] font-bold uppercase" style={{ color: "var(--fg-tertiary)" }}>Total</span>
-                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--fg)" }}>{fmtMins(estimate.dailyBreakdown.reduce((a, r) => a + r.workingMinutes, 0))}</span>
-                                  <span />
-                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--rose)" }}>{fmt(estimate.dailyBreakdown.reduce((a, r) => a + r.deduction, 0))}</span>
+                                <div className="grid grid-cols-[2rem_1fr_3.5rem_3.5rem_3rem_3rem_3rem_3.5rem_3.5rem_3.5rem] gap-x-1 items-center rounded-lg border-t px-2 pt-2 pb-1" style={{ borderColor: "var(--border)" }}>
+                                  <span /><span className="text-[12px] font-bold uppercase" style={{ color: "var(--fg-tertiary)" }}>Total</span>
                                   <span /><span />
-                                </div>
-                                <div className="mt-3 space-y-2">
-                                  <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Deduction Summary</p>
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                    {(() => {
-                                      const rows = estimate.dailyBreakdown;
-                                      const daysWithDeductions = rows.filter((r) => r.deduction > 0).length;
-                                      const daysZeroDedPresent = rows.filter((r) => r.deduction === 0 && r.status === "present").length;
-                                      const maxDed = rows.reduce((m, r) => Math.max(m, r.deduction), 0);
-                                      const dedValues = rows.filter((r) => r.deduction > 0).map((r) => r.deduction).sort((a, b) => a - b);
-                                      const medianDed = dedValues.length > 0 ? (dedValues.length % 2 === 1 ? dedValues[Math.floor(dedValues.length / 2)] : (dedValues[dedValues.length / 2 - 1] + dedValues[dedValues.length / 2]) / 2) : 0;
-                                      const totalOfficeMins = rows.reduce((s, r) => s + (r.officeMinutes ?? 0), 0);
-                                      const totalRemoteMins = rows.reduce((s, r) => s + (r.remoteMinutes ?? 0), 0);
-                                      const statusMap: Record<string, number> = {};
-                                      for (const r of rows) statusMap[r.status] = (statusMap[r.status] ?? 0) + 1;
-                                      const totalLateMins = rows.reduce((s, r) => s + r.lateMinutes, 0);
-                                      return (
-                                        <>
-                                          <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                            <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Days with Deductions</p>
-                                            <p className="text-[12px] font-bold" style={{ color: "var(--rose)" }}>{daysWithDeductions}</p>
-                                          </div>
-                                          <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                            <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Zero deduction days</p>
-                                            <p className="text-[12px] font-bold" style={{ color: "var(--status-present)" }}>{daysZeroDedPresent}</p>
-                                            <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>present only</p>
-                                          </div>
-                                          <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                            <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Largest daily deduction</p>
-                                            <p className="text-[12px] font-bold" style={{ color: maxDed > 0 ? "var(--rose)" : "var(--fg-quaternary)" }}>{maxDed > 0 ? fmt(maxDed) : "—"}</p>
-                                          </div>
-                                          {medianDed > 0 && (
-                                            <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Median Deduction</p>
-                                              <p className="text-[12px] font-bold" style={{ color: "var(--amber)" }}>{fmt(Math.round(medianDed))}</p>
-                                            </div>
-                                          )}
-                                          {totalLateMins > 0 && (
-                                            <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Late</p>
-                                              <p className="text-[12px] font-bold" style={{ color: "var(--status-late)" }}>{Math.floor(totalLateMins / 60)}h {totalLateMins % 60}m</p>
-                                            </div>
-                                          )}
-                                          {(totalOfficeMins > 0 || totalRemoteMins > 0) && (
-                                            <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                              <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Office / Remote</p>
-                                              <p className="text-[12px] font-bold">
-                                                <span style={{ color: "var(--status-office)" }}>{Math.round(totalOfficeMins / 60)}h</span>
-                                                <span style={{ color: "var(--fg-tertiary)" }}> / </span>
-                                                <span style={{ color: "var(--status-remote)" }}>{Math.round(totalRemoteMins / 60)}h</span>
-                                              </p>
-                                            </div>
-                                          )}
-                                        </>
-                                      );
-                                    })()}
-                                  </div>
+                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--status-office)" }}>{fmtMins(estimate.dailyBreakdown.reduce((a, r) => a + (r.officeMinutes ?? 0), 0))}</span>
+                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--status-remote)" }}>{fmtMins(estimate.dailyBreakdown.reduce((a, r) => a + (r.remoteMinutes ?? 0), 0))}</span>
+                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--status-late)" }}>{fmtMins(estimate.dailyBreakdown.reduce((a, r) => a + r.lateMinutes, 0))}</span>
+                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--fg)" }}>{fmt(estimate.grossPay)}</span>
+                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--rose)" }}>{fmt(estimate.dailyBreakdown.reduce((a, r) => a + r.deduction, 0))}</span>
+                                  <span className="text-right text-[12px] font-bold" style={{ color: "var(--primary)" }}>{fmt(estimate.netPay)}</span>
                                 </div>
                               </>
                             )}
@@ -879,63 +808,6 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                   return <p className="text-[12px] font-semibold rounded-lg px-2.5 py-1" style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)", color: "var(--primary)" }}>Filtered: {deptName}</p>;
                                 })()}
 
-                                {/* ── Insights (merged) ── */}
-                                {teamSheetStats && (
-                                  <>
-                                    <div className="mt-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-                                      <p className="text-[12px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>Team Insights · {MN[month - 1]} {year}</p>
-                                    </div>
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Avg Attendance</p>
-                                        <p className="text-[12px] font-bold" style={{ color: "var(--status-present)" }}>{teamSheetStats.teamAvgAttendancePct}%</p>
-                                      </div>
-                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Total Overtime</p>
-                                        <p className="text-[12px] font-bold" style={{ color: teamSheetStats.teamTotalOvertimeHours > 0 ? "var(--teal)" : "var(--fg)" }}>{teamSheetStats.teamTotalOvertimeHours.toFixed(1)}h</p>
-                                      </div>
-                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>With Overtime</p>
-                                        <p className="text-[12px] font-bold" style={{ color: teamSheetStats.overtimeEmployees > 0 ? "var(--teal)" : "var(--fg-tertiary)" }}>{teamSheetStats.overtimeEmployees}</p>
-                                        <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>employees</p>
-                                      </div>
-                                    </div>
-                                    <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highlights</p>
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                      {teamSheetStats.highestPaid && (
-                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Paid</p>
-                                          <p className="text-[12px] font-bold truncate" style={{ color: "var(--primary)" }}>{teamSheetStats.highestPaid.name}</p>
-                                          <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestPaid.salary)}</p>
-                                        </div>
-                                      )}
-                                      {teamSheetStats.lowestPaid && (
-                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Lowest Paid</p>
-                                          <p className="text-[12px] font-bold truncate" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.lowestPaid.name}</p>
-                                          <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.lowestPaid.salary)}</p>
-                                        </div>
-                                      )}
-                                      {teamSheetStats.highestDed && teamSheetStats.highestDed.totalDeductions > 0 && (
-                                        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Highest Deductions</p>
-                                          <p className="text-[12px] font-bold truncate" style={{ color: "var(--rose)" }}>{teamSheetStats.highestDed.name}</p>
-                                          <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{fmt(teamSheetStats.highestDed.totalDeductions)}</p>
-                                        </div>
-                                      )}
-                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Attendance</p>
-                                        <p className="text-[12px] font-bold truncate" style={{ color: "var(--status-present)" }}>{teamSheetStats.bestAttendanceName}</p>
-                                        <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.bestAttendancePct}%</p>
-                                      </div>
-                                      <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                        <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Worst Attendance</p>
-                                        <p className="text-[12px] font-bold truncate" style={{ color: "var(--status-absent)" }}>{teamSheetStats.worstAttendanceName}</p>
-                                        <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>{teamSheetStats.worstAttendancePct}%</p>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
                                 {/* ── Employee Payroll Table (merged) ── */}
                                 <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
                                   <div className="flex items-center justify-between mb-2">
@@ -992,17 +864,6 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                               </div>
                             ) : (
                               <>
-                                {/* Annual hero */}
-                                {yearTotals && (
-                                  <div className="rounded-xl p-4 text-center" style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, var(--bg-grouped)), color-mix(in srgb, var(--teal) 5%, var(--bg-grouped)))" }}>
-                                    <p className="text-[12px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--fg-tertiary)" }}>Annual Net Pay · {year}</p>
-                                    <p className="text-2xl font-bold" style={{ color: "var(--primary)" }}>{fmt(yearTotals.netPay)}</p>
-                                    <p className="text-[12px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
-                                      {yearTotals.months} month{yearTotals.months !== 1 ? "s" : ""} · {fmt(yearTotals.grossPay)} gross · {fmt(yearTotals.totalDeductions)} deductions
-                                    </p>
-                                  </div>
-                                )}
-
                                 {/* Annual stats row */}
                                 {yearTotals && (
                                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -1022,28 +883,7 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                 )}
 
                                 {yearTotals && yearInsightStats && (
-                                  <div>
-                                    <p className="text-[12px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>YTD Insights</p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                                      {yearInsightStats.ytdAvgMonthlyNet != null && (
-                                        <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Avg Monthly Net Pay</p>
-                                          <p className="text-[12px] font-bold" style={{ color: "var(--primary)" }}>{fmt(Math.round(yearInsightStats.ytdAvgMonthlyNet))}</p>
-                                          <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>over {yearTotals.months} months</p>
-                                        </div>
-                                      )}
-                                      {yearInsightStats.ytdAttendancePct != null && (
-                                        <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Attendance %</p>
-                                          <p className="text-[12px] font-bold" style={{ color: "var(--status-present)" }}>{yearInsightStats.ytdAttendancePct}%</p>
-                                        </div>
-                                      )}
-                                      {yearInsightStats.ytdDeductionPct != null && (
-                                        <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
-                                          <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>YTD Deduction %</p>
-                                          <p className="text-[12px] font-bold" style={{ color: yearInsightStats.ytdDeductionPct > 0 ? "var(--rose)" : "var(--fg)" }}>{yearInsightStats.ytdDeductionPct}%</p>
-                                        </div>
-                                      )}
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                                       {yearInsightStats.bestMonth && yearInsightStats.bestNet != null && (
                                         <div className="rounded-xl p-2.5 text-center" style={{ background: "var(--bg-grouped)" }}>
                                           <p className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Best Month</p>
@@ -1085,7 +925,6 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                                           <p className="text-[12px] font-bold" style={{ color: "var(--teal)" }}>{yearInsightStats.totalOvertimeHours.toFixed(1)}h</p>
                                         </div>
                                       )}
-                                    </div>
                                   </div>
                                 )}
 

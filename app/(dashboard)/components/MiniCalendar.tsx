@@ -95,7 +95,7 @@ export function MiniCalendar({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           >
-            {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e-${i}`} />)}
+            {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e-${i}`} className="py-1" />)}
             {Array.from({ length: daysInMonth }, (_, i) => {
               const day = i + 1;
               const meta = getDayMeta?.(day);
@@ -148,6 +148,7 @@ export function MiniCalendar({
                 </motion.button>
               );
             })}
+            {Array.from({ length: 42 - firstDayOfWeek - daysInMonth }, (_, i) => <div key={`t-${i}`} className="py-1" />)}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -12,7 +12,6 @@ import { DesignationsPanel } from "./DesignationsPanel";
 import { Portal } from "../components/Portal";
 import { EmployeeModal } from "../components/EmployeeModal";
 import toast from "react-hot-toast";
-import { HeaderStatPill } from "../components/StatChips";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import dynamic from "next/dynamic";
 import {
@@ -161,13 +160,18 @@ export default function OrganizationPage() {
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* ── Title row ── */}
-      <div data-tour="org-header" className="mb-4 shrink-0">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Organization</h1>
-          <HeaderStatPill label={scopedEmps.length === 1 ? "employee" : "employees"} value={scopedEmps.length} dotColor="var(--teal)" />
-          <HeaderStatPill label={scopedDepts.length === 1 ? "department" : "departments"} value={scopedDepts.length} dotColor="var(--purple)" />
-          {scopedEmps.filter((e) => e.isActive).length !== scopedEmps.length && (
-            <HeaderStatPill label="active accounts" value={scopedEmps.filter((e) => e.isActive).length} dotColor="var(--green)" />
+      <div data-tour="org-header" className="mb-3 shrink-0 flex items-center gap-3 flex-wrap">
+        <h1 className="text-lg font-bold" style={{ color: "var(--fg)" }}>Organization</h1>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {sessionStatus !== "loading" && canCreateEmployees && (
+            <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
+              style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
+              <svg className="h-3.5 w-3.5" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Invite Employee
+            </motion.button>
           )}
         </div>
       </div>
@@ -189,13 +193,6 @@ export default function OrganizationPage() {
               className="flex-1 min-w-0 bg-transparent text-[11px] outline-none"
               style={{ color: "var(--fg)", border: "none" }}
             />
-            {sessionStatus !== "loading" && canCreateEmployees && (
-              <motion.button type="button" onClick={openCreateEmployee} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
-                style={{ color: "var(--primary)" }} title="Add Employee">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              </motion.button>
-            )}
           </div>
           {/* Departments card */}
           <div className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>

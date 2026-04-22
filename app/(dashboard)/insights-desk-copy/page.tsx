@@ -672,7 +672,7 @@ export default function InsightsDeskCopyPage() {
   const statusColor = (s: string) => s === "office" ? "var(--status-office)" : s === "remote" ? "var(--status-remote)" : "var(--fg-tertiary)";
 
   return (
-    <div className="flex h-[calc(100dvh-120px)] flex-col">
+    <div className="flex flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* Header */}
       <div className="mb-3 shrink-0 flex items-center gap-3 flex-wrap">
         <h1 className="text-lg font-bold" style={{ color: "var(--fg)" }}>Insights Desk</h1>
@@ -699,7 +699,8 @@ export default function InsightsDeskCopyPage() {
       <div className="flex min-h-0 flex-1 gap-4">
 
         {/* ═══ Left Sidebar ═══ */}
-        <aside className="hidden sm:flex w-[280px] shrink-0 flex-col rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+        <aside className="hidden sm:flex w-[280px] shrink-0 flex-col gap-3 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
           <div className="shrink-0 p-2.5 border-b" style={{ borderColor: "var(--border)" }}>
             <div className="relative">
               <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
@@ -763,7 +764,8 @@ export default function InsightsDeskCopyPage() {
               </>
             )}
           </div>
-          <div className="shrink-0 border-t px-1.5 py-1.5 space-y-1" style={{ borderColor: "var(--border)" }}>
+          </div>
+          <div className="shrink-0 rounded-xl border px-1.5 py-1.5 space-y-1" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
             {/* ── Info cards ── */}
             {upcomingHolidays.length > 0 && (
               <button type="button" onClick={() => setHolidaysOpen(true)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ background: "color-mix(in srgb, var(--purple) 6%, transparent)" }}>
@@ -811,12 +813,12 @@ export default function InsightsDeskCopyPage() {
         {/* ═══ Content Area ═══ */}
         <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden">
           {/* Tab bar */}
-          <div className="shrink-0 flex items-center rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+          <div className="shrink-0 flex items-center w-fit rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
             {TAB_ITEMS.map((t) => {
               const isAct = activeTab === t.id;
               return (
                 <button key={t.id} type="button" onClick={() => handleTabClick(t.id)}
-                  className="relative flex flex-1 items-center justify-center gap-1.5 py-2.5 transition-colors"
+                  className="relative flex items-center justify-center gap-1.5 whitespace-nowrap px-5 py-2 transition-colors"
                   style={{ color: isAct ? t.color : "var(--fg-tertiary)" }}>
                   {isAct && <motion.span layoutId="insights-tab-active" className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.color }} transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
                   <svg className="relative h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isAct ? 2 : 1.5}><path strokeLinecap="round" strokeLinejoin="round" d={t.icon} /></svg>
@@ -826,7 +828,7 @@ export default function InsightsDeskCopyPage() {
             })}
           </div>
           {/* Content body */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
           {activeTab === "attendance" && (
           <div className="flex flex-1 flex-col overflow-y-auto p-3">
           <div className="flex flex-col gap-3">
