@@ -11,6 +11,7 @@ export interface IMonthlyAttendanceStats extends Document {
   totalWorkingDays: number;
   presentDays: number;
   absentDays: number;
+  approvedLeaveDays: number;
   onTimeArrivals: number;
   lateArrivals: number;
   onTimePercentage: number;
@@ -33,6 +34,7 @@ const monthlyAttendanceStatsSchema = new Schema<IMonthlyAttendanceStats>(
     totalWorkingDays: { type: Number, default: 0 },
     presentDays: { type: Number, default: 0 },
     absentDays: { type: Number, default: 0 },
+    approvedLeaveDays: { type: Number, default: 0 },
     onTimeArrivals: { type: Number, default: 0 },
     lateArrivals: { type: Number, default: 0 },
     onTimePercentage: { type: Number, default: 0 },

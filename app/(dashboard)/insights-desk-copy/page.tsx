@@ -15,6 +15,7 @@ import { LeavesContent } from "./LeavesContent";
 import { PayrollContent } from "./PayrollContent";
 import { ProgressContent } from "./ProgressContent";
 import toast from "react-hot-toast";
+import { io, Socket } from "socket.io-client";
 
 /* ───── Types ───── */
 
@@ -233,6 +234,8 @@ export default function InsightsDeskCopyPage() {
   const [presenceLoading, setPresenceLoading] = useState(true);
   const [sidebarSearch, setSidebarSearch] = useState("");
 
+  const socketRef = useRef<Socket | null>(null);
+
   useEffect(() => {
     if (!sessionReady) return;
     setPresenceLoading(true);
@@ -242,6 +245,20 @@ export default function InsightsDeskCopyPage() {
       .catch(() => { setPresence([]); toast.error("Failed to load employees"); })
       .finally(() => setPresenceLoading(false));
   }, [sessionReady]);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    const socket = io({ auth: { userId: authSession?.user?.id } });
+    socketRef.current = socket;
+    socket.emit("join-presence");
+    socket.on("presence", () => {
+      fetch("/api/attendance/presence")
+        .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+        .then((d) => setPresence(Array.isArray(d) ? d : []))
+        .catch(() => {});
+    });
+    return () => { socket.disconnect(); socketRef.current = null; };
+  }, [sessionReady, authSession?.user?.id]);
 
   const filteredPresence = useMemo(() => {
     if (!sidebarSearch.trim()) return presence;
@@ -499,32 +516,6 @@ export default function InsightsDeskCopyPage() {
     }
     return days;
   }, [calendarLeaves, year, month]);
-
-  const personalInsights = useMemo(() => {
-    const present = records.filter((r) => r.isPresent);
-    const totalLateMins = present.reduce((s, r) => s + (r.lateBy ?? 0), 0);
-    const perfectDays = present.filter((r) => r.isOnTime).length;
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const byDay = new Map<number, { total: number; count: number }>();
-    for (const r of present) {
-      const dow = new Date(r.date).getDay();
-      const cur = byDay.get(dow) ?? { total: 0, count: 0 };
-      cur.total += r.totalWorkingMinutes; cur.count += 1;
-      byDay.set(dow, cur);
-    }
-    let bestDay = "", bestAvg = 0;
-    for (const [dow, v] of byDay) {
-      const avg = v.total / v.count;
-      if (avg > bestAvg) { bestAvg = avg; bestDay = dayNames[dow]; }
-    }
-    const sorted = [...records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    let longestPresentStreak = 0, runPresent = 0;
-    for (const r of sorted) {
-      if (r.isPresent) { runPresent++; longestPresentStreak = Math.max(longestPresentStreak, runPresent); }
-      else { runPresent = 0; }
-    }
-    return { totalLateMins, perfectDays, bestDay, bestAvg, longestPresentStreak };
-  }, [records]);
 
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
@@ -1159,18 +1150,10 @@ export default function InsightsDeskCopyPage() {
             {sessionReady && !isAggregateMode && selectedDay === null && (
               loading ? (
                 <div>
-                  <p className="mb-3 text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records</p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-24 rounded-xl" />)}</div>
                 </div>
               ) : records.length > 0 ? (
                 <div>
-                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>Monthly Records · {records.length}</p>
-                  <div className="mb-3 flex flex-wrap gap-1.5 text-[12px] font-semibold">
-                    {personalInsights.perfectDays > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>{personalInsights.perfectDays} on-time days</span>}
-                    {personalInsights.totalLateMins > 0 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--amber) 12%, transparent)", color: "var(--amber)" }}>{fmtHours(personalInsights.totalLateMins)} total late</span>}
-                    {personalInsights.bestDay && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Best on {personalInsights.bestDay}s ({fmtHours(personalInsights.bestAvg)})</span>}
-                    {personalInsights.longestPresentStreak > 1 && <span className="whitespace-nowrap rounded-full px-2 py-0.5" style={{ background: "var(--bg-grouped)", color: "var(--fg-secondary)" }}>Streak: {personalInsights.longestPresentStreak}d</span>}
-                  </div>
                   <motion.div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.03 } } }}>
                     {records.map((rec) => {
                       const recDay = new Date(rec.date).getUTCDate();

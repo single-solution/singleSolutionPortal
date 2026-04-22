@@ -610,6 +610,12 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                             <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
                           </motion.div>
                         )}
+                        {!allMode && detailTab === "month" && !loading && !estimate && (
+                          <motion.div key="month-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="py-12 text-center">
+                            <svg className="mx-auto mb-2 h-8 w-8" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>No payroll data available for {MN[month - 1]} {year}</p>
+                          </motion.div>
+                        )}
                         {!allMode && detailTab === "month" && !loading && estimate && (
                           <motion.div key="month" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.15 }} className="space-y-4">
                             {/* ── Stat cards ── */}

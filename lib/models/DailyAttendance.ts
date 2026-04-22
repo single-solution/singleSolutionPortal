@@ -17,6 +17,7 @@ export interface IDailyAttendance extends Document {
   lateToOfficeBy: number;
   isHoliday: boolean;
   breakMinutes: number;
+  overtimeMinutes: number;
   activitySessions: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
@@ -39,6 +40,7 @@ const dailyAttendanceSchema = new Schema<IDailyAttendance>(
     lateToOfficeBy: { type: Number, default: 0 },
     isHoliday: { type: Boolean, default: false },
     breakMinutes: { type: Number, default: 0 },
+    overtimeMinutes: { type: Number, default: 0 },
     activitySessions: [{ type: Schema.Types.ObjectId, ref: "ActivitySession" }],
   },
   { timestamps: true },

@@ -17,6 +17,14 @@ export function notFound(msg = "Not found") {
   return NextResponse.json({ error: msg }, { status: 404 });
 }
 
+export function conflict(msg: string) {
+  return NextResponse.json({ error: msg }, { status: 409 });
+}
+
+export function unprocessable(msg: string) {
+  return NextResponse.json({ error: msg }, { status: 422 });
+}
+
 export function ok(data: unknown) {
   return NextResponse.json(data);
 }

@@ -7,6 +7,19 @@ export function resolveTimezone(slug: string): string {
   return SLUG_TO_IANA[slug] ?? slug;
 }
 
+let _cachedTz: string | null = null;
+let _tzCacheTime = 0;
+const TZ_CACHE_TTL = 60_000;
+
+export async function getTz(): Promise<string> {
+  if (_cachedTz && Date.now() - _tzCacheTime < TZ_CACHE_TTL) return _cachedTz;
+  const { default: SystemSettings } = await import("@/lib/models/SystemSettings");
+  const s = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
+  _cachedTz = resolveTimezone((s?.company as { timezone?: string })?.timezone ?? "asia-karachi");
+  _tzCacheTime = Date.now();
+  return _cachedTz;
+}
+
 export function dateParts(d: Date, tz: string) {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,

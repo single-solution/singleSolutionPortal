@@ -24,6 +24,10 @@ const NUDGE_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_NUDGES = 3;
 const MAX_CHECKIN_RETRIES = 3;
 const RETRY_DELAY_MS = 5_000;
+const CHECKIN_COOLDOWN_MS = 30_000;
+const CHECKIN_DEBOUNCE_MS = 5_000;
+const HEARTBEAT_MAX_RETRIES = 3;
+const HEARTBEAT_BASE_DELAY = 1_000;
 
 function formatElapsed(ms: number) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -129,6 +133,8 @@ export default function SessionTracker() {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const checkedInRef = useRef(false);
+  const lastCheckinAtRef = useRef(0);
+  const checkinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateMode = useCallback((m: DeviceMode) => {
     modeRef.current = m;
@@ -174,9 +180,12 @@ export default function SessionTracker() {
     }
   }, []);
 
-  // ─── Check-in ─────────────────────────────────────────────────
+  // ─── Check-in (with cooldown gate) ──────────────────────────
   const doCheckIn = useCallback(
     async (retries = 0): Promise<boolean> => {
+      const now = Date.now();
+      if (now - lastCheckinAtRef.current < CHECKIN_COOLDOWN_MS) return false;
+
       const geo = await getGeo();
       if (geo) { lastCoordsRef.current = { lat: geo.lat, lng: geo.lng }; setLiveCoords({ lat: geo.lat, lng: geo.lng }); }
       try {
@@ -201,6 +210,7 @@ export default function SessionTracker() {
         const data = await res.json();
         if (res.ok) {
           if (!data.session) return false;
+          lastCheckinAtRef.current = Date.now();
           setSession({
             active: true,
             inOffice: data.session.inOffice ?? false,
@@ -230,18 +240,38 @@ export default function SessionTracker() {
     [],
   );
 
+  // ─── Debounced check-in (delays by CHECKIN_DEBOUNCE_MS) ────
+  const debouncedCheckIn = useCallback((): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (checkinDebounceRef.current) clearTimeout(checkinDebounceRef.current);
+      checkinDebounceRef.current = setTimeout(async () => {
+        checkinDebounceRef.current = null;
+        const ok = await doCheckIn();
+        resolve(ok);
+      }, CHECKIN_DEBOUNCE_MS);
+    });
+  }, [doCheckIn]);
+
   // ─── Heartbeat (active mode) ─────────────────────────────────
   const lastBeatTimeRef = useRef(Date.now());
+  const beatRetryCountRef = useRef(0);
 
   const startHeartbeat = useCallback(() => {
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     lastBeatTimeRef.current = Date.now();
+    beatRetryCountRef.current = 0;
+
+    const sendBeat = async (lat?: number, lng?: number, accuracy?: number): Promise<Response> => {
+      return fetch("/api/attendance/session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude: lat, longitude: lng, accuracy }),
+      });
+    };
 
     const beat = async () => {
       if (modeRef.current !== "active") return;
 
-      // Detect sleep/suspend: if wall-clock gap is much larger than
-      // the heartbeat interval, the device was likely asleep.
       const now = Date.now();
       const sinceLast = now - lastBeatTimeRef.current;
       lastBeatTimeRef.current = now;
@@ -249,22 +279,35 @@ export default function SessionTracker() {
 
       const geo = await getGeo();
       if (geo) { lastCoordsRef.current = { lat: geo.lat, lng: geo.lng }; setLiveCoords({ lat: geo.lat, lng: geo.lng }); }
+      const lat = geo?.lat ?? lastCoordsRef.current?.lat;
+      const lng = geo?.lng ?? lastCoordsRef.current?.lng;
+
+      let res: Response | null = null;
+      for (let attempt = 0; attempt <= HEARTBEAT_MAX_RETRIES; attempt++) {
+        try {
+          res = await sendBeat(lat, lng, geo?.accuracy);
+          beatRetryCountRef.current = 0;
+          break;
+        } catch {
+          if (attempt < HEARTBEAT_MAX_RETRIES) {
+            const delay = HEARTBEAT_BASE_DELAY * Math.pow(3, attempt);
+            await new Promise((r) => setTimeout(r, delay));
+          }
+        }
+      }
+
+      if (!res) {
+        beatRetryCountRef.current++;
+        return;
+      }
+
       try {
-        const res = await fetch("/api/attendance/session", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            latitude: geo?.lat ?? lastCoordsRef.current?.lat,
-            longitude: geo?.lng ?? lastCoordsRef.current?.lng,
-            accuracy: geo?.accuracy,
-          }),
-        });
         const data = await res.json();
         if (data.sessionClosed) {
           if (data.sleepDetected) {
             sendBrowserNotification("Session Restarted", "Your previous session was closed due to inactivity. A new session has started.");
           }
-          const ok = await doCheckIn();
+          const ok = await debouncedCheckIn();
           if (ok) {
             updateMode("active");
           } else {
@@ -292,8 +335,6 @@ export default function SessionTracker() {
           } : {}),
         }));
 
-        // After waking from sleep the session might still be valid
-        // (gap < 3 min) but the timer display may have drifted. Re-sync.
         if (wasSleeping) {
           const freshData = await fetchSession();
           if (freshData.active && freshData.startTime) {
@@ -301,12 +342,12 @@ export default function SessionTracker() {
           }
         }
       } catch {
-        /* network fail — skip this beat, retry next */
+        /* response parse failure — skip */
       }
     };
 
     heartbeatRef.current = setInterval(beat, HEARTBEAT_MS);
-  }, [doCheckIn, updateMode, fetchSession]);
+  }, [debouncedCheckIn, updateMode, fetchSession]);
 
   // ─── Sync polling (readonly mode) ─────────────────────────────
   const startSyncPolling = useCallback(() => {
@@ -318,7 +359,7 @@ export default function SessionTracker() {
       if (!isMobileRef.current) {
         if (!data.active || data.isStale) {
           if (syncRef.current) clearInterval(syncRef.current);
-          const ok = await doCheckIn();
+          const ok = await debouncedCheckIn();
           if (ok) {
             updateMode("active");
             startHeartbeat();
@@ -331,7 +372,7 @@ export default function SessionTracker() {
     };
 
     syncRef.current = setInterval(poll, HEARTBEAT_MS);
-  }, [fetchSession, doCheckIn, updateMode, startHeartbeat]);
+  }, [fetchSession, debouncedCheckIn, updateMode, startHeartbeat]);
 
   // ─── Request notification permission early ────────────────────
   useEffect(() => {
@@ -356,7 +397,7 @@ export default function SessionTracker() {
       }
 
       if (!data.active || data.isStale) {
-        const ok = await doCheckIn();
+        const ok = await debouncedCheckIn();
         if (ok) {
           updateMode("active");
           startHeartbeat();
@@ -390,14 +431,18 @@ export default function SessionTracker() {
     return () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (syncRef.current) clearInterval(syncRef.current);
+      if (checkinDebounceRef.current) clearTimeout(checkinDebounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionLoaded, isSuperAdmin]);
 
-  // ─── beforeunload: best-effort checkout ───────────────────────
+  // ─── beforeunload: best-effort checkout (skip for young sessions) ──
   useEffect(() => {
     function handleBeforeUnload() {
+      if (checkinDebounceRef.current) { clearTimeout(checkinDebounceRef.current); checkinDebounceRef.current = null; }
       if (modeRef.current === "active" && checkedInRef.current) {
+        const sessionAge = Date.now() - lastCheckinAtRef.current;
+        if (sessionAge < CHECKIN_COOLDOWN_MS) return;
         navigator.sendBeacon(
           "/api/attendance/session",
           new Blob([JSON.stringify({ action: "checkout" })], {
@@ -445,9 +490,8 @@ export default function SessionTracker() {
 
         if (modeRef.current === "active") {
           if (!data.active || data.isStale) {
-            // Session died while we were away — re-check-in
             if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-            const ok = await doCheckIn();
+            const ok = await debouncedCheckIn();
             if (ok) {
               updateMode("active");
               startHeartbeat();
@@ -456,12 +500,10 @@ export default function SessionTracker() {
               startSyncPolling();
             }
           }
-          // else: still active and healthy, heartbeat will continue
         } else if (modeRef.current === "readonly") {
           if (!data.active || data.isStale) {
-            // Primary device died — take over
             if (syncRef.current) clearInterval(syncRef.current);
-            const ok = await doCheckIn();
+            const ok = await debouncedCheckIn();
             if (ok) {
               updateMode("active");
               startHeartbeat();
@@ -475,7 +517,7 @@ export default function SessionTracker() {
 
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [fetchSession, doCheckIn, updateMode, startHeartbeat, startSyncPolling]);
+  }, [fetchSession, debouncedCheckIn, updateMode, startHeartbeat, startSyncPolling]);
 
   // ─── Elapsed timer (pauses when idle OR location flagged) ───
   const pausedAtRef = useRef<number>(0);
