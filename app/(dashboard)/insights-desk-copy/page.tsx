@@ -766,12 +766,22 @@ export default function InsightsDeskCopyPage() {
           </div>
           </div>
           <div className="shrink-0 rounded-xl border px-1.5 py-1.5 space-y-1" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
-            {/* ── Info cards ── */}
+            {/* ── Coming up ── */}
             {upcomingHolidays.length > 0 && (
-              <button type="button" onClick={() => setHolidaysOpen(true)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ background: "color-mix(in srgb, var(--purple) 6%, transparent)" }}>
-                <svg className="h-3 w-3 shrink-0" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
-                <span className="text-[10px] font-semibold truncate" style={{ color: "var(--fg-secondary)" }}>{upcomingHolidays[0].name} · {new Date(upcomingHolidays[0].date).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</span>
-                {upcomingHolidays.length > 1 && <span className="ml-auto shrink-0 text-[10px] font-semibold" style={{ color: "var(--purple)" }}>+{upcomingHolidays.length - 1}</span>}
+              <button type="button" onClick={() => setHolidaysOpen(true)} className="flex w-full flex-col gap-1 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--hover-bg)]" style={{ background: "color-mix(in srgb, var(--purple) 6%, transparent)" }}>
+                <div className="flex items-center gap-1.5">
+                  <svg className="h-3 w-3 shrink-0" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--purple)" }}>Coming up</span>
+                  {upcomingHolidays.length > 1 && <span className="ml-auto shrink-0 text-[10px] font-semibold" style={{ color: "var(--purple)" }}>+{upcomingHolidays.length - 1}</span>}
+                </div>
+                <div className="flex items-baseline justify-between gap-2 pl-[18px]">
+                  <span className="text-[11px] font-semibold truncate" style={{ color: "var(--fg)" }}>{upcomingHolidays[0].name}</span>
+                  <span className="shrink-0 text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{(() => {
+                    const d = Math.ceil((new Date(upcomingHolidays[0].date).getTime() - Date.now()) / 86400_000);
+                    const dateStr = new Date(upcomingHolidays[0].date).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+                    return d <= 0 ? `${dateStr} · Today` : d === 1 ? `${dateStr} · Tomorrow` : `${dateStr} · ${d}d`;
+                  })()}</span>
+                </div>
               </button>
             )}
             {/* ── Clear date ── */}
