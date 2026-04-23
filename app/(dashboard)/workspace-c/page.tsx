@@ -684,8 +684,7 @@ export default function WorkspacePage() {
         {/* ── main content (tasks grid or progress board) ── */}
         <motion.div
           animate={{ paddingRight: canViewLogs && !activityCollapsed ? 396 : 0 }}
-          transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-          style={{ willChange: "padding-right" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="min-w-0 min-h-0 flex-1 overflow-y-auto"
         >
           {wsTab === "progress" ? (
@@ -1115,8 +1114,8 @@ export default function WorkspacePage() {
           <motion.aside
             initial={false}
             animate={{ x: activityCollapsed ? "calc(100% + 16px)" : 0 }}
-            transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-            style={{ pointerEvents: activityCollapsed ? "none" : "auto", willChange: "transform", backfaceVisibility: "hidden" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            style={{ pointerEvents: activityCollapsed ? "none" : "auto" }}
             className="absolute right-0 top-0 bottom-0 z-20 shrink-0 overflow-hidden flex-col min-h-0 w-[380px] hidden lg:flex"
           >
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
