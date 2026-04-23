@@ -683,14 +683,14 @@ export default function WorkspacePage() {
       <div className="relative flex min-h-0 flex-1" style={{ containerType: "size" }}>
         {/* ── main content (tasks grid or progress board) ── */}
         <motion.div
-          animate={{ paddingRight: canViewLogs && !activityCollapsed ? 396 : 0 }}
+          animate={{ paddingRight: canViewLogs ? (activityCollapsed ? 60 : 396) : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="min-w-0 min-h-0 flex-1 overflow-y-auto"
         >
           {wsTab === "progress" ? (
             <ProgressBoard />
           ) : loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className={`grid grid-cols-1 md:grid-cols-2 ${activityCollapsed ? "lg:grid-cols-3" : ""} gap-3`}>
               {[1, 2, 3, 4, 5, 6].map((g) => (
                 <div key={g} className="rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
                   <div className="p-4 space-y-3">
@@ -720,7 +720,7 @@ export default function WorkspacePage() {
               action={canCreateCampaigns && campaignList.length === 0 ? <button type="button" onClick={openCreateCampaign} className="btn btn-primary btn-sm">Create your first campaign</button> : undefined}
             />
           ) : (
-            <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-3" variants={staggerContainerFast} initial="hidden" animate="visible">
+            <motion.div className={`grid grid-cols-1 md:grid-cols-2 ${activityCollapsed ? "lg:grid-cols-3" : ""} gap-3`} variants={staggerContainerFast} initial="hidden" animate="visible">
               {visibleCampaigns.map((c, ci) => {
                 const allTasks = campaignTaskMap.get(c._id) ?? [];
                 const visibleTasks = filteredCampaignTasks.get(c._id) ?? [];
@@ -1090,13 +1090,43 @@ export default function WorkspacePage() {
         {/* ── workspace activity feed sidebar (tasks + campaigns only) ── */}
         {canViewLogs && (
           <>
+            {/* thin vertical rail on the right edge when collapsed (visual indicator, non-interactive) */}
+            <AnimatePresence>
+              {activityCollapsed && (
+                <motion.div
+                  key="ws-activity-rail"
+                  initial={{ x: 48, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 48, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg-secondary)", pointerEvents: "none" }}
+                  className="absolute right-0 top-0 bottom-0 z-10 hidden lg:flex w-12 flex-col items-center justify-center gap-3 rounded-xl border"
+                  aria-hidden="true"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--teal)" }}>
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                  </svg>
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-[0.15em]"
+                    style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+                  >
+                    Activity
+                  </span>
+                  {wsTotalUnread > 0 && (
+                    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
+                      {wsTotalUnread > 9 ? "9+" : wsTotalUnread}
+                    </span>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
             {/* floating toggle button pinned to the bottom-right, always visible */}
             <motion.button
               type="button"
               onClick={toggleActivityCollapsed}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="absolute bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12px] font-semibold shadow-lg"
+              className="absolute bottom-[-45px] right-[1px] z-40 flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12px] font-semibold shadow-lg"
               style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg-secondary)" }}
               title={activityCollapsed ? "Show workspace activity" : "Hide workspace activity"}
               aria-label={activityCollapsed ? "Show workspace activity" : "Hide workspace activity"}
@@ -1111,13 +1141,16 @@ export default function WorkspacePage() {
                 </span>
               )}
             </motion.button>
-          <motion.aside
-            initial={false}
-            animate={{ x: activityCollapsed ? "calc(100% + 16px)" : 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            style={{ pointerEvents: activityCollapsed ? "none" : "auto" }}
-            className="absolute right-0 top-0 bottom-0 z-20 shrink-0 overflow-hidden flex-col min-h-0 w-[380px] hidden lg:flex"
-          >
+          <AnimatePresence>
+            {!activityCollapsed && (
+              <motion.aside
+                key="ws-activity-panel"
+                initial={{ x: "calc(100% + 16px)" }}
+                animate={{ x: 0 }}
+                exit={{ x: "calc(100% + 16px)" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="absolute right-0 top-0 bottom-0 z-20 shrink-0 overflow-hidden flex-col min-h-0 w-[380px] hidden lg:flex"
+              >
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
               <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                 <div className="flex items-center min-w-0">
@@ -1177,7 +1210,9 @@ export default function WorkspacePage() {
                 </div>
               )}
             </div>
-          </motion.aside>
+              </motion.aside>
+            )}
+          </AnimatePresence>
           </>
         )}
       </div>
