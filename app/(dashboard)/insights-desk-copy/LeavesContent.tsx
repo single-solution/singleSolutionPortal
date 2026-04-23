@@ -303,7 +303,7 @@ export function LeavesContent({ selectedUserId, year, initialTab, onTabChange }:
                 {leaveTab === "overview" && (
                   <motion.div key="all-overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.15 }} className="space-y-4">
                     {leavesLoading ? (
-                      <div className="space-y-3"><div className="grid grid-cols-3 gap-2">{[1,2,3,4,5,6].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div><div className="shimmer h-20 rounded-xl" /></div>
+                      <div className="space-y-3"><div className="grid grid-cols-3 gap-2">{[1,2,3,4,5,6].map((i) => <div key={i} className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-2.5 w-20 rounded mx-auto" /><div className="shimmer h-3.5 w-8 rounded mx-auto" /></div>)}</div><div className="space-y-1.5"><div className="flex justify-between"><div className="shimmer h-2.5 w-24 rounded" /><div className="shimmer h-2.5 w-16 rounded" /></div><div className="shimmer h-2.5 w-full rounded-full" /><div className="flex gap-3"><div className="shimmer h-2.5 w-14 rounded" /><div className="shimmer h-2.5 w-12 rounded" /></div></div><div className="rounded-xl border p-3 space-y-2" style={{ borderColor: "var(--border)" }}><div className="shimmer h-2.5 w-28 rounded" /><div className="flex flex-wrap gap-1.5"><div className="shimmer h-5 w-20 rounded-full" /><div className="shimmer h-5 w-24 rounded-full" /><div className="shimmer h-5 w-18 rounded-full" /></div></div></div>
                     ) : !allEmployeeSummary ? (
                       <p className="py-8 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for {year}.</p>
                     ) : (
@@ -370,7 +370,7 @@ export function LeavesContent({ selectedUserId, year, initialTab, onTabChange }:
                 {leaveTab === "employees" && (
                   <motion.div key="all-employees" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15 }} className="space-y-4">
                     {leavesLoading ? (
-                      <div className="space-y-2">{[1,2,3,4,5].map((i) => <div key={i} className="shimmer h-10 rounded-lg" />)}</div>
+                      <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: "var(--border)" }}><div className="shimmer h-2.5 w-32 rounded mb-2" /><table className="w-full"><tbody>{[1,2,3,4,5].map((i) => <tr key={i} className="border-t" style={{ borderColor: "var(--border)" }}><td className="py-1.5"><div className="shimmer h-3 w-24 rounded" /><div className="shimmer h-2.5 w-16 rounded mt-0.5" /></td><td className="py-1.5 text-right"><div className="shimmer h-3 w-6 rounded ml-auto" /></td><td className="py-1.5 text-right"><div className="shimmer h-3 w-6 rounded ml-auto" /></td><td className="py-1.5 text-right"><div className="shimmer h-3 w-6 rounded ml-auto" /></td><td className="py-1.5 text-right"><div className="shimmer h-3 w-6 rounded ml-auto" /></td><td className="py-1.5 text-right"><div className="shimmer h-3 w-6 rounded ml-auto" /></td></tr>)}</tbody></table></div>
                     ) : !allEmployeeSummary ? (
                       <p className="py-8 text-center text-[12px]" style={{ color: "var(--fg-tertiary)" }}>No leave records for {year}.</p>
                     ) : (
@@ -456,7 +456,7 @@ export function LeavesContent({ selectedUserId, year, initialTab, onTabChange }:
               )}
               <div className="space-y-4">
                 {balLoading ? (
-                  <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-3 w-40 rounded" /><div className="shimmer h-2.5 w-full rounded-full" /><div className="grid grid-cols-3 gap-2">{[1,2,3].map((i) => <div key={i} className="shimmer h-12 rounded-xl" />)}</div></div>
+                  <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}><div className="flex justify-between"><div className="shimmer h-3 w-20 rounded" /><div className="shimmer h-3 w-20 rounded" /></div><div className="shimmer h-2.5 w-full rounded-full" /><div className="grid grid-cols-3 gap-2">{[1,2,3].map((i) => <div key={i} className="rounded-lg p-2.5 text-center space-y-1" style={{ background: "var(--bg-elevated)" }}><div className="shimmer h-2.5 w-14 rounded mx-auto" /><div className="shimmer h-3.5 w-6 rounded mx-auto" /></div>)}</div></div>
                 ) : balance ? (
                   <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--bg-grouped)" }}>
                     <div className="flex justify-between text-[12px] font-semibold" style={{ color: "var(--fg-tertiary)" }}><span>{balance.used} days used</span><span>{balance.remaining} remaining</span></div>
@@ -471,7 +471,7 @@ export function LeavesContent({ selectedUserId, year, initialTab, onTabChange }:
                     )}
                   </div>
                 ) : null}
-                {leavesLoading && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{[1,2,3,4].map((i) => <div key={i} className="shimmer h-14 rounded-lg" />)}</div>}
+                {leavesLoading && <div className="flex flex-wrap gap-2">{[1,2,3,4].map((i) => <div key={i} className="flex-1 min-w-[72px] rounded-lg p-2 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-2.5 w-14 rounded mx-auto" /><div className="shimmer h-3.5 w-6 rounded mx-auto" /></div>)}</div>}
                 {!leavesLoading && leaves.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {[{ label: "Total requests", value: leaves.length, color: "var(--fg)" }, { label: "Approved", value: leaveSummary.approved, color: "var(--green)" }, { label: "Pending approval", value: leaveSummary.pending, color: "var(--amber)" }, ...(leaveSummary.rejected > 0 ? [{ label: "Rejected", value: leaveSummary.rejected, color: "var(--rose)" }] : []), ...(leaveSummary.cancelled > 0 ? [{ label: "Cancelled", value: leaveSummary.cancelled, color: "var(--fg-tertiary)" }] : []), { label: "Days taken", value: leaveSummary.totalDays, color: "var(--teal)" }].map((s) => (

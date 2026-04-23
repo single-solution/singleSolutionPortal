@@ -861,7 +861,7 @@ export function OrgFlowTree({ departments, employees, designations, canEditCanva
     if (changes.some((c) => c.type === "position" && c.dragging === false)) setNodes((cur) => { savePositions(cur); return cur; });
   }, [onNodesChange, savePositions, setNodes]);
 
-  if (!loaded) return <div className="rounded-xl border shimmer h-full" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", minHeight: 340 }} />;
+  if (!loaded) return <div className="rounded-xl border overflow-hidden flex flex-col h-full" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", minHeight: 340 }}><div className="shrink-0 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}><div className="shimmer h-3 w-16 rounded" /></div><div className="flex-1 shimmer" /></div>;
 
   return (
     <>

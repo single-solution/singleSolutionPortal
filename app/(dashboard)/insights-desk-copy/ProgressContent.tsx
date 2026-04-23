@@ -144,7 +144,7 @@ export function ProgressContent({ userId: preUserId, year, month }: Props) {
   const [employees, setEmployees] = useCachedState<DropdownEmp[]>("$tasks-inline/employees", []);
 
   const [campaignGroups, setCampaignGroups] = useState<CampaignGroup[]>([]);
-  const [campaignGroupsLoading, setCampaignGroupsLoading] = useState(false);
+  const [campaignGroupsLoading, setCampaignGroupsLoading] = useState(true);
   const [timelineOpen, setTimelineOpen] = useState(false);
 
   const [timeline, setTimeline] = useState<TimelineLog[]>([]);
@@ -178,7 +178,7 @@ export function ProgressContent({ userId: preUserId, year, month }: Props) {
 
   /* ── Fetch today's campaign-employee progress ── */
   useEffect(() => {
-    if (!isPrivileged) { setCampaignGroups([]); return; }
+    if (!isPrivileged) { setCampaignGroups([]); setCampaignGroupsLoading(false); return; }
     const ac = new AbortController();
     setCampaignGroupsLoading(true);
     fetch("/api/tasks/history?type=campaign-employees&days=1", { signal: ac.signal })
@@ -295,7 +295,7 @@ export function ProgressContent({ userId: preUserId, year, month }: Props) {
             <div className="flex-1 overflow-y-auto p-3">
               {campaignGroupsLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {[1, 2, 3].map((i) => <div key={i} className="shimmer h-48 rounded-xl" />)}
+                  {[1, 2, 3].map((i) => <div key={i} className="rounded-xl border overflow-hidden h-56 flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}><div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}><div className="shimmer h-3 w-24 rounded" /><div className="shimmer h-5 w-10 rounded-full ml-auto" /></div><div className="flex-1 p-2 space-y-2">{[1,2,3].map((j) => <div key={j} className="flex items-center gap-2 px-2 py-1"><div className="shimmer h-5 w-5 rounded-full shrink-0" /><div className="flex-1 space-y-1"><div className="shimmer h-2.5 w-20 rounded" /><div className="shimmer h-1.5 w-full rounded-full" /></div><div className="shimmer h-3 w-6 rounded" /></div>)}</div></div>)}
                 </div>
               ) : deptGroups.length === 0 ? (
                 <div className="py-12 text-center">
@@ -372,7 +372,7 @@ export function ProgressContent({ userId: preUserId, year, month }: Props) {
                     {/* Campaign cards */}
                     {campaignGroupsLoading ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {[1, 2, 3].map((i) => <div key={i} className="shimmer h-56 rounded-xl" />)}
+                        {[1, 2, 3].map((i) => <div key={i} className="rounded-xl border overflow-hidden h-56 flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}><div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}><div className="shimmer h-3 w-28 rounded" /><div className="shimmer h-5 w-10 rounded-full ml-auto" /></div><div className="shrink-0 px-3 py-1.5"><div className="shimmer h-1.5 w-full rounded-full" /></div><div className="flex-1 p-2 space-y-1.5">{[1,2,3,4].map((j) => <div key={j} className="flex items-center gap-2 rounded-lg px-2 py-1"><div className="shimmer h-3.5 w-3.5 rounded shrink-0" /><div className="shimmer h-2.5 w-32 rounded flex-1" /></div>)}</div></div>)}
                       </div>
                     ) : userCampaignCards.length === 0 ? (
                       <div className="py-8 text-center">

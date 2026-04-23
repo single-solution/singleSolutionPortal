@@ -225,9 +225,9 @@ export function DesignationsPanel({ canManage = false, perms = {}, onToggle }: {
             {loading && !designations ? (
               [1, 2, 3, 4].map((i) => (
                 <motion.div key={`skel-${i}`} variants={cardVariants} custom={i}>
-                  <div className="flex items-center gap-2 rounded-lg p-2">
-                    <div className="shimmer h-3 w-3 rounded-full" />
-                    <div className="shimmer h-3 w-24 rounded" />
+                  <div className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-grouped)" }}>
+                    <div className="shimmer h-2.5 w-2.5 rounded-full shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-1"><div className="shimmer h-2.5 w-20 rounded" /><div className="shimmer h-2 w-28 rounded" /></div>
                   </div>
                 </motion.div>
               ))

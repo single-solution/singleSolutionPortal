@@ -702,25 +702,25 @@ export default function SessionTracker() {
             background: "linear-gradient(135deg, var(--cyan) 0%, var(--teal) 50%, var(--green) 100%)",
             boxShadow:
               "0 0 20px color-mix(in srgb, var(--teal) 40%, transparent), 0 0 60px color-mix(in srgb, var(--green) 15%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)",
-          }
-        : {
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #a855f7 100%)",
-            boxShadow: "0 0 20px rgba(118,75,162,0.4), 0 0 60px rgba(168,85,247,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
-          }
+        }
       : {
-          background: "linear-gradient(135deg, #64748b 0%, #475569 100%)",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
-        };
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #a855f7 100%)",
+          boxShadow: "0 0 20px rgba(118,75,162,0.4), 0 0 60px rgba(168,85,247,0.15), inset 0 1px 0 rgba(255,255,255,0.25)",
+        }
+    : {
+        background: "linear-gradient(135deg, #64748b 0%, #475569 100%)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+      };
 
   const statusLabel = flagged
     ? "Flagged"
     : warned
       ? "Warning"
       : isActive
-        ? session.inOffice
-          ? "In Office"
-          : "Remote"
-        : "Offline";
+    ? session.inOffice
+      ? "In Office"
+      : "Remote"
+    : "Offline";
 
   const currentMinutes = isActive ? Math.floor(elapsed / 60000) : 0;
   const todayTotal = session.todayMinutes + currentMinutes;
@@ -944,8 +944,8 @@ export default function SessionTracker() {
             {idle && !flagged && isActive && !isReadonly && (
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
-              </span>
-            )}
+          </span>
+        )}
 
             <span className="text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-sm">
               {flagged ? "Flagged" : (paused && isActive && !isReadonly) ? "Paused" : statusLabel}
@@ -965,7 +965,7 @@ export default function SessionTracker() {
 
             <span className="font-mono text-[13px] font-black tabular-nums drop-shadow-sm">
               {isActive ? (paused ? formatElapsed(pausedAtRef.current || elapsed) : formatElapsed(elapsed)) : "--:--:--"}
-            </span>
+        </span>
 
             <span className="h-3.5 w-px bg-white/40 rounded-full" />
 

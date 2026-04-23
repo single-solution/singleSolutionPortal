@@ -602,12 +602,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                         {/* ═══════ SINGLE EMPLOYEE: MONTH VIEW (Summary + Daily combined) ═══════ */}
                         {!allMode && detailTab === "month" && loading && (
                           <motion.div key="month-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                            <div className="shimmer h-4 w-40 rounded" />
-                            <div className="grid grid-cols-4 gap-2">{[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-16 rounded-xl" />)}</div>
-                            <div className="shimmer h-4 w-36 rounded" />
-                            <div className="space-y-2">{[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-8 rounded-lg" />)}</div>
-                            <div className="shimmer h-4 w-32 rounded" />
-                            <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">{[1,2,3,4,5,6].map((i) => <div key={i} className="rounded-xl p-2 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-2.5 w-14 rounded mx-auto" /><div className="shimmer h-3.5 w-8 rounded mx-auto" /></div>)}</div>
+                            <div className="shimmer h-3 w-36 rounded" />
+                            <div className="space-y-0.5">{[1,2,3,4,5,6,7].map((i) => <div key={i} className="shimmer h-8 rounded-lg" />)}</div>
                           </motion.div>
                         )}
                         {!allMode && detailTab === "month" && !loading && !estimate && (
@@ -711,9 +708,9 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                           <motion.div key="all-combined" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.15 }} className="space-y-4">
                             {sheetLoading ? (
                               <div className="space-y-3">
-                                <div className="shimmer h-20 rounded-xl" />
-                                <div className="grid grid-cols-3 gap-2">{[1,2,3,4,5,6].map((i) => <div key={i} className="shimmer h-14 rounded-xl" />)}</div>
-                                <div className="space-y-2">{[1,2,3,4,5].map((i) => <div key={i} className="shimmer h-10 rounded-lg" />)}</div>
+                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">{[1,2,3,4,5,6].map((i) => <div key={i} className="rounded-xl p-2 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-2.5 w-14 rounded mx-auto" /><div className="shimmer h-3.5 w-8 rounded mx-auto" /></div>)}</div>
+                                <div className="shimmer h-3 w-36 rounded" />
+                                <div className="space-y-0.5">{[1,2,3,4,5].map((i) => <div key={i} className="shimmer h-9 rounded-lg" />)}</div>
                               </div>
                             ) : !payrollSheet || !reportSheetTotals ? (
                               <div className="py-8 text-center"><p className="text-[12px] font-medium" style={{ color: "var(--fg-tertiary)" }}>Unable to load payroll data.</p></div>
@@ -790,8 +787,10 @@ td:nth-child(n+4){text-align:right}th:nth-child(n+4){text-align:right}
                           <motion.div key="year" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="space-y-4">
                             {yearLoading ? (
                               <div className="space-y-3">
-                                <div className="shimmer h-16 rounded-xl" />
-                                {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="shimmer h-10 rounded-lg" />)}
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">{[1,2,3,4,5].map((i) => <div key={i} className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-2.5 w-14 rounded mx-auto" /><div className="shimmer h-3.5 w-8 rounded mx-auto" /></div>)}</div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">{[1,2,3].map((i) => <div key={i} className="rounded-xl p-2.5 text-center space-y-1" style={{ background: "var(--bg-grouped)" }}><div className="shimmer h-2.5 w-16 rounded mx-auto" /><div className="shimmer h-3.5 w-10 rounded mx-auto" /><div className="shimmer h-2.5 w-14 rounded mx-auto" /></div>)}</div>
+                                <div className="shimmer h-3 w-28 rounded" />
+                                <div className="space-y-0.5">{[1,2,3,4,5,6].map((i) => <div key={i} className="shimmer h-9 rounded-lg" />)}</div>
                               </div>
                             ) : (
                               <>

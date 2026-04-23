@@ -15,6 +15,8 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TaskHistoryModal } from "./TaskHistoryModal";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ProgressBoard } from "./ProgressBoard";
 
 /* ─── types ─── */
 
@@ -192,7 +194,7 @@ export default function WorkspacePage() {
   const needsDropdown = canCreateTasks || canReassignTasks || canTagEntities;
   const { data: employeesRaw } = useQuery<Array<Record<string, unknown>>>(needsDropdown ? "/api/employees/dropdown" : null, "ws-emp");
   const { data: deptsRaw } = useQuery<Array<Record<string, unknown>>>(canTagEntities ? "/api/departments" : null, "ws-dept");
-  const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=30" : null, "ws-activity");
+  const { data: logsPayload, refetch: refetchLogs } = useQuery<{ logs: LogEntry[] }>(canViewLogs ? "/api/activity-logs?limit=15" : null, "ws-activity");
   const { data: lastSeenPayload } = useQuery<{ lastSeenLogId: string | null; lastSeenLogIds: Record<string, string> }>(canViewLogs ? "/api/user/last-seen" : null, "ws-lastseen");
 
   const taskList = useMemo(() => tasks ?? [], [tasks]);
@@ -215,10 +217,6 @@ export default function WorkspacePage() {
     lastSeenLogIdRef.current = lastSeenPayload?.lastSeenLogId ?? null;
     lastSeenEntityRef.current = lastSeenPayload?.lastSeenLogIds ?? {};
   }, [lastSeenPayload]);
-  const [activityExpanded, setActivityExpanded] = useState<string | null>(null);
-  const toggleActivityGroup = useCallback((entity: string) => {
-    setActivityExpanded((prev) => prev === entity ? null : entity);
-  }, []);
   const [allMarkedRead, setAllMarkedRead] = useState(false);
   const [activityCollapsed, setActivityCollapsed] = useState<boolean>(true);
   useEffect(() => {
@@ -235,47 +233,49 @@ export default function WorkspacePage() {
     });
   }, []);
 
-  const wsLogGroups = useMemo(() => {
+  /* per-log unread flags (flat) */
+  const wsLogsAnnotated = useMemo(() => {
     const globalId = lastSeenLogIdRef.current;
     const entityIds = lastSeenEntityRef.current;
     const allLogs = logsPayload?.logs ?? [];
     const globalIdx = globalId ? allLogs.findIndex((l) => l._id === globalId) : -1;
-    const map = new Map<string, { logs: LogEntry[]; unread: number }>();
-    wsLogs.forEach((log) => {
-      const entry = map.get(log.entity) ?? { logs: [], unread: 0 };
-      entry.logs.push(log);
-      if (allMarkedRead) { map.set(log.entity, entry); return; }
+    return wsLogs.map((log) => {
+      if (allMarkedRead) return { log, isUnread: false };
       const logGlobalIdx = allLogs.indexOf(log);
       const entCursorId = entityIds[log.entity];
       const entIdx = entCursorId ? allLogs.findIndex((l) => l._id === entCursorId) : -1;
       const effectiveIdx = entIdx !== -1 ? (globalIdx !== -1 ? Math.max(entIdx, globalIdx) : entIdx) : globalIdx;
-      const isNew = effectiveIdx === -1 || logGlobalIdx < effectiveIdx;
-      if (isNew) entry.unread++;
-      map.set(log.entity, entry);
+      const isUnread = effectiveIdx === -1 || logGlobalIdx < effectiveIdx;
+      return { log, isUnread };
     });
-    return map;
   }, [wsLogs, logsPayload, allMarkedRead]);
 
-  const wsTotalUnread = useMemo(() => {
-    let count = 0;
-    wsLogGroups.forEach((g) => { count += g.unread; });
-    return count;
-  }, [wsLogGroups]);
+  const wsTotalUnread = useMemo(() => wsLogsAnnotated.filter((x) => x.isUnread).length, [wsLogsAnnotated]);
 
-  const wsAutoOpenedRef = useRef(false);
-  useEffect(() => {
-    if (wsAutoOpenedRef.current || wsLogGroups.size === 0) return;
-    wsAutoOpenedRef.current = true;
-    const WS_PRIORITY: Record<string, number> = { task: 0, campaign: 1 };
-    const sorted = Array.from(wsLogGroups.entries()).sort((a, b) => {
-      const pa = WS_PRIORITY[a[0]] ?? 50;
-      const pb = WS_PRIORITY[b[0]] ?? 50;
-      if (pa !== pb) return pa - pb;
-      if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
-      return b[1].logs.length - a[1].logs.length;
-    });
-    setActivityExpanded(sorted[0][0]);
-  }, [wsLogGroups]);
+  /* date-bucketed feed: Today | Yesterday | This week | Earlier */
+  const feedDateGroups = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayStart = todayStart - 86400000;
+    const weekStart = todayStart - 6 * 86400000;
+    const today: typeof wsLogsAnnotated = [];
+    const yesterday: typeof wsLogsAnnotated = [];
+    const week: typeof wsLogsAnnotated = [];
+    const earlier: typeof wsLogsAnnotated = [];
+    for (const entry of wsLogsAnnotated) {
+      const t = new Date(entry.log.createdAt).getTime();
+      if (t >= todayStart) today.push(entry);
+      else if (t >= yesterdayStart) yesterday.push(entry);
+      else if (t >= weekStart) week.push(entry);
+      else earlier.push(entry);
+    }
+    return [
+      { label: "Today", entries: today },
+      { label: "Yesterday", entries: yesterday },
+      { label: "This week", entries: week },
+      { label: "Earlier", entries: earlier },
+    ].filter((g) => g.entries.length > 0);
+  }, [wsLogsAnnotated]);
 
   const markAllWsRead = useCallback(() => {
     setAllMarkedRead(true);
@@ -287,14 +287,18 @@ export default function WorkspacePage() {
     }
   }, [logsPayload]);
 
-  const markWsEntityRead = useCallback((entity: string) => {
-    const entityLogs = wsLogs.filter((l) => l.entity === entity);
-    if (entityLogs.length > 0) {
-      const latest = entityLogs[0]._id;
-      lastSeenEntityRef.current = { ...lastSeenEntityRef.current, [entity]: latest };
-      fetch("/api/user/last-seen", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entity, lastSeenLogId: latest }) }).catch(() => {});
-    }
-  }, [wsLogs]);
+  /* ── tabs (Tasks | Progress) with URL persistence ── */
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const wsTab: "tasks" | "progress" = tabParam === "progress" ? "progress" : "tasks";
+  const setWsTab = useCallback((next: "tasks" | "progress") => {
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    if (next === "tasks") params.delete("tab");
+    else params.set("tab", next);
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  }, [router, searchParams]);
 
   /* ── checklist state for recurring tasks ── */
   const [checklistOverrides, setChecklistOverrides] = useState<Map<string, boolean>>(new Map());
@@ -656,15 +660,37 @@ export default function WorkspacePage() {
         </div>
       </div>
 
+      {/* ── tabs: Tasks | Progress ── */}
+      <div className="mb-3 shrink-0 flex items-center w-fit rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+        {([
+          { id: "tasks" as const, label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2", color: "var(--primary)" },
+          { id: "progress" as const, label: "Progress", icon: "M3 3v18h18M7 14l4-4 4 4 5-5", color: "var(--teal)" },
+        ]).map((t) => {
+          const isAct = wsTab === t.id;
+          return (
+            <button key={t.id} type="button" onClick={() => setWsTab(t.id)}
+              className="relative flex items-center justify-center gap-1.5 whitespace-nowrap px-5 py-2 transition-colors"
+              style={{ color: isAct ? t.color : "var(--fg-tertiary)" }}>
+              {isAct && <motion.span layoutId="wsc-tab-active" className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.color }} transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
+              <svg className="relative h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isAct ? 2 : 1.5}><path strokeLinecap="round" strokeLinejoin="round" d={t.icon} /></svg>
+              <span className="relative text-[10px] font-semibold">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── main + feed ── */}
       <div className="relative flex min-h-0 flex-1" style={{ containerType: "size" }}>
-        {/* ── campaign card grid ── */}
+        {/* ── main content (tasks grid or progress board) ── */}
         <motion.div
           animate={{ paddingRight: canViewLogs && !activityCollapsed ? 396 : 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+          style={{ willChange: "padding-right" }}
           className="min-w-0 min-h-0 flex-1 overflow-y-auto"
         >
-          {loading ? (
+          {wsTab === "progress" ? (
+            <ProgressBoard />
+          ) : loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[1, 2, 3, 4, 5, 6].map((g) => (
                 <div key={g} className="rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
@@ -1089,8 +1115,8 @@ export default function WorkspacePage() {
           <motion.aside
             initial={false}
             animate={{ x: activityCollapsed ? "calc(100% + 16px)" : 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            style={{ pointerEvents: activityCollapsed ? "none" : "auto" }}
+            transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+            style={{ pointerEvents: activityCollapsed ? "none" : "auto", willChange: "transform", backfaceVisibility: "hidden" }}
             className="absolute right-0 top-0 bottom-0 z-20 shrink-0 overflow-hidden flex-col min-h-0 w-[380px] hidden lg:flex"
           >
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
@@ -1115,103 +1141,40 @@ export default function WorkspacePage() {
               {wsLogs.length === 0 ? (
                 <p className="text-center text-[11px] py-8 flex-1" style={{ color: "var(--fg-tertiary)" }}>No workspace activity yet</p>
               ) : (
-                <div className="flex flex-1 min-h-0 flex-col gap-1 p-2">
-                  {Array.from(wsLogGroups.entries())
-                    .sort((a, b) => {
-                      const WS_P: Record<string, number> = { task: 0, campaign: 1 };
-                      const pa = WS_P[a[0]] ?? 50;
-                      const pb = WS_P[b[0]] ?? 50;
-                      if (pa !== pb) return pa - pb;
-                      if (b[1].unread !== a[1].unread) return b[1].unread - a[1].unread;
-                      return b[1].logs.length - a[1].logs.length;
-                    })
-                    .map(([entity, group]) => {
-                      const lc = WS_LOG_COLORS[entity];
-                      const label = WS_LOG_LABELS[entity] ?? entity;
-                      const isOpen = activityExpanded === entity;
-                      return (
-                        <div key={entity} className={`rounded-xl border overflow-hidden flex flex-col ${isOpen ? "flex-1 min-h-0" : "shrink-0"}`} style={{ borderColor: "var(--border)" }}>
-                          <div className="flex w-full shrink-0 items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_3%,transparent)]">
-                            <button type="button" onClick={() => toggleActivityGroup(entity)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
-                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: lc.fg }} />
-                              <span className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>{label}</span>
-                              {group.unread > 0 && (
-                                <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white" style={{ background: "var(--rose)" }}>
-                                  {group.unread}
-                                </span>
-                              )}
-                            </button>
-                            {group.unread > 0 && (
-                              <motion.button type="button" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => markWsEntityRead(entity)}
-                                className="shrink-0 h-5 w-5 flex items-center justify-center rounded-lg transition-colors hover:bg-[color-mix(in_srgb,var(--teal)_10%,transparent)]"
-                                style={{ color: "var(--teal)" }} title="Mark as read">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                              </motion.button>
-                            )}
-                            <button type="button" onClick={() => toggleActivityGroup(entity)} className="shrink-0" style={{ color: "var(--fg-tertiary)" }}>
-                              <motion.svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" animate={{ rotate: isOpen ? 0 : -90 }} transition={{ duration: 0.15 }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                              </motion.svg>
-                            </button>
-                          </div>
-                          <AnimatePresence initial={false}>
-                          {isOpen && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                              className="flex-1 min-h-0 overflow-hidden"
+                <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-3">
+                  {feedDateGroups.map((group) => (
+                    <div key={group.label}>
+                      <div className="sticky top-0 -mx-2 px-2 py-1 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--fg-tertiary)", background: "var(--bg-elevated)" }}>
+                        {group.label}
+                      </div>
+                      <div className="mt-1 space-y-1.5">
+                        {group.entries.map(({ log, isUnread }) => {
+                          const isSelf = session?.user?.email && log.userEmail?.toLowerCase() === session.user.email.toLowerCase();
+                          const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
+                          const displayName = isSelf ? (needsPossessive ? "Your" : "You") : resolveLogName(log);
+                          const lc = WS_LOG_COLORS[log.entity] ?? WS_LOG_COLORS.task;
+                          return (
+                            <div
+                              key={log._id}
+                              className="rounded-lg p-2 transition-colors"
+                              style={{ background: "var(--bg)", borderLeft: `2px solid ${isUnread ? "var(--rose)" : "transparent"}` }}
                             >
-                            <div className="overflow-y-auto px-2 pb-2 space-y-1.5 h-full">
-                              {group.logs.map((log) => {
-                                const isSelf = session?.user?.email && log.userEmail?.toLowerCase() === session.user.email.toLowerCase();
-                                const needsPossessive = /^(location|account|profile|password|session)\b/i.test(log.action);
-                                const displayName = isSelf ? (needsPossessive ? "Your" : "You") : resolveLogName(log);
-                                return (
-                                  <div key={log._id} className="rounded-lg p-2.5 transition-colors" style={{ background: "var(--bg)" }}>
-                                    <div className="flex items-start gap-2">
-                                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold"
-                                        style={{ background: lc.bg, color: lc.fg }}>
-                                        {logAvatarLabel(log)}
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
-                                          <span className="font-semibold">{displayName}</span>{" "}
-                                          <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
-                                        </p>
-                                        {log.details && (
-                                          <p className="text-[11px] line-clamp-2 mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{log.details}</p>
-                                        )}
-                                        <div className="flex items-center justify-between mt-1">
-                                          <span className="text-[11px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
-                                          {log.entity === "task" && log.entityId && (() => {
-                                            const linkedTask = taskList.find((t) => t._id === log.entityId);
-                                            if (!linkedTask) return null;
-                                            const info = taskSubmittedInfo(linkedTask);
-                                            return (
-                                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                                                style={{ background: `color-mix(in srgb, ${info.color} 12%, transparent)`, color: info.color }}>
-                                                <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: info.color }}>
-                                                  {info.done > 0 && info.done < info.total && <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: info.color }} />}
-                                                </span>
-                                                {info.label}
-                                              </span>
-                                            );
-                                          })()}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                              <div className="flex items-start gap-2">
+                                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: lc.fg }} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] leading-snug" style={{ color: "var(--fg)" }}>
+                                    <span className="font-semibold">{displayName}</span>{" "}
+                                    <span style={{ color: "var(--fg-secondary)" }}>{log.action}</span>
+                                  </p>
+                                  <span className="mt-0.5 inline-block text-[10px] tabular-nums" style={{ color: "var(--fg-tertiary)" }}>{timeAgo(log.createdAt)}</span>
+                                </div>
+                              </div>
                             </div>
-                            </motion.div>
-                          )}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
