@@ -14,9 +14,8 @@ import { formatShortDate, timeAgo } from "@/lib/formatters";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { TaskHistoryModal } from "./TaskHistoryModal";
+import { TaskHistoryView } from "./TaskHistoryView";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ProgressBoard } from "./ProgressBoard";
 
 /* ─── types ─── */
 
@@ -339,16 +338,6 @@ export default function WorkspacePage() {
     }
   }, [rootTaskIds, loadSubtasks, subtasksByParent]);
 
-  /* ── global history modal ── */
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
-  const [historyPreCampaignId, setHistoryPreCampaignId] = useState<string | undefined>();
-  const [historyPreTaskId, setHistoryPreTaskId] = useState<string | undefined>();
-  const openHistoryModal = useCallback((campaignId?: string, taskId?: string) => {
-    setHistoryPreCampaignId(campaignId);
-    setHistoryPreTaskId(taskId);
-    setHistoryModalOpen(true);
-  }, []);
-
   /* ── task modal ── */
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -618,15 +607,17 @@ export default function WorkspacePage() {
     return m;
   }, [taskList]);
 
-  const visibleCampaigns = useMemo(() => {
-    const list = [...campaignList];
-    list.sort((a, b) => {
-      const aActive = a.status === "active" ? 0 : 1;
-      const bActive = b.status === "active" ? 0 : 1;
-      if (aActive !== bActive) return aActive - bActive;
-      return a.name.localeCompare(b.name);
-    });
-    return list;
+  const { inactiveCount, visibleCampaigns } = useMemo(() => {
+    const byName = (a: Campaign, b: Campaign) => a.name.localeCompare(b.name);
+    const active = campaignList.filter((c) => c.status === "active").sort(byName);
+    const inactive = campaignList.filter((c) => c.status !== "active").sort(byName);
+    type Entry = Campaign | { __separator: true; _id: string };
+    const combined: Entry[] = [...active];
+    if (inactive.length > 0) {
+      combined.push({ __separator: true, _id: "__disabled-sep" });
+      combined.push(...inactive);
+    }
+    return { inactiveCount: inactive.length, visibleCampaigns: combined };
   }, [campaignList]);
 
   const loading = tasksLoading || campaignsLoading;
@@ -635,18 +626,27 @@ export default function WorkspacePage() {
   /* ─── render ─── */
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(93dvh - 80px)" }}>
-      {/* ── header ── */}
+      {/* ── header (title + tabs + actions) ── */}
       <div className="mb-3 shrink-0 flex items-center gap-3 flex-wrap">
         <h1 className="text-lg font-bold" style={{ color: "var(--fg)" }}>Workspace</h1>
+        <div className="flex items-center w-fit rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+          {([
+            { id: "tasks" as const, label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2", color: "var(--primary)" },
+            { id: "progress" as const, label: "Progress", icon: "M3 3v18h18M7 14l4-4 4 4 5-5", color: "var(--teal)" },
+          ]).map((t) => {
+            const isAct = wsTab === t.id;
+            return (
+              <button key={t.id} type="button" onClick={() => setWsTab(t.id)}
+                className="relative flex items-center justify-center gap-1.5 whitespace-nowrap px-5 py-2 transition-colors"
+                style={{ color: isAct ? t.color : "var(--fg-tertiary)" }}>
+                {isAct && <motion.span layoutId="wsc-tab-active" className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.color }} transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
+                <svg className="relative h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isAct ? 2 : 1.5}><path strokeLinecap="round" strokeLinejoin="round" d={t.icon} /></svg>
+                <span className="relative text-[10px] font-semibold">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <motion.button type="button" onClick={() => openHistoryModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
-            style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
-            <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Progress
-          </motion.button>
           {ready && canCreateCampaigns && (
             <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
@@ -660,25 +660,6 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {/* ── tabs: Tasks | Progress ── */}
-      <div className="mb-3 shrink-0 flex items-center w-fit rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
-        {([
-          { id: "tasks" as const, label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2", color: "var(--primary)" },
-          { id: "progress" as const, label: "Progress", icon: "M3 3v18h18M7 14l4-4 4 4 5-5", color: "var(--teal)" },
-        ]).map((t) => {
-          const isAct = wsTab === t.id;
-          return (
-            <button key={t.id} type="button" onClick={() => setWsTab(t.id)}
-              className="relative flex items-center justify-center gap-1.5 whitespace-nowrap px-5 py-2 transition-colors"
-              style={{ color: isAct ? t.color : "var(--fg-tertiary)" }}>
-              {isAct && <motion.span layoutId="wsc-tab-active" className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.color }} transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
-              <svg className="relative h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isAct ? 2 : 1.5}><path strokeLinecap="round" strokeLinejoin="round" d={t.icon} /></svg>
-              <span className="relative text-[10px] font-semibold">{t.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* ── main + feed ── */}
       <div className="relative flex min-h-0 flex-1" style={{ containerType: "size" }}>
         {/* ── main content (tasks grid or progress board) ── */}
@@ -688,7 +669,10 @@ export default function WorkspacePage() {
           className="min-w-0 min-h-0 flex-1 overflow-y-auto"
         >
           {wsTab === "progress" ? (
-            <ProgressBoard />
+            <TaskHistoryView
+              campaigns={historyCampaigns}
+              className="flex h-full w-full min-h-0 gap-4"
+            />
           ) : loading ? (
             <div className={`grid grid-cols-1 md:grid-cols-2 ${activityCollapsed ? "lg:grid-cols-3" : ""} gap-3`}>
               {[1, 2, 3, 4, 5, 6].map((g) => (
@@ -722,6 +706,16 @@ export default function WorkspacePage() {
           ) : (
             <motion.div className={`grid grid-cols-1 md:grid-cols-2 ${activityCollapsed ? "lg:grid-cols-3" : ""} gap-3`} variants={staggerContainerFast} initial="hidden" animate="visible">
               {visibleCampaigns.map((c, ci) => {
+                if ("__separator" in c) {
+                  return (
+                    <div key={c._id} className="col-span-full flex items-center gap-2 mt-2 mb-0.5">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
+                        Paused · {inactiveCount}
+                      </span>
+                      <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+                    </div>
+                  );
+                }
                 const allTasks = campaignTaskMap.get(c._id) ?? [];
                 const visibleTasks = filteredCampaignTasks.get(c._id) ?? [];
                 const oneTimeTasks = visibleTasks.filter((t) => !t.recurrence);
@@ -739,7 +733,7 @@ export default function WorkspacePage() {
                 return (
                   <motion.div key={c._id} variants={cardVariants} custom={ci}
                     className="rounded-xl border overflow-hidden flex flex-col transition-opacity"
-                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isInactive ? 0.4 : 1, height: "60cqh", minHeight: 216 }}>
+                    style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", opacity: isInactive ? 0.5 : 1, height: isInactive ? "30cqh" : "60cqh", minHeight: isInactive ? 108 : 216 }}>
                     {/* ── card header ── */}
                     <div className="flex items-center gap-1.5 px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                       <div className="min-w-0 flex-1">
@@ -1378,14 +1372,6 @@ export default function WorkspacePage() {
         onCancel={() => setPauseCampaignTarget(null)}
       />
 
-      {/* ── Task History Modal ── */}
-      <TaskHistoryModal
-        open={historyModalOpen}
-        onClose={() => setHistoryModalOpen(false)}
-        campaigns={historyCampaigns}
-        preSelectedCampaignId={historyPreCampaignId}
-        preSelectedTaskId={historyPreTaskId}
-      />
     </div>
   );
 }

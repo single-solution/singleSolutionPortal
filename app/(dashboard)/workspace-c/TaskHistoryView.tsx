@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Portal } from "../components/Portal";
 import { MiniCalendar, useCalendarNav } from "../components/MiniCalendar";
 import { usePermissions } from "@/lib/usePermissions";
 
@@ -381,15 +380,15 @@ function EmpTaskCard({ task, onTaskClick, isSubtask }: {
 
 /* ───── Main Component ───── */
 
-interface Props {
-  open: boolean;
-  onClose: () => void;
+interface ViewProps {
   campaigns: CampaignSummary[];
   preSelectedTaskId?: string;
   preSelectedCampaignId?: string;
+  /** Outer container className override. */
+  className?: string;
 }
 
-export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, preSelectedCampaignId }: Props) {
+export function TaskHistoryView({ campaigns, preSelectedTaskId, preSelectedCampaignId, className }: ViewProps) {
   const { isSuperAdmin, can: canPerm } = usePermissions();
   const isPrivileged = isSuperAdmin || canPerm("tasks_view");
 
@@ -458,7 +457,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
 
   // Fetch employee cards (campaign-specific or grouped-by-campaign)
   const loadEmpCards = useCallback(async () => {
-    if (!open || viewMode !== "grid") return;
+    if (viewMode !== "grid") return;
     if (selectedCampaignId) {
       setEmpCardsLoading(true);
       try {
@@ -493,13 +492,12 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
       } catch { setCampaignGroups([]); }
       setCampaignGroupsLoading(false);
     }
-  }, [open, selectedCampaignId, viewMode]);
+  }, [selectedCampaignId, viewMode]);
 
   useEffect(() => { loadEmpCards(); }, [loadEmpCards]);
 
   // Fetch daily calendar data (for timeline and employee detail views)
   const loadDaily = useCallback(async () => {
-    if (!open) return;
     if (viewMode === "grid" && !inspectEmpId) return;
     setDailyLoading(true);
     try {
@@ -516,7 +514,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
       }
     } catch { setDailyData([]); }
     setDailyLoading(false);
-  }, [open, year, month, selectedCampaignId, selectedTaskId, inspectEmpId, viewMode]);
+  }, [year, month, selectedCampaignId, selectedTaskId, inspectEmpId, viewMode]);
 
   useEffect(() => { loadDaily(); }, [loadDaily]);
 
@@ -548,7 +546,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
 
   // Fetch employee-specific timeline when inspecting an employee from grid
   const loadEmpTimeline = useCallback(async () => {
-    if (!inspectEmpId || !open) return;
+    if (!inspectEmpId) return;
     setEmpTimelineLoading(true);
     try {
       const params = new URLSearchParams({ type: "employee-timeline", userId: inspectEmpId, limit: "100" });
@@ -565,13 +563,13 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
       }
     } catch { setEmpTimeline([]); }
     setEmpTimelineLoading(false);
-  }, [inspectEmpId, open, selectedCampaignId, year, month]);
+  }, [inspectEmpId, selectedCampaignId, year, month]);
 
   useEffect(() => { loadEmpTimeline(); }, [loadEmpTimeline]);
 
   // Fetch campaign employee cards (always when campaign selected, for today or selected day)
   const loadDayEmpCards = useCallback(async () => {
-    if (!open || !selectedCampaignId || selectedTaskId || inspectEmpId) {
+    if (!selectedCampaignId || selectedTaskId || inspectEmpId) {
       setDayEmpCards([]);
       return;
     }
@@ -591,7 +589,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
       }
     } catch { setDayEmpCards([]); }
     setDayEmpCardsLoading(false);
-  }, [open, selectedCampaignId, selectedDay, selectedTaskId, inspectEmpId, year, month]);
+  }, [selectedCampaignId, selectedDay, selectedTaskId, inspectEmpId, year, month]);
 
   useEffect(() => { loadDayEmpCards(); }, [loadDayEmpCards]);
 
@@ -673,121 +671,32 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
   const eventsToShow = selectedDay ? detailEvents : (viewMode === "employee-detail" ? empTimeline : allTimelineEvents);
   const eventsLoading = selectedDay ? detailLoading : (viewMode === "employee-detail" ? empTimelineLoading : dailyLoading);
 
-  if (!open) return null;
-
   return (
-    <Portal>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="fixed inset-0 z-[60] flex items-center justify-center"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          >
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <motion.div
-              className="relative mx-2 sm:mx-6 flex flex-col rounded-xl border shadow-xl overflow-hidden w-full max-w-7xl h-[calc(100dvh-1rem)] sm:h-[min(85vh,900px)]"
-              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* ── Header ── */}
-              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
-                <div className="flex items-center gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {inspectEmpId && (
-                        <button type="button" onClick={handleBackToGrid} className="rounded p-0.5 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
-                        </button>
-                      )}
-                      <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>
-                        {inspectEmpId ? currentLabel.employee : "Progress"}
-                      </h3>
-                    </div>
-                    <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
-                      {currentLabel.campaign
-                        ? currentLabel.task
-                          ? `${currentLabel.campaign} · ${currentLabel.task}`
-                          : currentLabel.campaign
-                        : "All Campaigns"}
-                      {selectedDay && ` · ${MN[month - 1]} ${selectedDay}, ${year}`}
-                    </p>
-                  </div>
-                  {/* Month navigator (shown in timeline and employee-detail views) */}
-                  {viewMode !== "grid" && (
-                    <div className="flex items-center gap-1 rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                      <button type="button" onClick={handlePrevMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
-                      </button>
-                      <span className="px-2.5 text-[12px] font-semibold min-w-[8rem] text-center" style={{ color: "var(--fg)" }}>
-                        {MN[month - 1]} {year}
-                      </span>
-                      <button type="button" onClick={handleNextMonth} className="rounded-lg p-1 transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--fg-secondary)" }}>
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M9 5l7 7-7 7" /></svg>
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <button type="button" onClick={onClose} className="rounded-lg p-1 transition-colors hover:bg-[var(--bg-grouped)]" style={{ color: "var(--fg-secondary)" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
-                </button>
-              </div>
+    <div className={className ?? "flex h-full w-full gap-4"}>
+      {/* ── Left Sidebar: two stacked cards (content top, calendar bottom) ── */}
+      <aside className="hidden sm:flex w-[280px] shrink-0 flex-col gap-3 overflow-hidden">
+        {/* Top card: search + campaigns tree */}
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+          <div className="shrink-0 p-2.5 border-b" style={{ borderColor: "var(--border)" }}>
+            <div className="relative">
+              <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" />
+              </svg>
+              <input type="text" value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search campaigns…"
+                className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-[12px] outline-none transition-colors focus:border-[var(--primary)]"
+                style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg)" }}
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-1 py-1">
+            <button type="button" onClick={() => selectScope(null, null)}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors mb-1"
+              style={{ background: !selectedCampaignId && !selectedTaskId ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent", color: !selectedCampaignId && !selectedTaskId ? "var(--primary)" : "var(--fg-secondary)" }}>
+              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+              All Campaigns
+            </button>
 
-              {/* ── Body ── */}
-              <div className="flex min-h-0 flex-1 overflow-hidden">
-                {/* ── Left Sidebar: Calendar + Campaigns Tree ── */}
-                <div className="hidden sm:flex w-[280px] shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                  {/* Calendar (always visible; faded + disabled in grid view) */}
-                  <div className={`shrink-0 p-3 border-b transition-opacity ${viewMode === "grid" ? "opacity-40 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
-                    <MiniCalendar
-                      compact
-                      year={year}
-                      month={month}
-                      onPrevMonth={handlePrevMonth}
-                      onNextMonth={handleNextMonth}
-                      selectedDay={selectedDay}
-                      onSelectDay={(d) => setSelectedDay(d)}
-                      loading={dailyLoading}
-                      getDayMeta={(day) => {
-                        if (viewMode === "grid") return { dotColor: "transparent" };
-                        const entry = dailyMap.get(day);
-                        if (!entry || entry.totalEvents === 0) return { dotColor: "transparent" };
-                        if (entry.completedCount > 0 && entry.undoneCount === 0) return { dotColor: "var(--green)" };
-                        if (entry.undoneCount > 0 && entry.completedCount === 0) return { dotColor: "var(--amber)" };
-                        if (entry.completedCount > 0) return { dotColor: "var(--green)" };
-                        return { dotColor: "var(--fg-tertiary)" };
-                      }}
-                      showLegend={viewMode !== "grid"}
-                      legendItems={[
-                        { label: "Completed", color: "var(--green)" },
-                        { label: viewMode === "employee-detail" ? "Undone" : "Mixed", color: "var(--amber)" },
-                        ...(viewMode !== "employee-detail" ? [{ label: "Other", color: "var(--fg-tertiary)" }] : []),
-                      ]}
-                    />
-                    {selectedDay && viewMode !== "grid" && (
-                      <button type="button" onClick={() => setSelectedDay(null)} className="mt-2 w-full rounded-lg py-1 text-center text-[11px] font-semibold transition-colors hover:bg-[var(--hover-bg)]" style={{ color: "var(--primary)" }}>
-                        Back to today
-                      </button>
-                    )}
-                  </div>
-                  <div className="shrink-0 px-2 pt-2 pb-1">
-                    <div className="flex items-center gap-2 rounded-xl border px-3 py-1.5" style={{ background: "var(--bg)", borderColor: "var(--border)" }}>
-                      <svg className="pointer-events-none h-3 w-3 shrink-0" style={{ color: "var(--fg-tertiary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                      </svg>
-                      <input type="text" value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search…" className="flex-1 min-w-0 bg-transparent text-[11px] outline-none" style={{ color: "var(--fg)", border: "none" }} />
-                    </div>
-                  </div>
-                  <div className="flex-1 overflow-y-auto px-1 pb-2">
-                    <button type="button" onClick={() => selectScope(null, null)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors mb-1"
-                      style={{ background: !selectedCampaignId && !selectedTaskId ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent", color: !selectedCampaignId && !selectedTaskId ? "var(--primary)" : "var(--fg-secondary)" }}>
-                      <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-                      All Campaigns
-                    </button>
-
-                    {filteredCampaigns.map((c) => {
+            {filteredCampaigns.map((c) => {
                       const isExpanded = expandedCampaigns.has(c._id);
                       const isCampaignActive = selectedCampaignId === c._id && !selectedTaskId;
                       return (
@@ -838,13 +747,69 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
                           </AnimatePresence>
                         </div>
                       );
-                    })}
-                  </div>
-                </div>
+            })}
+          </div>
+        </div>
 
-                {/* ── Right Panel ── */}
-                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                  {/* ── GRID VIEW ── */}
+        {/* Bottom card: calendar */}
+        <div
+          className={`shrink-0 rounded-xl border px-1.5 py-1.5 space-y-1 transition-opacity ${viewMode === "grid" ? "opacity-40 pointer-events-none" : ""}`}
+          style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}
+        >
+          {selectedDay && viewMode !== "grid" && (
+            <button type="button" onClick={() => setSelectedDay(null)}
+              className="flex w-full items-center justify-center gap-1 rounded-lg py-1 text-[10px] font-semibold transition-colors hover:bg-[var(--hover-bg)]"
+              style={{ color: "var(--fg-tertiary)" }}>
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              Clear date
+            </button>
+          )}
+          <MiniCalendar
+            compact
+            year={year}
+            month={month}
+            onPrevMonth={handlePrevMonth}
+            onNextMonth={handleNextMonth}
+            selectedDay={selectedDay}
+            onSelectDay={(d) => setSelectedDay(d)}
+            loading={dailyLoading}
+            getDayMeta={(day) => {
+              if (viewMode === "grid") return { dotColor: "transparent" };
+              const entry = dailyMap.get(day);
+              if (!entry || entry.totalEvents === 0) return { dotColor: "transparent" };
+              if (entry.completedCount > 0 && entry.undoneCount === 0) return { dotColor: "var(--green)" };
+              if (entry.undoneCount > 0 && entry.completedCount === 0) return { dotColor: "var(--amber)" };
+              if (entry.completedCount > 0) return { dotColor: "var(--green)" };
+              return { dotColor: "var(--fg-tertiary)" };
+            }}
+            showLegend={viewMode !== "grid"}
+            legendItems={[
+              { label: "Completed", color: "var(--green)" },
+              { label: viewMode === "employee-detail" ? "Undone" : "Mixed", color: "var(--amber)" },
+              ...(viewMode !== "employee-detail" ? [{ label: "Other", color: "var(--fg-tertiary)" }] : []),
+            ]}
+          />
+        </div>
+      </aside>
+
+      {/* ── Right Panel (separate card) ── */}
+      <div
+        className="relative flex min-w-0 flex-1 flex-col rounded-xl border overflow-hidden"
+        style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+      >
+        {/* Back strip: only shown when inspecting an employee */}
+        {inspectEmpId && (
+          <div className="shrink-0 flex items-center px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+            <button type="button" onClick={handleBackToGrid}
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors hover:bg-[var(--hover-bg)]"
+              style={{ color: "var(--fg-secondary)" }}>
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M15 19l-7-7 7-7" /></svg>
+              <span className="truncate">{currentLabel.employee ?? "Back"}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── GRID VIEW ── */}
                   {viewMode === "grid" && (
                     <div className="flex-1 overflow-y-auto p-3">
                       {selectedCampaignId ? (
@@ -933,17 +898,7 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
                     <>
                       {/* Campaign selected → always show employee cards grid */}
                       {selectedCampaignId && !selectedTaskId ? (
-                        <div className="flex-1 overflow-y-auto px-3 pb-3">
-                          <div className="mb-2 flex items-center justify-between">
-                            <h4 className="text-[11px] font-bold" style={{ color: "var(--fg)" }}>
-                              {selectedDay ? `${MN[month - 1]} ${selectedDay}` : "Today"} — Employee Progress
-                            </h4>
-                            {selectedDay && (
-                              <button type="button" onClick={() => setSelectedDay(null)} className="text-[11px] font-semibold transition-colors" style={{ color: "var(--primary)" }}>
-                                Back to today
-                              </button>
-                            )}
-                          </div>
+                        <div className="flex-1 overflow-y-auto px-3 pb-3 pt-3">
                           {dayEmpCardsLoading ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {[1, 2, 3, 4].map((i) => (
@@ -1013,26 +968,21 @@ export function TaskHistoryModal({ open, onClose, campaigns, preSelectedTaskId, 
                     </>
                   )}
 
-                  {/* ── EMPLOYEE DETAIL VIEW: Employee Timeline ── */}
-                  {viewMode === "employee-detail" && (
-                    <>
-                      <TimelinePanel
-                        events={selectedDay ? detailEvents : empTimeline}
-                        loading={selectedDay ? detailLoading : empTimelineLoading}
-                        selectedDay={selectedDay}
-                        month={month}
-                        year={year}
-                        onClearDay={() => setSelectedDay(null)}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+        {/* ── EMPLOYEE DETAIL VIEW: Employee Timeline ── */}
+        {viewMode === "employee-detail" && (
+          <>
+            <TimelinePanel
+              events={selectedDay ? detailEvents : empTimeline}
+              loading={selectedDay ? detailLoading : empTimelineLoading}
+              selectedDay={selectedDay}
+              month={month}
+              year={year}
+              onClearDay={() => setSelectedDay(null)}
+            />
+          </>
         )}
-      </AnimatePresence>
-    </Portal>
+      </div>
+    </div>
   );
 }
 
