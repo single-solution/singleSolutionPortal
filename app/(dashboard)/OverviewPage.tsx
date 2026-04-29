@@ -335,25 +335,12 @@ const blobGradients = [
 
 /* ──────────────────────── WELCOME HEADER ──────────────────────── */
 
-function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasTeamAccess, canViewPresence, dataLoading, scopeStrip }: {
+function WelcomeHeader({ user, userProfile, scopeStrip }: {
   user: User;
-  presenceEmps: PresenceEmployee[];
-  tasks: ApiTask[];
-  campaigns: ApiCampaign[];
   userProfile: UserProfile | null;
-  hasTeamAccess: boolean;
-  canViewPresence: boolean;
-  dataLoading?: boolean;
   scopeStrip?: React.ReactNode;
 }) {
   const profileName = userProfile?.firstName ?? user.firstName;
-  const pendingTasks = tasks.filter((t) => t.status === "pending").length;
-  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
-  // "In Office" = currently live AND located in office (not just today's status)
-  const liveOfficeCount = presenceEmps.filter((e) => e.isLive && (e.status === "office" || e.status === "overtime")).length;
-  const liveRemoteCount = presenceEmps.filter((e) => e.isLive && e.status === "remote").length;
-  const lateCount = presenceEmps.filter((e) => (e.lateBy ?? 0) > 0).length;
-  const absentCount = presenceEmps.filter((e) => e.status === "absent").length;
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -368,20 +355,7 @@ function WelcomeHeader({ user, presenceEmps, tasks, campaigns, userProfile, hasT
       <motion.div className="min-w-0" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
         <p className="text-[11px] mb-0.5" style={{ color: "var(--fg-tertiary)" }}>Single Solution Sync</p>
         <h1 className="text-lg font-bold"><span style={{ color: "var(--primary)" }}>{getGreeting()}</span><span style={{ color: "var(--fg)" }}>, {profileName}!</span></h1>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 [&_.badge]:!gap-1 [&_.badge]:!px-2 [&_.badge]:!py-0.5 [&_.badge]:!text-[11px] sm:[&_.badge]:!px-2.5 sm:[&_.badge]:!py-1 sm:[&_.badge]:!text-[12px] [&_.badge::before]:!h-[5px] [&_.badge::before]:!w-[5px]">
-          {hasTeamAccess && canViewPresence ? (
-            <>
-              <span className="badge badge-office">{liveOfficeCount} In Office</span>
-              <span className="badge badge-remote">{liveRemoteCount} Remote</span>
-              {lateCount > 0 && <span className="badge badge-late">{lateCount} Late</span>}
-              <span className="badge badge-absent">{absentCount} Absent</span>
-            </>
-          ) : dataLoading ? (
-            <span className="shimmer inline-block h-3.5 w-48 rounded" />
-          ) : (
-            <p className="text-[12px]" style={{ color: "var(--fg-secondary)" }}>You have <span className="font-bold" style={{ color: "var(--amber)" }}>{pendingTasks}</span> tasks pending · <span className="font-bold" style={{ color: "var(--teal)" }}>{activeCampaigns}</span> active campaign{activeCampaigns !== 1 ? "s" : ""}</p>
-          )}
-            </div>
+        
           </motion.div>
       <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
         {scopeStrip}
@@ -1090,7 +1064,7 @@ function AdminDashboard({
     <div className="flex flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* 1. Welcome header */}
       <div className="shrink-0 mb-4">
-        <WelcomeHeader user={user} presenceEmps={otherEmps} tasks={tasks} campaigns={campaigns} userProfile={userProfile} hasTeamAccess={hasTeamAccess} canViewPresence={canViewPresence} dataLoading={dataLoading} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
+        <WelcomeHeader user={user} userProfile={userProfile} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
             </div>
 
       {/* 2. Main content + Activity sidebar (sidebar spans full height) */}
@@ -1769,6 +1743,52 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
     } catch { /* silent */ }
   }
 
+  const weeklyInsights = useMemo(() => {
+    if (!weeklyRecords.length) return null;
+    const present = weeklyRecords.filter((d) => d.isPresent);
+    if (!present.length) return null;
+    const best = present.reduce((a, b) => (b.totalMinutes > a.totalMinutes ? b : a));
+    const worst = present.reduce((a, b) => (b.totalMinutes < a.totalMinutes ? b : a));
+    const bestDay = new Date(best.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+    const worstDay = new Date(worst.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+    const onTimeStreak = (() => {
+      let streak = 0;
+      for (let i = weeklyRecords.length - 1; i >= 0; i--) {
+        if (weeklyRecords[i].isPresent && weeklyRecords[i].isOnTime) streak++;
+        else break;
+      }
+      return streak;
+    })();
+    const presentStreak = (() => {
+      let streak = 0;
+      for (let i = weeklyRecords.length - 1; i >= 0; i--) {
+        if (weeklyRecords[i].isPresent) streak++;
+        else break;
+      }
+      return streak;
+    })();
+    return { bestDay, bestMins: best.totalMinutes, worstDay, worstMins: worst.totalMinutes, onTimeStreak, presentStreak };
+  }, [weeklyRecords]);
+
+  const isDayOff = useMemo(() => {
+    if (!userProfile?.weeklySchedule) return false;
+    const rec = userProfile as unknown as Record<string, unknown>;
+    const schedule = resolveWeeklySchedule(rec);
+    const todayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][new Date().getDay()];
+    return !schedule[todayKey as keyof typeof schedule]?.isWorking;
+  }, [userProfile]);
+
+  const taskStats = useMemo(() => {
+    if (!tasks.length) return null;
+    const total = tasks.length;
+    const pending = tasks.filter((t) => t.status === "pending").length;
+    const inProg = tasks.filter((t) => t.status === "inProgress").length;
+    const now = Date.now();
+    const dueSoon = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() - now < 48 * 3600_000 && new Date(t.deadline).getTime() > now).length;
+    const overdue7d = tasks.filter((t) => t.deadline && t.status !== "completed" && (now - new Date(t.deadline).getTime()) > 7 * 86400_000).length;
+    return { total, pending, inProg, dueSoon, overdue7d };
+  }, [tasks]);
+
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 1_000); return () => window.clearInterval(id); }, []);
 
@@ -1792,6 +1812,15 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               </motion.div>
         </header>
 
+        {taskStats && (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--fg-secondary) 10%, transparent)", color: "var(--fg-secondary)" }}>{taskStats.total} tasks</span>
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>{taskStats.pending} pending</span>
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskStats.inProg} in progress</span>
+            {taskStats.dueSoon > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>{taskStats.dueSoon} due soon</span>}
+            {taskStats.overdue7d > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>{taskStats.overdue7d} overdue 7d+</span>}
+          </div>
+        )}
 
         {/* Self overview */}
           <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} companyTz={companyTz} />
@@ -2017,6 +2046,15 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         {/* Weekly Overview — horizontal scroll strip */}
         <section className="space-y-3">
           <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>Weekly Overview</motion.h3>
+          {weeklyInsights && (
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>Best: {weeklyInsights.bestDay} ({formatMinutes(weeklyInsights.bestMins)})</span>
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--fg-tertiary) 10%, transparent)", color: "var(--fg-tertiary)" }}>Least: {weeklyInsights.worstDay} ({formatMinutes(weeklyInsights.worstMins)})</span>
+              {weeklyInsights.onTimeStreak > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>{weeklyInsights.onTimeStreak}d on-time streak</span>}
+              {weeklyInsights.presentStreak > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{weeklyInsights.presentStreak}d present streak</span>}
+              {isDayOff && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>Day off today</span>}
+            </div>
+          )}
           <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
             {weeklyRecords.length === 0 ? (
               [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)
