@@ -310,16 +310,18 @@ function ProgressTaskCard({ task, onTaskClick, onEmployeeClick, isSubtask }: {
 
 /* ───── Employee Task Card (workspace-style, single employee's status) ───── */
 
-function EmpTaskCard({ task, onTaskClick, isSubtask }: {
+function EmpTaskCard({ task, onTaskClick, isSubtask, isPastDate }: {
   task: EmpTaskNode;
   onTaskClick: (taskId: string) => void;
   isSubtask?: boolean;
+  isPastDate?: boolean;
 }) {
   const hasSubtasks = task.subtasks.length > 0;
   const [expanded, setExpanded] = useState(hasSubtasks);
   const recurLabel = fmtRecurrence(task.recurrence);
-  const pillColor = task.done ? "var(--green)" : task.recurrence ? "#8b5cf6" : "var(--amber)";
-  const pillLabel = task.done ? "Done" : (task.recurrence ? recurLabel : "Pending");
+  const missedColor = "var(--rose)";
+  const pillColor = task.done ? "var(--green)" : isPastDate ? missedColor : task.recurrence ? "#8b5cf6" : "var(--amber)";
+  const pillLabel = task.done ? "Done" : isPastDate ? "Missed" : (task.recurrence ? recurLabel : "Pending");
 
   return (
     <div className={isSubtask ? "mb-1" : "mb-1.5"}>
@@ -334,11 +336,13 @@ function EmpTaskCard({ task, onTaskClick, isSubtask }: {
           {pillLabel}
         </span>
         <div className="flex items-center gap-1.5 px-2 py-1.5">
-          {/* done/pending icon */}
+          {/* done/pending/missed icon */}
           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md"
-            style={{ background: task.done ? "color-mix(in srgb, var(--green) 14%, transparent)" : "color-mix(in srgb, var(--fg-tertiary) 8%, transparent)" }}>
+            style={{ background: task.done ? "color-mix(in srgb, var(--green) 14%, transparent)" : isPastDate ? "color-mix(in srgb, var(--rose) 12%, transparent)" : "color-mix(in srgb, var(--fg-tertiary) 8%, transparent)" }}>
             {task.done ? (
               <svg className="h-2.5 w-2.5" style={{ color: "var(--green)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" d="M5 13l4 4L19 7" /></svg>
+            ) : isPastDate ? (
+              <svg className="h-2.5 w-2.5" style={{ color: "var(--rose)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             ) : (
               <svg className="h-2.5 w-2.5" style={{ color: "var(--fg-quaternary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             )}
@@ -368,7 +372,7 @@ function EmpTaskCard({ task, onTaskClick, isSubtask }: {
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="ml-4 border-l pl-2 pr-1 py-1 space-y-1.5" style={{ borderColor: "color-mix(in srgb, var(--fg-tertiary) 15%, transparent)" }}>
               {task.subtasks.map((sub) => (
-                <EmpTaskCard key={sub._id} task={sub} onTaskClick={onTaskClick} isSubtask />
+                <EmpTaskCard key={sub._id} task={sub} onTaskClick={onTaskClick} isSubtask isPastDate={isPastDate} />
               ))}
             </div>
           </motion.div>
@@ -592,6 +596,14 @@ export function TaskHistoryView({ campaigns, preSelectedTaskId, preSelectedCampa
   }, [selectedCampaignId, selectedDay, selectedTaskId, inspectEmpId, year, month]);
 
   useEffect(() => { loadDayEmpCards(); }, [loadDayEmpCards]);
+
+  const isPastDate = useMemo(() => {
+    if (!selectedDay) return false;
+    const selected = new Date(year, month - 1, selectedDay);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return selected < today;
+  }, [selectedDay, year, month]);
 
   const dailyMap = useMemo(() => {
     const m = new Map<number, DailyEntry>();
@@ -946,7 +958,7 @@ export function TaskHistoryView({ campaigns, preSelectedTaskId, preSelectedCampa
                                     </div>
                                     <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-3 space-y-2">
                                       {emp.tasks.map((t) => (
-                                        <EmpTaskCard key={t._id} task={t} onTaskClick={(tid) => selectScope(selectedCampaignId, tid)} />
+                                        <EmpTaskCard key={t._id} task={t} onTaskClick={(tid) => selectScope(selectedCampaignId, tid)} isPastDate={isPastDate} />
                                       ))}
                                     </div>
                                   </div>

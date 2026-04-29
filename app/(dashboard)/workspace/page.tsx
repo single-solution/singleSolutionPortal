@@ -7,8 +7,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cardVariants, staggerContainerFast } from "@/lib/motion";
 import { useQuery } from "@/lib/useQuery";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { RefreshBtn, EmptyState, ModalShell } from "../components/ui";
+import { RefreshBtn, SearchField, EmptyState, ModalShell } from "../components/ui";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { HeaderStatPill } from "../components/StatChips";
 import toast from "react-hot-toast";
 import { formatShortDate, timeAgo } from "@/lib/formatters";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -126,6 +127,12 @@ function logAvatarLabel(log: LogEntry) {
 /* ─── helpers ─── */
 
 const formatDate = formatShortDate;
+function assigneeName(t: Task) {
+  if (Array.isArray(t.assignedTo) && t.assignedTo.length > 0) {
+    return t.assignedTo.map((a) => a.about ? `${a.about.firstName} ${a.about.lastName}` : a.email ?? "Unknown").join(", ");
+  }
+  return "Unassigned";
+}
 
 function deadlineUrgency(deadline?: string): "overdue" | "soon" | "normal" | "none" {
   if (!deadline) return "none";
@@ -202,6 +209,7 @@ export default function WorkspacePage() {
   const allDepartments: SelectOption[] = useMemo(() => (deptsRaw ?? []).map((d) => ({ _id: d._id as string, label: d.title as string })), [deptsRaw]);
 
   /* ── state ── */
+  const [search, setSearch] = useState("");
   /* ── workspace activity sidebar state ── */
   useEffect(() => {
     const handler = () => { if (document.visibilityState === "visible") void refetchLogs(); };
@@ -220,20 +228,6 @@ export default function WorkspacePage() {
     setActivityExpanded((prev) => prev === entity ? null : entity);
   }, []);
   const [allMarkedRead, setAllMarkedRead] = useState(false);
-  const [activityCollapsed, setActivityCollapsed] = useState<boolean>(true);
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("workspace:activityCollapsed");
-      if (stored === "0") setActivityCollapsed(false);
-    } catch {}
-  }, []);
-  const toggleActivityCollapsed = useCallback(() => {
-    setActivityCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem("workspace:activityCollapsed", next ? "1" : "0"); } catch {}
-      return next;
-    });
-  }, []);
 
   const wsLogGroups = useMemo(() => {
     const globalId = lastSeenLogIdRef.current;
@@ -587,7 +581,23 @@ export default function WorkspacePage() {
     });
   }, [campaignList, campaignTaskMap, subtasksByParent]);
 
-  const filteredCampaignTasks = campaignTaskMap;
+  /* ── filtering ── */
+  const filteredCampaignTasks = useMemo(() => {
+    const result = new Map<string, Task[]>();
+    for (const [cid, tasks] of campaignTaskMap) {
+      let list = tasks;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        list = list.filter((t) =>
+          t.title.toLowerCase().includes(q) ||
+          (t.description ?? "").toLowerCase().includes(q) ||
+          assigneeName(t).toLowerCase().includes(q)
+        );
+      }
+      result.set(cid, list);
+    }
+    return result;
+  }, [campaignTaskMap, search]);
 
   /* ── drag-and-drop reorder ── */
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -614,8 +624,80 @@ export default function WorkspacePage() {
     return m;
   }, [taskList]);
 
+  const taskInsights = useMemo(() => {
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const weekEnd = todayStart.getTime() + weekMs;
+    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const userId = session?.user?.id;
+    let overdue = 0, dueSoon = 0, dueThisWeek = 0, noDeadline = 0;
+    let assignedToMe = 0, createdByMe = 0, unassigned = 0;
+    let weeklyRecur = 0, monthlyRecur = 0, recurring = 0, oneTime = 0;
+    let completedToday = 0, completedThisWeek = 0, completedThisMonth = 0;
+    let createdToday = 0, createdThisWeek = 0, createdThisMonth = 0;
+    for (const t of taskList) {
+      if (t.deadline) {
+        const dl = new Date(t.deadline).getTime();
+        if (t.status !== "completed") {
+          if (dl < now) overdue++;
+          else if (dl - now < 2 * 86400000) dueSoon++;
+          if (dl <= weekEnd && dl >= todayStart.getTime()) dueThisWeek++;
+        }
+      } else noDeadline++;
+      if (userId && isTaskAssigned(t, userId)) assignedToMe++;
+      if (userId && t.createdBy?._id === userId) createdByMe++;
+      if (!t.assignedTo || t.assignedTo.length === 0) unassigned++;
+      if (t.recurrence) { recurring++; if (t.recurrence.frequency === "weekly") weeklyRecur++; else monthlyRecur++; } else oneTime++;
+      const created = new Date(t.createdAt).getTime();
+      if (created >= todayStart.getTime()) createdToday++;
+      if (created >= weekStart.getTime()) createdThisWeek++;
+      if (created >= monthStart.getTime()) createdThisMonth++;
+      if (t.status === "completed") {
+        if (created >= todayStart.getTime()) completedToday++;
+        if (created >= weekStart.getTime()) completedThisWeek++;
+        if (created >= monthStart.getTime()) completedThisMonth++;
+      }
+    }
+    const completionRate = taskList.length > 0 ? Math.round((statusCounts.completed / taskList.length) * 100) : 0;
+    return { overdue, dueSoon, dueThisWeek, noDeadline, assignedToMe, createdByMe, unassigned, weeklyRecur, monthlyRecur, recurring, oneTime, completionRate, completedToday, completedThisWeek, completedThisMonth, createdToday, createdThisWeek, createdThisMonth };
+  }, [taskList, statusCounts.completed, session?.user?.id]);
+
+  const campaignInsights = useMemo(() => {
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const active = campaignList.filter((c) => c.status === "active").length;
+    const completed = campaignList.filter((c) => c.status === "completed").length;
+    const completionRate = campaignList.length > 0 ? Math.round((completed / campaignList.length) * 100) : 0;
+    const noTasks = campaignList.filter((c) => (c.taskStats?.total ?? 0) === 0).length;
+    const nearingEnd = campaignList.filter((c) => c.endDate && c.status === "active" && new Date(c.endDate).getTime() - now < weekMs && new Date(c.endDate).getTime() > now).length;
+    const pastEnd = campaignList.filter((c) => c.endDate && c.status === "active" && new Date(c.endDate).getTime() < now).length;
+    let totalTasksAll = 0, totalCompletedAll = 0;
+    let todayDueAll = 0, todayDoneAll = 0;
+    const empSet = new Set<string>();
+    for (const c of campaignList) {
+      totalTasksAll += c.taskStats?.total ?? 0;
+      totalCompletedAll += c.taskStats?.completed ?? 0;
+      todayDueAll += c.todayChecklist?.length ?? 0;
+      todayDoneAll += (c.todayChecklist ?? []).filter((x) => x.done).length;
+      for (const e of c.tags.employees) empSet.add(e._id);
+    }
+    const avgTasksPerCampaign = campaignList.length > 0 ? Math.round(totalTasksAll / campaignList.length * 10) / 10 : 0;
+    const todayChecklistPct = todayDueAll > 0 ? Math.round((todayDoneAll / todayDueAll) * 100) : 0;
+    return { active, completed, completionRate, noTasks, nearingEnd, pastEnd, avgTasksPerCampaign, uniqueEmployees: empSet.size, todayDueAll, todayDoneAll, todayChecklistPct };
+  }, [campaignList]);
+
   const visibleCampaigns = useMemo(() => {
-    const list = [...campaignList];
+    let list = [...campaignList];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((c) => {
+        if (c.name.toLowerCase().includes(q)) return true;
+        const tasks = filteredCampaignTasks.get(c._id) ?? [];
+        return tasks.length > 0;
+      });
+    }
     list.sort((a, b) => {
       const aActive = a.status === "active" ? 0 : 1;
       const bActive = b.status === "active" ? 0 : 1;
@@ -623,7 +705,7 @@ export default function WorkspacePage() {
       return a.name.localeCompare(b.name);
     });
     return list;
-  }, [campaignList]);
+  }, [campaignList, search, filteredCampaignTasks]);
 
   const loading = tasksLoading || campaignsLoading;
   const ready = sessionStatus !== "loading";
@@ -632,38 +714,61 @@ export default function WorkspacePage() {
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* ── header ── */}
-      <div className="mb-3 shrink-0 flex items-center gap-3 flex-wrap">
-        <h1 className="text-lg font-bold" style={{ color: "var(--fg)" }}>Workspace</h1>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <motion.button type="button" onClick={() => openHistoryModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
-            style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
-            <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Progress
-          </motion.button>
-          {ready && canCreateCampaigns && (
-            <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors"
-              style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
-              <svg className="h-3.5 w-3.5" style={{ color: "var(--primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              New Campaign
-            </motion.button>
+      <div className="mb-4 shrink-0">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-headline text-lg font-bold" style={{ color: "var(--fg)" }}>Workspace</h1>
+          {loading ? (
+            <span className="shimmer inline-block h-4 w-44 rounded" />
+          ) : (
+            <>
+              <HeaderStatPill label={campaignList.length === 1 ? "campaign" : "campaigns"} value={campaignList.length} dotColor="var(--teal)" />
+              <HeaderStatPill label="completion rate" value={`${taskInsights.completionRate}%`} dotColor="var(--green)" />
+              {taskInsights.overdue > 0 && <HeaderStatPill label={taskInsights.overdue === 1 ? "task overdue" : "tasks overdue"} value={taskInsights.overdue} dotColor="var(--rose)" />}
+              {taskInsights.dueSoon > 0 && <HeaderStatPill label={taskInsights.dueSoon === 1 ? "due soon" : "due soon"} value={taskInsights.dueSoon} dotColor="var(--amber)" />}
+              {taskInsights.dueThisWeek > 0 && <HeaderStatPill label="due this week" value={taskInsights.dueThisWeek} dotColor="var(--fg-tertiary)" />}
+              {taskInsights.unassigned > 0 && <HeaderStatPill label="unassigned" value={taskInsights.unassigned} dotColor="var(--fg-tertiary)" />}
+              {taskInsights.noDeadline > 0 && <HeaderStatPill label="no deadline" value={taskInsights.noDeadline} dotColor="var(--fg-tertiary)" />}
+              <HeaderStatPill label="recurring" value={`${taskInsights.recurring} (${taskInsights.weeklyRecur}w · ${taskInsights.monthlyRecur}m)`} dotColor="#8b5cf6" />
+              {taskInsights.assignedToMe > 0 && <HeaderStatPill label="assigned to me" value={taskInsights.assignedToMe} dotColor="var(--primary)" />}
+              {taskInsights.createdByMe > 0 && <HeaderStatPill label="created by me" value={taskInsights.createdByMe} dotColor="var(--fg-tertiary)" />}
+              {taskInsights.completedToday > 0 && <HeaderStatPill label="done today" value={taskInsights.completedToday} dotColor="var(--green)" />}
+              {taskInsights.completedThisWeek > 0 && <HeaderStatPill label="done this week" value={taskInsights.completedThisWeek} dotColor="var(--green)" />}
+              {taskInsights.completedThisMonth > 0 && <HeaderStatPill label="completed this month" value={taskInsights.completedThisMonth} dotColor="var(--green)" />}
+              {taskInsights.createdToday > 0 && <HeaderStatPill label="created today" value={taskInsights.createdToday} dotColor="var(--fg-tertiary)" />}
+              {campaignInsights.active > 0 && <HeaderStatPill label={campaignInsights.active === 1 ? "active campaign" : "active campaigns"} value={campaignInsights.active} dotColor="var(--green)" />}
+              {campaignInsights.completed > 0 && <HeaderStatPill label="done campaigns" value={campaignInsights.completed} dotColor="var(--fg-tertiary)" />}
+              {campaignInsights.completionRate > 0 && <HeaderStatPill label="campaigns done" value={`${campaignInsights.completionRate}%`} dotColor="var(--fg-tertiary)" />}
+              {campaignInsights.noTasks > 0 && <HeaderStatPill label="empty campaigns" value={campaignInsights.noTasks} dotColor="var(--fg-tertiary)" />}
+              {campaignInsights.pastEnd > 0 && <HeaderStatPill label="past end date" value={campaignInsights.pastEnd} dotColor="var(--rose)" />}
+              {campaignInsights.nearingEnd > 0 && <HeaderStatPill label="nearing end" value={campaignInsights.nearingEnd} dotColor="var(--amber)" />}
+            </>
           )}
         </div>
       </div>
 
+      {/* ── search + create ── */}
+      <div data-tour="workspace-toolbar" className="mb-4 flex shrink-0 items-center gap-3 rounded-xl p-2" style={{ background: "var(--bg-grouped)" }}>
+        <SearchField value={search} onChange={setSearch} placeholder="Search campaigns and tasks…" />
+        <motion.button type="button" onClick={() => openHistoryModal()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+          className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition-colors shrink-0"
+          style={{ borderColor: "var(--border)", color: "var(--fg-secondary)", background: "var(--bg)" }}>
+          <svg className="h-3.5 w-3.5" style={{ color: "var(--purple)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Progress
+        </motion.button>
+        {ready && canCreateCampaigns && (
+          <motion.button type="button" onClick={openCreateCampaign} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-primary btn-sm shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            New Campaign
+          </motion.button>
+        )}
+      </div>
+
       {/* ── main + feed ── */}
-      <div className="relative flex min-h-0 flex-1" style={{ containerType: "size" }}>
+      <div className="flex min-h-0 flex-1 gap-4" style={{ containerType: "size" }}>
         {/* ── campaign card grid ── */}
-        <motion.div
-          animate={{ paddingRight: canViewLogs && !activityCollapsed ? 396 : 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="min-w-0 min-h-0 flex-1 overflow-y-auto"
-        >
+        <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[1, 2, 3, 4, 5, 6].map((g) => (
@@ -1060,39 +1165,11 @@ export default function WorkspacePage() {
               })}
             </motion.div>
           )}
-        </motion.div>
+        </div>
 
         {/* ── workspace activity feed sidebar (tasks + campaigns only) ── */}
         {canViewLogs && (
-          <>
-            {/* floating toggle button pinned to the bottom-right, always visible */}
-            <motion.button
-              type="button"
-              onClick={toggleActivityCollapsed}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="absolute bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12px] font-semibold shadow-lg"
-              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", color: "var(--fg-secondary)" }}
-              title={activityCollapsed ? "Show workspace activity" : "Hide workspace activity"}
-              aria-label={activityCollapsed ? "Show workspace activity" : "Hide workspace activity"}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--teal)" }}>
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-              <span>{activityCollapsed ? "Show activity" : "Hide activity"}</span>
-              {activityCollapsed && wsTotalUnread > 0 && (
-                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "var(--rose)" }}>
-                  {wsTotalUnread > 99 ? "99+" : wsTotalUnread}
-                </span>
-              )}
-            </motion.button>
-          <motion.aside
-            initial={false}
-            animate={{ x: activityCollapsed ? "calc(100% + 16px)" : 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            style={{ pointerEvents: activityCollapsed ? "none" : "auto" }}
-            className="absolute right-0 top-0 bottom-0 z-20 shrink-0 overflow-hidden flex-col min-h-0 w-[380px] hidden lg:flex"
-          >
+          <aside className="hidden lg:flex shrink-0 overflow-hidden flex-col min-h-0 w-[380px]">
             <div className="flex w-[380px] min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
               <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
                 <div className="flex items-center min-w-0">
@@ -1215,8 +1292,7 @@ export default function WorkspacePage() {
                 </div>
               )}
             </div>
-          </motion.aside>
-          </>
+          </aside>
         )}
       </div>
 
