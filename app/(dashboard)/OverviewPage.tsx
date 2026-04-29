@@ -1166,24 +1166,6 @@ function AdminDashboard({
           </motion.div>
         )}
 
-        {/* Quick stat pills — team/attendance (non-superadmin) */}
-        {!isSuperAdmin && hasTeamAccess && canViewPresence && teamTodayStats && !presenceLoading && (
-          <div className="scrollbar-hide flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
-            <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--fg-secondary) 10%, transparent)", color: "var(--fg-secondary)" }}>{teamTodayStats.pctPresent}% present</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--status-office) 10%, transparent)", color: "var(--status-office)" }}>{teamTodayStats.pctInOffice}% in-office</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>Avg per person: {formatMinutes(teamTodayStats.avgMins)}</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--fg-secondary) 10%, transparent)", color: "var(--fg-secondary)" }}>{teamTodayStats.officePct}% office / {100 - teamTodayStats.officePct}% remote</span>
-            {teamTodayStats.pctLate > 0 && <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--status-late) 10%, transparent)", color: "var(--status-late)" }}>{teamTodayStats.pctLate}% late</span>}
-            {teamTodayStats.flagged > 0 && <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>{teamTodayStats.flagged} location flagged</span>}
-            {flagStats && flagStats.total > 0 && (
-              <>
-                <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>{flagStats.total} location flags</span>
-                {flagStats.warnings > 0 && <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>{flagStats.warnings} security warnings</span>}
-                {flagStats.violations > 0 && <span className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>{flagStats.violations} security violations</span>}
-              </>
-            )}
-          </div>
-        )}
 
         {/* Task Board — split: left=checklist/recurring timeline, right=one-time tasks */}
         {!isSuperAdmin && (
@@ -1787,52 +1769,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
     } catch { /* silent */ }
   }
 
-  const weeklyInsights = useMemo(() => {
-    if (!weeklyRecords.length) return null;
-    const present = weeklyRecords.filter((d) => d.isPresent);
-    if (!present.length) return null;
-    const best = present.reduce((a, b) => (b.totalMinutes > a.totalMinutes ? b : a));
-    const worst = present.reduce((a, b) => (b.totalMinutes < a.totalMinutes ? b : a));
-    const bestDay = new Date(best.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
-    const worstDay = new Date(worst.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
-    const onTimeStreak = (() => {
-      let streak = 0;
-      for (let i = weeklyRecords.length - 1; i >= 0; i--) {
-        if (weeklyRecords[i].isPresent && weeklyRecords[i].isOnTime) streak++;
-        else break;
-      }
-      return streak;
-    })();
-    const presentStreak = (() => {
-      let streak = 0;
-      for (let i = weeklyRecords.length - 1; i >= 0; i--) {
-        if (weeklyRecords[i].isPresent) streak++;
-        else break;
-      }
-      return streak;
-    })();
-    return { bestDay, bestMins: best.totalMinutes, worstDay, worstMins: worst.totalMinutes, onTimeStreak, presentStreak };
-  }, [weeklyRecords]);
-
-  const isDayOff = useMemo(() => {
-    if (!userProfile?.weeklySchedule) return false;
-    const rec = userProfile as unknown as Record<string, unknown>;
-    const schedule = resolveWeeklySchedule(rec);
-    const todayKey = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][new Date().getDay()];
-    return !schedule[todayKey as keyof typeof schedule]?.isWorking;
-  }, [userProfile]);
-
-  const taskStats = useMemo(() => {
-    if (!tasks.length) return null;
-    const total = tasks.length;
-    const pending = tasks.filter((t) => t.status === "pending").length;
-    const inProg = tasks.filter((t) => t.status === "inProgress").length;
-    const now = Date.now();
-    const dueSoon = tasks.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline).getTime() - now < 48 * 3600_000 && new Date(t.deadline).getTime() > now).length;
-    const overdue7d = tasks.filter((t) => t.deadline && t.status !== "completed" && (now - new Date(t.deadline).getTime()) > 7 * 86400_000).length;
-    return { total, pending, inProg, dueSoon, overdue7d };
-  }, [tasks]);
-
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 1_000); return () => window.clearInterval(id); }, []);
 
@@ -1856,15 +1792,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
               </motion.div>
         </header>
 
-        {taskStats && (
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--fg-secondary) 10%, transparent)", color: "var(--fg-secondary)" }}>{taskStats.total} tasks</span>
-            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>{taskStats.pending} pending</span>
-            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{taskStats.inProg} in progress</span>
-            {taskStats.dueSoon > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>{taskStats.dueSoon} due soon</span>}
-            {taskStats.overdue7d > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--rose) 10%, transparent)", color: "var(--rose)" }}>{taskStats.overdue7d} overdue 7d+</span>}
-          </div>
-        )}
 
         {/* Self overview */}
           <SelfOverviewCard pa={pa} userProfile={userProfile} user={user} companyTz={companyTz} />
@@ -2090,15 +2017,6 @@ function OtherRoleOverview({ user, tasks, personalAttendance, weeklyRecords, mon
         {/* Weekly Overview — horizontal scroll strip */}
         <section className="space-y-3">
           <motion.h3 variants={fadeInItem} initial="hidden" animate="visible" className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "var(--fg-secondary)" }}>Weekly Overview</motion.h3>
-          {weeklyInsights && (
-            <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)" }}>Best: {weeklyInsights.bestDay} ({formatMinutes(weeklyInsights.bestMins)})</span>
-              <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--fg-tertiary) 10%, transparent)", color: "var(--fg-tertiary)" }}>Least: {weeklyInsights.worstDay} ({formatMinutes(weeklyInsights.worstMins)})</span>
-              {weeklyInsights.onTimeStreak > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--teal) 10%, transparent)", color: "var(--teal)" }}>{weeklyInsights.onTimeStreak}d on-time streak</span>}
-              {weeklyInsights.presentStreak > 0 && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>{weeklyInsights.presentStreak}d present streak</span>}
-              {isDayOff && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "color-mix(in srgb, var(--amber) 10%, transparent)", color: "var(--amber)" }}>Day off today</span>}
-            </div>
-          )}
           <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto pb-2 pt-1">
             {weeklyRecords.length === 0 ? (
               [1, 2, 3, 4, 5].map((i) => <div key={i} className="card-static flex min-w-[112px] shrink-0 flex-col gap-2 p-4"><Bone w="w-12" h="h-3" /><Bone w="w-16" h="h-2.5" /><Bone w="w-10" h="h-5" /></div>)
