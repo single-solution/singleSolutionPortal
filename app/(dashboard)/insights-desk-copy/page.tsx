@@ -638,6 +638,20 @@ export default function InsightsDeskCopyPage() {
       {/* Header */}
       <div className="mb-3 shrink-0 flex items-center gap-3 flex-wrap">
         <h1 className="text-lg font-bold" style={{ color: "var(--fg)" }}>Insights Desk</h1>
+        <div className="flex items-center w-fit rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
+          {TAB_ITEMS.map((t) => {
+            const isAct = activeTab === t.id;
+            return (
+              <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
+                className="relative flex items-center justify-center gap-1.5 whitespace-nowrap px-5 py-2 transition-colors"
+                style={{ color: isAct ? t.color : "var(--fg-tertiary)" }}>
+                {isAct && <motion.span layoutId="insights-tab-active" className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.color }} transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
+                <svg className="relative h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isAct ? 2 : 1.5}><path strokeLinecap="round" strokeLinejoin="round" d={t.icon} /></svg>
+                <span className="relative text-[10px] font-semibold">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {canViewHolidays && (
             <motion.button type="button" onClick={() => setHolidaysOpen(true)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
@@ -784,21 +798,6 @@ export default function InsightsDeskCopyPage() {
 
         {/* ═══ Content Area ═══ */}
         <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-          {/* Tab bar */}
-          <div className="shrink-0 flex items-center w-fit rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
-            {TAB_ITEMS.map((t) => {
-              const isAct = activeTab === t.id;
-              return (
-                <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
-                  className="relative flex items-center justify-center gap-1.5 whitespace-nowrap px-5 py-2 transition-colors"
-                  style={{ color: isAct ? t.color : "var(--fg-tertiary)" }}>
-                  {isAct && <motion.span layoutId="insights-tab-active" className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.color }} transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
-                  <svg className="relative h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isAct ? 2 : 1.5}><path strokeLinecap="round" strokeLinejoin="round" d={t.icon} /></svg>
-                  <span className="relative text-[10px] font-semibold">{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
           {/* Content body */}
           <div className="flex min-h-0 flex-1 flex-col rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
           {activeTab === "attendance" && (
