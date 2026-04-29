@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
+import { NextRequest } from "next/server";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
-import User, { resolveWeeklySchedule, type Weekday, type DaySchedule } from "@/lib/models/User";
+import User, { resolveWeeklySchedule } from "@/lib/models/User";
+import { roundMoney, dayExpectedMinutes, DAY_OF_WEEK } from "@/lib/payrollMath";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import Leave from "@/lib/models/Leave";
 import Payslip from "@/lib/models/Payslip";
@@ -15,22 +15,8 @@ import {
   utcDateKey,
   workingDayKeysInMonth,
 } from "@/lib/payrollUtils";
-import { unauthorized, badRequest, forbidden, isValidId } from "@/lib/helpers";
+import { unauthorized, badRequest, forbidden, isValidId, ok } from "@/lib/helpers";
 
-function roundMoney(n: number, dec = 2): number {
-  const p = 10 ** dec;
-  return Math.round(n * p) / p;
-}
-
-function dayExpectedMinutes(day: DaySchedule): number {
-  if (!day.isWorking) return 0;
-  const [sh, sm] = day.start.split(":").map(Number);
-  const [eh, em] = day.end.split(":").map(Number);
-  const gross = (eh * 60 + em) - (sh * 60 + sm);
-  return Math.max(0, gross - day.breakMinutes);
-}
-
-const DAY_OF_WEEK_MAP: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
@@ -54,7 +40,7 @@ export async function GET(req: NextRequest) {
   const isSelf = targetUserId === actor.id;
 
   if (isSuperAdmin(actor) && isSelf) {
-    return NextResponse.json({ exempt: true, message: "SuperAdmin is exempt from payroll tracking." });
+    return ok({ exempt: true, message: "SuperAdmin is exempt from payroll tracking." });
   }
 
   if (!isSelf) {
@@ -64,8 +50,6 @@ export async function GET(req: NextRequest) {
       if (!subs.includes(targetUserId)) return forbidden();
     }
   }
-
-  await connectDB();
 
   const emp = await User.findById(targetUserId).select("salary weeklySchedule about.firstName about.lastName email").lean();
   if (!emp) return badRequest("Employee not found");
@@ -133,7 +117,7 @@ export async function GET(req: NextRequest) {
           tieredLatePenaltyTotal += dailyRate * (matchingTier.penaltyPercent / 100);
         }
       }
-      const dayKey = DAY_OF_WEEK_MAP[d.getUTCDay()];
+      const dayKey = DAY_OF_WEEK[d.getUTCDay()];
       const expectedMin = dayExpectedMinutes(schedule[dayKey]);
       const tw = Number(row.totalWorkingMinutes) || 0;
       overtimeMinutesTotal += Math.max(0, tw - expectedMin);
@@ -252,5 +236,5 @@ export async function GET(req: NextRequest) {
   };
   if (dailyBreakdown) result.dailyBreakdown = dailyBreakdown;
 
-  return NextResponse.json(result);
+  return ok(result);
 }

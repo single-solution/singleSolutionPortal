@@ -1,8 +1,8 @@
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import Designation, { PERMISSION_KEYS } from "@/lib/models/Designation";
 import Membership from "@/lib/models/Membership";
 import FlowLayout from "@/lib/models/FlowLayout";
-import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, notFound, ok, isValidId, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission, invalidateHierarchyCache } from "@/lib/permissions";
 import mongoose from "mongoose";
 
@@ -13,8 +13,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
 
   const filter: Record<string, unknown> = { _id: id };
   if (!isSuperAdmin(actor)) filter.isActive = true;
@@ -32,27 +30,21 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  const canEditDesig = hasPermission(actor, "designations_edit");
-  const canToggleDesig = hasPermission(actor, "designations_toggleStatus");
-  const canSetPerms = hasPermission(actor, "designations_setPermissions");
-  if (!canEditDesig && !canToggleDesig && !canSetPerms) return forbidden();
+  const canEditDesignation = hasPermission(actor, "designations_edit");
+  const canToggleDesignation = hasPermission(actor, "designations_toggleStatus");
+  const canSetPermissions = hasPermission(actor, "designations_setPermissions");
+  if (!canEditDesignation && !canToggleDesignation && !canSetPermissions) return forbidden();
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   const designation = await Designation.findById(id);
   if (!designation) return notFound("Designation not found");
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
-  if (canEditDesig) {
+  if (canEditDesignation) {
     if (body.name !== undefined) {
       if (typeof body.name !== "string" || !body.name.trim()) return badRequest("name must be a non-empty string");
       designation.name = body.name.trim();
@@ -71,7 +63,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   let toggledActive: boolean | undefined;
 
-  if (canToggleDesig || canEditDesig) {
+  if (canToggleDesignation || canEditDesignation) {
     if (body.isActive !== undefined) {
       if (typeof body.isActive !== "boolean") return badRequest("isActive must be a boolean");
       toggledActive = body.isActive;
@@ -81,7 +73,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   let permsChanged = false;
 
-  if (canSetPerms || canEditDesig) {
+  if (canSetPermissions || canEditDesignation) {
     if (body.defaultPermissions !== undefined) {
       if (typeof body.defaultPermissions !== "object" || body.defaultPermissions === null || Array.isArray(body.defaultPermissions)) {
         return badRequest("defaultPermissions must be an object of permission booleans");
@@ -157,8 +149,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   const designation = await Designation.findById(id);
   if (!designation) return notFound("Designation not found");
   if (designation.isSystem) return badRequest("Cannot delete system designations");
@@ -171,7 +161,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   await Membership.deleteMany({ designation: id });
 
   await FlowLayout.updateMany(
-    { canvasId: "org" },
+    { canvasId: ORG_CANVAS_ID },
     { $set: { "links.$[el].designationId": null } },
     { arrayFilters: [{ "el.designationId": id }] },
   );

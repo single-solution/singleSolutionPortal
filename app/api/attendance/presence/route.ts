@@ -1,4 +1,4 @@
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import Membership from "@/lib/models/Membership";
@@ -18,8 +18,6 @@ import { inheritDepartments } from "@/lib/departmentInheritance";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-
-  await connectDB();
 
   const settings = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
   const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
@@ -69,7 +67,7 @@ export async function GET() {
       .populate("designation", "name color")
       .populate({ path: "department", select: "title parentDepartment", populate: { path: "parentDepartment", select: "title" } })
       .lean(),
-    FlowLayout.findOne({ canvasId: "org" }).lean(),
+    FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).lean(),
   ]);
 
   /* ── Build per-employee maps for membership data ── */

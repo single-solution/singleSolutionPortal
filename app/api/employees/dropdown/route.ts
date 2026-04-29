@@ -1,4 +1,4 @@
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import Department from "@/lib/models/Department";
@@ -15,8 +15,6 @@ import { inheritDepartments } from "@/lib/departmentInheritance";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-
-  await connectDB();
 
   const hasViewPerm = hasPermission(actor, "employees_view");
   const filter: Record<string, unknown> = { isSuperAdmin: { $ne: true } };
@@ -48,7 +46,7 @@ export async function GET() {
       .select("user department")
       .lean(),
     Department.find({ isActive: true }).select("_id title").lean(),
-    FlowLayout.findOne({ canvasId: "org" }).lean(),
+    FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).lean(),
   ]);
 
   const deptMap = new Map(departments.map((d) => [String(d._id), d.title]));

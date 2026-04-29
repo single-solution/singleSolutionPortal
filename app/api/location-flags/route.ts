@@ -1,4 +1,3 @@
-import { connectDB } from "@/lib/db";
 import LocationFlagEvent from "@/lib/models/LocationFlagEvent";
 import "@/lib/models/User";
 import {
@@ -7,18 +6,17 @@ import {
   hasPermission,
   getSubordinateUserIds,
 } from "@/lib/permissions";
-import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
+import { unauthorized, forbidden, ok, parseBody } from "@/lib/helpers";
+import { safeParseInt } from "@/lib/validation";
 
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  await connectDB();
-
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "50", 10), 200);
-  const skip = parseInt(searchParams.get("skip") ?? "0", 10);
+  const limit = Math.min(safeParseInt(searchParams.get("limit"), 50), 200);
+  const skip = safeParseInt(searchParams.get("skip"), 0);
 
   const hasTeamPerm = hasPermission(actor, "attendance_viewTeam");
 
@@ -62,14 +60,11 @@ export async function PATCH(req: Request) {
     return forbidden();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
   const { flagId } = body as { flagId?: string };
 
   if (!flagId) return ok({ acknowledged: false });
-
-  await connectDB();
 
   const flag = await LocationFlagEvent.findById(flagId).select("user").lean();
   if (!flag) return ok({ acknowledged: false });

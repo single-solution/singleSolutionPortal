@@ -1,8 +1,8 @@
-import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
 import Campaign from "@/lib/models/Campaign";
 import User from "@/lib/models/User";
-import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok, parseBody } from "@/lib/helpers";
+import { parseRecurrence } from "@/lib/campaignHelpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
@@ -15,8 +15,6 @@ import { logActivity } from "@/lib/activityLogger";
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-
-  await connectDB();
 
   const filter: Record<string, unknown> = { parentTask: null };
 
@@ -59,10 +57,8 @@ export async function POST(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "tasks_create")) return forbidden();
 
-  await connectDB();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   if (!body.title?.trim() || !body.assignedTo) {
     return badRequest("Title and assignedTo are required");
@@ -98,20 +94,9 @@ export async function POST(req: Request) {
     if (parent.parentTask) return badRequest("Only one level of subtask nesting is allowed");
   }
 
-  let recurrence: Record<string, unknown> | undefined;
-  if (body.recurrence && body.recurrence.frequency) {
-    const validFreqs = ["weekly", "monthly"];
-    if (!validFreqs.includes(body.recurrence.frequency)) {
-      return badRequest("Invalid recurrence frequency. Must be 'weekly' or 'monthly'");
-    }
-    if (!Array.isArray(body.recurrence.days) || body.recurrence.days.length === 0) {
-      return badRequest("Recurrence days are required");
-    }
-    const maxVal = body.recurrence.frequency === "weekly" ? 6 : 31;
-    const minVal = body.recurrence.frequency === "weekly" ? 0 : 1;
-    const days = body.recurrence.days.filter((d: number) => typeof d === "number" && d >= minVal && d <= maxVal);
-    if (days.length === 0) return badRequest("At least one valid day is required");
-    recurrence = { frequency: body.recurrence.frequency, days };
+  const recurrence = parseRecurrence(body.recurrence);
+  if (body.recurrence?.frequency && !recurrence) {
+    return badRequest("Invalid recurrence. Provide valid frequency and days.");
   }
 
   const initialStatus = body.status ?? "pending";

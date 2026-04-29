@@ -1,8 +1,7 @@
-import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
 import Membership from "@/lib/models/Membership";
-import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok, parseBody } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
@@ -11,9 +10,11 @@ import {
   getHierarchyDepartmentIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
+import { getUserFields } from "@/lib/userFields";
+import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
-import { sendMail, getBaseUrl } from "@/lib/mail";
+import { generateHashedToken, INVITE_TOKEN_EXPIRY_MS } from "@/lib/tokenHelpers";
+import { sendMail, getBaseUrl, buildSetPasswordHtml } from "@/lib/mail";
 
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
@@ -23,8 +24,6 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const includeSelf = url.searchParams.get("includeSelf") === "true";
-
-  await connectDB();
 
   const filter: Record<string, unknown> = { isSuperAdmin: { $ne: true } };
   if (!includeSelf) filter._id = { $ne: actor.id };
@@ -41,8 +40,9 @@ export async function GET(req: Request) {
     filter._id = actor.id;
   }
 
+  const hasPayrollAccess = hasPermission(actor, "payroll_manageSalary");
   const users = await User.find(filter)
-    .select("-password")
+    .select(getUserFields(hasPayrollAccess))
     .sort({ createdAt: -1 })
     .lean();
 
@@ -77,11 +77,9 @@ export async function POST(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "employees_create")) return forbidden();
 
-  await connectDB();
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
   const { email, fullName, weeklySchedule, graceMinutes, shiftType, salary } = body;
 
   if (!email || !fullName) {
@@ -98,7 +96,7 @@ export async function POST(req: Request) {
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ");
 
-  const tempPassword = crypto.randomUUID() + "Aa1!";
+  const tempPassword = randomUUID() + "Aa1!";
   const hashed = await bcrypt.hash(tempPassword, 12);
 
   const createPayload: Record<string, unknown> = {
@@ -137,34 +135,17 @@ export async function POST(req: Request) {
   }
 
   const populated = await User.findById(user._id)
-    .select("-password")
+    .select(getUserFields(hasPermission(actor, "payroll_manageSalary")))
     .lean();
 
-  const rawToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const { rawToken, hashedToken } = generateHashedToken();
   await User.findByIdAndUpdate(user._id, {
     resetToken: hashedToken,
-    resetTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    resetTokenExpiry: new Date(Date.now() + INVITE_TOKEN_EXPIRY_MS),
   });
 
   const resetUrl = `${getBaseUrl()}/reset-password?token=${rawToken}&email=${encodeURIComponent(trimmedEmail)}`;
-  const inviteHtml = `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:500px;margin:0 auto;">
-      <div style="background:linear-gradient(135deg,#0071e3,#0055cc);padding:32px 24px;border-radius:20px 20px 0 0;text-align:center;">
-        <p style="font-size:48px;margin:0;line-height:1;">🎉</p>
-        <h1 style="color:white;font-size:24px;font-weight:900;margin:12px 0 4px;letter-spacing:-0.02em;">Welcome to the Team!</h1>
-        <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;">Single Solution Sync</p>
-      </div>
-      <div style="background:#f8fafc;padding:28px 24px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-        <p style="color:#475569;font-size:15px;margin:0 0 4px;font-weight:500;text-align:center;">Hi <strong style="color:#1e293b;">${firstName}</strong>, your account has been created.</p>
-        <p style="color:#475569;font-size:14px;margin:0 0 16px;text-align:center;">Click below to set your password and get started.</p>
-        <div style="text-align:center;"><a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#0071e3,#0055cc);color:white;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px;">Set Password →</a></div>
-        <p style="color:#94a3b8;font-size:12px;margin:16px 0 0;text-align:center;">This link expires in 24 hours.</p>
-      </div>
-      <div style="background:#f1f5f9;padding:20px 24px;border-radius:0 0 20px 20px;text-align:center;border:1px solid #e2e8f0;border-top:none;">
-        <p style="color:#94a3b8;font-size:12px;margin:0;">This is an automated message from your team's presence system.</p>
-      </div>
-    </div>`;
+  const inviteHtml = buildSetPasswordHtml(firstName, resetUrl, true);
   sendMail(trimmedEmail, "Welcome to Single Solution Sync — Set Your Password", inviteHtml).catch(() => {});
 
   logActivity({

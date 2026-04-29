@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import FlowLayout from "@/lib/models/FlowLayout";
 import Membership from "@/lib/models/Membership";
 import "@/lib/models/Department";
+import { ok, unauthorized } from "@/lib/helpers";
 import {
   getVerifiedSession,
   hasPermission,
@@ -17,19 +17,18 @@ import {
  */
 export async function GET() {
   const actor = await getVerifiedSession();
-  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!actor) return unauthorized();
   if (!hasPermission(actor, "organization_view")) {
-    return NextResponse.json({ subordinateIds: [], managerIds: [], departmentIds: [] });
+    return ok({ subordinateIds: [], managerIds: [], departmentIds: [] });
   }
 
   if (actor.isSuperAdmin) {
-    return NextResponse.json({ subordinateIds: [], managerIds: [], departmentIds: [], all: true });
+    return ok({ subordinateIds: [], managerIds: [], departmentIds: [], all: true });
   }
 
-  await connectDB();
   const subordinateIds = await getSubordinateUserIds(actor.id);
 
-  const layout = await FlowLayout.findOne({ canvasId: "org" }).lean();
+  const layout = await FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).lean();
   const links = (layout?.links ?? []) as {
     source: string;
     target: string;
@@ -76,7 +75,7 @@ export async function GET() {
     if (dId) departmentIdSet.add(dId);
   }
 
-  return NextResponse.json({
+  return ok({
     subordinateIds,
     managerIds,
     departmentIds: [...departmentIdSet],

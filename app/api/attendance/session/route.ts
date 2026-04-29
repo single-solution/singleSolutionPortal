@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
 import ActivitySession from "@/lib/models/ActivitySession";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import Holiday from "@/lib/models/Holiday";
@@ -26,12 +25,29 @@ const FLAG_TOLERANCE_THRESHOLD = 2;
 
 const loadTz = getTz;
 
+function sanitizeSession(session: Record<string, unknown>) {
+  const location = session.location as Record<string, unknown> | undefined;
+  return {
+    _id: session._id,
+    status: session.status,
+    sessionTime: session.sessionTime,
+    lastActivity: session.lastActivity,
+    sessionDate: session.sessionDate,
+    breaks: session.breaks,
+    totalMinutes: session.totalMinutes,
+    durationMinutes: session.durationMinutes,
+    location: location ? {
+      inOffice: location.inOffice,
+      locationFlagged: location.locationFlagged,
+      flagReason: location.flagReason,
+    } : null,
+  };
+}
+
 // ─── GET: session state ────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-
-  await connectDB();
 
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get("userId") ?? actor.id;
@@ -73,15 +89,15 @@ export async function GET(req: NextRequest) {
   const daily = await DailyAttendance.findOne({ user: targetUserId, date: today }).lean();
   if (daily) todayMinutes = daily.totalWorkingMinutes ?? 0;
 
-  const locFlagged = activeSession?.location?.locationFlagged ?? false;
+  const isLocationFlagged = activeSession?.location?.locationFlagged ?? false;
   let flagSeverity: "warning" | "violation" | null = null;
-  if (locFlagged) flagSeverity = "violation";
+  if (isLocationFlagged) flagSeverity = "violation";
 
   return ok({
-    activeSession,
+    activeSession: activeSession ? sanitizeSession(activeSession) : null,
     todayMinutes,
     isStale,
-    locationFlagged: locFlagged,
+    locationFlagged: isLocationFlagged,
     flagSeverity,
     flagReason: activeSession?.location?.flagReason ?? null,
     companyTimezone: tz,
@@ -93,8 +109,6 @@ export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
   if (actor.isSuperAdmin) return ok({ message: "Superadmin is exempt from attendance tracking" });
-
-  await connectDB();
 
   let body: Record<string, unknown>;
   try {
@@ -132,8 +146,6 @@ export async function PATCH(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
   if (actor.isSuperAdmin) return ok({ status: "exempt" });
-
-  await connectDB();
 
   let body: { latitude?: number; longitude?: number; accuracy?: number };
   try {

@@ -1,8 +1,7 @@
-import { connectDB } from "@/lib/db";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
-import { unauthorized, forbidden, badRequest, ok, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok, isValidId, parseBody } from "@/lib/helpers";
 import {
   getVerifiedSession,
   hasPermission,
@@ -17,8 +16,6 @@ export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "departments_view") && !hasPermission(actor, "organization_view")) return forbidden();
-
-  await connectDB();
 
   let deptFilter: Record<string, unknown> = {};
 
@@ -58,10 +55,8 @@ export async function POST(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "departments_create")) return forbidden();
 
-  await connectDB();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   if (!body.title?.trim()) return badRequest("Department title is required");
 

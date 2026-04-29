@@ -29,6 +29,15 @@ export function ok(data: unknown) {
   return NextResponse.json(data);
 }
 
+export function created(data: unknown) {
+  return NextResponse.json(data, { status: 201 });
+}
+
+export async function parseBody<T = any>(req: Request): Promise<T | Response> {
+  try { return await req.json() as T; }
+  catch { return badRequest("Invalid JSON body"); }
+}
+
 export function isValidId(id: string): boolean {
   return mongoose.Types.ObjectId.isValid(id);
 }

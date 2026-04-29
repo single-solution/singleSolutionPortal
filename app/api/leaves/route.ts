@@ -1,69 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
-import Leave from "@/lib/models/Leave";
-import LeaveBalance from "@/lib/models/LeaveBalance";
-import Holiday from "@/lib/models/Holiday";
+import Leave, { type LeaveType } from "@/lib/models/Leave";
 import "@/lib/models/User";
-import type { LeaveType } from "@/lib/models/Leave";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
-import { badRequest, forbidden, unauthorized } from "@/lib/helpers";
-
-const LEAVE_TYPES: LeaveType[] = [
-  "leave",
-  "annual",
-  "sick",
-  "casual",
-  "unpaid",
-  "maternity",
-  "paternity",
-  "bereavement",
-  "other",
-];
-
-export async function countBusinessDays(start: Date, end: Date): Promise<number> {
-  const s = new Date(start);
-  const e = new Date(end);
-  s.setHours(0, 0, 0, 0);
-  e.setHours(0, 0, 0, 0);
-  if (e < s) return 0;
-
-  const years = new Set<number>();
-  const tmp = new Date(s);
-  while (tmp <= e) {
-    years.add(tmp.getFullYear());
-    tmp.setDate(tmp.getDate() + 1);
-  }
-
-  const yearFilters = [...years].map((y) => ({ year: y }));
-  const holidays = await Holiday.find({
-    $or: [...yearFilters, { isRecurring: true }],
-  }).lean();
-
-  const holidayDateKeys = new Set<string>();
-  for (const y of years) {
-    for (const h of holidays) {
-      const hd = new Date(h.date);
-      const hm = hd.getUTCMonth();
-      const hday = hd.getUTCDate();
-      if (h.isRecurring || h.year === y) {
-        holidayDateKeys.add(`${y}-${hm}-${hday}`);
-      }
-    }
-  }
-
-  let count = 0;
-  const cur = new Date(s);
-  while (cur <= e) {
-    const dow = cur.getDay();
-    if (dow !== 0 && dow !== 6) {
-      const key = `${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`;
-      if (!holidayDateKeys.has(key)) count += 1;
-    }
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
-}
+import { badRequest, forbidden, unauthorized, ok, created, parseBody } from "@/lib/helpers";
+import { LEAVE_TYPES, ensureLeaveBalance, countBusinessDays } from "@/lib/leaveHelpers";
 
 function isDateBeforeToday(date: Date): boolean {
   const t = new Date();
@@ -71,15 +12,6 @@ function isDateBeforeToday(date: Date): boolean {
   const s = new Date(date);
   s.setHours(0, 0, 0, 0);
   return s < t;
-}
-
-async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number) {
-  const doc = await LeaveBalance.findOneAndUpdate(
-    { user: userId, year },
-    { $setOnInsert: { user: userId, year } },
-    { upsert: true, new: true },
-  );
-  return doc!;
 }
 
 async function pendingDaysTotal(userId: string, year: number): Promise<number> {
@@ -111,8 +43,6 @@ function overlapMonthFilter(year: number, month: number): { startDate: { $lte: D
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-
-  await connectDB();
 
   const url = new URL(req.url);
   const userIdParam = url.searchParams.get("userId");
@@ -177,21 +107,15 @@ export async function GET(req: NextRequest) {
     .sort({ startDate: -1 })
     .lean();
 
-  return NextResponse.json(leaves);
+  return ok(leaves);
 }
 
 export async function POST(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  await connectDB();
-
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const type = (typeof body.type === "string" && LEAVE_TYPES.includes(body.type as LeaveType))
     ? body.type as LeaveType
@@ -256,10 +180,7 @@ export async function POST(req: NextRequest) {
   const pendingExtra = await pendingDaysTotal(targetUserId, year);
   const remaining = total - used - pendingExtra;
   if (remaining < days) {
-    return NextResponse.json(
-      { error: `Insufficient leave balance (${remaining} remaining, ${days} requested).` },
-      { status: 400 },
-    );
+    return badRequest(`Insufficient leave balance (${remaining} remaining, ${days} requested).`);
   }
 
   const leave = await Leave.create({
@@ -280,5 +201,5 @@ export async function POST(req: NextRequest) {
     .populate("reviewedBy", "about email username")
     .lean();
 
-  return NextResponse.json(populated, { status: 201 });
+  return created(populated);
 }

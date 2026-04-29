@@ -1,18 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
 import LeaveBalance from "@/lib/models/LeaveBalance";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
-import { badRequest, forbidden, unauthorized, isValidId } from "@/lib/helpers";
-
-async function ensureLeaveBalance(userId: mongoose.Types.ObjectId, year: number) {
-  const doc = await LeaveBalance.findOneAndUpdate(
-    { user: userId, year },
-    { $setOnInsert: { user: userId, year } },
-    { upsert: true, new: true },
-  );
-  return doc!;
-}
+import { badRequest, forbidden, unauthorized, isValidId, ok, parseBody } from "@/lib/helpers";
+import { ensureLeaveBalance } from "@/lib/leaveHelpers";
 
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
@@ -30,13 +21,11 @@ export async function GET(req: NextRequest) {
   const targetUserId = userIdParam ?? actor.id;
 
   if (isSuperAdmin(actor) && targetUserId === actor.id) {
-    return NextResponse.json({ total: 0, used: 0, remaining: 0, exempt: true });
+    return ok({ total: 0, used: 0, remaining: 0, exempt: true });
   }
   if (!isValidId(targetUserId)) {
     return badRequest("Invalid userId");
   }
-
-  await connectDB();
 
   if (targetUserId !== actor.id) {
     if (!hasPermission(actor, "leaves_viewTeam") && !hasPermission(actor, "employees_viewLeaves")) {
@@ -56,7 +45,7 @@ export async function GET(req: NextRequest) {
   const used = bal.totalUsed ?? (bal.used.annual + bal.used.sick + bal.used.casual);
   const remaining = Math.max(0, total - used);
 
-  return NextResponse.json({
+  return ok({
     _id: bal._id,
     user: bal.user,
     year: bal.year,
@@ -76,12 +65,8 @@ export async function PUT(req: NextRequest) {
     return forbidden("You don't have permission to update leave allocations.");
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const userId = typeof body.userId === "string" ? body.userId : "";
   const year = typeof body.year === "number" ? body.year : parseInt(String(body.year ?? ""), 10);
@@ -93,8 +78,6 @@ export async function PUT(req: NextRequest) {
   if (total != null && (Number.isNaN(total) || total < 0)) {
     return badRequest("total must be a non-negative number");
   }
-
-  await connectDB();
 
   if (!isSuperAdmin(actor)) {
     const subordinateIds = await getSubordinateUserIds(actor.id);
@@ -120,7 +103,7 @@ export async function PUT(req: NextRequest) {
   const totalVal = bal.total ?? (bal.annual + bal.sick + bal.casual);
   const usedVal = bal.totalUsed ?? (bal.used.annual + bal.used.sick + bal.used.casual);
 
-  return NextResponse.json({
+  return ok({
     _id: bal._id,
     user: bal.user,
     year: bal.year,

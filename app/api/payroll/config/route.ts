@@ -1,7 +1,6 @@
-import { connectDB } from "@/lib/db";
 import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import PayrollConfig, { type ILatePenaltyTier } from "@/lib/models/PayrollConfig";
-import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok, parseBody } from "@/lib/helpers";
 
 const SCALAR_FIELDS = [
   "absencePenaltyPerDay",
@@ -27,8 +26,6 @@ export async function GET() {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "payroll_viewTeam") && !hasPermission(actor, "payroll_manageSalary")) return forbidden();
 
-  await connectDB();
-
   let doc = await PayrollConfig.findOne().lean();
   if (!doc) {
     const created = await PayrollConfig.create({});
@@ -43,14 +40,8 @@ export async function PUT(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "payroll_manageSalary")) return forbidden();
 
-  await connectDB();
-
-  let body: Record<string, unknown>;
-  try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const $set: Record<string, unknown> = {};
 

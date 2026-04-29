@@ -1,6 +1,5 @@
-import { connectDB } from "@/lib/db";
 import SystemSettings from "@/lib/models/SystemSettings";
-import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
+import { unauthorized, forbidden, ok, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
 
@@ -24,7 +23,6 @@ export async function GET() {
     || hasPermission(actor, "settings_sendTestEmail");
   if (!canView) return forbidden();
 
-  await connectDB();
   const settings = await getOrCreateSettings();
   return ok(settings);
 }
@@ -38,10 +36,8 @@ export async function PUT(req: Request) {
   const canLive = hasPermission(actor, "settings_toggleLiveUpdates");
   if (!canCompany && !canOffice && !canLive) return forbidden();
 
-  await connectDB();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
 

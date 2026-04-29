@@ -1,6 +1,5 @@
-import { connectDB } from "@/lib/db";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
-import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 import mongoose from "mongoose";
 
@@ -23,8 +22,6 @@ export async function GET() {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "designations_view") && !hasPermission(actor, "organization_view")) return forbidden();
 
-  await connectDB();
-
   const filter = isSuperAdmin(actor) ? {} : { isActive: true };
 
   const designations = await Designation.find(filter)
@@ -40,14 +37,8 @@ export async function POST(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "designations_create")) return forbidden();
 
-  await connectDB();
-
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) return badRequest("name is required");

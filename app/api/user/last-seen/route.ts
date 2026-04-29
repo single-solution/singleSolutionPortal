@@ -1,14 +1,17 @@
-import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import { getVerifiedSession } from "@/lib/permissions";
-import { unauthorized, ok, badRequest } from "@/lib/helpers";
+import { unauthorized, ok, badRequest, parseBody } from "@/lib/helpers";
 import { NextRequest } from "next/server";
+
+const VALID_ENTITIES = new Set([
+  "employee", "task", "campaign", "department",
+  "designation", "attendance", "leave", "membership",
+  "settings", "security",
+]);
 
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-
-  await connectDB();
 
   const user = await User.findById(actor.id).select("lastSeenLogId lastSeenLogIds").lean();
   const raw = user?.lastSeenLogIds;
@@ -30,17 +33,16 @@ export async function PUT(req: NextRequest) {
   if (!actor) return unauthorized();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const { lastSeenLogId, entity } = body as { lastSeenLogId?: string; entity?: string };
   if (!lastSeenLogId || typeof lastSeenLogId !== "string") {
     return badRequest("lastSeenLogId required");
   }
 
-  await connectDB();
-
   if (entity && typeof entity === "string") {
+    if (!VALID_ENTITIES.has(entity)) return badRequest("Invalid entity");
     await User.updateOne(
       { _id: actor.id },
       { $set: { [`lastSeenLogIds.${entity}`]: lastSeenLogId } },

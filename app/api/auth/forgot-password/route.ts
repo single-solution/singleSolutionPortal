@@ -1,9 +1,9 @@
 import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { isResetBlocked, recordResetAttempt } from "@/lib/rateLimit";
 import { sendResetEmail, getBaseUrl } from "@/lib/mail";
+import { generateHashedToken, RESET_TOKEN_EXPIRY_MS } from "@/lib/tokenHelpers";
 
 export async function POST(request: NextRequest) {
   if (isResetBlocked(request.headers)) {
@@ -15,7 +15,9 @@ export async function POST(request: NextRequest) {
   recordResetAttempt(request.headers);
 
   await connectDB();
-  const { email } = await request.json();
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body" }, { status: 400 }); }
+  const { email } = body;
 
   if (!email || typeof email !== "string") {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -30,11 +32,10 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const rawToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const { rawToken, hashedToken } = generateHashedToken();
 
   user.resetToken = hashedToken;
-  user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
+  user.resetTokenExpiry = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
   await user.save();
 
   const resetUrl = `${getBaseUrl()}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;

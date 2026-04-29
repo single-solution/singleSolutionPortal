@@ -1,19 +1,12 @@
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
 import FlowLayout from "@/lib/models/FlowLayout";
-import { unauthorized, forbidden, badRequest, ok, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok, isValidId, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds, invalidateHierarchyCache } from "@/lib/permissions";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function populateMembership(q: any) {
-  return q
-    .populate("user", "about.firstName about.lastName email username")
-    .populate("department", "title")
-    .populate("designation", "name color defaultPermissions");
-}
+import { populateMembership } from "@/lib/membershipHelpers";
 
 function clonePermissionsFromDesignation(defaultPermissions: IPermissions | Record<string, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
@@ -54,8 +47,6 @@ export async function GET(req: Request) {
     return forbidden();
   }
 
-  await connectDB();
-
   const filter: Record<string, unknown> = { isActive: true };
 
   if (!isSuperAdmin(actor)) {
@@ -79,7 +70,7 @@ export async function GET(req: Request) {
 
   if (userId) {
     const empKey = `emp-${userId}`;
-    const flow = await FlowLayout.findOne({ canvasId: "org" }).select("links").lean();
+    const flow = await FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).select("links").lean();
     const links = (flow?.links ?? []) as { source: string; target: string; designationId?: string }[];
     const isLinkSource = links.some((l) => l.source === empKey);
     const hasAboveMembership = (list as { direction?: string }[]).some((m) => m.direction === "above");
@@ -104,12 +95,8 @@ export async function POST(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const user = body.user;
   const department = body.department;
@@ -128,8 +115,6 @@ export async function POST(req: Request) {
   if (!isSuperAdmin(actor) && !hasPermission(actor, "members_addToDepartment", department)) {
     return forbidden();
   }
-
-  await connectDB();
 
   if (!isSuperAdmin(actor)) {
     if (user === actor.id) {

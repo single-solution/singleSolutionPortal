@@ -118,6 +118,24 @@ export function buildResetHtml(testMode = false): string {
   );
 }
 
+export function buildSetPasswordHtml(name: string, resetUrl: string, isWelcome = false): string {
+  return wrap(
+    "linear-gradient(135deg, #0071e3, #0055cc)",
+    isWelcome ? "🎉" : "🔐",
+    isWelcome ? "Welcome to the Team!" : "Set Your Password",
+    "Single Solution Sync",
+    `<p style="color: #475569; font-size: 15px; margin: 0 0 4px; font-weight: 500; text-align: center;">
+        Hi <strong style="color: #1e293b;">${name}</strong>, ${isWelcome ? "your account has been created." : "your account is ready."}
+      </p>
+      <p style="color: #475569; font-size: 14px; margin: 0 0 16px; text-align: center;">
+        Click below to set your password and get started.
+      </p>
+      <div style="text-align: center;">${ctaButton(resetUrl, "Set Password →")}</div>
+      <p style="color: #94a3b8; font-size: 12px; margin: 16px 0 0; text-align: center;">This link expires in 24 hours.</p>`,
+    isWelcome ? "This is an automated message from your team's presence system." : "This invite was sent from Single Solution Sync.",
+  );
+}
+
 export function buildAlertHtml(bodyText: string, testMode = false): string {
   return wrap(
     "linear-gradient(135deg, #f59e0b, #d97706)",

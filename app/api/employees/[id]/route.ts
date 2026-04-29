@@ -1,4 +1,4 @@
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
 import Membership from "@/lib/models/Membership";
@@ -16,7 +16,7 @@ import Campaign from "@/lib/models/Campaign";
 import ActivityTask from "@/lib/models/ActivityTask";
 import FlowLayout from "@/lib/models/FlowLayout";
 import ActivityLog from "@/lib/models/ActivityLog";
-import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, notFound, ok, isValidId, parseBody } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
@@ -25,6 +25,7 @@ import {
   invalidateHierarchyCache,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
+import { getUserFields } from "@/lib/userFields";
 import bcrypt from "bcryptjs";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -34,8 +35,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   if (id !== actor.id) {
     if (!hasPermission(actor, "employees_view")) return forbidden("You don't have permission to view employee profiles");
     if (!isSuperAdmin(actor)) {
@@ -44,8 +43,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
+  const hasPayrollAccess = hasPermission(actor, "payroll_manageSalary");
   const user = await User.findById(id)
-    .select("-password")
+    .select(getUserFields(hasPayrollAccess))
     .lean() as Record<string, unknown> | null;
 
   if (!user) return notFound("Employee not found");
@@ -78,14 +78,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!subordinateIds.includes(id)) return forbidden("Can only edit employees within your hierarchy");
   }
 
-  await connectDB();
-
   const target = await User.findById(id).select("isSuperAdmin").lean();
   if (target?.isSuperAdmin && !actor.isSuperAdmin) return forbidden("Cannot modify a superadmin account");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
   delete body.isSuperAdmin;
 
   const update: Record<string, unknown> = { updatedBy: actor.id };
@@ -162,7 +160,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const user = await User.findByIdAndUpdate(id, updateOps, { new: true })
-    .select("-password")
+    .select(getUserFields(hasPermission(actor, "payroll_manageSalary")))
     .lean();
 
   if (!user) return notFound("Employee not found");
@@ -189,8 +187,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
 
   if (actor.id === id) return badRequest("Cannot delete yourself");
 
@@ -225,7 +221,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   // Remove from org chart: links involving this employee + saved position
   await FlowLayout.updateMany(
-    { canvasId: "org" },
+    { canvasId: ORG_CANVAS_ID },
     {
       $pull: { links: { $or: [{ source: empKey }, { target: empKey }] } },
       $unset: { [`positions.${empKey}`]: 1 },

@@ -1,8 +1,7 @@
-import { connectDB } from "@/lib/db";
 import Campaign from "@/lib/models/Campaign";
-import User from "@/lib/models/User";
-import Department from "@/lib/models/Department";
-import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
+import "@/lib/models/User";
+import "@/lib/models/Department";
+import { unauthorized, forbidden, badRequest, notFound, ok, isValidId, parseBody } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
@@ -12,6 +11,7 @@ import {
   getHierarchyDepartmentIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
+import { CAMPAIGN_STATUSES } from "@/lib/campaignHelpers";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
@@ -19,10 +19,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
-  void Department;
-  void User;
 
   const scopeFilter = hasPermission(actor, "campaigns_view")
     ? await getCampaignScopeFilter(actor)
@@ -50,19 +46,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   const scopeFilter = await getCampaignScopeFilter(actor);
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter });
   if (!campaign) return notFound("Campaign not found or outside your scope");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
 
-  const validStatuses = ["active", "paused", "completed", "cancelled"];
-  if (body.status !== undefined && !validStatuses.includes(body.status)) {
-    return badRequest(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+  if (body.status !== undefined && !CAMPAIGN_STATUSES.includes(body.status)) {
+    return badRequest(`Invalid status. Must be one of: ${CAMPAIGN_STATUSES.join(", ")}`);
   }
 
   if (canEdit) {
@@ -136,8 +129,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
 
   const scopeFilter = await getCampaignScopeFilter(actor);
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter });

@@ -1,18 +1,10 @@
-import { connectDB } from "@/lib/db";
 import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS, type IPermissions } from "@/lib/models/Designation";
 import User from "@/lib/models/User";
 import Department from "@/lib/models/Department";
-import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, notFound, ok, isValidId, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds, invalidateHierarchyCache } from "@/lib/permissions";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function populateMembership(q: any) {
-  return q
-    .populate("user", "about.firstName about.lastName email username")
-    .populate("department", "title")
-    .populate("designation", "name color defaultPermissions");
-}
+import { populateMembership } from "@/lib/membershipHelpers";
 
 function canViewMembership(
   actor: NonNullable<Awaited<ReturnType<typeof getVerifiedSession>>>,
@@ -47,8 +39,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   const doc = await populateMembership(Membership.findById(id)).lean();
   if (!doc) return notFound("Membership not found");
 
@@ -72,8 +62,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   const membership = await Membership.findById(id);
   if (!membership) return notFound("Membership not found");
 
@@ -94,12 +82,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const changingDesig = body.designation !== undefined;
   const changingPerms = body.permissions !== undefined;
@@ -182,8 +166,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
 
   const membership = await Membership.findById(id);
   if (!membership) return notFound("Membership not found");

@@ -1,6 +1,5 @@
-import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
-import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
+import { unauthorized, forbidden, ok, badRequest, isValidId, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 
 export async function PUT(req: Request) {
@@ -8,20 +7,18 @@ export async function PUT(req: Request) {
   if (!actor) return unauthorized();
   if (!isSuperAdmin(actor) && !hasPermission(actor, "tasks_reorder")) return forbidden();
 
-  let body: { orderedIds: string[] };
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
+  const { orderedIds } = body as { orderedIds?: string[] };
 
-  if (!Array.isArray(body.orderedIds) || body.orderedIds.length === 0) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
     return badRequest("orderedIds must be a non-empty array of task IDs");
   }
+  if (orderedIds.some((id) => !isValidId(id))) {
+    return badRequest("orderedIds contains invalid IDs");
+  }
 
-  await connectDB();
-
-  const ops = body.orderedIds.map((id, index) => ({
+  const ops = orderedIds.map((id, index) => ({
     updateOne: { filter: { _id: id }, update: { $set: { order: index } } },
   }));
 

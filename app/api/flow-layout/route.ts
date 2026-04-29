@@ -1,7 +1,7 @@
-import { connectDB } from "@/lib/db";
 import FlowLayout from "@/lib/models/FlowLayout";
-import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
+import { unauthorized, forbidden, ok, badRequest, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, hasPermission, invalidateHierarchyCache } from "@/lib/permissions";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 
 export async function GET(req: Request) {
   const actor = await getVerifiedSession();
@@ -9,9 +9,8 @@ export async function GET(req: Request) {
   if (!hasPermission(actor, "organization_view")) return forbidden();
 
   const { searchParams } = new URL(req.url);
-  const canvasId = searchParams.get("canvasId") ?? "org";
+  const canvasId = searchParams.get("canvasId") ?? ORG_CANVAS_ID;
 
-  await connectDB();
   const doc = await FlowLayout.findOne({ canvasId }).lean();
 
   return ok({ positions: doc?.positions ?? {}, links: doc?.links ?? [] });
@@ -22,14 +21,10 @@ export async function PUT(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "organization_manageLinks")) return forbidden();
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
-  const canvasId = (body.canvasId as string) ?? "org";
+  const canvasId = (body.canvasId as string) ?? ORG_CANVAS_ID;
   const update: Record<string, unknown> = {};
 
   if (body.positions && typeof body.positions === "object") {
@@ -53,7 +48,6 @@ export async function PUT(req: Request) {
     return badRequest("positions or links required");
   }
 
-  await connectDB();
   await FlowLayout.findOneAndUpdate(
     { canvasId },
     { $set: update },

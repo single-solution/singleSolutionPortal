@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
+import { NextRequest } from "next/server";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
-import User, { resolveWeeklySchedule, type Weekday, type DaySchedule } from "@/lib/models/User";
+import User, { resolveWeeklySchedule } from "@/lib/models/User";
+import { roundMoney, dayExpectedMinutes, DAY_OF_WEEK } from "@/lib/payrollMath";
 import Membership from "@/lib/models/Membership";
 import Department from "@/lib/models/Department";
 import DailyAttendance from "@/lib/models/DailyAttendance";
@@ -16,21 +16,8 @@ import {
   utcDateKey,
   workingDayKeysInMonth,
 } from "@/lib/payrollUtils";
-import { unauthorized, forbidden, badRequest } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 
-function roundMoney(n: number, dec = 2): number {
-  const p = 10 ** dec;
-  return Math.round(n * p) / p;
-}
-
-function dayExpectedMinutes(day: DaySchedule): number {
-  if (!day.isWorking) return 0;
-  const [sh, sm] = day.start.split(":").map(Number);
-  const [eh, em] = day.end.split(":").map(Number);
-  return Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - day.breakMinutes);
-}
-
-const DOW: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
@@ -44,13 +31,11 @@ export async function GET(req: NextRequest) {
   if (!Number.isInteger(month) || month < 1 || month > 12) return badRequest("Invalid month");
   if (!Number.isInteger(year) || year < 1970) return badRequest("Invalid year");
 
-  await connectDB();
-
   const targetIds = isSuperAdmin(actor)
     ? (await User.find({ isActive: true, isSuperAdmin: { $ne: true } }).select("_id").lean()).map((u) => String(u._id))
     : await getSubordinateUserIds(actor.id);
 
-  if (!targetIds.length) return NextResponse.json([]);
+  if (!targetIds.length) return ok([]);
 
   const employees = await User.find({ _id: { $in: targetIds }, isActive: true })
     .select("about email salary weeklySchedule")
@@ -130,7 +115,7 @@ export async function GET(req: NextRequest) {
             latePenalty += dailyRate * (tier.penaltyPercent / 100);
           }
         }
-        const dayKey = DOW[d.getUTCDay()];
+        const dayKey = DAY_OF_WEEK[d.getUTCDay()];
         const expected = dayExpectedMinutes(schedule[dayKey]);
         overtimeMin += Math.max(0, (Number(row.totalWorkingMinutes) || 0) - expected);
       }
@@ -176,7 +161,7 @@ export async function GET(req: NextRequest) {
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
 
-  return NextResponse.json({
+  return ok({
     month,
     year,
     generatedAt: new Date().toISOString(),

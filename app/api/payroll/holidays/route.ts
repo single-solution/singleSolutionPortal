@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
+import { NextRequest } from "next/server";
 import { getVerifiedSession, hasPermission } from "@/lib/permissions";
 import Holiday from "@/lib/models/Holiday";
 import { utcDateKey } from "@/lib/payrollUtils";
-import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, notFound, ok, created, isValidId, parseBody } from "@/lib/helpers";
 
 function holidayToCalendarRow(h: {
   name: string;
@@ -45,8 +44,6 @@ export async function GET(req: NextRequest) {
     return badRequest("Invalid year");
   }
 
-  await connectDB();
-
   const rows = await Holiday.find({
     $or: [{ year }, { isRecurring: true }],
   })
@@ -75,14 +72,8 @@ export async function POST(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "holidays_create")) return forbidden();
 
-  await connectDB();
-
-  let body: { name?: string; date?: string; year?: number; isRecurring?: boolean };
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) return badRequest("name is required");
@@ -104,12 +95,13 @@ export async function POST(req: Request) {
       year,
       isRecurring,
     });
-    return NextResponse.json(doc.toObject(), { status: 201 });
+    const newHoliday = doc.toObject();
+    return created(newHoliday);
   } catch (e: unknown) {
     const msg = e && typeof e === "object" && "code" in e && (e as { code?: number }).code === 11000
       ? "A holiday already exists on this date"
       : "Failed to create holiday";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return badRequest(msg);
   }
 }
 
@@ -118,14 +110,13 @@ export async function PUT(req: NextRequest) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "holidays_toggleRecurring")) return forbidden();
 
-  let body: { id?: string; isRecurring?: boolean };
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const id = body.id;
   if (!id || !isValidId(id)) return badRequest("Valid id is required");
   if (typeof body.isRecurring !== "boolean") return badRequest("isRecurring (boolean) is required");
 
-  await connectDB();
   const doc = await Holiday.findByIdAndUpdate(id, { isRecurring: body.isRecurring }, { new: true }).lean();
   if (!doc) return notFound("Holiday not found");
 
@@ -140,8 +131,6 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return badRequest("Query parameter id is required");
   if (!isValidId(id)) return badRequest("Invalid id");
-
-  await connectDB();
 
   const res = await Holiday.findByIdAndDelete(id);
   if (!res) return notFound("Holiday not found");

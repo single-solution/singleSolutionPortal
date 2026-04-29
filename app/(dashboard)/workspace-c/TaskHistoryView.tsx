@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MiniCalendar, useCalendarNav } from "../components/MiniCalendar";
-import { usePermissions } from "@/lib/usePermissions";
 
 /* ───── Types ───── */
 
@@ -393,9 +392,6 @@ interface ViewProps {
 }
 
 export function TaskHistoryView({ campaigns, preSelectedTaskId, preSelectedCampaignId, className }: ViewProps) {
-  const { isSuperAdmin, can: canPerm } = usePermissions();
-  const isPrivileged = isSuperAdmin || canPerm("tasks_view");
-
   const { defaultYear, defaultMonth, prevMonth, nextMonth } = useCalendarNav();
   const [year, setYear] = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);

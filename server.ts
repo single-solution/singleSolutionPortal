@@ -1,6 +1,7 @@
 import { createServer } from "http";
 import next from "next";
 import { Server } from "socket.io";
+import { verifySocketSession, SOCKET_CORS_ORIGINS } from "./lib/socketAuth";
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
@@ -12,17 +13,15 @@ app.prepare().then(() => {
   });
 
   const io = new Server(httpServer, {
-    cors: {
-      origin: process.env.ALLOWED_ORIGINS?.split(",") ?? ["*"],
-      credentials: true,
-    },
+    cors: { origin: SOCKET_CORS_ORIGINS, credentials: true },
   });
 
   (global as Record<string, unknown>).__io = io;
 
-  io.on("connection", (socket) => {
-    const userId = socket.handshake.auth?.userId as string | undefined;
-    if (userId) socket.join(`user:${userId}`);
+  io.on("connection", async (socket) => {
+    const userId = await verifySocketSession(socket.handshake.headers.cookie);
+    if (!userId) { socket.disconnect(true); return; }
+    socket.join(`user:${userId}`);
 
     socket.on("join-presence", () => {
       socket.join("presence");

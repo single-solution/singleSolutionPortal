@@ -1,14 +1,9 @@
-import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
 import ChecklistLog from "@/lib/models/ChecklistLog";
 import TaskStatusLog from "@/lib/models/TaskStatusLog";
-import { unauthorized, badRequest, notFound, ok, isValidId, forbidden } from "@/lib/helpers";
+import { unauthorized, badRequest, notFound, ok, isValidId, forbidden, parseBody } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin } from "@/lib/permissions";
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { todayKey } from "@/lib/campaignHelpers";
 
 /** POST — toggle a recurring task's completion for today */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -19,13 +14,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!isValidId(campaignId)) return badRequest("Invalid campaign ID");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const { taskId, note } = body;
   if (!taskId || !isValidId(taskId)) return badRequest("taskId is required");
-
-  await connectDB();
 
   const task = await ActivityTask.findOne({ _id: taskId, campaign: campaignId, isActive: true }).lean();
   if (!task) return notFound("Recurring task not found in this campaign");

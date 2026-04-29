@@ -1,9 +1,9 @@
-import { connectDB } from "@/lib/db";
 import Membership from "@/lib/models/Membership";
 import Designation, { PERMISSION_KEYS } from "@/lib/models/Designation";
 import FlowLayout from "@/lib/models/FlowLayout";
 import { unauthorized, forbidden, ok, badRequest } from "@/lib/helpers";
 import { getVerifiedSession, hasPermission, invalidateHierarchyCache } from "@/lib/permissions";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 
 interface EmpLink {
   source: string;
@@ -81,9 +81,7 @@ export async function POST(req: Request) {
     /* empty body is ok */
   }
 
-  const canvasId = (body.canvasId as string) ?? "org";
-
-  await connectDB();
+  const canvasId = (body.canvasId as string) ?? ORG_CANVAS_ID;
 
   const layout = await FlowLayout.findOne({ canvasId }).lean();
   const links: EmpLink[] = (layout?.links as unknown as EmpLink[]) ?? [];

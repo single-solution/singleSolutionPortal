@@ -1,9 +1,9 @@
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import Department from "@/lib/models/Department";
 import User from "@/lib/models/User";
 import Membership from "@/lib/models/Membership";
 import FlowLayout from "@/lib/models/FlowLayout";
-import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, notFound, ok, badRequest, isValidId, parseBody } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
@@ -22,16 +22,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   if (!isSuperAdmin(actor)) {
     const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
     if (!hierarchyDeptIds.includes(id)) return forbidden("Can only edit departments within your hierarchy");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body = await parseBody(req);
+  if (body instanceof Response) return body;
 
   if (body.managerId) {
     if (!isValidId(body.managerId)) return badRequest("Invalid managerId");
@@ -125,8 +122,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
-
   if (!isSuperAdmin(actor)) {
     const hierarchyDeptIds = await getHierarchyDepartmentIds(actor.id);
     if (!hierarchyDeptIds.includes(id)) return forbidden("Can only delete departments within your hierarchy");
@@ -140,7 +135,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     Membership.deleteMany({ department: id }),
     Department.updateMany({ parentDepartment: id }, { $unset: { parentDepartment: 1 } }),
     FlowLayout.updateMany(
-      { canvasId: "org" },
+      { canvasId: ORG_CANVAS_ID },
       {
         $pull: { links: { $or: [{ source: deptKey }, { target: deptKey }] } },
         $unset: { [`positions.${deptKey}`]: 1 },

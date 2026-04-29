@@ -5,6 +5,7 @@ import FlowLayout from "@/lib/models/FlowLayout";
 import "@/lib/models/Department";
 import { PERMISSION_KEYS, SELF_PERMISSIONS, type IPermissions, type AnyPermissionKey } from "@/lib/permissions.shared";
 import { auth } from "@/lib/auth";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 
 /* ================================================================ */
 /* MEMBERSHIP-ENRICHED SESSION                                       */
@@ -33,7 +34,7 @@ export interface VerifiedUser {
  */
 async function getLinkPermissions(userId: string): Promise<Partial<Record<keyof IPermissions, boolean>>> {
   await connectDB();
-  const layout = await FlowLayout.findOne({ canvasId: "org" }).select("links").lean();
+  const layout = await FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).select("links").lean();
   const links = (layout?.links ?? []) as { source: string; target: string; sourceHandle: string; targetHandle: string; permissions?: Record<string, boolean> }[];
   const empNode = `emp-${userId}`;
   const merged: Partial<Record<keyof IPermissions, boolean>> = {};
@@ -55,6 +56,7 @@ async function getLinkPermissions(userId: string): Promise<Partial<Record<keyof 
   return merged;
 }
 
+/** Authenticates the current request and returns the verified user. Also establishes the DB connection (no need to call connectDB separately). */
 export async function getVerifiedSession(): Promise<VerifiedUser | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
@@ -111,7 +113,7 @@ export async function getVerifiedSession(): Promise<VerifiedUser | null> {
 /* SERVER-SIDE PERMISSIONS PAYLOAD                                    */
 /* ================================================================ */
 
-export interface PermissionsPayload {
+interface PermissionsPayload {
   isSuperAdmin: boolean;
   permissions: Partial<Record<keyof IPermissions, boolean>>;
   hasSubordinates: boolean;
@@ -209,7 +211,7 @@ async function loadOrgGraph(): Promise<OrgGraphData> {
 
   await connectDB();
   const [layout, allMemberships] = await Promise.all([
-    FlowLayout.findOne({ canvasId: "org" }).select("links").lean(),
+    FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).select("links").lean(),
     Membership.find({ isActive: true })
       .select("user department direction")
       .lean(),

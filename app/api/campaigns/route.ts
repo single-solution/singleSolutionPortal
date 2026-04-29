@@ -1,10 +1,9 @@
-import { connectDB } from "@/lib/db";
 import Campaign from "@/lib/models/Campaign";
 import ActivityTask from "@/lib/models/ActivityTask";
 import ChecklistLog from "@/lib/models/ChecklistLog";
-import User from "@/lib/models/User";
-import Department from "@/lib/models/Department";
-import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
+import "@/lib/models/User";
+import "@/lib/models/Department";
+import { unauthorized, forbidden, badRequest, ok, parseBody } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
@@ -14,11 +13,7 @@ import {
   getHierarchyDepartmentIds,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { todayKey, CAMPAIGN_STATUSES } from "@/lib/campaignHelpers";
 
 function isDueToday(rec: { frequency: string; days?: number[] } | undefined): boolean {
   if (!rec || !Array.isArray(rec.days)) return false;
@@ -30,10 +25,6 @@ function isDueToday(rec: { frequency: string; days?: number[] } | undefined): bo
 export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
-
-  await connectDB();
-  void Department;
-  void User;
 
   const filter = hasPermission(actor, "campaigns_view")
     ? await getCampaignScopeFilter(actor)
@@ -146,18 +137,16 @@ export async function POST(req: Request) {
   if (!actor) return unauthorized();
   if (!hasPermission(actor, "campaigns_create")) return forbidden();
 
-  await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
 
   if (!body.name?.trim()) {
     return badRequest("Campaign name is required");
   }
 
-  const validStatuses = ["active", "paused", "completed", "cancelled"];
-  if (body.status && !validStatuses.includes(body.status)) {
-    return badRequest(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+  if (body.status && !CAMPAIGN_STATUSES.includes(body.status)) {
+    return badRequest(`Invalid status. Must be one of: ${CAMPAIGN_STATUSES.join(", ")}`);
   }
 
   const tagEmployees: string[] = body.tagEmployees ?? [];

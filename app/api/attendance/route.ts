@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
+import { ORG_CANVAS_ID } from "@/lib/constants";
 import DailyAttendance from "@/lib/models/DailyAttendance";
 import ActivitySession from "@/lib/models/ActivitySession";
 import MonthlyAttendanceStats from "@/lib/models/MonthlyAttendanceStats";
@@ -8,14 +8,15 @@ import FlowLayout from "@/lib/models/FlowLayout";
 import SystemSettings from "@/lib/models/SystemSettings";
 import User from "@/lib/models/User";
 import { unauthorized, ok } from "@/lib/helpers";
+import { safeParseInt } from "@/lib/validation";
 import { startOfDay } from "@/lib/dayBoundary";
 import { resolveTimezone, dateInTz } from "@/lib/tz";
 import {
   getVerifiedSession,
   hasPermission,
   getSubordinateUserIds,
+  type VerifiedUser,
 } from "@/lib/permissions";
-import type { VerifiedUser } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 import { inheritDepartments } from "@/lib/departmentInheritance";
 
@@ -43,36 +44,17 @@ export async function GET(req: NextRequest) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  await connectDB();
-
   const settings = await SystemSettings.findOne({ key: "global" }).select("company.timezone").lean();
   const tz = resolveTimezone((settings?.company as { timezone?: string })?.timezone ?? "asia-karachi");
 
   const url = new URL(req.url);
   const type = url.searchParams.get("type") ?? "daily";
-  const year = parseInt(url.searchParams.get("year") ?? String(new Date().getFullYear()));
-  const month = parseInt(url.searchParams.get("month") ?? String(new Date().getMonth() + 1));
+  const year = safeParseInt(url.searchParams.get("year"), new Date().getFullYear());
+  const month = safeParseInt(url.searchParams.get("month"), new Date().getMonth() + 1);
   const userId = url.searchParams.get("userId") ?? actor.id;
 
   const subordinateIds = actor.isSuperAdmin ? [] : await getSubordinateUserIds(actor.id);
   const canTeam = actor.isSuperAdmin || hasPermission(actor, "attendance_viewTeam") || hasPermission(actor, "employees_viewAttendance");
-
-  if (type === "team") {
-    if (!canTeam) return ok([]);
-    const empFilter = buildSubordinateEmployeeFilter(actor, subordinateIds);
-
-    const employees = await User.find(empFilter)
-      .select("about")
-      .sort({ "about.firstName": 1 })
-      .lean();
-
-    const result = employees.map((emp) => ({
-      _id: emp._id.toString(),
-      name: `${emp.about.firstName} ${emp.about.lastName ?? ""}`.trim(),
-    }));
-
-    return ok(result);
-  }
 
   if (type === "team-monthly") {
     if (!canTeam) return ok([]);
@@ -109,7 +91,7 @@ export async function GET(req: NextRequest) {
         user: { $in: empIds },
         isActive: true,
       }).populate("department", "title").populate("designation", "name").lean(),
-      FlowLayout.findOne({ canvasId: "org" }).lean(),
+      FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).lean(),
     ]);
 
     const empDeptMap = new Map<string, { deptId: string; deptName: string; role: string }>();
@@ -196,7 +178,7 @@ export async function GET(req: NextRequest) {
         user: { $in: empIds },
         isActive: true,
       }).populate("department", "title").populate("designation", "name").lean(),
-      FlowLayout.findOne({ canvasId: "org" }).lean(),
+      FlowLayout.findOne({ canvasId: ORG_CANVAS_ID }).lean(),
     ]);
 
     const dateDeptMap = new Map<string, { deptId: string; deptName: string; role: string }>();

@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
 import Campaign from "@/lib/models/Campaign";
 import ActivityTask from "@/lib/models/ActivityTask";
 import ChecklistLog from "@/lib/models/ChecklistLog";
-import User from "@/lib/models/User";
+import "@/lib/models/User";
 import { unauthorized, forbidden, badRequest, notFound, ok, isValidId } from "@/lib/helpers";
 import {
   getVerifiedSession,
@@ -22,9 +21,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
-  void User;
 
   const scopeFilter = await getCampaignScopeFilter(actor);
   const campaign = await Campaign.findOne({ _id: id, ...scopeFilter })

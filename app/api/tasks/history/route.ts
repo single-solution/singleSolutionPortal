@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
 import TaskStatusLog from "@/lib/models/TaskStatusLog";
 import ActivityTask from "@/lib/models/ActivityTask";
 import ChecklistLog from "@/lib/models/ChecklistLog";
@@ -37,10 +36,6 @@ export async function GET(req: NextRequest) {
   if (!type || !VALID_TYPES.includes(type)) {
     return badRequest(`type must be one of: ${VALID_TYPES.join(", ")}`);
   }
-
-  await connectDB();
-  void User;
-  void Campaign;
 
   const isPrivileged = isSuperAdmin(actor) || hasPermission(actor, "tasks_view") || hasPermission(actor, "tasks_viewTeamProgress");
 

@@ -1,9 +1,8 @@
-import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
 import TaskStatusLog from "@/lib/models/TaskStatusLog";
 import Campaign from "@/lib/models/Campaign";
 import User from "@/lib/models/User";
-import { unauthorized, forbidden, notFound, ok, badRequest, isValidId } from "@/lib/helpers";
+import { unauthorized, forbidden, notFound, ok, badRequest, isValidId, parseBody } from "@/lib/helpers";
 import {
   getVerifiedSession,
   isSuperAdmin,
@@ -12,11 +11,8 @@ import {
   getCampaignScopeFilter,
 } from "@/lib/permissions";
 import { logActivity } from "@/lib/activityLogger";
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { validateString, validateDate, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from "@/lib/validation";
+import { todayKey, parseRecurrence } from "@/lib/campaignHelpers";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getVerifiedSession();
@@ -25,10 +21,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
 
-  await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const task = await ActivityTask.findById(id);
   if (!task) return notFound("Task not found");
@@ -63,8 +58,21 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
+  if (body.title !== undefined) {
+    const titleError = validateString(body.title, "title", MAX_TITLE_LENGTH);
+    if (titleError) return badRequest(titleError);
+  }
+  if (body.description !== undefined) {
+    const descriptionError = validateString(body.description, "description", MAX_DESCRIPTION_LENGTH);
+    if (descriptionError) return badRequest(descriptionError);
+  }
+  if (body.deadline !== undefined) {
+    const deadlineError = validateDate(body.deadline, "deadline");
+    if (deadlineError) return badRequest(deadlineError);
+  }
+
   if (canEditTask) {
-    if (body.title !== undefined) task.title = body.title;
+    if (body.title !== undefined) task.title = (body.title as string).trim();
     if (body.description !== undefined) task.description = body.description;
     if (body.deadline !== undefined) task.deadline = body.deadline;
     if (body.campaign !== undefined) {
@@ -110,16 +118,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.recurrence !== undefined) {
       if (body.recurrence === null) {
         task.recurrence = undefined;
-      } else if (body.recurrence.frequency) {
-        const validFreqs = ["weekly", "monthly"];
-        if (validFreqs.includes(body.recurrence.frequency) && Array.isArray(body.recurrence.days) && body.recurrence.days.length > 0) {
-          const maxVal = body.recurrence.frequency === "weekly" ? 6 : 31;
-          const minVal = body.recurrence.frequency === "weekly" ? 0 : 1;
-          const days = body.recurrence.days.filter((d: number) => typeof d === "number" && d >= minVal && d <= maxVal);
-          if (days.length > 0) {
-            task.recurrence = { frequency: body.recurrence.frequency, days } as typeof task.recurrence;
-          }
-        }
+      } else {
+        const parsed = parseRecurrence(body.recurrence);
+        if (!parsed) return badRequest("Invalid recurrence. Provide valid frequency and days.");
+        task.recurrence = parsed as typeof task.recurrence;
       }
     }
   }
@@ -205,8 +207,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
 
   const task = await ActivityTask.findById(id);
   if (!task) return notFound("Task not found");

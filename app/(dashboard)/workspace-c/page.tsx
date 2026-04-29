@@ -54,10 +54,6 @@ interface Task {
   isActive?: boolean;
 }
 
-function isTaskAssigned(task: Task, userId: string): boolean {
-  return Array.isArray(task.assignedTo) ? task.assignedTo.some((a) => a._id === userId) : false;
-}
-
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const ALL_WORKING = [1, 2, 3, 4, 5];
 
@@ -108,7 +104,6 @@ const WS_LOG_COLORS: Record<string, { bg: string; fg: string }> = {
   task:     { bg: "color-mix(in srgb, var(--primary) 14%, transparent)", fg: "var(--primary)" },
   campaign: { bg: "color-mix(in srgb, #8b5cf6 14%, transparent)", fg: "#8b5cf6" },
 };
-const WS_LOG_LABELS: Record<string, string> = { task: "Task updates", campaign: "Campaign updates" };
 function resolveLogName(log: LogEntry) {
   const n = (log.userName || "").trim();
   if (n) return n;
@@ -116,12 +111,6 @@ function resolveLogName(log: LogEntry) {
   const local = log.userEmail.split("@")[0] ?? "";
   if (/^admin$/i.test(local)) return "Admin";
   return local.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function logAvatarLabel(log: LogEntry) {
-  const n = resolveLogName(log);
-  const parts = n.split(/\s+/).filter(Boolean);
-  return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
 /* ─── helpers ─── */
@@ -171,7 +160,6 @@ export default function WorkspacePage() {
   const canDeleteCampaigns = canPerm("campaigns_delete");
   const canToggleCampaign = canPerm("campaigns_toggleStatus");
   const canTagEntities = canPerm("campaigns_tagEntities");
-  const canViewCampaigns = canPerm("campaigns_view");
   const canViewLogs = canPerm("activityLogs_view");
 
   const myHierarchy = useMemo(() => {
@@ -600,12 +588,6 @@ export default function WorkspacePage() {
       else toast.error("Reorder failed");
     } catch { toast.error("Reorder failed"); }
   }, [filteredCampaignTasks, refetchTasks]);
-
-  const statusCounts = useMemo(() => {
-    const m: Record<string, number> = { all: taskList.length, pending: 0, inProgress: 0, completed: 0 };
-    for (const t of taskList) m[t.status] = (m[t.status] ?? 0) + 1;
-    return m;
-  }, [taskList]);
 
   const { inactiveCount, visibleCampaigns } = useMemo(() => {
     const byName = (a: Campaign, b: Campaign) => a.name.localeCompare(b.name);

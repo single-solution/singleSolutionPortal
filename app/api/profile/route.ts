@@ -1,9 +1,9 @@
-import { connectDB } from "@/lib/db";
 import User from "@/lib/models/User";
 import ActivityLog from "@/lib/models/ActivityLog";
 import bcrypt from "bcryptjs";
 import { getVerifiedSession } from "@/lib/permissions";
-import { unauthorized, ok, notFound, badRequest } from "@/lib/helpers";
+import { unauthorized, ok, notFound, badRequest, parseBody } from "@/lib/helpers";
+import { getUserFields } from "@/lib/userFields";
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 const EMAIL_CHANGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -12,10 +12,8 @@ export async function GET() {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  await connectDB();
-
   const user = await User.findById(actor.id)
-    .select("-password")
+    .select(getUserFields(true))
     .lean();
 
   if (!user) return notFound("User not found");
@@ -26,10 +24,9 @@ export async function PUT(req: Request) {
   const actor = await getVerifiedSession();
   if (!actor) return unauthorized();
 
-  await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any;
-  try { body = await req.json(); } catch { return badRequest("Invalid JSON body"); }
+  const body: any = await parseBody(req);
+  if (body instanceof Response) return body;
 
   const update: Record<string, unknown> = {};
   if (body.fullName !== undefined) {
@@ -94,7 +91,7 @@ export async function PUT(req: Request) {
   }
 
   const user = await User.findByIdAndUpdate(actor.id, { $set: update }, { new: true })
-    .select("-password")
+    .select(getUserFields(true))
     .lean();
 
   if (!user) return notFound("User not found");

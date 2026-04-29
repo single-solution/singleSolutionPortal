@@ -1,4 +1,3 @@
-import { connectDB } from "@/lib/db";
 import ActivityTask from "@/lib/models/ActivityTask";
 import { unauthorized, forbidden, ok, badRequest, notFound, isValidId } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission, getSubordinateUserIds } from "@/lib/permissions";
@@ -9,8 +8,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { id } = await params;
   if (!isValidId(id)) return badRequest("Invalid ID");
-
-  await connectDB();
 
   const parent = await ActivityTask.findById(id).select("assignedTo").lean();
   if (!parent) return notFound("Parent task not found");

@@ -1,7 +1,7 @@
-import { unauthorized, forbidden } from "@/lib/helpers";
+import { unauthorized, forbidden, badRequest, ok } from "@/lib/helpers";
 import { getVerifiedSession, isSuperAdmin, hasPermission } from "@/lib/permissions";
 import { sendMail, buildInviteHtml, buildResetHtml, buildAlertHtml } from "@/lib/mail";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   const actor = await getVerifiedSession();
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
       html = buildAlertHtml("This is a test attendance notification.", true);
       break;
     default:
-      return NextResponse.json({ error: "Invalid type. Use invite, reset, or alert." }, { status: 400 });
+      return badRequest("Invalid type. Use invite, reset, or alert.");
   }
 
   const sent = await sendMail(to, subject, html);
 
-  return NextResponse.json({
+  return ok({
     success: sent,
     message: sent ? `Test email (${type}) sent to ${to}` : "Email not sent. Check SMTP configuration.",
     to,
