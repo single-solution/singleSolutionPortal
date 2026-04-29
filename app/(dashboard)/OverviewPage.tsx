@@ -335,10 +335,9 @@ const blobGradients = [
 
 /* ──────────────────────── WELCOME HEADER ──────────────────────── */
 
-function WelcomeHeader({ user, userProfile, scopeStrip }: {
+function WelcomeHeader({ user, userProfile }: {
   user: User;
   userProfile: UserProfile | null;
-  scopeStrip?: React.ReactNode;
 }) {
   const profileName = userProfile?.firstName ?? user.firstName;
 
@@ -358,7 +357,6 @@ function WelcomeHeader({ user, userProfile, scopeStrip }: {
         
           </motion.div>
       <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
-        {scopeStrip}
         <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="card group relative overflow-hidden px-4 py-2.5 shrink-0">
           <div className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rounded-bl-[50px] opacity-10 transition-opacity group-hover:opacity-15" style={{ background: blobGradients[0] }} />
           <div className="flex items-baseline gap-2">
@@ -1064,7 +1062,7 @@ function AdminDashboard({
     <div className="flex flex-col" style={{ height: "calc(93dvh - 80px)" }}>
       {/* 1. Welcome header */}
       <div className="shrink-0 mb-4">
-        <WelcomeHeader user={user} userProfile={userProfile} scopeStrip={<ScopeStrip value={scopeDept} onChange={setScopeDept} />} />
+        <WelcomeHeader user={user} userProfile={userProfile} />
             </div>
 
       {/* 2. Main content + Activity sidebar (sidebar spans full height) */}
@@ -1082,7 +1080,10 @@ function AdminDashboard({
         {/* Admin Overview — general stats grid (SuperAdmin or analytics_viewDashboard) */}
         {(isSuperAdmin || canViewDashboard) && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="shrink-0 rounded-xl border overflow-hidden flex flex-col" style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}>
-            <h3 className="shrink-0 px-4 py-2.5 text-[12px] font-bold border-b" style={{ color: "var(--fg)", borderColor: "var(--border)" }}>Admin Overview</h3>
+            <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: "var(--border)" }}>
+              <h3 className="text-[12px] font-bold" style={{ color: "var(--fg)" }}>Admin Overview</h3>
+              <ScopeStrip value={scopeDept} onChange={setScopeDept} />
+            </div>
             {teamTodayStats ? (
               <div className="p-3 space-y-3">
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
